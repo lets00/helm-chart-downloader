@@ -1,0 +1,137 @@
+---
+# Source: chatgpt-retrieval-plugin/templates/web-env-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-chatgpt-retrieval-plugin-web-env
+  labels:
+    helm.sh/chart: chatgpt-retrieval-plugin-0.0.19
+    app.kubernetes.io/version: "0.0.1"
+    app.kubernetes.io/name: my-release-chatgpt-retrieval-plugin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: chatgpt-retrieval-plugin/templates/web-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-chatgpt-retrieval-plugin-config
+  labels:
+    helm.sh/chart: chatgpt-retrieval-plugin-0.0.19
+    app.kubernetes.io/version: "0.0.1"
+    app.kubernetes.io/name: my-release-chatgpt-retrieval-plugin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: chatgpt-retrieval-plugin/templates/web-env-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-chatgpt-retrieval-plugin-web-env
+  labels:
+    helm.sh/chart: chatgpt-retrieval-plugin-0.0.19
+    app.kubernetes.io/version: "0.0.1"
+    app.kubernetes.io/name: my-release-chatgpt-retrieval-plugin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  AWS_SDK_CONFIG_OPT_OUT: "true"
+---
+# Source: chatgpt-retrieval-plugin/templates/web-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-chatgpt-retrieval-plugin-web
+  labels:
+    helm.sh/chart: chatgpt-retrieval-plugin-0.0.19
+    app.kubernetes.io/version: "0.0.1"
+    app.kubernetes.io/name: my-release-chatgpt-retrieval-plugin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: my-release-chatgpt-retrieval-plugin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: web
+---
+# Source: chatgpt-retrieval-plugin/templates/web-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-chatgpt-retrieval-plugin-web
+  labels:
+    helm.sh/chart: chatgpt-retrieval-plugin-0.0.19
+    app.kubernetes.io/version: "0.0.1"
+    app.kubernetes.io/name: my-release-chatgpt-retrieval-plugin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  revisionHistoryLimit: 5
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-chatgpt-retrieval-plugin
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-chatgpt-retrieval-plugin
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: web
+      annotations:
+        checksum/env-cm: 66369939a42e2e01f9fc8f567af4072c909cd9508487392be6222df003a079c2
+        checksum/env-config: 2341e927433f5c1accdd2297ff5ec73f3466ccb37f8b6e0570bb7b57464abc3b
+        checksum/env-secret: b7a9cd37b9ba3b62af908ddd2d2f3be6b2a29e2be7d5371d074554f15acd9128
+    spec:
+      containers:
+      - name: my-release-chatgpt-retrieval-plugin-web
+        image: "ghcr.io/icoretech/chatgpt-retrieval-plugin-docker:postgres-9969191-1685433326"
+        imagePullPolicy: IfNotPresent
+        envFrom:
+          - configMapRef:
+              name: my-release-chatgpt-retrieval-plugin-web-env
+          - secretRef:
+              name: my-release-chatgpt-retrieval-plugin-web-env
+        ports:
+          - name: http
+            containerPort: 8080
+            protocol: TCP
+        volumeMounts:
+          - name: well-known
+            mountPath: /code/.well-known
+        resources:
+            {}
+      terminationGracePeriodSeconds: 30
+      initContainers:
+      - name: copy-override-files
+        image: "ghcr.io/icoretech/chatgpt-retrieval-plugin-docker:postgres-9969191-1685433326"
+        command: ["/bin/sh", "-c"]
+        args:
+          - >
+            cp -Rv /code/.well-known/. /original/.well-known &&
+            cp -Rv /override/.well-known/. /original/.well-known
+        volumeMounts:
+          - name: well-known
+            mountPath: /original/.well-known
+          - name: well-known-override
+            mountPath: /override/.well-known
+      volumes:
+        - name: well-known
+          emptyDir: {}
+        - name: well-known-override
+          configMap:
+            name: my-release-chatgpt-retrieval-plugin-config

@@ -1,0 +1,118 @@
+---
+# Source: whitesource-renovate/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: whitesource-renovate
+  labels:
+    app.kubernetes.io/name: my-release
+    helm.sh/chart: whitesource-renovate-4.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: whitesource-renovate/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-config-js
+  namespace: default
+  labels:
+    app.kubernetes.io/name: my-release
+    helm.sh/chart: whitesource-renovate-4.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.js: "module.exports = {\n  // Enter self-hosted configuration options here.\n  // https://docs.renovatebot.com/self-hosted-configuration/\n}\n"
+---
+# Source: whitesource-renovate/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-whitesource-renovate
+  namespace: default
+  labels:
+    app.kubernetes.io/name: whitesource-renovate
+    helm.sh/chart: whitesource-renovate-4.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: whitesource-renovate
+    app.kubernetes.io/instance: my-release
+---
+# Source: whitesource-renovate/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-whitesource-renovate
+  namespace: default
+  labels:
+    app.kubernetes.io/name: whitesource-renovate
+    helm.sh/chart: whitesource-renovate-4.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: whitesource-renovate
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: whitesource-renovate
+        app.kubernetes.io/instance: my-release
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: whitesource-renovate
+          image: "whitesource/renovate:5.1.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_LEVEL
+              value: "info"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            {}
+          volumeMounts:
+            - name: my-release-config-js-volume
+              mountPath: /usr/src/app/config.js
+              subPath: config.js
+            - name: my-release-cache-volume
+              mountPath: /tmp/renovate
+      volumes:
+        - name: my-release-config-js-volume
+          configMap:
+            name: my-release-config-js
+        - name: my-release-cache-volume
+          emptyDir: {}

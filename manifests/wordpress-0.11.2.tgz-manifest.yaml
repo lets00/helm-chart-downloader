@@ -1,0 +1,198 @@
+---
+# Source: wordpress/templates/secureconfig.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-wordpress
+  labels:
+    helm.sh/chart: wordpress-0.11.2
+    app.kubernetes.io/name: wordpress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.4-apache"
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: wordpress/templates/extendedconfig.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-wordpress-extended
+  labels:
+    helm.sh/chart: wordpress-0.11.2
+    app.kubernetes.io/name: wordpress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.4-apache"
+    app.kubernetes.io/managed-by: Helm
+data:
+  000-default.conf: |
+    <VirtualHost *:8000>
+            ServerAdmin webmaster@localhost
+            DocumentRoot /var/www/html
+
+            ErrorLog ${APACHE_LOG_DIR}/error.log
+            CustomLog ${APACHE_LOG_DIR}/access.log combined
+    </VirtualHost>
+  ports.conf: |
+    Listen 8000
+  custom.ini: |
+    upload_max_filesize = 64M
+    post_max_size = 64M
+    memory_limit = 128M
+---
+# Source: wordpress/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-wordpress
+  labels:
+    helm.sh/chart: wordpress-0.11.2
+    app.kubernetes.io/name: wordpress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.4-apache"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: wordpress
+    app.kubernetes.io/instance: my-release
+---
+# Source: wordpress/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-wordpress
+  labels:
+    helm.sh/chart: wordpress-0.11.2
+    app.kubernetes.io/name: wordpress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.4-apache"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wordpress
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/secureconfig: b8e07e25b6ef115368aca99301ea836feca088fa8f7b7453d4013d5efecbd4cb
+        checksum/extendedconfig: cda27ac46e20947611647f9fbc3acfe49bd2a4fcbe6110b50b26645a302f582a
+      labels:
+        app.kubernetes.io/name: wordpress
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 33
+        runAsNonRoot: true
+        runAsUser: 33
+      containers:
+        - name: wordpress
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+          image: "docker.io/wordpress:6.5.4-apache"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: my-release-wordpress
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /wp-login.php
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost:8000
+                - name: x-forwarded-proto
+                  value: https
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /wp-admin/install.php
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost:8000
+                - name: x-forwarded-proto
+                  value: https
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+            successThreshold: 1
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /wp-login.php
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: localhost:8000
+                - name: x-forwarded-proto
+                  value: https
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+            successThreshold: 1
+            periodSeconds: 10
+          volumeMounts:
+            - mountPath: /var/www/html
+              name: wordpress-vol
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /var/run
+              name: run
+            - mountPath: /etc/apache2/ports.conf
+              subPath: ports.conf
+              name: extended
+            - mountPath: /etc/apache2/000-default.conf
+              subPath: 000-default.conf
+              name: extended
+            - mountPath: /usr/local/etc/php/conf.d/custom.ini
+              subPath: custom.ini
+              name: extended
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+        - name: extended
+          configMap:
+            name: my-release-wordpress-extended
+        - name: wordpress-vol
+          emptyDir: {}
+---
+# Source: wordpress/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-wordpress-test-connection"
+  labels:
+    helm.sh/chart: wordpress-0.11.2
+    app.kubernetes.io/name: wordpress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.4-apache"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-wordpress:80']
+  restartPolicy: Never

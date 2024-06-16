@@ -1,0 +1,279 @@
+---
+# Source: ueransim/templates/gnb-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-ueransim-gnb
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: ueransim
+    helm.sh/chart: ueransim-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: gnb
+data:
+  gnb.yaml: |
+    
+    mcc: 208 # Mobile Country Code value
+    mnc: 93 # Mobile Network Code value (2 or 3 digits)
+    
+    nci: '0x0000000100'  # NR Cell Identity (36-bit)
+    idLength: 32        # NR gNB ID length in bits [22...32]
+    tac: 7             # Tracking Area Code
+    
+    linkIp: ${GNB_ADDR}   # gNB's local IP address for Radio Link Simulation (Usually same with local IP)
+    ngapIp: ${GNB_ADDR}  # gNB's local IP address for N2 Interface (Usually same with local IP)
+    gtpIp: ${GNB_ADDR}   # gNB's local IP address for N3 Interface (Usually same with local IP)
+    
+    # List of AMF address information
+    amfConfigs:
+      - address: ${AMF_ADDR}
+        port: 38412
+    
+    # List of supported S-NSSAIs by this gNB
+    slices:
+      - sst: 1
+        sd: 0xffffff
+    
+    # Indicates whether or not SCTP stream number errors should be ignored.
+    ignoreStreamIds: true
+---
+# Source: ueransim/templates/ue-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-ueransim-ue
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: ueransim
+    helm.sh/chart: ueransim-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: ue
+data:
+  ue.yaml: |
+    # IMSI number of the UE. IMSI = [MCC|MNC|MSISDN] (In total 15 or 16 digits)
+    supi: 'imsi-208930000000001'
+    # Mobile Country Code value
+    mcc: '208'
+    # Mobile Network Code value (2 or 3 digits)
+    mnc: '93'
+    
+    # Permanent subscription key
+    key: '465B5CE8B199B49FAA5F0A2EE238A6BC'
+    # Operator code (OP or OPC) of the UE
+    op: 'E8ED289DEBA952E4283B54E88E6183CA'
+    # This value specifies the OP type and it can be either 'OP' or 'OPC'
+    opType: 'OPC'
+    # Authentication Management Field (AMF) value
+    amf: '8000'
+    # IMEI number of the device. It is used if no SUPI is provided
+    imei: '356938035643803'
+    # IMEISV number of the device. It is used if no SUPI and IMEI is provided
+    imeiSv: '4370816125816151'
+    
+    # List of gNB IP addresses for Radio Link Simulation
+    gnbSearchList:
+      - ${GNB_ADDR}
+    
+      # UAC Access Identities Configuration
+    uacAic:
+      mps: false
+      mcs: false
+    
+    # UAC Access Control Class
+    uacAcc:
+      normalClass: 0
+      class11: false
+      class12: false
+      class13: false
+      class14: false
+      class15: false
+      
+    # Initial PDU sessions to be established
+    sessions:
+      - type: 'IPv4'
+        apn: 'internet'
+        slice:
+          sst: 1
+          sd: 0xffffff
+        emergency: false
+    
+    # Configured NSSAI for this UE by HPLMN
+    configured-nssai:
+      - sst: 1
+        sd: 0xffffff
+    
+    # Default Configured NSSAI for this UE
+    default-nssai:
+      - sst: 1
+        sd: 0xffffff
+    
+    # Supported encryption algorithms by this UE
+    integrity:
+      IA1: true
+      IA2: true
+      IA3: true
+    
+    # Supported integrity algorithms by this UE
+    ciphering:
+      EA1: true
+      EA2: true
+      EA3: true
+    
+    # Integrity protection maximum data rate for user plane
+    integrityMaxRate:
+      uplink: 'full'
+      downlink: 'full'
+---
+# Source: ueransim/templates/gnb-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ueransim-gnb
+  labels:
+    app.kubernetes.io/name: ueransim
+    helm.sh/chart: ueransim-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: gnb
+spec:
+  ports:
+  - name: gnb-ue
+    port: 4997
+    protocol: UDP
+  - name: gnb-upf
+    port: 2152
+    protocol: UDP
+  
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: ueransim
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: gnb
+---
+# Source: ueransim/templates/gnb-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-ueransim-gnb
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: ueransim
+    helm.sh/chart: ueransim-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: gnb
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: ueransim
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: gnb
+  serviceName: my-release-ueransim-gnb
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ueransim
+        helm.sh/chart: ueransim-0.2.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: gnb
+    spec:
+      
+      containers:
+        - name: gnodeb
+          image: docker.io/openverso/ueransim:3.2.6
+          imagePullPolicy: IfNotPresent
+          args:
+            - gnb
+          ports:
+          - name: gnb-ue
+            containerPort: 4997
+            protocol: UDP
+          - name: gnb-upf
+            containerPort: 2152
+            protocol: UDP
+          env:
+            - name: AMF_HOSTNAME
+              value: open5gs-amf
+            - name: GNB_HOSTNAME
+              value: ueransim-gnb
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/ueransim/gnb.yaml
+              subPath: "gnb.yaml"
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-ueransim-gnb
+---
+# Source: ueransim/templates/ue-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-ueransim-ue
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: ueransim
+    helm.sh/chart: ueransim-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: ue
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: ueransim
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: ue
+  serviceName: my-release-ueransim-ue
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ueransim
+        helm.sh/chart: ueransim-0.2.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: ue
+    spec:
+      
+      initContainers:
+      - name: wait-nrf
+        image: busybox:1.28
+        command: ['sh', '-c', 'set -x; sleep 50;']
+      containers:
+        - name: ues
+          image: docker.io/openverso/ueransim:3.2.6
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
+          env:
+            - name: GNB_HOSTNAME
+              value: ueransim-gnb
+          args:
+            - ue
+            - -n
+            - "4"
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/ueransim/ue.yaml
+              subPath: "ue.yaml"
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-ueransim-ue

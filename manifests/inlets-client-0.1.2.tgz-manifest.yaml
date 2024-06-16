@@ -1,0 +1,71 @@
+---
+# Source: inlets-client/templates/common.yaml
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/version: 4.0.0
+    helm.sh/chart: inlets-client-0.1.2
+secrets:
+  - name: my-release-sa-token
+---
+# Source: inlets-client/templates/common.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: my-release-sa-token
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/version: 4.0.0
+    helm.sh/chart: inlets-client-0.1.2
+  annotations:
+    kubernetes.io/service-account.name: my-release
+---
+# Source: inlets-client/templates/common.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/version: 4.0.0
+    helm.sh/chart: inlets-client-0.1.2
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release
+        app.kubernetes.io/instance: my-release
+    spec:
+      
+      serviceAccountName: my-release
+      automountServiceAccountToken: true
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      containers:
+        - name: my-release
+          image: "ghcr.io/cubed-it/inlets:4.0.0"
+          imagePullPolicy: IfNotPresent
+          command:
+            - inlets
+          args:
+            
+            - client

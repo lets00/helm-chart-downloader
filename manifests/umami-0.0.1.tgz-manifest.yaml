@@ -1,0 +1,133 @@
+---
+# Source: umami/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-umami
+  labels:
+    helm.sh/chart: umami-0.0.1
+    app.kubernetes.io/name: umami
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "postgresql-v1.39.5"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: umami/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: umami-secrets
+data:
+
+  # if key is "HASH_SALT"
+  
+  DATABASE_URL: 
+  
+
+  # if key is "HASH_SALT"
+  
+  # there is a default value
+  HASH_SALT: IlgyZHZUbnplUGVTdzdiY203Z2w4dE5pZVFLVHQxbVVFNTFUclNZbzlDRldhbEVQcUVOIg==
+  # else, treat it like normal
+---
+# Source: umami/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-umami
+  labels:
+    helm.sh/chart: umami-0.0.1
+    app.kubernetes.io/name: umami
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "postgresql-v1.39.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: umami
+    app.kubernetes.io/instance: my-release
+---
+# Source: umami/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-umami
+  labels:
+    helm.sh/chart: umami-0.0.1
+    app.kubernetes.io/name: umami
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "postgresql-v1.39.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: umami
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: umami
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-umami
+      securityContext:
+        {}
+      containers:
+        - name: umami
+          securityContext:
+            {}
+          image: "ghcr.io/umami-software/umami:postgresql-v1.39.5"
+          imagePullPolicy: IfNotPresent
+          env:
+            
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: umami-secrets
+                  key: DATABASE_URL
+            - name: HASH_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: umami-secrets
+                  key: HASH_SALT
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 15
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: umami/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-umami-test-connection"
+  labels:
+    helm.sh/chart: umami-0.0.1
+    app.kubernetes.io/name: umami
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "postgresql-v1.39.5"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-umami:3000']
+  restartPolicy: Never

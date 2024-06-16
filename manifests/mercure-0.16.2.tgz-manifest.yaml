@@ -1,0 +1,200 @@
+---
+# Source: mercure/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mercure
+  labels:
+    helm.sh/chart: mercure-0.16.2
+    app.kubernetes.io/name: mercure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.16.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: mercure/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mercure
+  labels:
+    helm.sh/chart: mercure-0.16.2
+    app.kubernetes.io/name: mercure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.16.2"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  transport-url: "Ym9sdDovLy9kYXRhL21lcmN1cmUuZGI="
+  publisher-jwt-key: "OVQ3QWU5RW9PSGVZOWd6blQ0ZnRjMmMzN2xJc1ozanFGVWF1WnZVQw=="
+  subscriber-jwt-key: "NlQxV09YczE3emRHMjVIN21LeFIyWG9aQTlQS2RwbG95NVRjd0diZA=="
+  extra-directives: ""
+  license: ""
+  caddy-extra-config: ""
+  caddy-extra-directives: ""
+---
+# Source: mercure/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mercure
+  labels:
+    helm.sh/chart: mercure-0.16.2
+    app.kubernetes.io/name: mercure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.16.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  global-options:  ""
+  publisher-jwt-alg: "HS256"
+  subscriber-jwt-alg: "HS256"
+---
+# Source: mercure/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mercure
+  labels:
+    helm.sh/chart: mercure-0.16.2
+    app.kubernetes.io/name: mercure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.16.2"
+    app.kubernetes.io/managed-by: Helm
+
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mercure
+    app.kubernetes.io/instance: my-release
+---
+# Source: mercure/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mercure
+  labels:
+    helm.sh/chart: mercure-0.16.2
+    app.kubernetes.io/name: mercure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.16.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mercure
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: b751522f32046bc92dcd8c555af383962eb9ebbc6b3f13879133f4405ed380d8
+        checksum/secret: f87c3b0ec04c531eae76c0ce4f0ffc8b21fcd91f67fe4926e58fceb79e99d418
+      labels:
+        app.kubernetes.io/name: mercure
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-mercure
+      securityContext:
+        {}
+      containers:
+        - name: mercure
+          securityContext:
+            {}
+          image: "dunglas/mercure:v0.16.2"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SERVER_NAME
+              value: :80
+            - name: GLOBAL_OPTIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: my-release-mercure
+                  key: global-options
+            - name: CADDY_EXTRA_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mercure
+                  key: caddy-extra-config
+            - name: CADDY_SERVER_EXTRA_DIRECTIVES
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mercure
+                  key: caddy-extra-directives
+            - name: MERCURE_TRANSPORT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mercure
+                  key: transport-url
+            - name: MERCURE_PUBLISHER_JWT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mercure
+                  key: publisher-jwt-key
+            - name: MERCURE_PUBLISHER_JWT_ALG
+              valueFrom:
+                configMapKeyRef:
+                  name: my-release-mercure
+                  key: publisher-jwt-alg
+            - name: MERCURE_SUBSCRIBER_JWT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mercure
+                  key: subscriber-jwt-key
+            - name: MERCURE_SUBSCRIBER_JWT_ALG
+              valueFrom:
+                configMapKeyRef:
+                  name: my-release-mercure
+                  key: subscriber-jwt-alg
+            - name: MERCURE_EXTRA_DIRECTIVES
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mercure
+                  key: extra-directives
+            - name: MERCURE_LICENSE
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mercure
+                  key: license
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            {}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["curl", "-XPOST", "http://localhost:2019/stop"]
+---
+# Source: mercure/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mercure-test-connection"
+  labels:
+    helm.sh/chart: mercure-0.16.2
+    app.kubernetes.io/name: mercure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.16.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mercure:80/healthz']
+  restartPolicy: Never

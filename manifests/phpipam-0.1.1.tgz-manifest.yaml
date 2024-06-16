@@ -1,0 +1,165 @@
+---
+# Source: phpipam/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-phpipam
+  labels:
+    helm.sh/chart: phpipam-0.1.1
+    app.kubernetes.io/name: phpipam
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.5x"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: phpipam/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-phpipam
+  labels:
+    helm.sh/chart: phpipam-0.1.1
+    app.kubernetes.io/name: phpipam
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.5x"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: phpipam
+    app.kubernetes.io/instance: my-release
+---
+# Source: phpipam/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-phpipam
+  labels:
+    helm.sh/chart: phpipam-0.1.1
+    app.kubernetes.io/name: phpipam
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.5x"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: phpipam
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: phpipam
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-phpipam
+      securityContext:
+        {}
+      containers:
+        - name: phpipam
+          securityContext:
+            allowPrivilegeEscalation: true
+          image: "phpipam/phpipam-www:latest"
+          imagePullPolicy: IfNotPresent
+          env:
+            
+            - name: IPAM_DEBUG
+              value: "true"
+            - name: IPAM_DATABASE_HOST
+              value: "localhost"
+            - name: IPAM_DATABASE_USER
+              value: "user"
+            - name: IPAM_DATABASE_PASS
+              value: "pass"
+            - name: IPAM_DATABASE_NAME
+              value: "phpipam"
+            - name: IPAM_DATABASE_PORT
+              value: "3306"
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: phpipam/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-phpipam-cron
+  labels:
+    helm.sh/chart: phpipam-0.1.1
+    app.kubernetes.io/name: phpipam
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.5x"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1 # maximum 1 is allowed
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: phpipam-cron
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: phpipam-cron
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-phpipam
+      securityContext:
+        {}
+      containers:
+        - name: phpipam
+          securityContext:
+            allowPrivilegeEscalation: true
+          image: "phpipam/phpipam-cron:latest"
+          imagePullPolicy: IfNotPresent
+          env:
+            
+            - name: SCAN_INTERVAL
+              value: 1h
+            - name: IPAM_DATABASE_HOST
+              value: "localhost"
+            - name: IPAM_DATABASE_USER
+              value: "user"
+            - name: IPAM_DATABASE_PASS
+              value: "pass"
+            - name: IPAM_DATABASE_NAME
+              value: "phpipam"
+            - name: IPAM_DATABASE_PORT
+              value: "3306"
+          resources:
+            {}
+---
+# Source: phpipam/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-phpipam-test-connection"
+  labels:
+    helm.sh/chart: phpipam-0.1.1
+    app.kubernetes.io/name: phpipam
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.5x"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-phpipam:80']
+  restartPolicy: Never

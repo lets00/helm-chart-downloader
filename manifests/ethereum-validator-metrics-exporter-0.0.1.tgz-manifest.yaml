@@ -1,0 +1,130 @@
+---
+# Source: ethereum-validator-metrics-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-ethereum-validator-metrics-exporter-env
+  labels:
+    helm.sh/chart: ethereum-validator-metrics-exporter-0.0.1
+    app.kubernetes.io/name: ethereum-validator-metrics-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: ethereum-validator-metrics-exporter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-ethereum-validator-metrics-exporter
+  labels:
+    helm.sh/chart: ethereum-validator-metrics-exporter-0.0.1
+    app.kubernetes.io/name: ethereum-validator-metrics-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |-
+    
+    global:
+      logging: info
+      metricsAddr: :9090
+      namespace: eth_validator
+---
+# Source: ethereum-validator-metrics-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ethereum-validator-metrics-exporter
+  labels:
+    helm.sh/chart: ethereum-validator-metrics-exporter-0.0.1
+    app.kubernetes.io/name: ethereum-validator-metrics-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: ethereum-validator-metrics-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: ethereum-validator-metrics-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-ethereum-validator-metrics-exporter
+  labels:
+    helm.sh/chart: ethereum-validator-metrics-exporter-0.0.1
+    app.kubernetes.io/name: ethereum-validator-metrics-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ethereum-validator-metrics-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ethereum-validator-metrics-exporter
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 8b69056a5f105b74c01b48ee6c8d84fb544f54632ea70cd3618d4bb3f186e28a
+        checksum/secrets: c9c4dd7a802b51cfa202705c61638347eb07edebfc362e5a37a80f56eb6224c8
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+      - name: ethereum-validator-metrics-exporter
+        image: "ethpandaops/ethereum-validator-metrics-exporter:latest"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/ethereum-validator-metrics-exporter"
+          - --config=/config.yaml
+        securityContext:
+            {}
+        volumeMounts:
+          - name: config
+            mountPath: "/config.yaml"
+            subPath: config.yaml
+            readOnly: true
+        ports:
+          - name: http
+            containerPort: 9090
+            protocol: TCP
+        livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http
+        readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http
+        resources:
+            {}
+        env:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-ethereum-validator-metrics-exporter

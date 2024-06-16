@@ -1,0 +1,133 @@
+---
+# Source: temporal/templates/secrets/temporal.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: temporal
+  labels:
+    app.kubernetes.io/name: temporal
+    helm.sh/chart: temporal-0.16.2
+    app.kubernetes.io/managed-by: Helm
+    temporal: temporal
+    app.kubernetes.io/instance: my-release
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: ""
+---
+# Source: temporal/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: temporal
+  labels:
+    app.kubernetes.io/name: temporal
+    helm.sh/chart: temporal-0.16.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # TODO: narrow api groups
+  - apiGroups:
+      - '*'
+    resources:
+      - '*'
+    verbs:
+      - '*'
+---
+# Source: temporal/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: temporal
+  labels:
+    app.kubernetes.io/name: temporal
+    helm.sh/chart: temporal-0.16.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: temporal
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+---
+# Source: temporal/templates/operator.yaml
+apiVersion: easyolm.rock8s.com/v1alpha1
+kind: ManualSubscription
+metadata:
+  name: temporal
+  labels:
+    app.kubernetes.io/name: temporal
+    helm.sh/chart: temporal-0.16.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  channel: alpha
+  name: temporal-operator
+  source: operatorhubio-catalog
+  sourceNamespace: olm
+  startingCSV: temporal-operator.v0.16.2
+---
+# Source: temporal/templates/temporal.yaml
+apiVersion: temporal.io/v1beta1
+kind: TemporalCluster
+metadata:
+  name: temporal
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: temporal
+    helm.sh/chart: temporal-0.16.2
+spec:
+  jobTtlSecondsAfterFinished: 300
+  numHistoryShards: 1
+  image: "temporalio/server"
+  admintools:
+    enabled: true
+    image: "temporalio/admin-tools"
+  persistence:
+    defaultStore:
+      passwordSecretRef:
+        key: POSTGRES_PASSWORD
+        name: temporal
+      sql:
+        connectAddr: 'postgres:5432'
+        connectProtocol: tcp
+        databaseName: 'temporal'
+        pluginName: postgres
+        user: 'postgres'
+    visibilityStore:
+      passwordSecretRef:
+        key: POSTGRES_PASSWORD
+        name: temporal
+      sql:
+        connectAddr: 'postgres:5432'
+        connectProtocol: tcp
+        databaseName: 'temporal_visibility'
+        pluginName: postgres
+        user: 'postgres'
+  ui:
+    enabled: true
+    image: "temporalio/ui"
+    ingress:
+    replicas:
+    resources:
+    service:
+  version: "1.20.0"
+---
+# Source: temporal/templates/temporal.yaml
+apiVersion: temporal.io/v1beta1
+kind: TemporalNamespace
+metadata:
+  name: default
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: temporal
+    helm.sh/chart: temporal-0.16.2
+spec:
+  clusterRef:
+    name: temporal
+  description: default namespace
+  retentionPeriod: 168h

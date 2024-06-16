@@ -1,0 +1,404 @@
+---
+# Source: app/templates/db.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: db-credentials
+  namespace: default
+data:
+  POSTGRES_DB: "dHJlZW5pdHk="
+  DB_DATABASE: "dHJlZW5pdHk="
+  POSTGRES_USER: "dHJlZW5pdHk="
+  DB_USERNAME: "dHJlZW5pdHk="
+  POSTGRES_PASSWORD: "MTIzNDU2"
+  DB_PASSWORD: "MTIzNDU2"
+  DB_HOST: "cG9zdGdyZXM="
+  DB_PORT: "NTQzMg=="
+---
+# Source: app/templates/mongodb.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: mongo-cred
+  namespace: default
+data:
+  MONGO_INITDB_DATABASE: "dHJlZW5pdHk="
+---
+# Source: app/templates/pull.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: pull-secret
+  namespace: default
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson:
+---
+# Source: app/templates/s3.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: s3-credentials
+  namespace: default
+data:
+  AWS_BUCKET_NAME: ""
+  AWS_REGION: ""
+  AWS_DEFAULT_REGION: ""
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+---
+# Source: app/templates/gateway.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginxconfigmap
+  namespace: default
+data:
+  default.conf: |
+    server {
+      listen 80 default_server;
+      listen [::]:80 default_server ipv6only=on;
+
+      location / {
+        auth_request /auth;
+
+        proxy_pass http://backend:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      location = /auth {
+        internal;
+
+        if ($request_uri ~ ^/api(/.*)$) {
+            set $api_path $1;
+        }
+
+        proxy_method POST;
+        proxy_pass http://backend:3000/api/sys/access-control?path=$api_path;
+        proxy_set_header  X-Service-Method "check";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }
+---
+# Source: app/templates/mongodb.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-init
+  namespace: default
+data:
+  mongo-init.js: |
+    db.createUser({
+      user: "treenity",
+      pwd: "123456",
+      roles: [
+        {
+          role: "readWrite",
+          db: "treenity"
+        }
+      ]
+    });
+---
+# Source: app/templates/mongodb.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo-claim0
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+# Source: app/templates/postgresql.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: postgres-pv-claim
+  namespace: default
+  labels:
+    app: treenity
+    tier: Postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+# Source: app/templates/gateway.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: treenity
+    tier: Nginx
+---
+# Source: app/templates/mongodb.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: default
+spec:
+  selector:
+    app: treenity
+    tier: MongoDB
+  type: NodePort
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+---
+# Source: app/templates/nats.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  type: NodePort
+  selector:
+    app: treenity
+    tier: Nats
+  ports:
+    - port: 4222
+      name: port4222
+      targetPort: 4222
+    - port: 6222
+      name: port6222
+      targetPort: 6222
+    - port: 8222
+      name: port8222
+      targetPort: 8222
+---
+# Source: app/templates/postgresql.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  type: NodePort
+  selector:
+    app: treenity
+    tier: Postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Source: app/templates/redis.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  type: NodePort
+  selector:
+    app: treenity
+    tier: Redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+# Source: app/templates/gateway.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  selector:
+    matchLabels:
+      app: treenity
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: treenity
+        tier: Nginx
+    spec:
+      volumes:
+        - name: configmap-volume
+          configMap:
+            name: nginxconfigmap
+      containers:
+        - name: nginxhttps
+          image: nginx:1-alpine-perl
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /etc/nginx/conf.d
+              name: configmap-volume
+---
+# Source: app/templates/mongodb.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  selector:
+    matchLabels:
+      app: treenity
+  template:
+    metadata:
+      labels:
+        app: treenity
+        tier: MongoDB
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          envFrom:
+            - secretRef:
+                name: mongo-cred
+          volumeMounts:
+            - name: config
+              mountPath: /docker-entrypoint-initdb.d
+            - mountPath: /data
+              name: mongo-claim0
+      volumes:
+        - name: config
+          configMap:
+            name: mongo-init
+        - name: mongo-claim0
+          persistentVolumeClaim:
+            claimName: mongo-claim0
+      restartPolicy: Always
+---
+# Source: app/templates/nats.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  selector:
+    matchLabels:
+      app: treenity
+  template:
+    metadata:
+      labels:
+        app: treenity
+        tier: Nats
+    spec:
+      containers:
+        - name: nats
+          image: nats:2.10-alpine3.19
+          ports:
+            - containerPort: 4222
+            - containerPort: 8222
+            - containerPort: 6222
+          livenessProbe:
+            periodSeconds: 5
+            tcpSocket:
+              port: 4222
+          resources:
+             limits:
+               cpu: "1"
+               memory: 512Mi
+             requests:
+               cpu: 100m
+               memory: 256Mi
+---
+# Source: app/templates/postgresql.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  selector:
+    matchLabels:
+      app: treenity
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: treenity
+        tier: Postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          args: ["-c", "max_connections=200"]
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/pg/data
+          envFrom:
+            - secretRef:
+                name: db-credentials
+          volumeMounts:
+            - mountPath: /var/lib/pg
+              name: postgredb
+      volumes:
+        - name: postgredb
+          persistentVolumeClaim:
+            claimName: postgres-pv-claim
+---
+# Source: app/templates/redis.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: default
+  labels:
+    app: treenity
+spec:
+  selector:
+    matchLabels:
+      app: treenity
+  template:
+    metadata:
+      labels:
+        app: treenity
+        tier: Redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:alpine
+          livenessProbe:
+            periodSeconds: 5
+            tcpSocket:
+              port: 6379

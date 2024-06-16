@@ -1,0 +1,4553 @@
+---
+# Source: okteto/charts/ingress-nginx/templates/controller-poddisruptionbudget.yaml
+# PDB is not supported for DaemonSets.
+# https://github.com/kubernetes/kubernetes/issues/108124
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx-controller
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: controller
+  minAvailable: 1
+---
+# Source: okteto/charts/okteto-nginx/templates/controller-poddisruptionbudget.yaml
+# PDB is not supported for DaemonSets.
+# https://github.com/kubernetes/kubernetes/issues/108124
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-okteto-nginx-controller
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: okteto-nginx
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: controller
+  minAvailable: 1
+---
+# Source: okteto/charts/ingress-nginx/templates/controller-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx
+  namespace: default
+automountServiceAccountToken: true
+---
+# Source: okteto/charts/okteto-nginx/templates/controller-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-okteto-nginx
+  namespace: default
+automountServiceAccountToken: true
+---
+# Source: okteto/charts/reloader/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "my-release"
+  labels:
+    app: my-release-reloader
+    chart: "reloader-1.0.95"
+    release: "my-release"
+    heritage: "Helm"
+    app.kubernetes.io/managed-by: "Helm"
+  name: reloader
+  namespace: default
+---
+# Source: okteto/templates/buildkit-service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "okteto-buildkit"
+  labels:
+    app.kubernetes.io/component: "buildkit"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-buildkit"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: okteto/templates/okteto-bot-service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: okteto-bot
+  labels:
+    app: my-release-okteto
+    chart: "okteto-1.21.1"
+    release: "my-release"
+    heritage: "Helm"
+    dev.okteto.com: "true"
+    dev.okteto.com/id: "okteto-bot"
+    dev.okteto.com/external-id: "okteto-bot"
+    app.kubernetes.io/managed-by: Helm
+    dev.okteto.com/super: "true"
+    dev.okteto.com/token: "bg9nsvd4"
+  annotations:
+    meta.helm.sh/release-name: my-release
+    meta.helm.sh/release-namespace: default
+---
+# Source: okteto/templates/registry-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "my-release-okteto-registry"
+  labels:
+    app.kubernetes.io/component: "registry"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-registry"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: okteto/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-okteto
+  labels:
+    app: my-release-okteto
+    chart: "okteto-1.21.1"
+    release: "my-release"
+    heritage: "Helm"
+---
+# Source: okteto/templates/super-service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: okteto-admin
+  labels:
+    app: my-release-okteto
+    chart: "okteto-1.21.1"
+    release: "my-release"
+    heritage: "Helm"
+    dev.okteto.com: "true"
+    dev.okteto.com/token: "s3vzejkm"
+    dev.okteto.com/id: "okteto-admin"
+    dev.okteto.com/external-id: "okteto-admin"
+    app.kubernetes.io/managed-by: Helm
+    dev.okteto.com/super: "true"
+  annotations:
+    "helm.sh/resource-policy": keep
+    meta.helm.sh/release-name: my-release
+    meta.helm.sh/release-namespace: default
+    dev.okteto.com/email: "welcome@okteto.com"
+---
+# Source: okteto/templates/regcreds-webhook.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: "my-release-okteto-regcreds"
+  namespace: "default"
+  labels:
+    app.kubernetes.io/component: "regcreds"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-regcreds"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+
+stringData: 
+  ca.crt: |- 
+    -----BEGIN CERTIFICATE-----
+    MIIDOzCCAiOgAwIBAgIQH0Puk5xooIiremkCCRPiWDANBgkqhkiG9w0BAQsFADAo
+    MSYwJAYDVQQDEx1teS1yZWxlYXNlLW9rdGV0by1yZWdjcmVkcy1jYTAeFw0yNDA2
+    MTUyMzM3NTJaFw0zNDA2MTMyMzM3NTJaMCgxJjAkBgNVBAMTHW15LXJlbGVhc2Ut
+    b2t0ZXRvLXJlZ2NyZWRzLWNhMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
+    AQEApMutW4gDWE3Kw2IRYKZOJUpKMXKEUdZST6pGRM+nKXCINa+Wf9inQzEbcebb
+    FvtPJePUuJGi/B7AGI524SHvQh6N+mf+Wd1jwSMa+qtfo4l+d+Xj6RLzUm8odMUH
+    1UxMCuddwbxE+Lx61N+Yb/zhWT2bmFDY8v1+ly1fAjWpJx0SpLVMxFirjOd39z8H
+    SwwUbfpXWEu2eufT3WoCbJd7Ay+z1crQideBJBQj+Hs2UhDG/Hpdyv2hsDQ0mVva
+    Pgyl7wMSdtXUVztulVLuP6wJd6+FJMYXix00oBAEGMHkl+/gGJ8FLqPRlKwLfWGP
+    k10Vm5FYm2tD4H5V9BXJ2gs9BwIDAQABo2EwXzAOBgNVHQ8BAf8EBAMCAqQwHQYD
+    VR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMA8GA1UdEwEB/wQFMAMBAf8wHQYD
+    VR0OBBYEFLw+AmS45U6OIDqGu9lDBsZBdK0kMA0GCSqGSIb3DQEBCwUAA4IBAQAV
+    ckg42F4BQJZnZaqNPKTRpOLJxjqamjeW+r7y8ecEvINJPt/tsqlNCQbG1uLAZksn
+    /urWykyEJ3xuIl5TpiWPHIHD1YVs3l1rzT7NR4JpakfGxWsG/sNI1ZYv19L7Eyn6
+    790wd+VrxL+7ebkLTX4WlkONtcrrCAqd9o7GtmXDMuy0gcZ9FQOv7hKYn+Oj9oTi
+    /C6sq/iwUF0IGrXiCwyyl/uTveG06hyKrSSbQ8xhQN0cHlyUf07jXec6LgrhMiHX
+    OkNa5kR3sWWrad2l5j7R84DSqumOHMTdbBLhsyuMMQ748IqroJrpMOUJE7ktsbrN
+    EzdCMx7FBEsfKCQGI1V6
+    -----END CERTIFICATE-----
+    
+  tls.crt: |- 
+    -----BEGIN CERTIFICATE-----
+    MIIDrDCCApSgAwIBAgIQOELGcdZU8aCDsfVaDmJsyTANBgkqhkiG9w0BAQsFADAo
+    MSYwJAYDVQQDEx1teS1yZWxlYXNlLW9rdGV0by1yZWdjcmVkcy1jYTAeFw0yNDA2
+    MTUyMzM3NTJaFw0zNDA2MTMyMzM3NTJaMCUxIzAhBgNVBAMTGm15LXJlbGVhc2Ut
+    b2t0ZXRvLXJlZ2NyZWRzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA
+    xKpngMmC12Fa1Cu/UzzPPIYu5bAot/mljLGmymA5EuRvPJnAApeNMTxFxygiQ3JB
+    USjhkPNZ5qaBzftcaxF9a8BrbHXxaCfPCFlvArexIGOs4FDY3ezSlmi1rMR5eUoA
+    zr7/rriztnvwUOHp0Nhyvh6bqBb7gRvyBnW+iK6trHXoAW45xajJFkM69Of5DnDg
+    n3wrcAKVyMjOXLwy7IG/1yZvaDjcVChOltVo9hySD+g9gXsD2dWF7VsTVHBZFh3G
+    dz69p/uGKLVl7Z3C14yhPK+O1ntPsBy1XwAgFAk/qGbc18Al95Jd1csLtCky01kf
+    LbVUQYoLN2Up4kPiJrIApwIDAQABo4HUMIHRMA4GA1UdDwEB/wQEAwIFoDAdBgNV
+    HSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADAfBgNVHSME
+    GDAWgBS8PgJkuOVOjiA6hrvZQwbGQXStJDBxBgNVHREEajBoghpteS1yZWxlYXNl
+    LW9rdGV0by1yZWdjcmVkc4IibXktcmVsZWFzZS1va3RldG8tcmVnY3JlZHMuZGVm
+    YXVsdIImbXktcmVsZWFzZS1va3RldG8tcmVnY3JlZHMuZGVmYXVsdC5zdmMwDQYJ
+    KoZIhvcNAQELBQADggEBAE8Zp5m0/U4AfIWtPd40GFiZ3JJ7tQciHCIkaqxcwv4q
+    w/a9HD9rVi6e5ofTRnsMO1kFG+S+nRR5EnHts4OEy7KupSIN9gQ12NUIuQob4OLf
+    5WA0bHlPobcqpqQvsQQ1sf1gSYSj4U76gGnI3CoXA31qmMWAdNnYYq8EjiUQs0mi
+    On+GEs/FOZNE1EbcpQb1gLnwdSnnXXt/tsi9/tsSPJAAmbUL6PtPR4zR6meqXyHR
+    zM/FVx4mBeZzH9lunmFndj7UKYKwfeRfPoJ9Ghskyt+fngbGWq4i0gcsR0zqfGRK
+    rv7Yd2lZv9S5/fH+ZHVU/f/5yh395c9SYIGad0pVwlc=
+    -----END CERTIFICATE-----
+    
+  tls.key: |- 
+    -----BEGIN RSA PRIVATE KEY-----
+    MIIEpAIBAAKCAQEAxKpngMmC12Fa1Cu/UzzPPIYu5bAot/mljLGmymA5EuRvPJnA
+    ApeNMTxFxygiQ3JBUSjhkPNZ5qaBzftcaxF9a8BrbHXxaCfPCFlvArexIGOs4FDY
+    3ezSlmi1rMR5eUoAzr7/rriztnvwUOHp0Nhyvh6bqBb7gRvyBnW+iK6trHXoAW45
+    xajJFkM69Of5DnDgn3wrcAKVyMjOXLwy7IG/1yZvaDjcVChOltVo9hySD+g9gXsD
+    2dWF7VsTVHBZFh3Gdz69p/uGKLVl7Z3C14yhPK+O1ntPsBy1XwAgFAk/qGbc18Al
+    95Jd1csLtCky01kfLbVUQYoLN2Up4kPiJrIApwIDAQABAoIBACtE3p7cNxhSCBzU
+    PzT+FQ5Y62qHln3bxEuvLmYqQ4RflAW+QhuP4nWpsCSANQGn2q0TlIVCtU3k5nw+
+    SHgaEgEqBbiIPoPO9mL84kqzxZm9tGRqBTzWhQKoqQgI9jz0Rjc2mKSFaKzGmfoB
+    qmLTrHMd4ttZqx4d2uMG9tO1supVZzmrbv2yoeD3+W41k2Tx0Y7MGeswckqAdyee
+    gSd2bNPqovNv7AuUrdFKX4fNRXj7+LnP8XBTVRzbVjSnKCTOvjY+okn+3GtBCOzr
+    X6MzufJ/IExPa/eq/Dllv+YE0DTSzBdQbO+0LHl+2u1FmhfVY050uq+G0AM44/EZ
+    Xtc0h5kCgYEAx3UiIv8yAIlil282vi+VyVHvjb1tesPoz37lXaxdtrZ/myqHhEL0
+    9ZjbQDMMjqNqYvjpve+L1I9Cb8oSfRlkAcdQBG90uwwjAIpYWMJlbvq59JPJ2qbk
+    76gecXqbZU/yVIo/b30pfjT2s7vYP90VyU8Ag4P3cVBUBhk4O/IUCSsCgYEA/Gqo
+    pf9NZ9BdSPQ7FPAghPXre4h2b2yVHSLfyQS05/BH0/AXOkjCQ1mfK92pfrAOifxe
+    AwefQtNbExLR9Wl9ptem2CxYKcINV3ynkXywpdovE7phWDgXFqZRNakqIkHRfuih
+    kliDwB7BVsc3TiiI6YkhNASwEFddbWUi330VcHUCgYBUz7bLQM4nMkPs9opFhoBf
+    kWqWT5Ts3b7x9Bhdo3xZw/IwrX3gPIRipjOccdiGEnCbUxI5BFHl+WCbnkYMUa6X
+    nwOkTyxImNmNUkZMv6RX817845ayVcMFMOx4/lRzWPJHBl4A7yykkKrSNC64wS6R
+    Yflq8sNVuH1x9mlV/BKO7wKBgQCEBqnVwZbUMRlJ+m0Yw4zO3u5fu/3uxAWuqroQ
+    o8SX+IcpZNBRbRMnNS5bPGLWX/IK3JSz0v3Lb0+Yx2RIj/foF64uLeujU9u0of/n
+    yid/aILtN7SI9zWkZDPf9G6UYobYcYdpS6EGEVAhOqxD1lHejRpv4e/RbFDy0k6O
+    RRe8rQKBgQC42ps7mJH8zGO3qB+yZZa5kmlRvKrtMtkjwwKR27g8kmWY/XWt/2uv
+    iwjM9O3nUWii6sS8IJ04KGTyobyX26l2g+azPhXUDzpWuvisX2SEgCZWg3FnUzwB
+    /bKmcuxMG2vZ1F2Q2xLxQRUOdeA/abh5gquuGytJN2gCAmyO5xziHg==
+    -----END RSA PRIVATE KEY-----
+---
+# Source: okteto/templates/registry-http-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-okteto-registry-http-secret
+  labels:
+    app.kubernetes.io/component: "registry"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-registry-http-secret"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+
+type: Opaque
+data:
+  haShared: "b2t0ZXRv"
+---
+# Source: okteto/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-okteto
+  labels:
+    app.kubernetes.io/name: "my-release-okteto"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: "api"
+    app.kubernetes.io/part-of: "okteto"
+type: Opaque
+data:
+  "OKTETO_LICENSE": ""
+  "OKTETO_COOKIE_SECRET": ""
+---
+# Source: okteto/templates/webhook.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: my-release-okteto-mutation-webhook
+  namespace: "default"
+  labels:
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/component: "webhook"
+    app.kubernetes.io/name: "my-release-okteto-mutation-webhook"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+
+stringData: 
+  ca.crt: |- 
+    -----BEGIN CERTIFICATE-----
+    MIIDJTCCAg2gAwIBAgIQaJ9ClMLtPTL2h32wWmaELDANBgkqhkiG9w0BAQsFADAd
+    MRswGQYDVQQDExJva3RldG8taW50ZXJuYWwtY2EwHhcNMjQwNjE1MjMzNzUwWhcN
+    MzQwNjEzMjMzNzUwWjAdMRswGQYDVQQDExJva3RldG8taW50ZXJuYWwtY2EwggEi
+    MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDpQ9ie/PW5qG3HuxyuO45Jcpe/
+    EO5uMQzoKPnTrlY2FGtkHHXfin41CfjaDADczkpeHwXlMsVnkpe07Vh4VhQOkcyg
+    IolpyM9jUbE+/OQx1omxC0AZut9yKS7+oc1ZHQz1kesaaC9IAqPunVb/ic3zTtNY
+    Tzvr5j0+cZKTn8SYdRfAcz2je8t2TPreDO7ZgfRrjRV4trPcLL7GzgmsYVhxGgB2
+    ZZ98DxLtP7Oi1wiCe56i+YPUaQ1HTfSsHAdHVSTA5K3p5YM3hUUjN3D5MJxNyHRw
+    u62jks30Pv82a06l9Q/pRzHjfpo3DVh1m5WEm1z1VPawkd5MVKTezpGAnyIXAgMB
+    AAGjYTBfMA4GA1UdDwEB/wQEAwICpDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYB
+    BQUHAwIwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUenQcxz3V81pyfIxJYma0
+    DjzjbrAwDQYJKoZIhvcNAQELBQADggEBADKCh0KNeDr/ZtI73eDqvihLMEXhsuZI
+    mK62cABp6iwI1FzL0Fw0T/YYqX7IbwOQLLxaX2sGsW+wc1RW2RXPBdcGWQTgaBz3
+    ooArY7ctMEcpGgZOPQwHx2QEu5TivPYI5vD+Dr0nZXWfgoD3h8x8ZyNCEklJ1/XP
+    iYOVKfiJq941H7noA2o4wvpEINOtkjc5ZnKbq9C2I4spH0CIm1fM1wtrhNGS+3LI
+    Zg0+oHis09C1X147OMLGw7TsJQ7hu0ujDuf+wg3/GjsmikVseaz0sgZ+VVfKJOOY
+    Ziw34Xu1G1D1fZFf5FvfhfnUJrxMy0k3aii6UawB2qywdLgd2visCm8=
+    -----END CERTIFICATE-----
+    
+  tls.crt: |- 
+    -----BEGIN CERTIFICATE-----
+    MIIDwzCCAqugAwIBAgIPRL9VWNYl4/X+ZCy4v7tMMA0GCSqGSIb3DQEBCwUAMB0x
+    GzAZBgNVBAMTEm9rdGV0by1pbnRlcm5hbC1jYTAeFw0yNDA2MTUyMzM3NTFaFw0z
+    NDA2MTMyMzM3NTFaMC0xKzApBgNVBAMTIm15LXJlbGVhc2Utb2t0ZXRvLW11dGF0
+    aW9uLXdlYmhvb2swggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCph5nr
+    pMhnqZMFw9A9hLeSOHPKOc7VFt+QtmCE5jj9sKOaRsZemb7G5zG/Ry5KYkZQXOEQ
+    Sp/EnjfRMlmCOwEW8eTmTHjGUAnp2meediaDMV6sz6f/zsOUeXl53C8LhUcvRrnM
+    QZsjNudC8K2vENQ3njcXMn7aNNU1aJrK/qmZPUCD3/7j3gcyHl/nItjaT8Ej1oHb
+    v2gtzS9Ga/uMWHTPgfwK0+DRjm2p8RxTfefQUoXchqkkt56+7q1J6ozDUlVS1KDU
+    urlalhieSDZgG9rY4gOUaH/41E91AnGgch+T+tNV39CIAY03F7co4EenSxmG72kQ
+    l8yPeo3mXJR0C0ElAgMBAAGjge8wgewwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQW
+    MBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaA
+    FHp0HMc91fNacnyMSWJmtA48426wMIGLBgNVHREEgYMwgYCCIm15LXJlbGVhc2Ut
+    b2t0ZXRvLW11dGF0aW9uLXdlYmhvb2uCKm15LXJlbGVhc2Utb2t0ZXRvLW11dGF0
+    aW9uLXdlYmhvb2suZGVmYXVsdIIubXktcmVsZWFzZS1va3RldG8tbXV0YXRpb24t
+    d2ViaG9vay5kZWZhdWx0LnN2YzANBgkqhkiG9w0BAQsFAAOCAQEAiaZAjr8YJskv
+    N7Zi/f5jZx0jxaSsH4Igc/NlzugANJx3dSGOJaimt0K8wjVQBE7g4FnEnZAgaG5M
+    KbU2JgCiqwWrAloODrZBO2dPvrwxrDBY7LBdPmYteLusPcEPyICW9l5EMRPsUEnq
+    7pSD46s9RVezwIMVeoeoqi1lToPFJJuolvGXJt5qbIAzICZwwhJ0q135u0xCDX9K
+    r8GRBfsb9dhLMOI0ocOjFNP/ILLzl1TWKIHpuCLdqXIUnJQeCFHvQ4oDGYutvNyw
+    C4cwh1xgRAZfFPXaD0d9QBD9qzUT+N7I4dyC8aC2y93RzTyhVP8GVSQ+ZxqJ0zPY
+    q+wWdqrN8g==
+    -----END CERTIFICATE-----
+    
+  tls.key: |- 
+    -----BEGIN RSA PRIVATE KEY-----
+    MIIEowIBAAKCAQEAqYeZ66TIZ6mTBcPQPYS3kjhzyjnO1RbfkLZghOY4/bCjmkbG
+    Xpm+xucxv0cuSmJGUFzhEEqfxJ430TJZgjsBFvHk5kx4xlAJ6dpnnnYmgzFerM+n
+    /87DlHl5edwvC4VHL0a5zEGbIzbnQvCtrxDUN543FzJ+2jTVNWiayv6pmT1Ag9/+
+    494HMh5f5yLY2k/BI9aB279oLc0vRmv7jFh0z4H8CtPg0Y5tqfEcU33n0FKF3Iap
+    JLeevu6tSeqMw1JVUtSg1Lq5WpYYnkg2YBva2OIDlGh/+NRPdQJxoHIfk/rTVd/Q
+    iAGNNxe3KOBHp0sZhu9pEJfMj3qN5lyUdAtBJQIDAQABAoIBAGbnlcnQ84jhCQp1
+    yuCcv+U0+SwmnOMCCGDKI5poOO3dG+HY1i60OnZ3/d1ysqmaL742MrN16LcrpwwH
+    +QcxE78+w8f7YVBXYz0dQsqQQ15dSG+zePGxK0zj05Xhzni6xPPwhXVz2VytxgD/
+    IR5kI71C/4PINfH0IftSbKuNm5sU8ziW0PvjmaGWGMO0SoZicjP6GeEmjOaai+iq
+    9QdaUKsEw4zldHj6p5ZfJ3buJE3lrYqmI3EGPEY9Bp8IkTNq+AhSf2q85Epz287U
+    Tf3X/Lf6zRuzE7aHeNYO7qMpJpKOSe+iUsSPNDZDDUuM3n7csWGpUcUbgOof5Tzp
+    jYD9X0ECgYEAzjL3Gp5UYRZS1k/9lLrEHKBuJNE91+q9ESPkrSxw7g0smntFDaoQ
+    tWu+wjBSkwUewalZqru8qTuIoX0/DaZC5AKnAExq12lGQuqgDUUJTfdBerXlbn8Y
+    niw9a8uGuzfdMv78I8G+sqn+zyxlRVfLdi1DKbuWPYsw/UtatcQ+IpUCgYEA0nlp
+    sG5pGJpgusn/FZriIoMv2aNuIp4S1iYjurQORDDgCziwTGxmFFZgIiZ6wNxBdS+e
+    f3LFN2t9YzjEinwTUFFg0i9p61rrZFjf05SfDBFId8lvdsF40lhWgzIl6MkzQ80f
+    Sc7JuzIZ9T7R/MI34JKjstkh7YBQmKNNvRQVEFECgYBGgJaMu2YObBuWu3Lwz4sO
+    XqxKWmDS2qganDMsIu3Z9xcxGsTZjzR3U4e9zdft/OovPUAzaE1xb7GfxbsxZ4+n
+    dmCzcW12icBEUQS4hMpRpiD1XAw+Y6Z/LpExsj029jrjnNuJPk19uTIuk/dsZkBi
+    /8bfFgygrl7pvEIftCGqoQKBgQC5yyuc7xoe+cgBm2Ztr/eG9785o6cJL/j4yVoo
+    6eDeGTbtMPGPxPCna0gZXVZnAQdXZt3HK40kSuK4v9ffV3/FGtEZOXmKpQu93SZY
+    I43ynR8Xft3COy9on0pfLdmBEHsMkvnXsY8qjCOV9gpv0RJ6T3fp3PqyKN78nst0
+    6VFewQKBgGnq3TDDA0V79s9VBgd36HUL3BM0TnURMvQpNtbNwDwOB/TytnQ7KRly
+    TfHnYHRP+j0VSTBufu3I2LmFM8CidnrKlxbHVqn/RhWNs76DGAecx4zXbBCSqpmC
+    ohiWYodrV1CylH0DdbgPEgy+qsjb1H9l/4iaJ4/Y/QheDLwAmoz3
+    -----END RSA PRIVATE KEY-----
+---
+# Source: okteto/templates/wildcard-certificate.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: default-ssl-certificate-selfsigned
+  namespace: "default"
+  labels:
+    app.kubernetes.io/part-of: "okteto"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    dev.okteto.com/fqdns: "[\"localtest.me\"]"
+
+stringData: 
+  ca.crt: |- 
+    -----BEGIN CERTIFICATE-----
+    MIIDJjCCAg6gAwIBAgIRAOKaDUXZm/xpSHHnxag1l84wDQYJKoZIhvcNAQELBQAw
+    HTEbMBkGA1UEAxMSb2t0ZXRvLXdpbGRjYXJkLWNhMB4XDTI0MDYxNTIzMzc0OVoX
+    DTM0MDYxMzIzMzc0OVowHTEbMBkGA1UEAxMSb2t0ZXRvLXdpbGRjYXJkLWNhMIIB
+    IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA30qFdvC+HWRHC/Bhj3MGrWbu
+    Ugpu1jzB2obrG5vcGxREoAeRMEZPZMD2x4/TZUcjVBWHoXaaovjrc2EMciX2ZbRH
+    DtlYg/UlX8Qoe+ybz16ohZlQMjVEPcdOS0LgUc4E0Rf4rhP3l9P09HHOhglIOSYe
+    xOwjY+nVIgWr5IWDmhhyD8ksgzYXzVZn+2LqAwSdvZ+tRk19jFWz6DwN+cW+es/7
+    +tfaCvAomt961dJi44YdIA6H3I3pkDbCiHwPu/u4aXf/NdKvGqz3izAbG/X3MfBc
+    bTns9k8hPdiWwS3OiifbyaJK6mleTm8zs2WbvU4MRiPTj86dJTOpZv2zhoTzwwID
+    AQABo2EwXzAOBgNVHQ8BAf8EBAMCAqQwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsG
+    AQUFBwMCMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFAmoh/64QjwRV9wgULRN
+    jT/U3IDrMA0GCSqGSIb3DQEBCwUAA4IBAQDVebK1R1ojH8K6XRg+ybbR6gEMlZ8K
+    nhJFPL+d3LTCfJN87Oh/iv+MVvRdO5mS7yV2CPoXyjuAmcUwjUxeVKgVmCc290xo
+    s3bi2nOrWPjPRhhb/GHQmMJlSkVnPGsaIVBbk7AGpf4+uOM/A/Hq8nHa7PPTShMV
+    gPVc9ZzCt45ejNX63oLmUGsAgLm9xYOp/FoRRuRjlMSQEXELFnBggq1p2RhtnrP2
+    YN/lj1cggCfoFuPJvDHgSx5hb/Nh7IwIiWmpfcY8LQBsSbbwVX/GcAb5WE/SSzOI
+    fcrl53rCUk7czs0C4jIhB+XoPPtVYP14XhotAgwl+F5I6bZ5akqkwd71
+    -----END CERTIFICATE-----
+    
+  tls.crt: |- 
+    -----BEGIN CERTIFICATE-----
+    MIIDPDCCAiSgAwIBAgIRAKaJL4NDcMKxgN6sE7O8c/4wDQYJKoZIhvcNAQELBQAw
+    HTEbMBkGA1UEAxMSb2t0ZXRvLXdpbGRjYXJkLWNhMB4XDTI0MDYxNTIzMzc0OVoX
+    DTM0MDYxMzIzMzc0OVowGTEXMBUGA1UEAwwOKi5sb2NhbHRlc3QubWUwggEiMA0G
+    CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDay7XDWRUIK8uZuwSxjV76IwbG+Rok
+    EzETjxJj5LLubt3EzwcDY9IZxsk+VhI3FKOKxCiUaHYTYU403Yb8AWYZmNiUSPPh
+    5aWUXO3y6c80D7o79ZFeqWYe6j4CRlL5QQM3WXeggmUwKsvyTQjate6ab8QeYRL+
+    dnvz4fKF+iD7zpWYM6IwItnui4nqwgMoRcLB3PutSYPsX56tqmTxUPE46BVNxZAy
+    vNKxXe0BcBBUVt4dakKMBySfUtTcJ/CZQtcvK9pe/Ppe+2yHbTqLrtrXBqsF+KrN
+    HkD7EwNXfNtb1wd7TFXXx59zCjDjYMh7ztt2OvAEN+9E+Q/80q2WV3rjAgMBAAGj
+    ezB5MA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUH
+    AwIwDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAWgBQJqIf+uEI8EVfcIFC0TY0/1NyA
+    6zAZBgNVHREEEjAQgg4qLmxvY2FsdGVzdC5tZTANBgkqhkiG9w0BAQsFAAOCAQEA
+    OKRY5kz5RgNt6hV/ENJox1V3NJCL0QLz3k529WSHZyLzHyQ7SFtNg6zaAJ/+LCHS
+    jVqqQdri920w2umOmtsGew5tcLbSlG9lURiT2DSaI2swmFJR1nLMdp/2r5JlRnML
+    bzyFjgFtMDpnD508Y/19dpekyGiFMm5/txWmLjGVe5yHR3AgAOeQBGunH6/A/YV/
+    Z4GCPodTJDeVYZNFOqNF9+XZ3l2URnF+Ffqh9wMCtp16SKCrgGERBoQWX5cQtMwq
+    Zd62tLUziyzT4dUTMh7JXQ51NYVO8JfUUoNZc6qZQEwdORoHOWYunZnRMLG93m6W
+    PeIc/WGQ1S1BGX5uUwHqDw==
+    -----END CERTIFICATE-----
+    
+  tls.key: |- 
+    -----BEGIN RSA PRIVATE KEY-----
+    MIIEpAIBAAKCAQEA2su1w1kVCCvLmbsEsY1e+iMGxvkaJBMxE48SY+Sy7m7dxM8H
+    A2PSGcbJPlYSNxSjisQolGh2E2FONN2G/AFmGZjYlEjz4eWllFzt8unPNA+6O/WR
+    XqlmHuo+AkZS+UEDN1l3oIJlMCrL8k0I2rXumm/EHmES/nZ78+Hyhfog+86VmDOi
+    MCLZ7ouJ6sIDKEXCwdz7rUmD7F+erapk8VDxOOgVTcWQMrzSsV3tAXAQVFbeHWpC
+    jAckn1LU3CfwmULXLyvaXvz6Xvtsh206i67a1warBfiqzR5A+xMDV3zbW9cHe0xV
+    18efcwow42DIe87bdjrwBDfvRPkP/NKtlld64wIDAQABAoIBAFwXvHTyDQE4deVK
+    K6qUR7LfhV3AwfkHPvPtl58GRy5G6f+J6HjLzkZdPp2HWvlmLYQeFrqI0ZJMtb9Y
+    sxVlfVUu2ZJotoaRw8UT7G//a+CM8iWEsmB2yu4eSGVqtkgFzlXAybJ80BybFubw
+    99YfF8RXYOQslfMXagr4Qr2Tz8hMn4XGfW1roEwSFEORfdUKAZBfNIZOCbI9vVIv
+    HwHG++oSaOxSgxEdJ/N7ZoHBAv24tvv4Rp8KurunvL5t0Wq/fOHYNu8CYs4c89Y/
+    3MfFKVbm6C8W0ScwnqNlmoBaemf3YtCwTOBmPhbA8AWOvAzwJ7mWp65CHyP4Ku5/
+    G/x789kCgYEA9/BbF6hJu/jLxMA3ACe0pU426qn89SN+XbgXSXTe/Pwd9OysDlCU
+    eRCGpZ9ZlO2KHfuyj9j9hSS1AX5WCOMqg7W1NZJ5TyCiHWgnXSnQzqkDKnHXVtx1
+    6dUqmOwiEctF5NsxjDpzE317pW871+Avrtc7p3upY+uJsJm0PqHINOUCgYEA4ejK
+    P1d1pvqLKA1bwI8RqWDSJjuBWD28FvwV23PG/kdBPZPzxQV3razM1Ebfc5vGbIvH
+    6ipX3j+BVyMuXgM+cbKaHZJvQPWvfyV5mk6S7lL3SdfECfwE1v6rBtmrx5o4ccb9
+    DEKMWGNVoU3wapoUTjDREt2asq3KhDJGldNO/CcCgYEAuTem9Q9UtcVwg7SL4ePH
+    gU3inH8MZxxyxBRH4SobgqXcwyEijzcHE0GTNJrL0wN4kFl81RTmntYDGfCE2PLK
+    ycWubyzSzpe0Q3+RGHmqcRe1M7oDgfIDbAFAZyjPcreFqSdN5lGrsb2l5ron3Gav
+    eE91UvKAYhKMs46/JaK56zkCgYA9rZYSZymLFlqJ6+PCFg2nZfTaVWLCGdDRoa/C
+    A8EvyXqJemySvSRouYYO6u61HLG3Dw7c4wSsfEAu7z8IkfApkK69Ji7T2IA6wZuK
+    wqshAGvdsFgotbMIk+1T6Hga/gMtJTwPbdfthelqKeJa6IhktLVQZkqHQCXLpAJb
+    g57L/wKBgQDUJn43fzX80LxR76i7glTPvdoolwIzbaIunTyBPXqSKjrGBz5/WsYE
+    ++WuifpGmHZx6glxwpnFpuSfay7bUBGdNTUqufuPvMmllxf9XX1SVQFBhpU3rNHK
+    DhODSnP9419SMJq5Yuzs1hJomvJr9r8QAIK7megT+D2wVWiLYD+gMQ==
+    -----END RSA PRIVATE KEY-----
+---
+# Source: okteto/charts/ingress-nginx/templates/controller-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx-controller
+  namespace: default
+data:
+  allow-snippet-annotations: "true"
+  annotation-value-word-blocklist: "load_module,lua_package,_by_lua,root,serviceaccount"
+  annotations-risk-level: "Critical"
+  enable-underscores-in-headers: "true"
+  ignore-invalid-headers: "false"
+  log-format-escape-json: "true"
+  log-format-upstream: "{\"time\": \"$time_iso8601\", \"remote_addr\": \"$remote_addr\", \"x_forward_for\": \"$proxy_add_x_forwarded_for\", \"request_id\": \"$req_id\", \"remote_user\": \"$remote_user\", \"bytes_sent\": $bytes_sent, \"request_time\": $request_time, \"status\": $status, \"vhost\": \"$host\", \"request_proto\": \"$server_protocol\", \"path\": \"$uri\", \"request_query\": \"$args\", \"request_length\": $request_length, \"duration\": $request_time,\"method\": \"$request_method\", \"http_referrer\": \"$http_referer\", \"http_user_agent\": \"$http_user_agent\" }"
+  proxy-buffer-size: "64K"
+  ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:AES128-GCM-SHA256:AES128-GCM-SHA384"
+---
+# Source: okteto/charts/okteto-nginx/templates/controller-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-okteto-nginx-controller
+  namespace: default
+data:
+  allow-snippet-annotations: "true"
+  annotation-value-word-blocklist: "load_module,lua_package,_by_lua,root,serviceaccount"
+  annotations-risk-level: "Critical"
+  enable-underscores-in-headers: "true"
+  ignore-invalid-headers: "false"
+  log-format-escape-json: "true"
+  log-format-upstream: "{\"time\": \"$time_iso8601\", \"remote_addr\": \"$remote_addr\", \"x_forward_for\": \"$proxy_add_x_forwarded_for\", \"request_id\": \"$req_id\", \"remote_user\": \"$remote_user\", \"bytes_sent\": $bytes_sent, \"request_time\": $request_time, \"status\": $status, \"vhost\": \"$host\", \"request_proto\": \"$server_protocol\", \"path\": \"$uri\", \"request_query\": \"$args\", \"request_length\": $request_length, \"duration\": $request_time,\"method\": \"$request_method\", \"http_referrer\": \"$http_referer\", \"http_user_agent\": \"$http_user_agent\" }"
+  proxy-buffer-size: "64K"
+---
+# Source: okteto/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: "my-release-okteto"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: "api"
+    app.kubernetes.io/part-of: "okteto"
+  name: "my-release-okteto"
+  namespace: default
+data:
+  
+  OKTETO_APP_VERSION: 52c5ec953
+  OKTETO_CLI_VERSION: 2.28.0
+  OKTETO_VERSION: 1.21.1
+  "OKTETO_LOG_LEVEL": ""
+  "OKTETO_CONFIGMAP_NAME": "my-release-okteto"
+  "OKTETO_SERVICE_ACCOUNT_NAME": "my-release-okteto"
+  "OKTETO_CLOUD_PROVIDER": "ephemeral"
+  "OKTETO_AUTH_PROVIDER": "token"
+  "OKTETO_LICENSE_HARD_LIMITS_ENABLED": "false"
+  "OKTETO_ADMIN_CAN_DEPLOY": "false"
+  "OKTETO_RELEASE_NAME": "my-release"
+  "CLUSTER_PUBLIC_ENDPOINT": "https://kubernetes.localtest.me"
+  "SKIP_CA_IN_CREDENTIALS_QUERY": "true"
+  "OKTETO_QUICKSTARTS": "[{\"name\":\"Github\",\"url\":\"https://github.com/\"},{\"name\":\"Gitlab\",\"url\":\"https://gitlab.com/\"},{\"name\":\"Bitbucket\",\"url\":\"https://bitbucket.org/\"}]"
+  "OKTETO_SSH_SECRET_NAME": "okteto-ssh"
+  "OKTETO_PULL_POLICY": "IfNotPresent"
+  "OKTETO_BASE_DOMAIN": "localtest.me"
+  "OKTETO_BASE_DOMAIN_PORT": "443"
+  "OKTETO_GLOBAL_DEV_CLUSTER_ROLE": ""
+  "OKTETO_DEV_CLUSTER_ROLE": "cluster-admin"
+  "OKTETO_SHOW_VOLUMES_ENABLED": "true"
+  "OKTETO_FORCE_PODS_IN_VOLUME_ZONE": "true"
+  "OKTETO_FORCE_NODE_TO_PODS_WITH_SAME_PVCS": "true"
+  "OKTETO_PUBLIC_URL": "okteto.localtest.me"
+  "OKTETO_PUBLIC_OVERRIDE": ""
+  "OKTETO_USER_DEFINED_NAMESPACES": "true"
+  "OKTETO_INGRESS_RELOAD_DELAY": "0"
+  "OKTETO_VIRTUAL_SERVICE_ENDPOINTS": ""
+  "OKTETO_OPENSHIFT_SUPPORT_ENABLED": "false"
+  "OKTETO_INGRESS_CLASS": "okteto-nginx"
+  "OKTETO_CONTROL_PLANE_INGRESS_CLASS": "okteto-controlplane-nginx"
+  "OKTETO_INGRESS_MODE": "dual"
+  "OKTETO_INGRESS_FORCE_CLASS": "false"
+  "OKTETO_INGRESS_FORCE_SUBDOMAIN": "false"
+  "OKTETO_INGRESS_IP": ""
+  "OKTETO_NAMESPACE_ANNOTATIONS": "{}"
+  "OKTETO_NAMESPACE_LABELS": "{}"
+  "OKTETO_NAMESPACE_INGRESS_ANNOTATIONS": "{}"
+  "OKTETO_NAMESPACE_INGRESS_LABELS": "{}"
+  "OKTETO_NAMESPACE_AUTO_ROLE_BINDING_ENABLED": "true"
+  "OKTETO_LOADBALANCER_CONVERSION_ENABLED": "true"
+  "OKTETO_COOKIE_HASH": ""
+  "OKTETO_DEFAULT_BACKEND": "my-release-ingress-nginx-defaultbackend.default"
+  "OKTETO_BIN_IMAGE": ""
+  "OKTETO_PIPELINE_INSTALLER_IMAGE": "okteto/installer:52c5ec953"
+  "OKTETO_PIPELINE_RUNNER_IMAGE": "okteto/pipeline-runner:1.0.4"
+  "OKTETO_PIPELINE_RUNNER_ANNOTATIONS": "{}"
+  "OKTETO_PIPELINE_RUNNER_LABELS": "{}"
+  "OKTETO_PIPELINE_RUNNER_ENV": "[]"
+  "OKTETO_PIPELINE_RUNNER_RESOURCES": "{\"requests\":{\"cpu\":\"10m\",\"memory\":\"50Mi\"}}"
+  "OKTETO_PRIVATECA_SECRET_NAME": "default-ssl-certificate-selfsigned"
+  "OKTETO_PRIVATECA_SECRET_KEY": "ca.crt"
+  "OKTETO_TELEMETRY_ENABLED": "true"
+  "OKTETO_PRIVATEREGISTRY_SECRET_NAME": "my-release-okteto-dockerconfig-static"
+  "OKTETO_DEFAULT_PLAN": "enterprise"
+  "OKTETO_POOL": ""
+  "OKTETO_BUILD_POOL": ""
+  "OKTETO_DEV_POOL": ""
+  "OKTETO_GLOBAL_OKTETO_TOLERATIONS": "[]"
+  "OKTETO_GLOBAL_DEV_TOLERATIONS": "[]"
+  "OKTETO_GLOBAL_NODE_SELECTORS": "{\"dev\":{},\"okteto\":{}}"
+  "OKTETO_PROTECT_PERSONAL_NAMESPACE_ENABLED":  "true"
+  "OKTETO_PULLALWAYS_ENABLED":  "true"
+  "OKTETO_SERVICE_EXTERNAL_NAMES_ENABLED":  "true"
+  "OKTETO_NETWORK_POLICIES_ENABLED":  "false"
+  "OKTETO_INGRESS_LIMITS_ENABLED":  "false"
+  "OKTETO_INGRESS_PROXY_BODY_SIZE": "60M"
+  "OKTETO_GC_ENABLED":  "true"
+  "OKTETO_DEBUG_SERVER":  "false"
+  "OKTETO_GC_SCALE_TO_ZERO_PERIOD": "24"
+  "OKTETO_GC_DELETE_NAMESPACE_PERIOD": "15"
+  "OKTETO_AUTOSCALER_ENABLED":  "false"
+  "OKTETO_VOLUME_SNAPSHOTS_ENABLED":  "false"
+  "OKTETO_QUOTAS_RESOURCES_ENABLED":  "false"
+  "OKTETO_QUOTAS_BANDWIDTH_ENABLED":  "false"
+  "OKTETO_QUOTAS_BANDWIDTH_UP_ENABLED":  "false"
+  "OKTETO_QUOTAS_REQUESTS_ENABLED":  "false"
+  "OKTETO_AUTOSET_DEFAULT_LIMITS":  "false"
+  "OKTETO_QUOTAS_LIMITS_ENABLED":  "false"
+  "OKTETO_QUOTAS_LIMITRANGES_MAX_ENABLED":  "false"
+  "OKTETO_QUOTAS_LIMITRANGES_REQUESTS_ENABLED":  "true"
+  "OKTETO_QUOTAS_LIMITRANGES_LIMIT_REQUEST_RATIO":  "0"
+  "OKTETO_QUOTAS_LIMITRANGES_REQUESTS_CPU": "10m"
+  "OKTETO_QUOTAS_LIMITRANGES_REQUESTS_MEMORY": "50Mi"
+  "OKTETO_QUOTAS_LIMITRANGES_LIMITS_ENABLED":  "true"
+  "OKTETO_QUOTAS_LIMITRANGES_LIMITS_CPU": "2"
+  "OKTETO_QUOTAS_LIMITRANGES_LIMITS_MEMORY": "8Gi"
+  "OKTETO_REGISTRY_ENABLED": "true"
+  "OKTETO_REGISTRY_URL": "registry.localtest.me"
+  "OKTETO_REGISTRY_PULLPOLICY": "cluster"
+  "OKTETO_BUILDKIT_ENABLED": "true"
+  "OKTETO_BUILDKIT_PERSISTENCE_ENABLED": "false"
+  "OKTETO_BUILDKIT_URL": "tcp://buildkit.localtest.me:443"
+  "OKTETO_BUILDKIT_INSTANCE_NAME": "my-release-okteto-buildkit-1133156121"
+  "OKTETO_BUILDKIT_SERVICE_ACCOUNT_NAME": "okteto-buildkit"
+  "OKTETO_DEPOT_ENABLED": "false"
+  "OKTETO_GITHUB_INTEGRATION_ENABLED": "false"
+  "OKTETO_NODE_READINESS_CHECKER_ENABLED":  "false"
+  "OKTETO_MAX_PERSONAL_ACCESS_TOKEN": "5"
+  "OKTETO_GCP_STORE_ENABLED": "false"
+  "OKTETO_GIT_SSH_USER": "git"
+  "OKTETO_DEV_STORAGE_CLASS_ENABLED": "false"
+  "OKTETO_NODE_STATIC_IP_ENABLED": "false"
+  "OKTETO_VALIDATE_PVC_ENABLED": "false"
+  "OKTETO_GIT_INSTALLER_ACTIVE_DEADLINE_SECONDS": "1800"
+  "OKTETO_AUTO_ADMIN_ENABLED": "true"
+  "OKTETO_SCALE_DOWN_PERSISTENT_RESOURCES": "false"
+  "OKTETO_NAMESPACE_DESTROY_ALL_JOB_IMAGE": "okteto/backend:52c5ec953"
+  "OKTETO_NAMESPACE_WAKE_ALL_JOB_IMAGE": "okteto/backend:52c5ec953"
+  "OKTETO_NAMESPACE_SLEEP_JOB_IMAGE": "okteto/backend:52c5ec953"
+  "OKTETO_PROMETHEUS_ENABLED": "false"
+  "OKTETO_INSIGHTS_ENABLED": "false"
+  "OKTETO_INSIGHTS_BEARER_SECRET_NAME": "okteto-insights"
+  "OKTETO_INSIGHTS_BEARER_SECRET_KEY": "bearer"
+  "MAX_TERMINATION_GRACE_PERIOD_SECONDS_ENABLED":  "false"
+  "OKTETO_USER_POD_AFFINITY": "true"
+  "OKTETO_USER_POD_ANTI_AFFINITY": "false"
+  "OKTETO_ALLOW_DAEMONSETS_FOR_USERS": "false"
+  "OKTETO_DISABLE_SYSTEM_EVENTS": "false"
+  "OKTETO_ALLOW_MEMBERS_SHARE_NAMESPACE": "false"
+
+  "OKTETO_KUBECLIENT_HOST": ""
+  "OKTETO_KUBECLIENT_INSECURE": ""
+  "OKTETO_SERVICEACCOUNT_ANNOTATIONS": "{}"
+  "OKTETO_SERVICEACCOUNT_LABELS": "{}"
+  "OKTETO_NAMESPACE_DEV_LABEL_VALUE": "true"
+  "OKTETO_NAMESPACES_PREFIX": ""
+  "OKTETO_ALLOW_DEV_PUSH_TO_GLOBAL_REGISTRY": "true"
+  "OKTETO_INSTALLATION_BOARD_ENABLED": "true"
+  "OKTETO_WILDCARD_CERTIFICATE_CREATED": "true"
+  "OKTETO_WILDCARD_CERTIFICATE_PRIVATE_CA_ENABLED": "false"
+  "OKTETO_EXTERNAL_ID_MAPPING_ENABLED": "false"
+  "OKTETO_EMULATE_POD_SECURITY_POLICIES": "false"
+  "OKTETO_ALLOW_CAPABILITIES": "null"
+  "OKTETO_SLEEPING_INGRESS_CLASS_ENABLED": "false"
+  "OKTETO_SLEEPING_INGRESS_CLASS_NAME": "okteto-sleeping"
+  "OKTETO_INGRESS_TLS_SECRET_NAME": "default-ssl-certificate-selfsigned"
+  "OKTETO_KUBETOKEN_LIFETIME_SECONDS": "86400"
+  "OKTETO_BUILDKIT_INGRESS_ENABLED": "true"
+  "OKTETO_DAEMONSET_INSTALLED": "true"
+  "GC_UP_SESSION_BY_LAST_SYNCED_FILE": "false"
+  "OKTETO_BOT_USER": "okteto-bot"
+  "OKTETO_RESTRICT_GROUP_USER_ROLE_BINDINGS": "false"
+  "PULLSECRETS_ENABLED": "true"
+  "INSTALLER_PRIORITY_CLASS_NAME": ""
+  "NAMESPACE_DESTROY_ALL_PRIORITY_CLASS_NAME": ""
+  "OKTETO_INSIGHTS_BUILDKIT_METRICS_ENABLED": "false"
+  "OKTETO_EXTERNAL_ENDPOINTS": "[]"
+  "OKTETO_INSIGHTS_EVENTS_EXPORTER_METRICS_ENABLED": "false"
+---
+# Source: okteto/templates/diagnostics-preflight.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: okteto-preflight
+  namespace: default
+  labels:
+    troubleshoot.sh/kind: preflight
+    app.kubernetes.io/component: "diagnostics"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-preflight"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  preflight-spec: 
+    |-
+      apiVersion: troubleshoot.sh/v1beta2
+      kind: Preflight
+      metadata:
+        name: my-release-okteto-preflight
+      spec:
+        analyzers:
+          - clusterVersion:
+              outcomes:
+                - fail:
+                    when: "< 1.26.0"
+                    message: Okteto requires at least Kubernetes 1.26.0
+                    uri: https://www.okteto.com/docs/release-notes/
+                - fail:
+                    when: ">= 1.30.0"
+                    message: Okteto requires a Kubernetes version between 1.26 and 1.29
+                    uri: https://www.okteto.com/docs/release-notes/
+                - pass:
+                    message: Your cluster version meets the Okteto requirements
+---
+# Source: okteto/templates/diagnostics-redactor.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: okteto-redactor
+  namespace: default
+  labels:
+    troubleshoot.sh/kind: support-bundle
+    app.kubernetes.io/component: "diagnostics"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-redactor"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  redactor-spec: 
+    |-
+      apiVersion: troubleshoot.sh/v1beta2
+      kind: Redactor
+      metadata:
+        name: my-release-okteto-redactor
+      spec:
+        redactors:
+          - name: "redact helm values output"
+            fileSelector:
+              file: "**/helm-values-*/**"
+            removals:
+              yamlPath:
+              - "license"
+              - "auth.*.clientSecret"
+              - "auth.*.clientId"
+              - "auth.token.adminToken"
+              - "cookie.secret"
+              - "cookie.hash"
+              - "github.appId"
+              - "github.appPrivateKey"
+              - "github.clientId"
+              - "github.clientSecret"
+              - "privateEndpoints.clientSecret"
+              - "privateEndpoints.clientID"
+---
+# Source: okteto/templates/diagnostics-support-bundle.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: okteto-support-bundle
+  namespace: default
+  labels:
+    troubleshoot.sh/kind: support-bundle
+    app.kubernetes.io/component: "diagnostics"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-support-bundle"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  support-bundle-spec: 
+    "apiVersion: troubleshoot.sh/v1beta2\nkind: SupportBundle\nmetadata:\n  name: my-release-okteto-support-bundle\n
+      \ namespace: \nspec:\n  collectors:\n    - clusterResources:\n        namespaces:\n
+      \       - default\n    - certificates: \n        secrets:\n          - name: default-ssl-certificate-selfsigned\n
+      \           collectorName: \"wildcard-certificate\"\n            namespaces:\n              -
+      default\n          - name: default-ssl-certificate-selfsigned\n            collectorName:
+      \"ingress-certificate\"\n            namespaces:\n              - default\n          -
+      name: default-ssl-certificate-selfsigned\n            collectorName: \"registry-certificate\"\n
+      \           namespaces:\n              - default\n          - name: default-ssl-certificate-selfsigned\n
+      \           collectorName: \"buildkit-certificate\"\n            namespaces:\n              -
+      default\n          - name: my-release-okteto-mutation-webhook\n            collectorName:
+      \"webhook-certificate\"\n            namespaces:\n              - default\n          -
+      name: my-release-okteto-regcreds\n            collectorName: \"regcreds-certificate\"\n
+      \           namespaces:\n              - default\n    - logs:\n        name: api-logs\n
+      \       selector:\n          - app.kubernetes.io/component=api\n    - logs:\n        name:
+      daemon-logs\n        selector:\n          - app.kubernetes.io/component=daemon\n
+      \   - logs:\n        name: installer-logs\n        selector:\n          - app.kubernetes.io/component=installer\n
+      \         - app.kubernetes.io/part-of=okteto\n    - logs:\n        name: buildkit-logs\n
+      \       selector:\n          - app.kubernetes.io/component=buildkit\n          -
+      app.kubernetes.io/part-of=okteto\n    - logs:\n        name: frontend-logs\n        selector:\n
+      \         - app.kubernetes.io/component=frontend\n          - app.kubernetes.io/part-of=okteto\n
+      \   - logs:\n        name: ingress-nginx-logs\n        selector:\n          - app.kubernetes.io/component=controller\n
+      \         - app.kubernetes.io/part-of=ingress-nginx\n    - logs:\n        name:
+      okteto-nginx-logs\n        selector:\n          - app.kubernetes.io/component=controller\n
+      \         - app.kubernetes.io/part-of=okteto-nginx\n    - logs:\n        name: defaultbackend-logs\n
+      \       selector:\n          - app.kubernetes.io/component=defaultbackend\n          -
+      app.kubernetes.io/part-of=okteto\n    - logs:\n        name: webhook-logs\n        selector:\n
+      \         - app.kubernetes.io/component=webhook\n          - app.kubernetes.io/part-of=okteto\n
+      \   - logs:\n        name: migration-logs\n        selector:\n          - app.kubernetes.io/component=migration\n
+      \         - app.kubernetes.io/part-of=okteto\n    - logs:\n        name: private-endpoints-logs\n
+      \       selector:\n          - app.kubernetes.io/component=private-endpoints\n          -
+      app.kubernetes.io/part-of=okteto\n    - logs:\n        name: regcreds-logs\n        selector:\n
+      \         - app.kubernetes.io/component=regcreds\n          - app.kubernetes.io/part-of=okteto\n
+      \   - logs:\n        name: eventsexporter-logs\n        selector:\n          - app.kubernetes.io/component=eventsexporter\n
+      \         - app.kubernetes.io/part-of=okteto\n    - secret:\n        collectorName:
+      cloud-secret\n        namespace: default\n        name: okteto-cloud-secret\n    -
+      helm:\n        collectorName: helm-info\n        namespace: default\n    - runPod:\n
+      \       name: helm-values-computed\n        collectorName: helm-values-computed\n
+      \       namespace: default\n        podSpec:\n          serviceAccountName: my-release-okteto\n
+      \         containers:\n          - name: helm-values-computed\n            image:
+      alpine/helm:3.8.0\n            args: [\"get\", \"values\", \"my-release\", \"--all\",
+      \"-o\", \"yaml\"]\n    - runPod:\n        name: helm-values-user\n        collectorName:
+      helm-values-user\n        namespace: default\n        podSpec:\n          serviceAccountName:
+      my-release-okteto\n          containers:\n          - name: helm-values-user\n            image:
+      alpine/helm:3.8.0\n            args: [\"get\", \"values\", \"my-release\", \"-o\",
+      \"yaml\"]"
+---
+# Source: okteto/templates/helm-release-meta-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: "my-release-okteto"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: "helm-release-meta"
+    app.kubernetes.io/part-of: "okteto"
+  name: "okteto-helm-release-meta"
+  namespace: default
+data:
+  IsInstall: "true"
+  IsUpgrade: "false"
+  Name: "my-release"
+  Namespace: "default"
+  Revision: "1"
+  Service: "Helm"
+---
+# Source: okteto/templates/registry-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-okteto-registry-config
+  labels:
+    app.kubernetes.io/component: "registry"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-registry-config"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yml: |-
+    version: 0.1
+    log:
+      accesslog:
+        disabled: true
+      fields:
+        service: registry
+      formatter: json
+      level: info
+    storage:
+      cache:
+        blobdescriptor: inmemory
+    http:
+      addr: :5000
+      headers:
+        X-Content-Type-Options: [nosniff]
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+---
+# Source: okteto/templates/crds/actions-crd.yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+  labels:
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: actions.git.okteto.com
+  name: actions.git.okteto.com
+spec:
+  group: git.okteto.com
+  names:
+    kind: Action
+    listKind: ActionList
+    plural: actions
+    singular: action
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: Action represents a pending execution of a gitDeploy operation
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            required:
+              - pipelineName
+              - operation
+              - status
+              - repository
+            properties:
+              pipelineName:
+                type: string
+              operation:
+                type: string
+              status:
+                type: string
+              installationID:
+                type: integer
+              repository:
+                type: string
+              fallbackRepository:
+                type: string
+              branch:
+                type: string
+              githubCommentId:
+                type: string
+              commitSha:
+                type: string
+              source:
+                type: string
+              belongsToPreview:
+                type: boolean
+              filename:
+                type: string
+              variables:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+              destroyVolumes:
+                type: boolean
+              forceDestroy:
+                type: boolean
+              catalogItemId:
+                type: string
+              labels:
+                type: array
+                items:
+                  type: string
+    served: true
+    storage: true
+---
+# Source: okteto/templates/crds/external-resource-crd.yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    "helm.sh/resource-policy": keep
+  labels:
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name:  externals.dev.okteto.com
+  name: externals.dev.okteto.com
+spec:
+  group: dev.okteto.com
+  names:
+    kind: External
+    listKind: ExternalList
+    plural: externals
+    singular: external
+    shortNames:
+    - er
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: External is the schema for the external resources which stores the needed information for each element
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            required:
+              - name
+              - endpoints
+            properties:
+              name:
+                type: string
+              icon:
+                type: string
+                default: default
+                enum:
+                - container
+                - dashboard
+                - database
+                - default
+                - function
+                - graph
+                - storage
+                - launchdarkly
+                - mongodb
+                - gcp
+                - aws
+                - okteto
+              notes:
+                type: object
+                required:
+                - path
+                - markdown
+                properties:
+                  path:
+                    type: string
+                  markdown:
+                    type: string
+              endpoints:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - name
+                  - url
+                  properties:
+                    name:
+                      type: string
+                    url:
+                      type: string
+    served: true
+    storage: true
+---
+# Source: okteto/templates/crds/git-catalog-item-crd.yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    "helm.sh/resource-policy": keep
+  labels:
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: catalogitems.git.okteto.com
+  name: catalogitems.git.okteto.com
+spec:
+  group: git.okteto.com
+  names:
+    kind: CatalogItem
+    listKind: CatalogItemList
+    plural: catalogitems
+    singular: catalogitem
+    shortNames:
+    - ci
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: CatalogItem is the schema for the git based catalog items which stores the needed information for each element
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+            required:
+              - name
+              - repositoryUrl
+            properties:
+              name:
+                type: string
+              repositoryUrl:
+                type: string
+              branch:
+                type: string
+              manifestPath:
+                type: string
+              variables:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+    served: true
+    storage: true
+---
+# Source: okteto/templates/crds/registry-crd.yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    "helm.sh/resource-policy": keep
+  labels:
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: registries.admin.okteto.com
+  name: registries.admin.okteto.com
+spec:
+  group: admin.okteto.com
+  scope: Namespaced
+  names:
+    kind: Registry
+    listKind: RegistryList
+    plural: registries
+    singular: registry
+    shortNames:
+    - r
+    - reg
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          description: CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+          name: Age
+          type: date
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              oneOf:
+                - properties:
+                  required:
+                    - static
+                - properties:
+                  required:
+                    - awsIamUser
+                - properties:
+                  required:
+                    - awsIamRole
+              properties:
+                static:
+                  type: object
+                  oneOf:
+                    - properties:
+                      required:
+                        - user
+                        - passwordSecretRef
+                    - properties:
+                      required:
+                        - userSecretRef
+                        - passwordSecretRef
+                  properties:
+                    port:
+                      type: integer
+                      description: "port to be used for the registry (optional)"
+                    user:
+                      description: "the user used to authenticate against the registry"
+                      type: string
+                    userSecretRef:
+                      description: "the opaque secret that holds the user used to authenticate against the registry"
+                      type: object
+                      required:
+                      - name
+                      - key
+                      properties:
+                        name:
+                          description: "the name of the secret"
+                          type: string
+                        key:
+                          description: "the key in the secret data from where to read the password"
+                          type: string
+                    passwordSecretRef:
+                      description: "the opaque secret that holds the password"
+                      type: object
+                      required:
+                      - name
+                      - key
+                      properties:
+                        name:
+                          description: "the name of the secret"
+                          type: string
+                        key:
+                          description: "the key in the secret data from where to read the password"
+                          type: string
+
+
+                awsIamUser:
+                  type: object
+                  oneOf:
+                    - properties:
+                      required:
+                        - accessKeyID
+                        - secretAccessKeySecretRef
+                    - properties:
+                      required:
+                        - accessKeyIDSecretRef
+                        - secretAccessKeySecretRef
+                  properties:
+                    accessKeyID:
+                      description: "the IAM user access key ID"
+                      type: string
+                    accessKeyIDSecretRef:
+                      description: "the opaque secret that holds the access key ID"
+                      type: object
+                      required:
+                      - name
+                      - key
+                      properties:
+                        name:
+                          description: "the name of the secret"
+                          type: string
+                        key:
+                          description: "the key in the secret data from where to read the access key id"
+                          type: string
+                    secretAccessKeySecretRef:
+                      description: "the opaque secret that holds the secret access key"
+                      type: object
+                      required:
+                      - name
+                      - key
+                      properties:
+                        name:
+                          description: "the name of the secret"
+                          type: string
+                        key:
+                          description: "the key in the secret data from where to read the secret access key"
+                          type: string
+                awsIamRole:
+                  type: object
+                  required:
+                    - roleARN
+                    - region
+                    - audience
+                  properties:
+                    roleARN:
+                      description: "the ARN role idetifier used to exchange credentials"
+                      type: string
+                    region:
+                      description: "the AWS region"
+                      type: string
+                    audience:
+                      description: "the audience for the token registry credentials"
+                      type: string
+status:
+  acceptedNames:
+    kind: Registry
+    listKind: RegistryList
+    plural: registries
+    singular: registry
+  conditions: []
+  storedVersions: []
+---
+# Source: okteto/charts/ingress-nginx/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-ingress-nginx
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+      - namespaces
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+      - get
+---
+# Source: okteto/charts/okteto-nginx/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-okteto-nginx
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+      - namespaces
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+      - get
+---
+# Source: okteto/templates/dev-cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-okteto-psp
+  labels:
+    app.kubernetes.io/name: my-release-okteto-psp
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - "weaver.okteto.com"
+  resources:
+  - "diverts"
+  verbs:
+  - '*'
+- apiGroups:
+  - "dev.okteto.com"
+  resources:
+  - "externals"
+  verbs:
+  - '*'
+- apiGroups:
+  - "git.okteto.com"
+  resources:
+  - "actions"
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/log
+  - pods/exec
+  - pods/attach
+  - pods/portforward
+  - pods/status
+  - pods/eviction
+  - configmaps
+  - secrets
+  - services
+  - serviceaccounts
+  - persistentvolumeclaims
+  - replicationcontrollers
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  - events
+  - limitranges
+  - namespaces
+  - namespaces/status
+  - resourcequotas
+  - resourcequotas/status
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - metrics.k8s.io
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  - deployments/scale
+  - replicasets/scale
+  - statefulsets/scale
+  verbs:
+  - '*'
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  - jobs/status
+  verbs:
+  - '*'
+- apiGroups:
+  - extensions
+  resources:
+  - daemonsets
+  - deployments
+  - ingresses
+  - replicasets
+  - statefulsets
+  - deployments/scale
+  - replicasets/scale
+  - statefulsets/scale
+  verbs:
+  - '*'
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshots
+  verbs:
+  - '*'
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - '*'
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - '*'
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - '*'
+- apiGroups:
+    - apiextensions.k8s.io
+  resources:
+    - customresourcedefinitions
+  verbs:
+    - list
+    - watch
+- apiGroups:
+    - helm.fluxcd.io
+  resources:
+    - helmreleases
+    - helmreleases/status
+  verbs:
+  - '*'
+- apiGroups:
+    - helm.integrations.flux.weave.works
+  resources:
+    - fluxhelmreleases
+  verbs:
+  - '*'
+- apiGroups:
+    - configuration.konghq.com
+  resources:
+    - kongplugins
+    - kongconsumers
+    - kongcredentials
+    - kongingresses
+    - tcpingresses
+  verbs:
+  - '*'
+- apiGroups:
+    - openfaas.com
+  resources:
+    - functions
+  verbs:
+  - '*'
+- apiGroups:
+    - litmuschaos.io
+  resources:
+    - chaosengines
+    - chaosschedules
+    - chaosexperiments
+    - chaosresults
+  verbs:
+  - '*'
+- apiGroups:
+    - eventtracker.litmuschaos.io
+  resources:
+    - eventtrackerpolicies
+    - eventtrackerpolicies/status
+  verbs:
+  - '*'
+- apiGroups:
+    - argoproj.io
+  resources:
+    - cronworkflows
+    - cronworkflows/finalizers
+    - rollouts
+    - workflows
+    - workflows/finalizers
+    - workflowtemplates
+    - workflowtemplates/finalizers
+    - workflowtasksets
+    - workfloweventbinding
+  verbs:
+  - '*'
+- apiGroups:
+    - cert-manager.io
+  resources:
+    - certificates
+  verbs:
+  - list
+  - watch
+  - get
+- apiGroups:
+    - apps.openshift.io
+  resources:
+    - deploymentconfigs
+  verbs:
+  - '*'
+---
+# Source: okteto/charts/ingress-nginx/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-ingress-nginx
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-ingress-nginx
+subjects:
+  - kind: ServiceAccount
+    name: my-release-ingress-nginx
+    namespace: default
+---
+# Source: okteto/charts/okteto-nginx/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-okteto-nginx
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-okteto-nginx
+subjects:
+  - kind: ServiceAccount
+    name: my-release-okteto-nginx
+    namespace: default
+---
+# Source: okteto/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-okteto-role-binding
+  labels:
+    app: my-release-okteto
+    chart: "okteto-1.21.1"
+    release: "my-release"
+    heritage: "Helm"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: my-release-okteto
+  namespace: default
+---
+# Source: okteto/charts/ingress-nginx/templates/controller-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  # Omit Ingress status permissions if `--update-status` is disabled.
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    resourceNames:
+      - my-release-ingress-nginx-leader
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+      - get
+---
+# Source: okteto/charts/okteto-nginx/templates/controller-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-okteto-nginx
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  # Omit Ingress status permissions if `--update-status` is disabled.
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    resourceNames:
+      - my-release-okteto-nginx-leader
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+      - get
+---
+# Source: okteto/charts/reloader/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: Role
+metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "my-release"
+  labels:
+    app: my-release-reloader
+    chart: "reloader-1.0.95"
+    release: "my-release"
+    heritage: "Helm"
+    app.kubernetes.io/managed-by: "Helm"
+  name: my-release-reloader-role
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+      - "apps"
+    resources:
+      - deployments
+      - daemonsets
+      - statefulsets
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - deployments
+      - daemonsets
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - "batch"
+    resources:
+      - cronjobs
+    verbs:
+      - list
+      - get
+  - apiGroups:
+      - "batch"
+    resources:
+      - jobs
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+# Source: okteto/charts/ingress-nginx/templates/controller-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-ingress-nginx
+subjects:
+  - kind: ServiceAccount
+    name: my-release-ingress-nginx
+    namespace: default
+---
+# Source: okteto/charts/okteto-nginx/templates/controller-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-okteto-nginx
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-okteto-nginx
+subjects:
+  - kind: ServiceAccount
+    name: my-release-okteto-nginx
+    namespace: default
+---
+# Source: okteto/charts/reloader/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+
+kind: RoleBinding
+metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "my-release"
+  labels:
+    app: my-release-reloader
+    chart: "reloader-1.0.95"
+    release: "my-release"
+    heritage: "Helm"
+    app.kubernetes.io/managed-by: "Helm"
+  name: my-release-reloader-role-binding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-reloader-role
+subjects:
+  - kind: ServiceAccount
+    name: reloader
+    namespace: default
+---
+# Source: okteto/charts/ingress-nginx/templates/controller-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx-controller
+  namespace: default
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ipFamilyPolicy: SingleStack
+  ipFamilies: 
+    - IPv4
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+      appProtocol: http
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+      appProtocol: https
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: controller
+---
+# Source: okteto/charts/okteto-nginx/templates/controller-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-okteto-nginx-controller
+  namespace: default
+spec:
+  type: ClusterIP
+  ipFamilyPolicy: SingleStack
+  ipFamilies: 
+    - IPv4
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+      appProtocol: http
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+      appProtocol: https
+  selector:
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: controller
+---
+# Source: okteto/templates/api-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-okteto-api"
+  labels:
+    app.kubernetes.io/component: "api"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-api"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      name: api
+  selector:
+    app.kubernetes.io/name: "my-release-okteto-api"
+    app.kubernetes.io/instance: my-release
+---
+# Source: okteto/templates/buildkit-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-okteto-buildkit"
+  labels:
+    app.kubernetes.io/component: "buildkit"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-buildkit"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  sessionAffinity: ClientIP
+  
+  ports:
+    - port: 443
+      targetPort: 1234
+      name: buildkit
+  selector:
+    app.kubernetes.io/name: "my-release-okteto-buildkit-1133156121"
+    app.kubernetes.io/instance: my-release
+---
+# Source: okteto/templates/defaultbackend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-ingress-nginx-defaultbackend"
+  labels:
+    app.kubernetes.io/component: default-backend
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-defaultbackend"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      name: http
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: "my-release-okteto-defaultbackend"
+    app.kubernetes.io/instance: my-release
+---
+# Source: okteto/templates/frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-okteto-frontend"
+  labels:
+    app.kubernetes.io/component: "frontend"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-frontend"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      name: frontend
+  selector:
+    app.kubernetes.io/name: "my-release-okteto-frontend"
+    app.kubernetes.io/instance: my-release
+---
+# Source: okteto/templates/kubernetes-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-okteto-cluster-endpoint"
+  labels:
+    app.kubernetes.io/component: "cluster-endpoint"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-cluster-endpoint"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ExternalName
+  externalName: kubernetes.default.svc.cluster.local
+  ports:
+    - protocol: TCP
+      port: 443
+---
+# Source: okteto/templates/regcreds-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-okteto-regcreds"
+  labels:
+    app.kubernetes.io/component: "regcreds"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-regcreds"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - targetPort: 9443
+      port: 443
+      name: controller
+  selector:
+    app.kubernetes.io/name: "my-release-okteto-regcreds"
+    app.kubernetes.io/instance: my-release
+---
+# Source: okteto/templates/registry-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-okteto-registry"
+  labels:
+    app.kubernetes.io/component: "registry"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-registry"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      name: registry
+  selector:
+    app.kubernetes.io/name: "my-release-okteto-registry"
+    app.kubernetes.io/instance: my-release
+---
+# Source: okteto/templates/webhook-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-okteto-mutation-webhook"
+  labels:
+    app.kubernetes.io/component: "webhook"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-mutation-webhook"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      name: webhook
+      targetPort: 443
+  selector:
+    app.kubernetes.io/name: "my-release-okteto-mutation-webhook"
+    app.kubernetes.io/instance: my-release
+---
+# Source: okteto/templates/daemon.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: "my-release-okteto-daemon"
+  labels:
+    app.kubernetes.io/name: "my-release-okteto-daemon"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/component: "daemon"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "my-release-okteto-daemon"
+      app.kubernetes.io/instance: my-release
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 100%
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-daemon"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "daemon"
+        app.kubernetes.io/part-of: "okteto"
+      annotations:
+        app.kubernetes.io/version: "my-release-okteto-1.21.1"
+        checksum/certs: bf0ec9a8357ea01eee2f5fe4c1e08872fef55b0af792c40e989c0cdf536ae467
+    spec:
+      hostPID: true
+      terminationGracePeriodSeconds: 0
+      serviceAccountName: my-release-okteto
+      priorityClassName: 
+      tolerations:
+      
+      nodeSelector:
+      containers:
+      - name: daemon
+        image: okteto/daemon:0.12.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        env:
+          - name: UPDATE_HOSTS_DISABLED
+            value: "false"
+          - name: UPDATE_HOSTS_INGRESS_INTERNAL_IP
+            value: "$(MY_RELEASE_INGRESS_NGINX_CONTROLLER_SERVICE_HOST)"
+          - name: UPDATE_HOSTS_REGISTRY_URL
+            value: "registry.localtest.me"
+          - name: UPDATE_HOSTS_OKTETO_URL
+            value: "okteto.localtest.me"
+          - name: PRIVATE_REGISTRY_CREDENTIALS_DISABLED
+            value: "true"
+          - name: PRIVATE_REGISTRY_CREDENTIALS_ROOT_SECRET_NAME
+            value: "my-release-okteto-dockerconfig-static"
+          - name: PRIVATE_REGISTRY_CREDENTIALS_DESTINATION_PATH
+            value: "/var/lib/kubelet/config.json"
+          - name: PRIVATE_REGISTRY_CREDENTIALS_SECRET_NAME
+            value: "my-release-okteto-dockerconfig"
+          - name: SYSCTL_CONFIG_DISABLED
+            value: "false"
+          - name: SYSCTL_CONFIG_MAX_USER_WATCHES
+            value: "10048576"
+          - name: SYSCTL_CONFIG_MAX_MAP_COUNT
+            value: "262144"
+          - name: SYSCTL_CONFIG_AIO_MAX_NR
+            value: "1000000"
+          - name: COPY_BIN_DISABLED
+            value: "true"
+          - name: COPY_CLOUDBIN_DISABLED
+            value: "true"
+          - name: CHECK_CNI_PLUGIN_DISABLED
+            value: "true"
+          - name: CHECK_CNI_PLUGIN_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: PRIVATE_CA_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: PRIVATE_CA_REGISTRY_URL
+            value: "registry.localtest.me"
+          - name: PRIVATE_CA_DISABLED
+            value: "false"
+        volumeMounts:
+          - name: hostalias
+            mountPath: /etc/hosts
+          - name: kubelet-conf
+            mountPath: /var/lib/kubelet
+          - name: proc-volume
+            mountPath: /proc-aux
+          - name: host-etc
+            mountPath: /host/etc
+          - name: ca-pemstore
+            mountPath: /etc/ssl/certs/okteto-private-ca.crt
+            subPath: ca.crt
+            readOnly: true
+        resources:
+            requests:
+              cpu: 10m
+              memory: 10Mi
+      volumes:
+      - name: kubelet-conf
+        hostPath:
+          path: /var/lib/kubelet
+      - name: hostalias
+        hostPath:
+          path: /etc/hosts
+      - name: proc-volume
+        hostPath:
+          path: /proc
+      - name: host-etc
+        hostPath:
+          path: /etc
+      - name: ca-pemstore
+        secret:
+          defaultMode: 420
+          secretName: default-ssl-certificate-selfsigned
+---
+# Source: okteto/charts/ingress-nginx/templates/controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx-controller
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: controller
+  replicas: 2
+  revisionHistoryLimit: 10
+  minReadySeconds: 0
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: ingress-nginx-4.10.1
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.10.1"
+        app.kubernetes.io/part-of: ingress-nginx
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: controller
+    spec:
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: controller
+          image: registry.k8s.io/ingress-nginx/controller-chroot:v1.10.1@sha256:c155954116b397163c88afcb3252462771bd7867017e8a17623e83601bab7ac7
+          imagePullPolicy: IfNotPresent
+          lifecycle: 
+            preStop:
+              exec:
+                command:
+                - /wait-shutdown
+          args: 
+            - /nginx-ingress-controller
+            - --publish-service=$(POD_NAMESPACE)/my-release-ingress-nginx-controller
+            - --election-id=my-release-ingress-nginx-leader
+            - --controller-class=k8s.io/okteto-controlplane-nginx
+            - --ingress-class=okteto-controlplane-nginx
+            - --configmap=$(POD_NAMESPACE)/my-release-ingress-nginx-controller
+            - --enable-metrics=false
+            - --default-backend-service=$(POD_NAMESPACE)/$(OKTETO_NAME)-ingress-nginx-defaultbackend
+            - --default-ssl-certificate=$(POD_NAMESPACE)/default-ssl-certificate-selfsigned
+          securityContext: 
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: true
+            seccompProfile: 
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+              add:
+              - NET_BIND_SERVICE
+              - SYS_ADMIN
+              - SYS_CHROOT
+            readOnlyRootFilesystem: false
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LD_PRELOAD
+              value: /usr/local/lib/libmimalloc.so
+            - name: OKTETO_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: Name
+                  name: okteto-helm-release-meta
+          livenessProbe: 
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe: 
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: https
+              containerPort: 443
+              protocol: TCP
+          resources: 
+            requests:
+              cpu: 100m
+              memory: 90Mi
+      nodeSelector: 
+        kubernetes.io/os: linux
+      affinity: 
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                  - controller
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - ingress-nginx
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      serviceAccountName: my-release-ingress-nginx
+      terminationGracePeriodSeconds: 300
+---
+# Source: okteto/charts/okteto-nginx/templates/controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-okteto-nginx-controller
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: okteto-nginx
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: controller
+  replicas: 2
+  revisionHistoryLimit: 10
+  minReadySeconds: 0
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: okteto-nginx-4.10.1
+        app.kubernetes.io/name: okteto-nginx
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.10.1"
+        app.kubernetes.io/part-of: okteto-nginx
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: controller
+    spec:
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: controller
+          image: registry.k8s.io/ingress-nginx/controller-chroot:v1.10.1@sha256:c155954116b397163c88afcb3252462771bd7867017e8a17623e83601bab7ac7
+          imagePullPolicy: IfNotPresent
+          lifecycle: 
+            preStop:
+              exec:
+                command:
+                - /wait-shutdown
+          args: 
+            - /nginx-ingress-controller
+            - --publish-service=$(POD_NAMESPACE)/my-release-okteto-nginx-controller
+            - --election-id=my-release-okteto-nginx-leader
+            - --controller-class=k8s.io/okteto-ingress-nginx
+            - --ingress-class=okteto-nginx
+            - --configmap=$(POD_NAMESPACE)/my-release-okteto-nginx-controller
+            - --enable-metrics=false
+            - --default-backend-service=$(POD_NAMESPACE)/$(OKTETO_NAME)-ingress-nginx-defaultbackend
+          securityContext: 
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: true
+            seccompProfile: 
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+              add:
+              - NET_BIND_SERVICE
+              - SYS_ADMIN
+              - SYS_CHROOT
+            readOnlyRootFilesystem: false
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LD_PRELOAD
+              value: /usr/local/lib/libmimalloc.so
+            - name: OKTETO_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: Name
+                  name: okteto-helm-release-meta
+          livenessProbe: 
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe: 
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: https
+              containerPort: 443
+              protocol: TCP
+          resources: 
+            requests:
+              cpu: 100m
+              memory: 90Mi
+      nodeSelector: 
+        kubernetes.io/os: linux
+      affinity: 
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                  - controller
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - okteto-nginx
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      serviceAccountName: my-release-okteto-nginx
+      terminationGracePeriodSeconds: 300
+---
+# Source: okteto/charts/reloader/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "my-release"
+  labels:
+    app: my-release-reloader
+    chart: "reloader-1.0.95"
+    release: "my-release"
+    heritage: "Helm"
+    app.kubernetes.io/managed-by: "Helm"
+    group: com.stakater.platform
+    provider: stakater
+    version: v1.0.95
+  name: my-release-reloader
+  namespace: default
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: my-release-reloader
+      release: "my-release"
+  template:
+    metadata:
+      labels:
+        app: my-release-reloader
+        chart: "reloader-1.0.95"
+        release: "my-release"
+        heritage: "Helm"
+        app.kubernetes.io/managed-by: "Helm"
+        group: com.stakater.platform
+        provider: stakater
+        version: v1.0.95
+    spec:
+      containers:
+      - image: "ghcr.io/stakater/reloader:v1.0.95"
+        imagePullPolicy: IfNotPresent
+        name: my-release-reloader
+        env:
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+
+        ports:
+        - name: http
+          containerPort: 9090
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: http
+          timeoutSeconds: 5
+          failureThreshold: 5
+          periodSeconds: 10
+          successThreshold: 1
+          initialDelaySeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: http
+          timeoutSeconds: 5
+          failureThreshold: 5
+          periodSeconds: 10
+          successThreshold: 1
+          initialDelaySeconds: 10
+
+        securityContext:
+          {}
+        args:
+          - "--resources-to-ignore=configMaps"
+      securityContext: 
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: reloader
+---
+# Source: okteto/templates/api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-okteto-api"
+  labels:
+    app.kubernetes.io/component: "api"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-api"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    secret.reloader.stakater.com/reload: "default-ssl-certificate-selfsigned,okteto-cloud-secret"
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "my-release-okteto-api"
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-api"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "api"
+        app.kubernetes.io/part-of: "okteto"
+      annotations:
+        checksum/configmap: 1c23d94eaf2e0667e947184e302c51a1cdeaac63db65da1ed340215f1d22d81a
+        checksum/secrets: 6db66eac85f18733202aa5dc59d7ab5b43d7f7174a6fb34a92070a2b989a88ef
+    spec:
+      terminationGracePeriodSeconds: 300
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                      - "my-release-okteto-api"
+                topologyKey: kubernetes.io/hostname
+      serviceAccountName: my-release-okteto
+      tolerations:
+      
+      nodeSelector:
+      volumes:
+        - name: tls-certs
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+        - name: ca-pemstore
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+      priorityClassName: 
+      containers:
+        - name: api
+          image: okteto/backend:52c5ec953
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          args: [ "api" ]
+          env:
+            - name: OKTETO_INGRESS_INTERNAL_IP
+              value: "$(MY_RELEASE_INGRESS_NGINX_CONTROLLER_SERVICE_HOST)"
+            - name: OKTETO_BUILDKIT_INTERNAL_IP
+              value: "$(MY_RELEASE_OKTETO_BUILDKIT_SERVICE_HOST)"
+          envFrom:
+          - configMapRef:
+              name: "my-release-okteto"
+          - secretRef:
+              name: my-release-okteto
+          - secretRef:
+              name: "okteto-cloud-secret"
+              optional: true
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /run/secrets/tls
+              readOnly: true
+            - name: ca-pemstore
+              mountPath: /etc/ssl/certs/okteto-private-ca.crt
+              subPath: ca.crt
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 3
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 3
+            timeoutSeconds: 10
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/app/bin/backend", "sleep", "--seconds", "45"]
+          resources:
+            limits:
+              memory: 800Mi
+            requests:
+              cpu: 50m
+              memory: 100Mi
+---
+# Source: okteto/templates/defaultbackend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-okteto-defaultbackend"
+  labels:
+    app.kubernetes.io/component: default-backend
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-defaultbackend"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    secret.reloader.stakater.com/reload: "default-ssl-certificate-selfsigned,okteto-cloud-secret"
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "my-release-okteto-defaultbackend"
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-defaultbackend"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "defaultbackend"
+        app.kubernetes.io/part-of: "okteto"
+      annotations:
+        checksum/configmap: 1c23d94eaf2e0667e947184e302c51a1cdeaac63db65da1ed340215f1d22d81a
+        checksum/secrets: 6db66eac85f18733202aa5dc59d7ab5b43d7f7174a6fb34a92070a2b989a88ef
+    spec:
+      affinity:
+        nodeAffinity:
+          
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                      - "my-release-okteto-defaultbackend"
+                topologyKey: kubernetes.io/hostname
+      serviceAccountName: my-release-okteto
+      tolerations:
+      
+      nodeSelector:
+      volumes:
+        - name: tls-certs
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+        - name: ca-pemstore
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+      priorityClassName: 
+      containers:
+        - name: default-backend
+          image: "okteto/backend:52c5ec953"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+          envFrom:
+          - configMapRef:
+              name: "my-release-okteto"
+          - secretRef:
+              name: my-release-okteto
+          - secretRef:
+              name: "okteto-cloud-secret"
+              optional: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 3
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 3
+            timeoutSeconds: 10
+          resources:
+            {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+---
+# Source: okteto/templates/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-okteto-frontend"
+  labels:
+    app.kubernetes.io/component: "frontend"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-frontend"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "my-release-okteto-frontend"
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-frontend"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "frontend"
+        app.kubernetes.io/part-of: "okteto"
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - "my-release-okteto-frontend"
+                topologyKey: kubernetes.io/hostname
+      serviceAccountName: default
+      priorityClassName: 
+      tolerations:
+      
+      nodeSelector:
+      containers:
+        - name: frontend
+          image: okteto/frontend:52c5ec953
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: THEME_PRIMARY
+              value: 
+            - name: THEME_SECONDARY
+              value: 
+            - name: THEME_LOGO
+              value: 
+            - name: OKTETO_CHART_VERSION
+              value: 1.21.1
+            - name: OKTETO_AUTH_TOKEN
+              value: "true"
+            - name: MIXPANEL_TOKEN
+              value: 
+          readinessProbe:
+            httpGet:
+              path: /index.html
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 1
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sleep", "45"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 10Mi
+---
+# Source: okteto/templates/regcreds.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-okteto-regcreds"
+  labels:
+    app.kubernetes.io/component: "regcreds"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-regcreds"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    secret.reloader.stakater.com/reload: "my-release-okteto-regcreds,okteto-cloud-secret"
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "my-release-okteto-regcreds"
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-regcreds"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "regcreds"
+        app.kubernetes.io/part-of: "okteto"
+      annotations:
+        checksum/configmap: 1c23d94eaf2e0667e947184e302c51a1cdeaac63db65da1ed340215f1d22d81a
+        checksum/secrets: 6db66eac85f18733202aa5dc59d7ab5b43d7f7174a6fb34a92070a2b989a88ef
+    spec:
+      terminationGracePeriodSeconds: 300
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                      - "my-release-okteto-regcreds"
+                topologyKey: kubernetes.io/hostname
+      serviceAccountName: my-release-okteto
+      tolerations:
+      
+      nodeSelector:
+      volumes:
+        - name: tls-certs
+          secret:
+            defaultMode: 420
+            secretName: my-release-okteto-regcreds
+      priorityClassName: 
+      containers:
+        - name: controller
+          image: okteto/backend:52c5ec953
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          args: [ "regcreds" ]
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /run/secrets/tls
+              readOnly: true
+          env:
+            - name: DEBUG
+              value: "false"
+            - name: PORT
+              value: "8081"
+          envFrom:
+          - configMapRef:
+              name: "my-release-okteto"
+          - secretRef:
+              name: my-release-okteto
+          - secretRef:
+              name: "okteto-cloud-secret"
+              optional: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 3
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 3
+            timeoutSeconds: 10
+          resources:
+            
+            limits:
+              memory: 800Mi
+            requests:
+              cpu: 50m
+              memory: 100Mi
+---
+# Source: okteto/templates/registry-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-okteto-registry"
+  labels:
+    app.kubernetes.io/component: "registry"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-registry"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    secret.reloader.stakater.com/reload: "default-ssl-certificate-selfsigned,okteto-cloud-secret"
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "my-release-okteto-registry"
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-registry"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "registry"
+        app.kubernetes.io/part-of: "okteto"
+      annotations:
+        checksum/config: 89046cc7bf750a61ef61e794d7cdc2cffd58d6c517e385db61c079e14536d192
+        checksum/secret: 2bbd2495e7af2d5705403238de84e451e676624e415775f621e9a0d893dce0f0
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - "my-release-okteto-registry"
+                topologyKey: kubernetes.io/hostname
+      serviceAccountName: "my-release-okteto-registry"
+      tolerations:
+      
+      nodeSelector:
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: my-release-okteto-registry-config
+        - name: tls-certs
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+      priorityClassName: 
+      containers:
+        - name: registry
+          image: okteto/registry:93a2c4c
+          imagePullPolicy: IfNotPresent
+          command:
+          - sh
+          - -c
+          - "echo $OKTETO_INGRESS_INTERNAL_IP okteto.localtest.me > /etc/hosts && \
+          /bin/registry serve /etc/docker/registry/config.yml"
+          ports:
+            - name: registry
+              containerPort: 5000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sleep", "45"]
+          env:
+            - name: OKTETO_INGRESS_INTERNAL_IP
+              value: "$(MY_RELEASE_INGRESS_NGINX_CONTROLLER_SERVICE_HOST)"
+            - name: REGISTRY_HTTP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-okteto-registry-http-secret
+                  key: haShared
+            - name: REGISTRY_STORAGE_DELETE_ENABLED
+              value: "true"
+            - name: REGISTRY_AUTH_TOKEN_REALM
+              value: "https://okteto.localtest.me/auth/registry"
+            - name: REGISTRY_AUTH_TOKEN_SERVICE
+              value: "okteto-registry"
+            - name: REGISTRY_AUTH_TOKEN_ISSUER
+              value: "okteto-registry"
+            - name: REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE
+              value: "/run/secrets/tls/tls.crt"
+            - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+              value: "/var/lib/registry"
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/docker/registry"
+              readOnly: true
+            - name: tls-certs
+              mountPath: /run/secrets/tls
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/registry/
+          resources:
+            requests:
+              cpu: 10m
+              memory: 100Mi
+---
+# Source: okteto/templates/webhook-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-okteto-mutation-webhook"
+  labels:
+    app.kubernetes.io/component: "webhook"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-mutation-webhook"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    secret.reloader.stakater.com/reload: "my-release-okteto-mutation-webhook,okteto-cloud-secret"
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "my-release-okteto-mutation-webhook"
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-mutation-webhook"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "webhook"
+        app.kubernetes.io/part-of: "okteto"
+      annotations:
+        checksum/configmap: 1c23d94eaf2e0667e947184e302c51a1cdeaac63db65da1ed340215f1d22d81a
+        checksum/secrets: c85d262938bfe27370aa0a3dbb71957acbc58413d45e1d6004d3b6a43822f02c
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - "my-release-okteto-mutation-webhook"
+                topologyKey: kubernetes.io/hostname
+      serviceAccountName: my-release-okteto
+      tolerations:
+      
+      nodeSelector:
+      volumes:
+        - name: webhook-tls-certs
+          secret:
+            defaultMode: 420
+            secretName: my-release-okteto-mutation-webhook
+      hostNetwork: false
+      priorityClassName: 
+      containers:
+        - name: server
+          image: okteto/backend:52c5ec953
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: https
+              containerPort: 443
+            - name: http
+              containerPort: 8080
+          args: [ "webhook" ]
+          env:
+            - name: OKTETO_INGRESS_INTERNAL_IP
+              value: "$(MY_RELEASE_INGRESS_NGINX_CONTROLLER_SERVICE_HOST)"
+            - name: OKTETO_BUILDKIT_INTERNAL_IP
+              value: "$(MY_RELEASE_OKTETO_BUILDKIT_SERVICE_HOST)"
+            - name: PORT
+              value: "443"
+          envFrom:
+          - configMapRef:
+              name: "my-release-okteto"
+          - secretRef:
+              name: my-release-okteto
+          - secretRef:
+              name: "okteto-cloud-secret"
+              optional: true
+          volumeMounts:
+            - name: webhook-tls-certs
+              mountPath: /run/secrets/tls
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /readiness
+              port: 443
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 3
+            timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 10Mi
+---
+# Source: okteto/templates/buildkit-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "my-release-okteto-buildkit-1133156121"
+  labels:
+    app.kubernetes.io/component: "buildkit"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-buildkit-1133156121"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    secret.reloader.stakater.com/reload: "default-ssl-certificate-selfsigned"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "my-release-okteto-buildkit-1133156121"
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-okteto-buildkit
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-buildkit-1133156121"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "buildkit"
+        app.kubernetes.io/part-of: "okteto"
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - "my-release-okteto-buildkit-1133156121"
+                topologyKey: kubernetes.io/hostname
+      serviceAccountName: "okteto-buildkit"
+      tolerations:
+      
+      nodeSelector:
+      volumes:
+        - name: tls-certs
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+        - name: ca-pemstore
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+        - name: storage
+          emptyDir:
+            sizeLimit: 12Gi
+        - name: host-volume
+          emptyDir: {}
+      priorityClassName: 
+      initContainers:
+      - name: etc-hosts
+        image: okteto/buildkit:v0.12.5-okteto1
+        imagePullPolicy: IfNotPresent
+        command: [sh, -c, touch /data/hosts]
+        volumeMounts:
+        - name: host-volume
+          mountPath: /data
+      containers:
+      - name: buildkitd
+        image: okteto/buildkit:v0.12.5-okteto1
+        imagePullPolicy: IfNotPresent
+        command:
+          - /usr/bin/start.sh
+        env:
+          - name: OKTETO_BUILDKITD_LOCAL_URL
+            value: local-buildkitd.localtest.me
+          - name: OKTETO_INGRESS_INTERNAL_IP
+            value: "$(MY_RELEASE_INGRESS_NGINX_CONTROLLER_SERVICE_HOST)"
+          - name: PUBLIC_URL
+            value: "okteto.localtest.me"
+          - name: REGISTRY_URL
+            value: "registry.localtest.me"
+          - name: STORAGE
+            value: "10000"
+        ports:
+        - containerPort: 1234
+          protocol: TCP
+        securityContext:
+          privileged: true
+        volumeMounts:
+          - name: "storage"
+            subPath: data
+            mountPath: /var/lib/buildkit
+          - name: tls-certs
+            mountPath: /run/secrets/tls
+            readOnly: true
+          - name: ca-pemstore
+            mountPath: /etc/ssl/certs/okteto-private-ca.crt
+            subPath: ca.crt
+            readOnly: true
+          - name: host-volume
+            mountPath: /etc/hosts
+            subPath: hosts
+        resources:
+          
+          limits:
+            memory: 12Gi
+          requests:
+            cpu: 1
+            memory: 4Gi
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+---
+# Source: okteto/templates/gc-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "my-release-okteto-gc"
+  labels:
+    app.kubernetes.io/component: "gc"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-gc"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  schedule: "@hourly"
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/component: "gc"
+        app.kubernetes.io/part-of: "okteto"
+    spec:
+      activeDeadlineSeconds: 3300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: "gc"
+            app.kubernetes.io/part-of: "okteto"
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+              - preference:
+                  matchExpressions:
+                  - key: dev.okteto.com/overloaded
+                    operator: DoesNotExist
+                weight: 50
+          serviceAccountName: my-release-okteto
+          tolerations:
+          
+          nodeSelector:
+          volumes:
+          - name: tls-certs
+            secret:
+              defaultMode: 420
+              secretName: default-ssl-certificate-selfsigned
+          restartPolicy: Never
+          containers:
+            - name: gc
+              image: okteto/backend:52c5ec953
+              imagePullPolicy: IfNotPresent
+              args: [ "gc" ]
+              env:
+                - name: OKTETO_INGRESS_INTERNAL_IP
+                  value: "$(MY_RELEASE_INGRESS_NGINX_CONTROLLER_SERVICE_HOST)"
+                - name: OKTETO_BUILDKIT_INTERNAL_IP
+                  value: "$(MY_RELEASE_OKTETO_BUILDKIT_SERVICE_HOST)"
+              envFrom:
+                - configMapRef:
+                    name: "my-release-okteto"
+                - secretRef:
+                    name: my-release-okteto
+                - secretRef:
+                    name: "okteto-cloud-secret"
+                    optional: true
+              volumeMounts:
+                - name: tls-certs
+                  mountPath: /run/secrets/tls
+                  readOnly: true
+          priorityClassName:
+---
+# Source: okteto/templates/installer-checker.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "my-release-okteto-installer-checker"
+  labels:
+    app.kubernetes.io/component: "installer-checker"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-installer-checker"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/component: "installer-checker"
+        app.kubernetes.io/part-of: "okteto"
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: "installer-checker"
+            app.kubernetes.io/part-of: "okteto"
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+              - preference:
+                  matchExpressions:
+                  - key: dev.okteto.com/overloaded
+                    operator: DoesNotExist
+                weight: 50
+          serviceAccountName: my-release-okteto
+          priorityClassName: 
+          tolerations:
+          
+          nodeSelector:
+          restartPolicy: Never
+          containers:
+            - name: installer-checker
+              image: okteto/backend:52c5ec953
+              imagePullPolicy: IfNotPresent
+              args: [ "installer-checker" ]
+              envFrom:
+              - configMapRef:
+                  name: "my-release-okteto"
+              - secretRef:
+                  name: my-release-okteto
+              - secretRef:
+                  name: "okteto-cloud-secret"
+                  optional: true
+---
+# Source: okteto/templates/namespace-destroy-all-checker-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "my-release-okteto-destroy-all-checker"
+  labels:
+    app.kubernetes.io/component: "namespace-destroy-all"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-destroy-all-checker"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  schedule: "*/3 * * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/component: "namespace-destroy-all"
+        app.kubernetes.io/part-of: "okteto"
+    spec:
+      activeDeadlineSeconds: 120
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: "namespace-destroy-all"
+            app.kubernetes.io/part-of: "okteto"
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+              - preference:
+                  matchExpressions:
+                  - key: dev.okteto.com/overloaded
+                    operator: DoesNotExist
+                weight: 50
+          serviceAccountName: my-release-okteto
+          tolerations:
+          
+          nodeSelector:
+          restartPolicy: Never
+          priorityClassName: 
+          containers:
+            - name: checker
+              image: "okteto/backend:52c5ec953"
+              imagePullPolicy: IfNotPresent
+              args: [ "check-namespace-destroy-all"]
+              envFrom:
+                - configMapRef:
+                    name: "my-release-okteto"
+---
+# Source: okteto/templates/telemetry-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "my-release-okteto-telemetry"
+  labels:
+    app.kubernetes.io/component: "telemetry"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-telemetry"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  schedule: "@daily"
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/component: "telemetry"
+        app.kubernetes.io/part-of: "okteto"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: "telemetry"
+            app.kubernetes.io/part-of: "okteto"
+            app.kubernetes.io/instance: my-release
+            app.kubernetes.io/managed-by: Helm
+        spec:
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+              - preference:
+                  matchExpressions:
+                  - key: dev.okteto.com/overloaded
+                    operator: DoesNotExist
+                weight: 50
+          serviceAccountName: my-release-okteto
+          priorityClassName: 
+          tolerations:
+          
+          nodeSelector:
+          restartPolicy: Never
+          containers:
+            - name: telemetry
+              image: okteto/backend:52c5ec953
+              imagePullPolicy: IfNotPresent
+              args: [ "telemetry" ]
+              envFrom:
+                - configMapRef:
+                    name: "my-release-okteto"
+                - secretRef:
+                    name: my-release-okteto
+                - secretRef:
+                    name: "okteto-cloud-secret"
+                    optional: true
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 100Mi
+---
+# Source: okteto/charts/ingress-nginx/templates/controller-ingressclass.yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.10.1
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: okteto-controlplane-nginx
+spec:
+  controller: k8s.io/okteto-controlplane-nginx
+---
+# Source: okteto/charts/okteto-nginx/templates/controller-ingressclass.yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    helm.sh/chart: okteto-nginx-4.10.1
+    app.kubernetes.io/name: okteto-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.10.1"
+    app.kubernetes.io/part-of: okteto-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: okteto-nginx
+spec:
+  controller: k8s.io/okteto-ingress-nginx
+---
+# Source: okteto/templates/buildkit-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-okteto-buildkit
+  labels:
+    app.kubernetes.io/name: my-release-okteto-buildkit
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/component: "buildkit"
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPCS"
+    nginx.ingress.kubernetes.io/configuration-snippet: "grpc_read_timeout 1800s;\ngrpc_intercept_errors off;\ngrpc_buffer_size 64k;\n"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/service-upstream: "true"
+spec:
+  ingressClassName: okteto-controlplane-nginx
+  tls:
+  - hosts:
+    - buildkit.localtest.me
+    secretName: default-ssl-certificate-selfsigned
+  rules:
+    - host: buildkit.localtest.me
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-buildkit
+                port:
+                  number: 443
+---
+# Source: okteto/templates/ingress-wildcard.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-okteto-wildcard
+  labels:
+    app.kubernetes.io/name: okteto
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/component: "api"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-ssl-server-name: "on"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/proxy-body-size: "60M"
+spec:
+  ingressClassName: okteto-controlplane-nginx
+  tls:
+  - hosts:
+    - "*.localtest.me"
+    secretName: default-ssl-certificate-selfsigned
+  rules:
+    - host: "*.localtest.me"
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-nginx-controller
+                port:
+                  number: 443
+---
+# Source: okteto/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-okteto
+  labels:
+    app.kubernetes.io/name: okteto
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/component: "api"
+  annotations:
+spec:
+  ingressClassName: okteto-controlplane-nginx
+  tls:
+  - hosts:
+    - okteto.localtest.me
+    secretName: default-ssl-certificate-selfsigned
+  rules:
+    - host: okteto.localtest.me
+      http:
+        paths:
+          - path: "/auth"
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-api
+                port:
+                  number: 8080
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-api
+                port:
+                  number: 8080
+          - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-api
+                port:
+                  number: 8080
+          - path: /deploy
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-api
+                port:
+                  number: 8080
+          - path: /sse
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-api
+                port:
+                  number: 8080
+          - path: /auth/kubetoken
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-api
+                port:
+                  number: 8080
+          - path: /clusterinfo
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-api
+                port:
+                  number: 8080
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-frontend
+                port:
+                  number: 8080
+---
+# Source: okteto/templates/kubernetes-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-okteto-cluster-endpoint
+  labels:
+    app.kubernetes.io/name: my-release-okteto-cluster-endpoint
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/component: "cluster-endpoint"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-ssl-server-name: "on"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  ingressClassName: okteto-controlplane-nginx
+  tls:
+  - hosts:
+    - "kubernetes.localtest.me"
+    secretName: default-ssl-certificate-selfsigned
+  rules:
+    - host: "kubernetes.localtest.me"
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-cluster-endpoint
+                port:
+                  number: 443
+---
+# Source: okteto/templates/registry-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-okteto-registry
+  labels:
+    app.kubernetes.io/name: my-release-okteto-registry
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/component: "registry"
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: okteto-controlplane-nginx
+  tls:
+  - hosts:
+    - registry.localtest.me
+    secretName: default-ssl-certificate-selfsigned
+  rules:
+    - host: registry.localtest.me
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-okteto-registry
+                port:
+                  number: 5000
+---
+# Source: okteto/templates/webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: "my-release-okteto-mutation-webhook"
+  labels:
+    app.kubernetes.io/name: "my-release-okteto-mutation-webhook"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: ingress.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Fail
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/ingress"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: [ "CREATE", "UPDATE" ]
+        apiGroups: ["extensions"]
+        apiVersions: ["v1beta1"]
+        resources: ["ingresses"]
+      - operations: [ "CREATE", "UPDATE" ]
+        apiGroups: ["networking.k8s.io"]
+        apiVersions: ["v1beta1", "v1"]
+        resources: ["ingresses"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: service.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/service"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: [ "CREATE", "UPDATE", "DELETE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["services"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: deployment.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Fail
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/deployment"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: [ "CREATE", "UPDATE"]
+        apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources: ["deployments"]
+      - operations: [ "CREATE", "UPDATE"]
+        apiGroups: ["extensions"]
+        apiVersions: ["v1beta1"]
+        resources: ["deployments"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: statefulset.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Fail
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/statefulset"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: [ "CREATE", "UPDATE"]
+        apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources: ["statefulsets"]
+      - operations: [ "CREATE", "UPDATE"]
+        apiGroups: ["extensions"]
+        apiVersions: ["v1beta1"]
+        resources: ["statefulsets"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: pod.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Fail
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/pod"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: [ "CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: pvc.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Fail
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/pvc"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: [ "CREATE", "DELETE", "UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["persistentvolumeclaims"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: serviceaccount.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Fail
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/serviceaccount"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: [ "CREATE", "UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["serviceaccounts"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: cronjob.webhook.okteto.com
+    admissionReviewVersions: ["v1", "v1beta1"]
+    failurePolicy: Ignore
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/cronjob"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: ["UPDATE"]
+        apiGroups: ["batch"]
+        apiVersions: ["v1", "v1beta1"]
+        resources: ["cronjobs"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: config-map.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Ignore
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/config-map"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["configmaps"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: namespace.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Ignore
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/namespace"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: ["UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["namespaces"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: daemonset.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Ignore
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/daemonset"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources: ["daemonsets"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+  - name: externalresources.webhook.okteto.com
+    admissionReviewVersions: ["v1beta1"]
+    failurePolicy: Ignore
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-mutation-webhook"
+        path: "/mutate/externalresources"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRYUo5Q2xNTHRQVEwyaDMyd1dtYUVMREFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKdmEzUmxkRzh0YVc1MFpYSnVZV3d0WTJFd0hoY05NalF3TmpFMU1qTXpOelV3V2hjTgpNelF3TmpFek1qTXpOelV3V2pBZE1Sc3dHUVlEVlFRREV4SnZhM1JsZEc4dGFXNTBaWEp1WVd3dFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRRHBROWllL1BXNXFHM0h1eHl1TzQ1SmNwZS8KRU81dU1Rem9LUG5UcmxZMkZHdGtISFhmaW40MUNmamFEQURjemtwZUh3WGxNc1Zua3BlMDdWaDRWaFFPa2N5ZwpJb2xweU05alViRSsvT1F4MW9teEMwQVp1dDl5S1M3K29jMVpIUXoxa2VzYWFDOUlBcVB1blZiL2ljM3pUdE5ZClR6dnI1ajArY1pLVG44U1lkUmZBY3oyamU4dDJUUHJlRE83WmdmUnJqUlY0dHJQY0xMN0d6Z21zWVZoeEdnQjIKWlo5OER4THRQN09pMXdpQ2U1NmkrWVBVYVExSFRmU3NIQWRIVlNUQTVLM3A1WU0zaFVVak4zRDVNSnhOeUhSdwp1NjJqa3MzMFB2ODJhMDZsOVEvcFJ6SGpmcG8zRFZoMW01V0VtMXoxVlBhd2tkNU1WS1RlenBHQW55SVhBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVVlblFjeHozVjgxcHlmSXhKWW1hMApEanpqYnJBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFES0NoMEtOZURyL1p0STczZURxdmloTE1FWGhzdVpJCm1LNjJjQUJwNml3STFGekwwRncwVC9ZWXFYN0lid09RTEx4YVgyc0dzVyt3YzFSVzJSWFBCZGNHV1FUZ2FCejMKb29Bclk3Y3RNRWNwR2daT1BRd0h4MlFFdTVUaXZQWUk1dkQrRHIwblpYV2Znb0QzaDh4OFp5TkNFa2xKMS9YUAppWU9WS2ZpSnE5NDFIN25vQTJvNHd2cEVJTk90a2pjNVpuS2JxOUMySTRzcEgwQ0ltMWZNMXd0cmhOR1MrM0xJClpnMCtvSGlzMDlDMVgxNDdPTUxHdzdUc0pRN2h1MHVqRHVmK3dnMy9HanNtaWtWc2VhejBzZ1orVlZmS0pPT1kKWml3MzRYdTFHMUQxZlpGZjVGdmZoZm5VSnJ4TXkwazNhaWk2VWF3QjJxeXdkTGdkMnZpc0NtOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["dev.okteto.com"]
+        apiVersions: ["v1"]
+        resources: ["externals"]
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+---
+# Source: okteto/templates/regcreds-webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: my-release-okteto-regcreds
+  namespace: "default"
+  labels:
+    app.kubernetes.io/component: "regcreds"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-regcreds"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: pullsecret.regcreds.okteto.com
+    failurePolicy: Ignore
+    admissionReviewVersions: ["v1"]
+    sideEffects: NoneOnDryRun
+    timeoutSeconds: 30
+    clientConfig:
+      service:
+        name: "my-release-okteto-regcreds"
+        path: "/validate/pullsecret"
+        namespace: "default"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURPekNDQWlPZ0F3SUJBZ0lRSDBQdWs1eG9vSWlyZW1rQ0NSUGlXREFOQmdrcWhraUc5dzBCQVFzRkFEQW8KTVNZd0pBWURWUVFERXgxdGVTMXlaV3hsWVhObExXOXJkR1YwYnkxeVpXZGpjbVZrY3kxallUQWVGdzB5TkRBMgpNVFV5TXpNM05USmFGdzB6TkRBMk1UTXlNek0zTlRKYU1DZ3hKakFrQmdOVkJBTVRIVzE1TFhKbGJHVmhjMlV0CmIydDBaWFJ2TFhKbFoyTnlaV1J6TFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0MKQVFFQXBNdXRXNGdEV0UzS3cySVJZS1pPSlVwS01YS0VVZFpTVDZwR1JNK25LWENJTmErV2Y5aW5RekViY2ViYgpGdnRQSmVQVXVKR2kvQjdBR0k1MjRTSHZRaDZOK21mK1dkMWp3U01hK3F0Zm80bCtkK1hqNlJMelVtOG9kTVVICjFVeE1DdWRkd2J4RStMeDYxTitZYi96aFdUMmJtRkRZOHYxK2x5MWZBaldwSngwU3BMVk14Rmlyak9kMzl6OEgKU3d3VWJmcFhXRXUyZXVmVDNXb0NiSmQ3QXkrejFjclFpZGVCSkJRaitIczJVaERHL0hwZHl2MmhzRFEwbVZ2YQpQZ3lsN3dNU2R0WFVWenR1bFZMdVA2d0pkNitGSk1ZWGl4MDBvQkFFR01Ia2wrL2dHSjhGTHFQUmxLd0xmV0dQCmsxMFZtNUZZbTJ0RDRINVY5QlhKMmdzOUJ3SURBUUFCbzJFd1h6QU9CZ05WSFE4QkFmOEVCQU1DQXFRd0hRWUQKVlIwbEJCWXdGQVlJS3dZQkJRVUhBd0VHQ0NzR0FRVUZCd01DTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3SFFZRApWUjBPQkJZRUZMdytBbVM0NVU2T0lEcUd1OWxEQnNaQmRLMGtNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUFWCmNrZzQyRjRCUUpablphcU5QS1RScE9MSnhqcWFtamVXK3I3eThlY0V2SU5KUHQvdHNxbE5DUWJHMXVMQVprc24KL3VyV3lreUVKM3h1SWw1VHBpV1BISUhEMVlWczNsMXJ6VDdOUjRKcGFrZkd4V3NHL3NOSTFaWXYxOUw3RXluNgo3OTB3ZCtWcnhMKzdlYmtMVFg0V2xrT050Y3JyQ0FxZDlvN0d0bVhETXV5MGdjWjlGUU92N2hLWW4rT2o5b1RpCi9DNnNxL2l3VUYwSUdyWGlDd3l5bC91VHZlRzA2aHlLclNTYlE4eGhRTjBjSGx5VWYwN2pYZWM2TGdyaE1pSFgKT2tOYTVrUjNzV1dyYWQybDVqN1I4NERTcXVtT0hNVGRiQkxoc3l1TU1RNzQ4SXFyb0pycE1PVUpFN2t0c2JyTgpFemRDTXg3RkJFc2ZLQ1FHSTFWNgotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0t
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["secrets"]
+    objectSelector:
+      matchLabels:
+        space.okteto.com/managed: "true"
+    namespaceSelector:
+      matchLabels:
+        dev.okteto.com: "true"
+---
+# Source: okteto/templates/clustermetrics-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-okteto-clustermetrics"
+  labels:
+    app.kubernetes.io/component: "clustermetrics"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-clustermetrics"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  activeDeadlineSeconds: 1800
+  completions: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-clustermetrics"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "clustermetrics"
+        app.kubernetes.io/part-of: "okteto"
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+      restartPolicy: Never
+      priorityClassName: 
+      serviceAccountName: my-release-okteto
+      tolerations:
+      
+      nodeSelector:
+      volumes:
+        - name: tls-certs
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+      containers:
+        - name: api
+          image: okteto/backend:52c5ec953
+          imagePullPolicy: IfNotPresent
+          args: [ "collect-cluster-metrics"]
+          envFrom:
+          - configMapRef:
+              name: "my-release-okteto"
+          - secretRef:
+              name: my-release-okteto
+          - secretRef:
+              name: "okteto-cloud-secret"
+              optional: true
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /run/secrets/tls
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 100Mi
+---
+# Source: okteto/templates/migration-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-okteto-migration"
+  labels:
+    app.kubernetes.io/component: "migration"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-migration"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "my-release-okteto-migration"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "migration"
+        app.kubernetes.io/part-of: "okteto"
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+      restartPolicy: Never
+      priorityClassName: 
+      serviceAccountName: my-release-okteto
+      tolerations:
+      
+      nodeSelector:
+      volumes:
+        - name: tls-certs
+          secret:
+            defaultMode: 420
+            secretName: default-ssl-certificate-selfsigned
+      containers:
+        - name: api
+          image: okteto/backend:52c5ec953
+          imagePullPolicy: IfNotPresent
+          args: [ "migrate" ]
+          envFrom:
+          - configMapRef:
+              name: "my-release-okteto"
+          - secretRef:
+              name: my-release-okteto
+          - secretRef:
+              name: "okteto-cloud-secret"
+              optional: true
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /run/secrets/tls
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 100Mi
+---
+# Source: okteto/templates/telemetry-post-install-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-okteto-telemetry-post-install"
+  labels:
+    app.kubernetes.io/component: "telemetry"
+    app.kubernetes.io/part-of: "okteto"
+    app.kubernetes.io/name: "my-release-okteto-telemetry-post-install"
+    helm.sh/chart: okteto-1.21.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: "telemetry"
+        app.kubernetes.io/part-of: "okteto"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: dev.okteto.com/overloaded
+                operator: DoesNotExist
+            weight: 50
+      serviceAccountName: my-release-okteto
+      priorityClassName: 
+      tolerations:
+      
+      nodeSelector:
+      restartPolicy: Never
+      containers:
+        - name: telemetry
+          image: okteto/backend:52c5ec953
+          imagePullPolicy: IfNotPresent
+          args: [ "telemetry" ]
+          envFrom:
+            - configMapRef:
+                name: "my-release-okteto"
+            - secretRef:
+                name: my-release-okteto
+            - secretRef:
+                name: "okteto-cloud-secret"
+                optional: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 100Mi

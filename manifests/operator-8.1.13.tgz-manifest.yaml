@@ -1,0 +1,978 @@
+---
+# Source: operator/templates/manager-sa.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-controller-manager
+  namespace: default
+---
+# Source: operator/templates/manager-cm.yaml
+apiVersion: v1
+data:
+  controller_manager_config.yaml: |
+    ---
+    apiVersion: punchoperatorconfig.punchplatform.io/v2
+    kind: PunchOperatorConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: :8443
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: false
+      resourceName: c4b45ab4.gitlab.thalesdigital.io  
+    punch:
+      batchApplication:
+        enable: true
+        workers: 2
+      batchPunchline:
+        enable: true
+        workers: 2
+      diagramScheduler:
+        enable: true
+        workers: 2
+      flinkline:
+        enable: true
+        workers: 2
+      planScheduler:
+        enable: true
+        workers: 2
+      sparkPunchline:
+        enable: true
+        workers: 2
+      streamApplication:
+        enable: true
+        workers: 2
+      streamPunchline:
+        enable: true
+        workers: 2
+kind: ConfigMap
+metadata:
+  name: my-release-manager-config
+  namespace: default
+---
+# Source: operator/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: my-release-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - metadata.punchplatform.io
+  resources:
+  - namedatesuffixes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - metadata.punchplatform.io
+  resources:
+  - uniqueids
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - platform.punchplatform.io
+  resources:
+  - platforms
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - batchapplicationmodels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - batchapplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - batchapplications/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - batchpunchlinemodels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - batchpunchlines
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - batchpunchlines/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - flinklines
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - flinklines/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - flinklines/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - sparkpunchlinemodels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - sparkpunchlines
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - sparkpunchlines/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - streamapplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - streamapplications/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - streamapplications/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - streampunchlines
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - punchline.punchplatform.io
+  resources:
+  - streampunchlines/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - scheduler.kast.io
+  resources:
+  - flows
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - scheduler.kast.io
+  resources:
+  - flows/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - scheduler.punchplatform.io
+  resources:
+  - diagrams
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - scheduler.punchplatform.io
+  resources:
+  - diagrams/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - scheduler.punchplatform.io
+  resources:
+  - plans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - scheduler.punchplatform.io
+  resources:
+  - plans/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - workload.punchplatform.io
+  resources:
+  - workloadpriorityqueues
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - workload.punchplatform.io
+  resources:
+  - workloadpriorityqueues/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+# Source: operator/templates/manager-crb.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: my-release-controller-manager
+    namespace: default
+---
+# Source: operator/templates/leader-election-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-leader-election-role
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+# Source: operator/templates/leader-election-crb.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-leader-election-rolebinding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-leader-election-role
+subjects:
+  - kind: ServiceAccount
+    name: my-release-controller-manager
+    namespace: default
+---
+# Source: operator/charts/operator.webhook/templates/webhook-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-webhook-service
+  namespace: default
+  labels:
+    control-plane: my-release-controller-manager
+spec:
+  ports:
+    - port: 443
+      targetPort: 9443
+  selector:
+    control-plane: my-release-controller-manager
+---
+# Source: operator/templates/metrics-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-metrics-service
+  namespace: default
+  labels:
+    control-plane: my-release-controller-manager
+spec:
+  type: ClusterIP
+  ports:
+    - name: "8443"
+      port: 8443
+  selector:
+    control-plane: my-release-controller-manager
+---
+# Source: operator/templates/manager-deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    prometheus.io/port: "9443"
+    prometheus.io/scrape: "true"
+    control-plane: my-release-controller-manager
+  annotations:
+    publisher: punch
+  name: my-release-controller-manager
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: my-release-controller-manager
+  template:
+    metadata:
+      labels:
+        control-plane: my-release-controller-manager
+        prometheus.io/port: "9443"
+        prometheus.io/scrape: "true"
+      annotations:
+        publisher: punch 
+    spec:
+      imagePullSecrets:
+        - name: admin-secret
+      containers:
+        - args:
+            - --config=controller_manager_config.yaml
+            - --enable-webhook=true
+          command:
+            - /manager
+          image: ghcr.io/punchplatform/operator:8.1-dev
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          name: manager
+          ports:
+            - containerPort: 8443
+              name: metric-server
+              protocol: TCP
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 20Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
+            - mountPath: /controller_manager_config.yaml
+              name: manager-config
+              subPath: controller_manager_config.yaml
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: my-release-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: my-release-webhook-server-cert
+        - configMap:
+            name: my-release-manager-config
+          name: manager-config
+---
+# Source: operator/charts/operator.certificate/templates/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: my-release-serving-cert
+  namespace: default
+spec:
+  dnsNames:
+    - my-release-webhook-service.default.svc
+    - my-release-webhook-service.default.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: my-release-selfsigned-issuer
+  secretName: my-release-webhook-server-cert
+---
+# Source: operator/charts/operator.certificate/templates/issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: my-release-selfsigned-issuer
+  namespace: default
+spec:
+  selfSigned: {}
+---
+# Source: operator/charts/operator.webhook/templates/manifests.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: my-release-mutating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: default/my-release-serving-cert
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /mutate-punchline-punchplatform-io-v2-batchapplication
+  failurePolicy: Fail
+  name: mbatchapplication.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - batchapplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /mutate-punchline-punchplatform-io-v2-batchpunchline
+  failurePolicy: Fail
+  name: mbatchpunchline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - batchpunchlines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /mutate-punchline-punchplatform-io-v2-sparkpunchline
+  failurePolicy: Fail
+  name: msparkpunchline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sparkpunchlines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /mutate-punchline-punchplatform-io-v2-streamapplication
+  failurePolicy: Fail
+  name: mstreamapplication.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - streamapplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /mutate-punchline-punchplatform-io-v2-streampunchline
+  failurePolicy: Fail
+  name: mstreampunchline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - streampunchlines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /mutate-punchline-punchplatform-io-v1-flinkline
+  failurePolicy: Fail
+  name: mflinkline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - flinklines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /mutate-punchline-punchplatform-io-v1-sparkline
+  failurePolicy: Fail
+  name: msparkline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sparklines
+  sideEffects: None
+---
+# Source: operator/charts/operator.webhook/templates/manifests.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: my-release-validating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: default/my-release-serving-cert
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /validate-punchline-punchplatform-io-v2-batchapplication
+  failurePolicy: Fail
+  name: vbatchapplication.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - DELETE
+    - UPDATE
+    resources:
+    - batchapplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /validate-punchline-punchplatform-io-v2-batchpunchline
+  failurePolicy: Fail
+  name: vbatchpunchline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - DELETE
+    - UPDATE
+    resources:
+    - batchpunchlines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /validate-punchline-punchplatform-io-v2-sparkpunchline
+  failurePolicy: Fail
+  name: vsparkpunchline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - DELETE
+    - UPDATE
+    resources:
+    - sparkpunchlines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /validate-punchline-punchplatform-io-v2-streamapplication
+  failurePolicy: Fail
+  name: vstreamapplication.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - DELETE
+    - UPDATE
+    resources:
+    - streamapplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /validate-punchline-punchplatform-io-v2-streampunchline
+  failurePolicy: Fail
+  name: vstreampunchline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v2
+    operations:
+    - CREATE
+    - DELETE
+    - UPDATE
+    resources:
+    - streampunchlines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /validate-punchline-punchplatform-io-v1-flinkline
+  failurePolicy: Fail
+  name: vflinkline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - flinklines
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: my-release-webhook-service
+      namespace: default
+      path: /validate-punchline-punchplatform-io-v1-sparkline
+  failurePolicy: Fail
+  name: vsparkline.kb.io
+  rules:
+  - apiGroups:
+    - punchline.punchplatform.io
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - sparklines
+  sideEffects: None

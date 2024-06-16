@@ -1,0 +1,127 @@
+---
+# Source: newrelic-php-daemon/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-newrelic-php-daemon
+  labels:
+    helm.sh/chart: newrelic-php-daemon-0.4.0
+    app.kubernetes.io/name: newrelic-php-daemon
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.6.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  newrelic.cfg: |
+    logfile=/dev/stdout
+---
+# Source: newrelic-php-daemon/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-newrelic-php-daemon
+  labels:
+    helm.sh/chart: newrelic-php-daemon-0.4.0
+    app.kubernetes.io/name: newrelic-php-daemon
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.6.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 31339
+      targetPort: daemon-sock
+      protocol: TCP
+      name: daemon-sock
+  selector:
+    app.kubernetes.io/name: newrelic-php-daemon
+    app.kubernetes.io/instance: my-release
+---
+# Source: newrelic-php-daemon/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-newrelic-php-daemon
+  labels:
+    helm.sh/chart: newrelic-php-daemon-0.4.0
+    app.kubernetes.io/name: newrelic-php-daemon
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.6.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: newrelic-php-daemon
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/daemon-config: b8b59b49ee88e16af3d199a5836a833cf97dc0a6f896737f7585b317f1ce49a1
+      labels:
+        app.kubernetes.io/name: newrelic-php-daemon
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-newrelic-php-daemon
+      containers:
+        - name: newrelic-php-daemon
+          securityContext:
+            {}
+          image: "newrelic/php-daemon:10.6.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: daemon-sock
+              containerPort: 31339
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            tcpSocket:
+              port: daemon-sock
+          readinessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            tcpSocket:
+              port: daemon-sock
+          volumeMounts:
+            - mountPath: /etc/newrelic/newrelic.cfg
+              subPath: newrelic.cfg
+              name: config
+          resources:
+            {}
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: newrelic-php-daemon
+                    app.kubernetes.io/instance: my-release
+              weight: 100
+---
+# Source: newrelic-php-daemon/templates/test/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-newrelic-php-daemon-test-daemon-connection"
+  labels:
+    helm.sh/chart: newrelic-php-daemon-0.4.0
+    app.kubernetes.io/name: newrelic-php-daemon
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.6.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wait-connection-to-start
+      image: willwill/wait-for-it
+      args: ['my-release-newrelic-php-daemon:31339']
+  restartPolicy: Never

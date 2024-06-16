@@ -1,0 +1,100 @@
+---
+# Source: gotenberg/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gotenberg
+  labels:
+    helm.sh/chart: gotenberg-1.4.0
+    app.kubernetes.io/name: gotenberg
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.5.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: gotenberg
+    app.kubernetes.io/instance: my-release
+---
+# Source: gotenberg/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-gotenberg
+  labels:
+    helm.sh/chart: gotenberg-1.4.0
+    app.kubernetes.io/name: gotenberg
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.5.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 120
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gotenberg
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gotenberg
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: gotenberg
+          securityContext:
+            privileged: false
+            runAsUser: 1001
+          image: "gotenberg/gotenberg:8.5.1"
+          imagePullPolicy: IfNotPresent
+          args:
+          - gotenberg
+          - --api-port=3000
+          - --gotenberg-graceful-shutdown-duration=30s
+          env:
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {}
+          volumeMounts:
+            []
+      terminationGracePeriodSeconds: 30
+---
+# Source: gotenberg/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-gotenberg-test-connection"
+  labels:
+    helm.sh/chart: gotenberg-1.4.0
+    app.kubernetes.io/name: gotenberg
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.5.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-gotenberg:80/health']
+  restartPolicy: Never

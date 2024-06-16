@@ -1,0 +1,283 @@
+---
+# Source: nitro/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-nitro
+  labels:
+    helm.sh/chart: nitro
+    app.kubernetes.io/name: nitro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: nitro/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-nitro
+  labels:
+    helm.sh/chart: nitro
+    app.kubernetes.io/name: nitro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.json: |
+    {
+      "chain": {
+        "id": 42161
+      },
+      "conf": {
+        "env-prefix": "NITRO"
+      },
+      "http": {
+        "addr": "0.0.0.0",
+        "api": [
+          "arb",
+          "personal",
+          "eth",
+          "net",
+          "web3",
+          "txpool",
+          "arbdebug"
+        ],
+        "corsdomain": "*",
+        "port": 8547,
+        "rpcprefix": "/rpc",
+        "vhosts": "*"
+      },
+      "log-type": "json",
+      "metrics": false,
+      "metrics-server": {
+        "addr": "0.0.0.0",
+        "port": 6070
+      },
+      "parent-chain": {
+        "connection": {
+          "url": ""
+        },
+        "id": 1
+      },
+      "persistent": {
+        "chain": "/home/user/data/"
+      },
+      "validation": {
+        "wasm": {
+          "allowed-wasm-module-roots": [
+            "/home/user/nitro-legacy/machines",
+            "/home/user/target/machines"
+          ]
+        }
+      },
+      "ws": {
+        "addr": "0.0.0.0",
+        "api": [
+          "net",
+          "web3",
+          "eth",
+          "arb"
+        ],
+        "port": 8548,
+        "rpcprefix": "/ws"
+      }
+    }
+---
+# Source: nitro/templates/headlessservice.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-nitro-headless
+  labels:
+    helm.sh/chart: nitro
+    app.kubernetes.io/name: nitro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  clusterIPs:
+  - None
+  selector:
+    app.kubernetes.io/name: nitro
+    app.kubernetes.io/instance: my-release
+  publishNotReadyAddresses: true
+---
+# Source: nitro/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-nitro
+  labels:
+    helm.sh/chart: nitro
+    app.kubernetes.io/name: nitro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+    function: nitro-svc
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8547
+      targetPort: http-rpc
+      protocol: TCP
+      name: http-rpc
+    - port: 8548
+      targetPort: ws
+      protocol: TCP
+      name: ws
+  selector:
+    app.kubernetes.io/name: nitro
+    app.kubernetes.io/instance: my-release
+    function: nitro
+  publishNotReadyAddresses: false
+---
+# Source: nitro/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-nitro
+  labels:
+    helm.sh/chart: nitro
+    app.kubernetes.io/name: nitro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    nitro.arbitrum.io/desiredReplicas: "1"
+spec:
+  serviceName: "my-release-nitro"
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nitro
+      app.kubernetes.io/instance: my-release
+  podManagementPolicy: Parallel
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: 1671933c0ccfa16e884434247ef67bdaa2d8e9feed806b6ff2ae54bdc31b7dca
+      labels:
+        app.kubernetes.io/name: nitro
+        app.kubernetes.io/instance: my-release
+        function: nitro
+    spec:
+      serviceAccountName: my-release-nitro
+      securityContext:
+        
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      initContainers:
+        
+      containers:
+        - name: nitro
+          securityContext:
+            {}
+          image: "offchainlabs/nitro-node:v3.0.0-e6f81cb"
+          imagePullPolicy: Always
+          command: [/usr/local/bin/nitro]
+          args:
+            - --conf.file=/config/config.json
+          ports:
+            - name: http-rpc
+              containerPort: 8547
+              protocol: TCP
+            - name: ws
+              containerPort: 8548
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - "bash"
+                - "-c"
+                - |
+                  
+                  curl "http://localhost:8547/rpc" -H "Content-Type: application/json" \
+                           -sd "{\"jsonrpc\":\"2.0\",\"id\":0,\"method\":\"eth_syncing\",\"params\":[]}" \
+                           | jq -ne "input.result == false"
+            failureThreshold: 2.4192e+06
+            periodSeconds: 1
+          env:
+          volumeMounts:
+          - name: nitrodata
+            mountPath: /home/user/data/
+          - name: config
+            mountPath: /config/
+          resources:
+            {}
+        
+      volumes:
+      - name: config
+        configMap:
+          name: my-release-nitro
+      terminationGracePeriodSeconds: 600
+  volumeClaimTemplates:
+    - metadata:
+        name: nitrodata
+        labels:
+          app: nitro
+          release: my-release
+          heritage: Helm
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: "500Gi"
+---
+# Source: nitro/templates/tests/test.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "my-release-nitro-ci-configmap"
+  annotations:
+    "helm.sh/hook": test
+data:
+  config.yaml: |
+    debug:
+      enabled: false
+    secretManifest:
+      enabled: false
+---
+# Source: nitro/templates/tests/test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-nitro-nitro-test"
+  labels:
+    helm.sh/chart: nitro
+    app.kubernetes.io/name: nitro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+  - name: sre-nitro-test-suite
+    image: public.ecr.aws/f6s7v9z5/offchain-labs/sre-nitro-test:v0.0.7
+    imagePullPolicy: Always
+    volumeMounts:
+    - name: config-volume
+      mountPath: "/config"
+      readOnly: true
+    envFrom:
+    - secretRef:
+        name: "ci-secret-nitro"
+    env:
+    - name: RPC_URL
+      value: http://my-release-nitro:8547/rpc
+  volumes:
+  - name: config-volume
+    configMap:
+      name: "my-release-nitro-ci-configmap"
+
+  restartPolicy: Never

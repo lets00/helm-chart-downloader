@@ -1,0 +1,694 @@
+---
+# Source: spinnaker/templates/rbac/halyard-sa.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-spinnaker-halyard
+  namespace: default
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+---
+# Source: spinnaker/charts/redis/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-redis
+  labels:
+    app: redis
+    chart: redis-10.5.3
+    release: "my-release"
+    heritage: "Helm"
+type: Opaque
+data:
+  redis-password: "cGFzc3dvcmQ="
+---
+# Source: spinnaker/templates/secrets/registry.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-spinnaker-registry
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+    component: clouddriver
+type: Opaque
+data:
+  dockerhub: ""
+---
+# Source: spinnaker/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis
+  labels:
+    app: redis
+    chart: redis-10.5.3
+    heritage: Helm
+    release: my-release
+data:
+  redis.conf: |-
+    # User-supplied configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+  master.conf: |-
+    dir /data
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+  replica.conf: |-
+    dir /data
+    slave-read-only yes
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+---
+# Source: spinnaker/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-health
+  labels:
+    app: redis
+    chart: redis-10.5.3
+    heritage: Helm
+    release: my-release
+data:
+  ping_readiness_local.sh: |-
+    response=$(
+      timeout -s 9 $1 \
+      redis-cli \
+        -a $REDIS_PASSWORD --no-auth-warning \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    response=$(
+      timeout -s 9 $1 \
+      redis-cli \
+        -a $REDIS_PASSWORD --no-auth-warning \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$response" != "PONG" ] && [ "$response" != "LOADING Redis is loading the dataset in memory" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    response=$(
+      timeout -s 9 $1 \
+      redis-cli \
+        -a $REDIS_MASTER_PASSWORD --no-auth-warning \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    response=$(
+      timeout -s 9 $1 \
+      redis-cli \
+        -a $REDIS_MASTER_PASSWORD --no-auth-warning \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$response" != "PONG" ] && [ "$response" != "LOADING Redis is loading the dataset in memory" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: spinnaker/templates/configmap/additional-profile-configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-spinnaker-additional-profile-config-maps
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+data:
+  gate-local.yml: '{}'
+---
+# Source: spinnaker/templates/configmap/halyard-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-spinnaker-halyard-config
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+data:
+  install.sh: |
+    #!/bin/bash
+
+    # Wait for the Hal daemon to be ready
+    export DAEMON_ENDPOINT=http://my-release-spinnaker-halyard:8064
+    export HAL_COMMAND="hal --daemon-endpoint $DAEMON_ENDPOINT"
+    until $HAL_COMMAND --ready; do sleep 10 ; done
+
+    bash -xe /opt/halyard/scripts/config.sh
+
+    $HAL_COMMAND deploy apply
+  clean.sh: |
+    export HAL_COMMAND='hal --daemon-endpoint http://my-release-spinnaker-halyard:8064'
+    $HAL_COMMAND deploy clean -q
+  config.sh: |
+    # Spinnaker version
+    
+    $HAL_COMMAND config version edit --version 1.19.4
+    
+
+    # Storage
+    
+    
+    
+    
+
+    # Docker Registry
+    $HAL_COMMAND config provider docker-registry enable
+
+    if $HAL_COMMAND config provider docker-registry account get dockerhub; then
+      PROVIDER_COMMAND='edit'
+    else
+      PROVIDER_COMMAND='add'
+    fi
+
+    $HAL_COMMAND config provider docker-registry account $PROVIDER_COMMAND dockerhub --address index.docker.io \
+       \
+      --repositories library/alpine,library/ubuntu,library/centos,library/nginx
+
+    $HAL_COMMAND config provider kubernetes enable
+
+    if $HAL_COMMAND config provider kubernetes account get default; then
+      PROVIDER_COMMAND='edit'
+    else
+      PROVIDER_COMMAND='add'
+    fi
+
+    $HAL_COMMAND config provider kubernetes account $PROVIDER_COMMAND default --docker-registries dockerhub \
+                --context default --service-account true \
+                 \
+                 \
+                 \
+                 \
+                --omit-namespaces=kube-system,kube-public \
+                 \
+                 \
+                 \
+                --provider-version v2
+    $HAL_COMMAND config deploy edit --account-name default --type distributed \
+                           --location default
+    # Use Deck to route to Gate
+    $HAL_COMMAND config security api edit --no-validate --override-base-url /gate
+    $HAL_COMMAND config features edit --artifacts true
+---
+# Source: spinnaker/templates/configmap/halyard-init-script.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-spinnaker-halyard-init-script
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+data:
+  init.sh: |
+    #!/bin/bash
+
+    # Override Halyard daemon's listen address
+    cp /opt/halyard/config/* /tmp/config
+    printf 'server.address: 0.0.0.0\n' > /tmp/config/halyard-local.yml
+
+    # Use Redis deployed via the dependent Helm chart
+    rm -rf /tmp/spinnaker/.hal/default/service-settings
+    mkdir -p /tmp/spinnaker/.hal/default/service-settings
+    cp /tmp/service-settings/* /tmp/spinnaker/.hal/default/service-settings/
+
+    rm -rf /tmp/spinnaker/.hal/default/profiles
+    mkdir -p /tmp/spinnaker/.hal/default/profiles
+    cp /tmp/additionalProfileConfigMaps/* /tmp/spinnaker/.hal/default/profiles/
+
+    rm -rf /tmp/spinnaker/.hal/.boms
+---
+# Source: spinnaker/templates/configmap/service-settings.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-spinnaker-service-settings
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+
+data:
+  deck.yml: |-
+    env:
+      API_HOST: http://spin-gate:8084
+  redis.yml: |-
+    overrideBaseUrl: redis://:password@my-release-redis-master:6379
+    skipLifeCycleManagement: true
+---
+# Source: spinnaker/templates/rbac/spinnaker-sa.yaml
+# In the case of a local cluster Spinnaker needs
+# to be able to deploy to all namespaces in the cluster.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-spinnaker-spinnaker
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- namespace: default
+  kind: ServiceAccount
+  # Clouddriver does not currently allow config of its
+  # service account.
+  name: default
+---
+# Source: spinnaker/templates/rbac/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-spinnaker-halyard
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+- namespace: default
+  kind: ServiceAccount
+  name: my-release-spinnaker-halyard
+---
+# Source: spinnaker/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-headless
+  labels:
+    app: redis
+    chart: redis-10.5.3
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app: redis
+    release: my-release
+---
+# Source: spinnaker/charts/redis/templates/redis-master-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-master
+  labels:
+    app: redis
+    chart: redis-10.5.3
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app: redis
+    release: my-release
+    role: master
+---
+# Source: spinnaker/templates/services/halyard.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-spinnaker-halyard
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+    component: halyard
+spec:
+  ports:
+  - port: 8064
+    name: daemon
+  clusterIP: None
+  selector:
+    app: my-release-spinnaker
+    component: halyard
+---
+# Source: spinnaker/charts/redis/templates/redis-master-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-redis-master
+  labels:
+    app: redis
+    chart: redis-10.5.3
+    release: my-release
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app: redis
+      release: my-release
+      role: master
+  serviceName: my-release-redis-headless
+  template:
+    metadata:
+      labels:
+        app: redis
+        chart: redis-10.5.3
+        release: my-release
+        role: master
+      annotations:
+        checksum/health: c9b7ea90470a54c9b163f51abb6e0ad0714577eddefc8b7d3ac05a68c5a7d606
+        checksum/configmap: ca9ab53ba364fd59c727422a09af74b179a17e0b4041fa8ad94aa9b422537a2e
+        checksum/secret: e0e71b918a7607d58b8226a7b7ae1fc28cd15ca659ff1d61a20f01e1f4ef4ae6
+    spec:      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: "default"
+      containers:
+      - name: my-release-redis
+        image: "docker.io/bitnami/redis:5.0.7-debian-10-r0"
+        imagePullPolicy: "IfNotPresent"
+        securityContext:
+          runAsUser: 1001
+        command:
+        - /bin/bash
+        - -c
+        - |
+          if [[ -n $REDIS_PASSWORD_FILE ]]; then
+            password_aux=`cat ${REDIS_PASSWORD_FILE}`
+            export REDIS_PASSWORD=$password_aux
+          fi
+          if [[ ! -f /opt/bitnami/redis/etc/master.conf ]];then
+            cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+          fi
+          if [[ ! -f /opt/bitnami/redis/etc/redis.conf ]];then
+            cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+          fi
+          ARGS=("--port" "${REDIS_PORT}")
+          ARGS+=("--requirepass" "${REDIS_PASSWORD}")
+          ARGS+=("--masterauth" "${REDIS_PASSWORD}")
+          ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+          ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+          /run.sh ${ARGS[@]}
+        env:
+        - name: REDIS_REPLICATION_MODE
+          value: master
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-redis
+              key: redis-password
+        - name: REDIS_PORT
+          value: "6379"
+        ports:
+        - name: redis
+          containerPort: 6379
+        livenessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_liveness_local.sh 5
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_readiness_local.sh 5
+        resources:
+          null
+        volumeMounts:
+        - name: health
+          mountPath: /health
+        - name: redis-data
+          mountPath: /data
+          subPath: 
+        - name: config
+          mountPath: /opt/bitnami/redis/mounted-etc
+        - name: redis-tmp-conf
+          mountPath: /opt/bitnami/redis/etc/
+      volumes:
+      - name: health
+        configMap:
+          name: my-release-redis-health
+          defaultMode: 0755
+      - name: config
+        configMap:
+          name: my-release-redis
+      - name: redis-tmp-conf
+        emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+        labels:
+          app: redis
+          release: my-release
+          heritage: Helm
+          component: master
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+        
+        selector:
+  updateStrategy:
+    type: RollingUpdate
+---
+# Source: spinnaker/templates/statefulsets/halyard.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-spinnaker-halyard
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+spec:
+  serviceName: my-release-spinnaker-halyard
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "my-release-spinnaker"
+      release: "my-release"
+      component: halyard
+  template:
+    metadata:
+      annotations:
+        checksum/config: a5868f49fa7e8cb49b640a438c2be342ecab825973d3378d9ffe6fcf14129e88
+      labels:
+        app: "my-release-spinnaker"
+        heritage: "Helm"
+        release: "my-release"
+        chart: "spinnaker-2.2.6"
+        component: halyard
+    spec:
+      serviceAccountName: my-release-spinnaker-halyard
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: "create-halyard-local"
+        image: gcr.io/spinnaker-marketplace/halyard:1.32.0
+        command:
+        - bash
+        - /tmp/initscript/init.sh
+        volumeMounts:
+        - name: halyard-config
+          mountPath: /tmp/config
+        - name: service-settings
+          mountPath: /tmp/service-settings
+        - name: halyard-home
+          mountPath: /tmp/spinnaker
+        - name: additional-profile-config-maps
+          mountPath: /tmp/additionalProfileConfigMaps
+        - name: halyard-initscript
+          mountPath: /tmp/initscript
+      volumes:
+      - name: reg-secrets
+        secret:
+          secretName: my-release-spinnaker-registry
+      - name: additional-profile-config-maps
+        configMap:
+          name: my-release-spinnaker-additional-profile-config-maps
+      - name: halyard-config
+        emptyDir: {}
+      - name: service-settings
+        configMap:
+          name: my-release-spinnaker-service-settings
+      - name: halyard-initscript
+        configMap:
+          name: my-release-spinnaker-halyard-init-script
+      containers:
+      - name: halyard
+        image: gcr.io/spinnaker-marketplace/halyard:1.32.0
+        ports:
+        - containerPort: 8064
+          name: daemon
+        volumeMounts:
+        - name: halyard-home
+          mountPath: /home/spinnaker
+        - name: halyard-config
+          mountPath: /opt/halyard/config
+        - name: reg-secrets
+          mountPath: /opt/registry/passwords
+  volumeClaimTemplates:
+  - metadata:
+      name: halyard-home
+      labels:
+        app: "my-release-spinnaker"
+        heritage: "Helm"
+        release: "my-release"
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+---
+# Source: spinnaker/templates/hooks/cleanup.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-spinnaker-cleanup-using-hal"
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+    component: halyard
+  annotations:
+    "helm.sh/hook": "pre-delete"
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+spec:
+  template:
+    metadata:
+      labels:
+        app: "my-release-spinnaker"
+        heritage: "Helm"
+        release: "my-release"
+        chart: "spinnaker-2.2.6"
+        component: halyard
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+      - name: halyard-config
+        configMap:
+          name: my-release-spinnaker-halyard-config
+      containers:
+      - name: halyard-install
+        image: gcr.io/spinnaker-marketplace/halyard:1.32.0
+        volumeMounts:
+        - name: halyard-config
+          mountPath: /opt/halyard/scripts
+        command:
+        - bash
+        - -xe
+        - "/opt/halyard/scripts/clean.sh"
+---
+# Source: spinnaker/templates/hooks/install-using-hal.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-install-using-hal"
+  labels:
+    app: "my-release-spinnaker"
+    heritage: "Helm"
+    release: "my-release"
+    chart: "spinnaker-2.2.6"
+  annotations:
+    "helm.sh/hook": "post-install,post-upgrade"
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+    "helm.sh/hook-weight": "0"
+spec:
+  template:
+    metadata:
+      annotations:
+        checksum/config: b00d32bf167d52b1000d41825eaa38cac6fbd03391a9e283a617aa2f5ab3bb94
+      labels:
+        app: "my-release-spinnaker"
+        heritage: "Helm"
+        release: "my-release"
+        chart: "spinnaker-2.2.6"
+    spec:
+      serviceAccountName: my-release-spinnaker-halyard
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      restartPolicy: OnFailure
+      volumes:
+      - name: halyard-config
+        configMap:
+          name: my-release-spinnaker-halyard-config
+      containers:
+      - name: halyard-install
+        image: gcr.io/spinnaker-marketplace/halyard:1.32.0
+        volumeMounts:
+        - name: halyard-config
+          mountPath: /opt/halyard/scripts
+        command:
+        - bash
+        - -xe
+        - "/opt/halyard/scripts/install.sh"

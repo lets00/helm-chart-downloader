@@ -1,0 +1,34 @@
+---
+# Source: cluster-rbac/templates/cluster-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api-service-account
+  namespace: kafka
+---
+# Source: cluster-rbac/templates/cluster-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: microservices-kubernetes-namespace-reader
+  namespace: default
+rules:
+  - apiGroups: [""] # "" indicates the core API group
+    resources: ["configmaps", "pods", "services", "endpoints", "secrets"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: cluster-rbac/templates/cluster-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: service-pod-reader-account
+  namespace: kafka
+subjects:
+  - kind: ServiceAccount
+    name: api-service-account
+    namespace: kafka
+    apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: microservices-kubernetes-namespace-reader
+  apiGroup: ""

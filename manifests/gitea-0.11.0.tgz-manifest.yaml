@@ -1,0 +1,351 @@
+---
+# Source: gitea/templates/secureconfig.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-gitea
+  labels:
+    helm.sh/chart: gitea-0.11.0
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  app.ini: |-
+    APP_NAME = Gitea: Git with a cup of tea
+    RUN_MODE = prod
+    [database]
+    DB_TYPE = sqlite3
+    PATH = /data/gitea/gitea.db
+    [lfs]
+    PATH = /data/gitea/lfs
+    [log]
+    ACCESS = console
+    ENABLE_ACCESS_LOG = false
+    LEVEL = info
+    MODE = console
+    ROOT_PATH = /data/log
+    [mailer]
+    ENABLED = false
+    [oauth2]
+    JWT_SECRET = 
+    [openid]
+    ENABLE_OPENID_SIGNIN = false
+    ENABLE_OPENID_SIGNUP = false
+    [picture]
+    DISABLE_GRAVATAR = false
+    ENABLE_FEDERATED_AVATAR = true
+    [repository]
+    ROOT = /data/git/gitea-repositories
+    [security]
+    INSTALL_LOCK = true
+    INTERNAL_TOKEN = 
+    SECRET_KEY = 
+    [server]
+    APP_DATA_PATH = /data/gitea
+    DISABLE_SSH = false
+    HTTP_PORT = 8000
+    LFS_JWT_SECRET = 
+    LFS_START_SERVER = true
+    OFFLINE_MODE = false
+    PROTOCOL = http
+    ROOT_URL = http://%!s(<nil>)
+    SSH_DOMAIN = 
+    SSH_LISTEN_PORT = 8022
+    SSH_PORT = 22
+    SSH_ROOT_PATH = /data/ssh
+    START_SSH_SERVER = true
+    [service]
+    ALLOW_ONLY_EXTERNAL_REGISTRATION = false
+    DEFAULT_ALLOW_CREATE_ORGANIZATION = true
+    DEFAULT_ENABLE_TIMETRACKING = true
+    DEFAULT_KEEP_EMAIL_PRIVATE = true
+    DISABLE_REGISTRATION = true
+    ENABLE_CAPTCHA = false
+    ENABLE_NOTIFY_MAIL = false
+    NO_REPLY_ADDRESS = noreply.dev.k8.local
+    REGISTER_EMAIL_CONFIRM = false
+    REQUIRE_SIGNIN_VIEW = false
+---
+# Source: gitea/templates/scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-gitea-scripts
+  labels:
+    helm.sh/chart: gitea-0.11.0
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  init.sh: |
+    #!/bin/bash
+    echo "Initializing Gitea..."
+    if [ ! -d /data/gitea/conf ]; then
+      echo "Gitea configuration directory doesn't exist. Creating directory structure..."
+      mkdir -p /data/gitea/conf
+      mkdir -p /data/gitea/lfs
+      mkdir -p /data/git
+      mkdir -p /data/git/gitea-repositories
+      mkdir -p /data/log
+      echo "Gitea directory structure created."
+    else
+      echo "Gitea directory structure already exists."
+    fi
+    echo "Copy app.ini"
+    cp /config/app.ini /data/gitea/conf/app.ini
+    echo "Setting permissions on app.ini"
+    chmod 600 /data/gitea/conf/app.ini
+    echo "Finished."
+
+  createdefaultadmin.sh: |
+    #!/bin/bash
+    echo "Post installation..."
+    if [ ! -f /data/gitea/conf/.post-install-done ]; then
+      echo "Post-install didn't run before - Sleeping for 60 seconds..."
+      sleep 60
+      echo "Creating first admin user"
+      /app/gitea/gitea admin user create --username root --password admin --email root@admin.local --admin --must-change-password
+      touch /data/gitea/conf/.post-install-done
+      echo "Post-install ready."
+    else
+      echo "Nothing to do."
+    fi
+    echo "Finished."
+---
+# Source: gitea/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gitea-http
+  labels:
+    helm.sh/chart: gitea-0.11.0
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+---
+# Source: gitea/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gitea-ssh
+  labels:
+    helm.sh/chart: gitea-0.11.0
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 22
+      targetPort: ssh
+      protocol: TCP
+      name: ssh
+  selector:
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+---
+# Source: gitea/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-gitea
+  labels:
+    helm.sh/chart: gitea-0.11.0
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gitea
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        checksum/secureconfig: 62ad4dee5f226644f8291797600380fb7ca4733d8cefebb97c86ec99fc8ce924
+        checksum/scripts: 517c1b6672992ca7b5fed4aacca7bd16fd93b36681820aeaa39df102b4b5d81d
+      labels:
+        app.kubernetes.io/name: gitea
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: init
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "docker.io/gitea/gitea:1.22.0"
+          command: [ "/scripts/init.sh" ]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: config
+              mountPath: /config
+            - name: gitea-vol
+              mountPath: /data
+      containers:
+        - name: gitea
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "docker.io/gitea/gitea:1.22.0"
+          imagePullPolicy: IfNotPresent
+          command: [ "/app/gitea/gitea" ]
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+            - name: ssh
+              containerPort: 8022
+              protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+            successThreshold: 1
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+            successThreshold: 1
+            periodSeconds: 10
+          volumeMounts:
+            - name: run
+              mountPath: /var/run
+            - name: gitea-vol
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: my-release-gitea-scripts
+            defaultMode: 0555
+        - name: config
+          secret:
+            secretName: my-release-gitea
+        - name: gitea-vol
+          emptyDir: {}
+---
+# Source: gitea/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-gitea-test-connection"
+  labels:
+    helm.sh/chart: gitea-0.11.0
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-gitea:80']
+  restartPolicy: Never
+---
+# Source: gitea/templates/post-install.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-gitea-postinstall
+  labels:
+    helm.sh/chart: gitea-0.11.0
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    spec:
+      securityContext:
+        fsGroup: 1000
+      restartPolicy: OnFailure
+      containers:
+        - name: gitea-postinstall
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "docker.io/gitea/gitea:1.22.0"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: my-release-gitea
+          args:
+            - /bin/sh
+            - -c
+            - /scripts/createdefaultadmin.sh
+          volumeMounts:
+            - name: gitea-vol
+              mountPath: /data
+            - name: scripts
+              mountPath: /scripts
+      restartPolicy: OnFailure
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: my-release-gitea-scripts
+            defaultMode: 0555
+        - name: config
+          secret:
+            secretName: my-release-gitea
+        - name: gitea-vol
+          emptyDir: {}

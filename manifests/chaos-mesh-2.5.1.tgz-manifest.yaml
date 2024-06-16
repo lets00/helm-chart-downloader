@@ -1,0 +1,34 @@
+---
+# Source: chaos-mesh/templates/chaos-mesh.yaml
+apiVersion: plugins.kubegems.io/v1beta1
+kind: Plugin
+metadata:
+  name: chaos-mesh
+  namespace: "default"
+spec:
+  kind: helm
+  url: https://charts.chaos-mesh.org
+  version: "2.5.1"
+  values:
+    controllerManager:
+      replicaCount: 1
+    chaosDaemon:
+      runtime: containerd
+      socketPath: /run/containerd/containerd.sock
+    dashboard:
+      persistentVolume:
+        enabled: true
+        storageClassName: 
+        size: 5Gi
+      ingress:
+        enabled: true
+        ingressClassName: default-gateway
+        hosts:
+          - name: chaosmesh.kubegems.io
+    dnsServer:
+      create: true
+      replicas: 1
+    bpfki:
+      create: true
+    chaosDlv:
+      enable: true

@@ -1,0 +1,116 @@
+---
+# Source: elastalert2/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-elastalert2
+  labels:
+    app.kubernetes.io/name: elastalert2
+    helm.sh/chart: elastalert2-2.18.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: elastalert2/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-elastalert2-config
+  labels:
+    app.kubernetes.io/name: elastalert2
+    helm.sh/chart: elastalert2-2.18.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  elastalert_config: |-
+    ---
+    rules_folder: /opt/elastalert/rules    
+    scan_subdirectories: true
+    run_every:
+      minutes: 1
+    buffer_time:
+      minutes: 15
+    es_host: elasticsearch
+    es_port: 9200
+    writeback_index: elastalert
+    use_ssl: False
+    verify_certs: True
+    alert_time_limit:
+      minutes: 2880
+---
+# Source: elastalert2/templates/rules.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-elastalert2-rules
+  labels:
+    app.kubernetes.io/name: elastalert2
+    helm.sh/chart: elastalert2-2.18.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: elastalert2/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-elastalert2
+  labels:
+    app: elastalert2
+    chart: "elastalert2-2.18.0"
+    release: my-release
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: elastalert2
+      app.kubernetes.io/instance: my-release
+  replicas: 1
+  revisionHistoryLimit: 5
+  minReadySeconds: 5
+  template:
+    metadata:
+      annotations:
+        checksum/config: 897de1d86606ec792da39a3ea6b1982d71d0cbb8efb029423f16659201277d04
+        checksum/rules: 2fb644821aebb41e3e9ff3abadeeab2641f859b2003baaefcfc160d77adb72c2
+      labels:
+        app.kubernetes.io/name: elastalert2
+        helm.sh/chart: elastalert2-2.18.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: elastalert2
+    spec:
+      serviceAccountName: my-release-elastalert2
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+      containers:
+      - name: elastalert
+        image: "jertel/elastalert2:2.18.0"
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+
+        volumeMounts:
+          - name: config
+            mountPath: '/opt/elastalert/config.yaml'
+            subPath: config.yaml
+          - name: rules
+            mountPath: /opt/elastalert/rules
+        resources:
+            {}
+        env:
+
+      restartPolicy: Always
+      volumes:
+        - name: rules
+          configMap:
+            name: my-release-elastalert2-rules
+            items:
+        - name: config
+          configMap:
+            name: my-release-elastalert2-config
+            items:
+            - key: elastalert_config
+              path: config.yaml

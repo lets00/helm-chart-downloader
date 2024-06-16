@@ -1,0 +1,236 @@
+---
+# Source: allure/templates/configmap-api.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-allure-api
+  labels:
+    helm.sh/chart: allure-0.1.1
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: api
+    app.kubernetes.io/version: 2.19.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  CHECK_RESULTS_EVERY_SECONDS: "NONE"
+  KEEP_HISTORY: "1"
+  TLS: "1"
+  SECURITY_ENABLED: "1"
+  MAKE_VIEWER_ENDPOINTS_PUBLIC: "0"
+  DEV_MODE: "0"
+---
+# Source: allure/templates/configmap-ui.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-allure-ui
+  labels:
+    helm.sh/chart: allure-0.1.1
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/version: 7.0.3
+    app.kubernetes.io/managed-by: Helm
+data:
+  ALLURE_DOCKER_PUBLIC_API_URL: http://
+---
+# Source: allure/templates/volume-api.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-allure-data
+  labels:
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: api
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  storageClassName: 
+  resources:
+    requests:
+      storage: 4Gi
+---
+# Source: allure/templates/service-api.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-allure-api
+  labels:
+    helm.sh/chart: allure-0.1.1
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: api
+    app.kubernetes.io/version: 2.19.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: api
+      protocol: TCP
+      name: api
+  selector:
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: api
+---
+# Source: allure/templates/service-ui.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-allure-ui
+  labels:
+    helm.sh/chart: allure-0.1.1
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/version: 7.0.3
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: ui
+      protocol: TCP
+      name: ui
+  selector:
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ui
+---
+# Source: allure/templates/deployment-api.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-allure-api
+  labels:
+    helm.sh/chart: allure-0.1.1
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: api
+    app.kubernetes.io/version: 2.19.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: allure
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: allure
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: api
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: allure-api
+          securityContext:
+            runAsGroup: 1000
+            runAsUser: 1000
+          image: "frankescobar/allure-docker-service:2.19.0"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: my-release-allure-api
+            - secretRef:
+                name: api-credentials
+          volumeMounts:
+            - name: reports-volume
+              mountPath: /app/projects
+          ports:
+            - name: api
+              containerPort: 5050
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /allure-docker-service/version
+              port: api
+          readinessProbe:
+            httpGet:
+              path: /allure-docker-service/version
+              port: api
+      volumes:
+        - name: reports-volume
+          persistentVolumeClaim:
+            claimName: my-release-allure-data
+---
+# Source: allure/templates/deployment-ui.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-allure-ui
+  labels:
+    helm.sh/chart: allure-0.1.1
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/version: 7.0.3
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: allure
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: allure
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: ui
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: allure-ui
+          securityContext:
+            {}
+          image: "frankescobar/allure-docker-service-ui:7.0.3"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: my-release-allure-ui
+          ports:
+            - name: ui
+              containerPort: 5252
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /allure-docker-service-ui/version
+              port: ui
+          readinessProbe:
+            httpGet:
+              path: /allure-docker-service-ui/version
+              port: ui
+---
+# Source: allure/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-allure-test-connection"
+  labels:
+    helm.sh/chart: allure-0.1.1
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: api
+    app.kubernetes.io/name: allure
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/version: 2.19.0
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-allure-ui:80']
+  restartPolicy: Never

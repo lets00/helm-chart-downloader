@@ -1,0 +1,173 @@
+---
+# Source: kove/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kove
+  namespace: default
+  labels:
+    app: kove
+    helm.sh/chart: kove-0.2.0
+    app.kubernetes.io/name: kove
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kove/templates/configmap-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kove-config
+  namespace: default
+  labels:
+    app: kove
+    helm.sh/chart: kove-0.2.0
+    app.kubernetes.io/name: kove
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    |
+      ignoreChildren: true
+      objects:
+        - group: apps
+          version: v1
+          resource: deployments
+        - group: apps
+          version: v1
+          resource: daemonsets
+        - group: apps
+          version: v1
+          resource: statefulsets
+---
+# Source: kove/templates/configmap-policy.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kove-policy
+  namespace: default
+  labels:
+    app: kove
+    helm.sh/chart: kove-0.2.0
+    app.kubernetes.io/name: kove
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  policy.rego: |
+---
+# Source: kove/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-kove
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+---
+# Source: kove/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-kove
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: my-release-kove
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: my-release-kove
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: kove/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kove
+  namespace: default
+  labels:
+    app: kove
+    helm.sh/chart: kove-0.2.0
+    app.kubernetes.io/name: kove
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: kove
+    app.kubernetes.io/instance: my-release
+---
+# Source: kove/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kove
+  namespace: default
+  labels:
+    app: kove
+    helm.sh/chart: kove-0.2.0
+    app.kubernetes.io/name: kove
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kove
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kove
+        app.kubernetes.io/instance: my-release
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "3000"
+        prometheus.io/scrape: "true"
+    spec:
+      serviceAccountName: my-release-kove
+      automountServiceAccountToken: true
+      containers:
+        - name: kove
+          image: "ghcr.io/cmacrae/kove:v0.2.0"
+          args: [ "-config", "/config/config.yaml" ]
+          volumeMounts:
+          - name: config
+            mountPath: "/config"
+            readOnly: true
+          - name: policies
+            mountPath: "/policies"
+            readOnly: true
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: "/healthz"
+              port: http
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            {}
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-kove-config
+        - name: policies
+          configMap:
+            name: my-release-kove-policy

@@ -1,0 +1,100 @@
+---
+# Source: web/templates/namespace.yaml
+# Create namespace for our apps
+apiVersion: v1
+kind: Namespace
+metadata:
+  # Namespace name
+  name: local-app
+  labels:
+    istio-injection: enabled
+---
+# Source: web/templates/service-account.yaml
+# This used to enable R53 access with IAM role
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-service
+  namespace: local-app
+  annotations:
+    eks.amazonaws.com/role-arn:
+---
+# Source: web/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+  namespace: local-app
+spec:
+  ports:
+    - name: http
+      targetPort: 3000
+      port: 3000
+  selector:
+    # This is app name label
+    app: app
+---
+# Source: web/templates/deployment.yaml
+# Create Deployment (APP deploy)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  # Use the namespace we created in this chart
+  namespace: local-app
+  annotations:
+    link.argocd.argoproj.io/external-link: https://app.local.domain.local
+spec:
+  # Replicas count
+  replicas: 1
+  selector:
+    matchLabels:
+      # Application name
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: container
+          image: <aws-account-id>.dkr.ecr.<aws-region>.amazonaws.com/<app-name>:dev-latest
+          command: 
+          envFrom:
+            # We get Env variables in the pod from the secret we created
+            - secretRef:
+                # We refer to the name of the secret
+                name: app-secret
+          env:
+            - name: APP_NAME
+              value:
+---
+# Source: web/templates/external-secret.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: app-secret
+  namespace: local-app
+spec:
+  secretStoreRef:
+    name: app-secrets
+    kind: SecretStore
+  data:
+    # metadataPolicy to fetch all the tags in JSON format
+    
+    - secretKey: 
+      remoteRef:
+        metadataPolicy: Fetch
+        key: "/local//"
+---
+# Source: web/templates/secret-store.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: app-secrets
+  namespace: local-app
+spec:
+  provider:
+    aws:
+      service: ParameterStore
+      region: aws-region

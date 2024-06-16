@@ -1,0 +1,207 @@
+---
+# Source: lagoon-docker-host/templates/docker-host.networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-release-docker-host
+  labels:
+    helm.sh/chart: lagoon-docker-host-0.3.0
+    app.kubernetes.io/name: lagoon-docker-host
+    app.kubernetes.io/component: my-release-docker-host
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchExpressions:
+        - key: lagoon.sh/environment
+          operator: Exists
+      podSelector:
+        matchExpressions:
+        - key: lagoon.sh/buildName
+          operator: Exists
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: lagoon-docker-host
+      app.kubernetes.io/component: my-release-docker-host
+      app.kubernetes.io/instance: my-release
+  policyTypes:
+  - Ingress
+---
+# Source: lagoon-docker-host/templates/docker-host.serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-docker-host
+  labels:
+    helm.sh/chart: lagoon-docker-host-0.3.0
+    app.kubernetes.io/name: lagoon-docker-host
+    app.kubernetes.io/component: my-release-docker-host
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: lagoon-docker-host/templates/docker-host.pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-docker-host
+  labels:
+    helm.sh/chart: lagoon-docker-host-0.3.0
+    app.kubernetes.io/name: lagoon-docker-host
+    app.kubernetes.io/component: my-release-docker-host
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "750Gi"
+---
+# Source: lagoon-docker-host/templates/docker-host.service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-host
+  labels:
+    helm.sh/chart: lagoon-docker-host-0.3.0
+    app.kubernetes.io/name: lagoon-docker-host
+    app.kubernetes.io/component: my-release-docker-host
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 2375
+      targetPort: docker-daemon
+      protocol: TCP
+      name: docker-daemon
+  selector:
+    app.kubernetes.io/name: lagoon-docker-host
+    app.kubernetes.io/component: my-release-docker-host
+    app.kubernetes.io/instance: my-release
+---
+# Source: lagoon-docker-host/templates/docker-host.deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-docker-host
+  namespace: "default"
+  labels:
+    helm.sh/chart: lagoon-docker-host-0.3.0
+    app.kubernetes.io/name: lagoon-docker-host
+    app.kubernetes.io/component: my-release-docker-host
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lagoon-docker-host
+      app.kubernetes.io/component: my-release-docker-host
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lagoon-docker-host
+        app.kubernetes.io/component: my-release-docker-host
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-docker-host
+      securityContext:
+        {}
+      containers:
+      - name: docker-host
+        securityContext:
+          privileged: true
+          seLinuxOptions:
+            type: spc_t
+        image: "uselagoon/docker-host:v3.5.0"
+        imagePullPolicy: Always
+        env:
+        - name: DOCKER_HOST
+          value: localhost
+        - name: REGISTRY
+          value: "registry.lagoon.svc:5000"
+        - name: REPOSITORY_TO_UPDATE
+          value: "amazeeio|lagoon"
+        - name: PRUNE_IMAGES_UNTIL
+          value: "168h"
+        - name: CRONJOBS
+          value: |
+            22 1 * * * /lagoon/cronjob.sh "/prune-images.sh"
+            22 */4 * * * /lagoon/cronjob.sh "/remove-exited.sh"
+            */15 * * * * /lagoon/cronjob.sh "/update-images.sh"
+        ports:
+        - containerPort: 2375
+          protocol: TCP
+          name: docker-daemon
+        livenessProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 2375
+          timeoutSeconds: 1
+        readinessProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 2375
+          timeoutSeconds: 1
+        resources:
+          {}
+        volumeMounts:
+        - mountPath: /var/lib/docker
+          name: docker-lib
+      volumes:
+      - name: docker-lib
+        persistentVolumeClaim:
+          claimName: my-release-docker-host
+      tolerations:
+      - effect: NoSchedule
+        key: lagoon/build
+        operator: Exists
+      - effect: PreferNoSchedule
+        key: lagoon/build
+        operator: Exists
+      - effect: NoSchedule
+        key: lagoon.sh/build
+        operator: Exists
+      - effect: PreferNoSchedule
+        key: lagoon.sh/build
+        operator: Exists
+---
+# Source: lagoon-docker-host/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-docker-host-test-connection"
+  labels:
+    helm.sh/chart: lagoon-docker-host-0.3.0
+    app.kubernetes.io/name: lagoon-docker-host
+    app.kubernetes.io/component: my-release-docker-host
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+  - name: nc
+    image: busybox
+    command: ['nc']
+    args:
+    - "-zvw5"
+    - "docker-host"
+    - "2375"
+  restartPolicy: Never

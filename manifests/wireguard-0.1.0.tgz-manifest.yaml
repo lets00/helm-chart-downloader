@@ -1,0 +1,156 @@
+---
+# Source: wireguard/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata: 
+  name: vpn
+---
+# Source: wireguard/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-secret
+  namespace: vpn
+type: Opaque
+stringData:
+  wg0.key: sNQQX5MURQrLp6jthxQmDSUGYcPilJHnuzqJIlx3l1w=
+---
+# Source: wireguard/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-configmap
+  namespace: vpn
+data:
+  wg0.conf: |
+    [Interface]
+    Address = 10.100.200.1/24
+    ListenPort = 51820
+    PostUp = wg set wg0 private-key /etc/wireguard/wg0.key && iptables -t nat -A POSTROUTING -s 10.100.200.0/24 -o eth0 -j MASQUERADE
+    PostDown = iptables -t nat -D POSTROUTING -s 10.100.200.0/24 -o eth0 -j MASQUERADE
+    # 
+    #
+    # name: Foo
+    [Peer]
+    PublicKey = 0oqojqQvGR9OIGG/L7yXBrOqzQrDkQiIAh7zw0F0tC8=
+    AllowedIPs = 10.100.200.2/32 
+    # 
+    #
+    # name: Bar
+    [Peer]
+    PublicKey = 7dCTaAJQw2CZr/PJhaLHvjFcOwkWkvfPc6JnZV/bUSM=
+    AllowedIPs = 10.100.200.3/32 
+    #
+---
+# Source: wireguard/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  namespace: vpn
+  labels:
+    app: my-release
+  # annotations:
+  #   service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: NodePort
+  # type: LoadBalancer
+  selector:
+    app: my-release
+  ports:
+  - port: 31820
+    targetPort: 51820
+    nodePort: 31820
+    protocol: UDP
+---
+# Source: wireguard/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  namespace: vpn
+  labels:
+    app: my-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: de19aeac13a2ff640c41278b781908da86aa040a930b42389053e8e8c9b373da
+      labels:
+        app: my-release
+    spec:
+      restartPolicy: Always
+      initContainers:
+      - name: init
+        image: busybox:1.32.0 
+        command:
+        - sh
+        - -c
+        - sysctl -w net.ipv4.ip_forward=1 && sysctl -w net.ipv4.conf.all.forwarding=1
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+      containers:
+      - name: wireguard
+        image: eftechcombr/wireguard:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+        ports:
+        - containerPort: 51820
+          protocol: UDP
+          name: wg0
+        - containerPort: 8080
+          protocol: TCP
+          name: heathcheck
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          failureThreshold: 5
+          periodSeconds: 10          
+        command:
+        - sh
+        - -c
+        - /entrypoint.sh
+        env:
+        - name: LOG_LEVEL
+          value: warn
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "150m"
+          limits:
+            memory: "128Mi"
+        volumeMounts:
+        - name: my-release-secret
+          mountPath: /etc/wireguard/wg0.key
+          subPath: wg0.key
+          readOnly: true
+        - name: my-release-config
+          mountPath: /etc/wireguard/wg0.conf
+          subPath: wg0.conf
+          readOnly: true
+      volumes:
+      - name: my-release-secret
+        secret:
+          secretName: my-release-secret
+          items:
+          - key: "wg0.key"
+            path: "wg0.key"
+      - name: wireguard-config
+        configMap:
+          name: my-release-configmap
+          items:
+          - key: "wg0.conf"
+            path: "wg0.conf"

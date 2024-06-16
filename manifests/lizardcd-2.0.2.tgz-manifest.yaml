@@ -1,0 +1,913 @@
+---
+# Source: lizardcd/charts/etcd/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-etcd
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.12
+    helm.sh/chart: etcd-9.14.2
+    app.kubernetes.io/component: etcd
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/component: etcd
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # Allow inbound connections
+    - ports:
+        - port: 2379
+        - port: 2380
+---
+# Source: lizardcd/charts/etcd/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: false
+metadata:
+  name: my-release-etcd
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.12
+    helm.sh/chart: etcd-9.14.2
+---
+# Source: lizardcd/templates/agent/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "my-release-lizardcd-agent"
+secrets:
+  - name: lizardcd-token
+---
+# Source: lizardcd/templates/server-job/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "my-release-lizardcd-initjob"
+---
+# Source: lizardcd/templates/server/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "my-release-lizardcd-server"
+---
+# Source: lizardcd/templates/ui/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: "my-release-lizardcd-ui"
+---
+# Source: lizardcd/charts/etcd/templates/token-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-etcd-jwt-token
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.12
+    helm.sh/chart: etcd-9.14.2
+type: Opaque
+data:
+  jwt-token.pem: "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS1FJQkFBS0NBZ0VBeXM2eURUQ3labnZtQWlJN1M1NFVBNEp3ZkRNaE9LNThhNHU5TmRSaUZYdlhLMmt3CnRURTh2dk5USlJMTG92SXovTUJPU2NBMXNYcnRGZUJZYjZWY083OTc0QkQ5cW1oMFlMSEt4RWpOcEpqR3VUWGMKdTdMaU94SkR0dXljR0puWUhvR0E4ZEVWK0ZjNDRyTEtkYXoreWkxSkd1MGpjU2dmaXpPejg3bU5NZUlPeElydwp6aEVXdzAzZ3dRZnJlT1NLTm8ycnRyOUM3cHlOQ0ZNMU94RDVMUUNWa1dlemlnSUN3eWk4WTZyMVAvYzdWRmF4Cld6a1ZqOVBmbWEvcTdWbHhBQzBYYmVYL3UrOVp5dWdPNjg0ZGZGajZDcXhoc0VIMWpUY0kwTUhrdjJmcFdQNFUKZndXMU44UVJaSXRSdm1WeVVCa3pmblhoSWVNT0RZYmVmTnJJSkhvQXVEeDlEZnNJcGZ6TVBBZks2THU2VTliUQp1K3NReUlSWFB5L1Z1a0NDWnM3R3BIS2p3M2NXRE13MUFtNllqRThWcU1yMXBSZ3hTK0pYWmJSVjZoaWc1cm16Ckt3WU9XdWlubTd5QVBqMjhOMmF6b3FDK0xabVNtbjc4OUpiQmN0MmppRzJNeEw3NVpHdE84L01DdHllSU1ESUcKVkswMmFpcmdDQzZvKzZiM2hPTGNBMlN4a2U3QzM4dmhZdjM5Nm1nZFJKQmxBMGdzaU0rRWxPR2xlMXlsMzBsRQo2TmRyb3oxRW9Fb3BVRytLc3F3RmNodXhDV1dkRFhFS3NnV01ocE12R0hvc1BURjQzTTllREcyL3FldEZQQjNZCnhrVGNOSTdobW5va29DNFdWTVBsREw2RXRxbEhMcmFqbXYva2tlWGJ1dW1EWjQzZCszYVlRMThjeGM4Q0F3RUEKQVFLQ0FnQnhlN2VtS2RtcC95cDFoekltM2czVTZPaUlseE8vNCtNN1NyWlZxTUk1dzFKanVEakpLd1FTMVpWdwo2Vk9KbW4zOHNKOGVKYS9sNENOS1duOGgraVhpU1FQSUhiblQ0Ujg5L0Q2NkZ3TDdWNEhib1lnaWY3YVgxMkNNCnUxbWRhbmpFbVRMT0hYRnR4V0RQZWJ4UW5MejE1T0ZEYis2bEl3NkRsaXJiOXJoTGNYTlNCMjAzNGRnYThUa1MKeXB1NHlpbU0zVGw0eVExcTk2N3pPWnhQc08rOWZ0WXl4eFJ2NVRBbWhHVG1ZSU5iaDd4ck5SZUpOQ2dja3pKTApqV1NuNjZTUHRLdW5rMHZHbmVoZzRmbDNlWjZHTmtPME5VRjBuM1FIMFFQZHpLRnplWEhabWxOZHdKUG00SS9hCjh4cUtyN21IbUpKMzhQNUpPQVJsRFZMeUNucHk3NFE5WDF0Y3Q3OVQzYktqbU0vdnRxOStoV1BkVkZoL2Z5cFQKZmROcDdFOVVWYXQ3M01McGdsK3dEQXlCcXVwdUVNNXBkWVNkYVBhdjFRODhBVnN2aWtBeU9iZFJoa3IyUGd0ZQpxWlVtMDY4aXpVWjdHdEJSYk5tWHYzZS82aGI0ZmFvVzQ4azdFSURVTUlVb3hMOFpxTGN2N25sbXF6dkRYZUxoCkNreWZmWFI4VEVBdFFuVEhLT2h6L2h1b2V5bWZ6bFF1SDdDd1NreWIvdjk0TnpkZzk5QmRvS0ZXQU9sMExGcGgKWHk1Y0twVjJkdlVkcEcvYjB4eVdtZzBIREYyUGZvUFNYQlNuZlJ2SGdvWDlIbTdNcUFta3QxM0tGd29KYzJUZgpXbG1NcTJwMStGMnF5MUhBS0duN01NelAvbW5VaXRGcUVCWE1KRlZVVnpWVG9RUWdBUUtDQVFFQTd5MnNocEdiCmkrbnc4aU0wa3BCajV5cHdMUm1vU1g1VC9aRUVRU2JhUG5wSHRWSW5aZkkyenBzV3RyUkNyaVJUR3pmOXhRb0gKMHVDVDdmYjZvb3BNa0F0RTZ1c2dwTXBvRk84K0lIMEhKWkU0VkF6cGpFaGRCYVpaTmR3RXdjSFlUR0h4YmRUTwpKVWN0R1NKRytvZjFaS2o2WVoxTWZsMTI2M3RrNmVBNVFGdUhFZFFwd2dvMVFaV25QWHZ0Y0FxL0U0ZHduYityCk9veEtOWGxlRDkyRTZ5UmQ0Q094Ny9ORnlMMzlzREhjc0p2RXpPaGZDMmxsM2lwSGZIODluZlJQZzFHUUVEVmoKT0ZTME5TM001N29YdTdqejlhNXozblpUQkhOZitYSy9sL2s3RHBvRWEvL1A0TTlleGQ3em40Yk9OTDZGVXliVApKeDJCcDhrSGoxK0lqd0tDQVFFQTJSSXNoZkZJVGR6ell4TmFCOXRNQzB3T0x3OUxpQzFZcVZTZXVwWUdicVR2CkNWOWVLakJqaEt5bHpuMkduL3FHK1YwSnRoTE1UM05reGVzK3VTdzVNZ1krT0dCUHBXd3VvYXVuMmNDSUh5bTQKOUczc3JFaGh6RnpQTHh1VWRGWUpPUUEzdlY5SmhTeGdGRmZXQVNMNk9TWVRKbGsvVTdCcVcwWFJhdU5HSU1ZSQpGazRKM2tpVVVNOHllcUVPbzBTOWV4ZHFtQzdXaGthZmVGZ2V3a0kxampPZUc5aDB4QzNVbDBYQjY1MnUvZ2RGCldoNUZYdEUrRjF5WEhBOEZiWmdGUmp5VHpxbUkrOHlQSmU4Rm9zRmNhZXRhNmd2dVpyUkpOYXJieXVpT3l1VUYKWEQrZUpzSjV6OFRhN0Q2ZDZuWTBXNFFMVzJPSDdzaVJuMkplZ1BFT3dRS0NBUUVBanRhbEdUeXVPMUc4THE5dAp2elh5SStVSlZ6WGlkZm0yNlZFSXpHd0tuSk5rYmRvaFkxWFMrM0pOajFGNkhRdmVnZnZmVnlSVlpjL3ZLSWQrClNVSDAxWFdWZEFKMTNWUnY4a2lxdnJaTVpWZ2ozclpUYUE3elZ1TndsYVRQUm5PZzNJVUZyVVVRMDl4OUIyeWMKSFJURExabG81cEVOVk00MnJnMWtSL1E3M0w2TW5NNHJIaElBbWlsbzFtUkRlYzFCTGNXT01QZDlxQnFPV3Y4ZgplTFFmcEZwMG9kNVBidkRITlVxWnpmY0pTSVBPZFYwMUhkaVZHS2dCUjAycUc4SURGbmJJWlpXc3FzQ1RXc3IrCmUwbDgwUVIwMWIyWXZ6dkUrbng0emIyRXhKcjRkUkR3SVJ1R0owbFEzVFQ0SThaYk1jNnlTdVY5NXZkTkxrbjEKZE45bDZ3S0NBUUF0TnZibE0zdi9FLzN5Ymk1N29uYzFoek1SSkZ0MFV4Vzd0NitVWi9tUkJIUHgvTlp0YlVUZApkdVRXblJqMHE4ZC9tNXlSTzFzcFZYenhLTzRZdmhodnpoTVp4UjN4OUJYR2dTM21VbzlJQm5YTEhEYUhNRkNHCnMvSkgrck95ZzlWSjlUeW5DbmtTNzBwWUVtKzJMdVgyRDNNL3NxbFpNazhGRWdici84azB2R3NrMGo2RitaSkQKUHRWaDY3aFQwOWF3RkJHVS8zU1o1WTRFRUQ3ZjhkQ2IvUzU2MkZ5Q0hKWENxTG9hN081dFpYQlJ0Q3A0OUphOQpZUURzekVneUtzODJjUm5NbTAyNFBVUzMveENxZFNKZHdiTmZPdnIrazZFSU43MnVoMEJ2RE1OUUVzUkxpSWk4CitXRXNnbUo4V3dETzZ6TStadjRDZys2cFIyRXQ5SWhCQW9JQkFRRGFNNlRsdUFwa3pNUUlHMklYTEh6eFNWZW4Ka2dZeXB5elp2dlVSbFJJa1hTMnNvMEtRMEhiMGE5cHQzOGZFSm01RVZuaFFFVm1hYVM5Y2tQWmc1dzhCaWNVZQoxRTRoN1cxSnlndzFLY3p5dDNHc1R6UGZpN1E4WjEyK1VaMGw4RzRsSWRheHVGVlUyZHNncmR5QUJjWStPaXRmCnRnT3VRWFRuZVljUnBnc21vUEFFbjVVRHVKcmlqZi9Pbm80cjR6NzU0SG81RjcwRUNOamlENGxEcVhGbTBBTWYKU0YweWM3TW9laFFVZU5jdUc0eDlRNXZPYStZUmRrMitsM2tqZ1JQYWpkaDRMc2hrSWJXeGQ0dXh2eVcvUFU0bQorV1BxTXpwMVg4eWFyRXRXYnlrWlVSeVJUVEVaMUN2YmVGOFRPTmIvZ05sK2V5RjkrQ0FoMEdwZ0crUkUKLS0tLS1FTkQgUlNBIFBSSVZBVEUgS0VZLS0tLS0K"
+---
+# Source: lizardcd/templates/agent/secret.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: lizardcd-token
+  annotations:
+    kubernetes.io/service-account.name: my-release-lizardcd-agent
+type: kubernetes.io/service-account-token
+---
+# Source: lizardcd/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lizardcd
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: lizardcd
+    app.kubernetes.io/version: 1.2.1
+    helm.sh/chart: lizardcd-2.0.2
+
+data:
+  nginx.conf: |
+    user  nginx;
+    worker_processes  auto;
+    error_log  /var/log/nginx/error.log warn;
+    pid        /tmp/nginx.pid;
+    events {
+      worker_connections  8192;
+    }
+    http {
+      include       /etc/nginx/mime.types;
+      default_type  application/octet-stream;
+      log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for" '
+                        '"$upstream_addr" $request_time $upstream_response_time';
+      access_log  /var/log/nginx/access.log  main;
+      sendfile        on;
+      keepalive_timeout  65;
+      client_max_body_size 100m;
+      server {
+        listen       80;
+        server_name  localhost;
+        
+        location / {
+          root   /usr/share/nginx/html;
+          index  index.html;
+          try_files $uri $uri/ /index.html;
+        }
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+          root   /usr/share/nginx/html;
+        }
+
+        # Todo: To be removed after frondend adjusted to real service labels.
+        location /lizardcd {
+          # proxy_http_version 1.1;
+          proxy_set_header Host $proxy_host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_pass http://my-release-lizardcd-server:5117;
+        }
+        location /swagger {
+          # proxy_http_version 1.1;
+          proxy_set_header Host $proxy_host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_pass http://localhost:8080/;
+        }
+      }
+    }
+  lizardcd-server.yaml: |
+    Name: lizardServer
+    Host: 0.0.0.0
+    Port: 5117
+    Timeout: 60000
+    Log:
+      Encoding: plain
+      Level: info 
+    Prometheus:
+      Host: 0.0.0.0
+      Port: 15117
+      Path: /metrics
+    Auth:
+      AccessSecret: wLnOk8keh/WO5u7lX8H1dB1/mcuHvnI/jfWCMXMPg9o=
+      AccessExpire: 86400
+    Etcd:
+      Address: "my-release-etcd-0.my-release-etcd-headless.default.svc.cluster.local:2379,my-release-etcd-1.my-release-etcd-headless.default.svc.cluster.local:2379,my-release-etcd-2.my-release-etcd-headless.default.svc.cluster.local:2379"
+    Sqlite: /var/data/lizardcd/lizardcd.db
+  lizardcd-agent.yaml: |
+    Name: LizardAgent
+    ListenOn: 0.0.0.0:5017
+    Timeout: 60000
+    Log:
+      Encoding: plain
+      Level: info 
+    Prometheus:
+      Host: 0.0.0.0
+      Port: 15017
+      Path: /metrics
+    Etcd:
+      Hosts:
+        - my-release-etcd-0.my-release-etcd-headless.default.svc.cluster.local:2379
+        - my-release-etcd-1.my-release-etcd-headless.default.svc.cluster.local:2379
+        - my-release-etcd-2.my-release-etcd-headless.default.svc.cluster.local:2379
+      Key: lizardcd-agent.default.k8s
+    KubernetesSecretPrefix: "lizardcd-token"
+---
+# Source: lizardcd/templates/agent/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: lizardcd-agent-data
+  labels:
+    app.kubernetes.io/instance: lizardcd
+    app.kubernetes.io/name: lizardcd
+spec:
+  accessModes:
+  - "ReadWriteMany"
+  resources:
+    requests:
+      storage: "1Gi"
+---
+# Source: lizardcd/templates/server-job/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: lizardcd-data
+  labels:
+    app.kubernetes.io/instance: lizardcd
+    app.kubernetes.io/name: lizardcd
+spec:
+  accessModes:
+  - "ReadWriteMany"
+  resources:
+    requests:
+      storage: "5Gi"
+---
+# Source: lizardcd/templates/agent/role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: lizardcd-agent-role
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: lizardcd
+    app.kubernetes.io/version: 1.2.1
+    helm.sh/chart: lizardcd-2.0.2
+    app.kubernetes.io/part-of: lizardcd
+    app.kubernetes.io/component: agent
+rules:
+  - apiGroups:
+      - ""
+      - apps
+      - extensions
+      - events.k8s.io
+      - networking.k8s.io
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - create
+      - patch
+      - delete
+---
+# Source: lizardcd/templates/agent/rolebindding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-lizardcd-agent
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: lizardcd
+    app.kubernetes.io/version: 1.2.1
+    helm.sh/chart: lizardcd-2.0.2
+    app.kubernetes.io/part-of: lizardcd
+    app.kubernetes.io/component: agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: lizardcd-agent-role
+subjects:
+  - kind: ServiceAccount
+    name: my-release-lizardcd-agent
+    namespace: "default"
+---
+# Source: lizardcd/charts/etcd/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-etcd-headless
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.12
+    helm.sh/chart: etcd-9.14.2
+    app.kubernetes.io/component: etcd
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: client
+      port: 2379
+      targetPort: client
+    - name: peer
+      port: 2380
+      targetPort: peer
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/component: etcd
+---
+# Source: lizardcd/charts/etcd/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-etcd
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.12
+    helm.sh/chart: etcd-9.14.2
+    app.kubernetes.io/component: etcd
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: "client"
+      port: 2379
+      targetPort: client
+      nodePort: null
+    - name: "peer"
+      port: 2380
+      targetPort: peer
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/component: etcd
+---
+# Source: lizardcd/templates/agent/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-lizardcd-agent
+  labels:
+    helm.sh/chart: lizardcd-2.0.2
+    app: my-release-lizardcd-agent
+    app.kubernetes.io/name: my-release-lizardcd-agent
+    app.kubernetes.io/instance: my-release
+    app: my-release-lizardcd-agent
+    app.kubernetes.io/version: "1.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 5017
+      targetPort: grpc
+    - name: metrics 
+      port: 15017
+      targetPort: metrics
+  selector:
+      app.kubernetes.io/name: my-release-lizardcd-agent
+      app.kubernetes.io/instance: my-release
+      app: my-release-lizardcd-agent
+---
+# Source: lizardcd/templates/server/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-lizardcd-server
+  labels:
+    helm.sh/chart: lizardcd-2.0.2
+    app: my-release-lizardcd-server
+    app.kubernetes.io/name: my-release-lizardcd-server
+    app.kubernetes.io/instance: my-release
+    app: my-release-lizardcd-server
+    app.kubernetes.io/version: "1.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 5117
+      targetPort: grpc
+    - name: metrics 
+      port: 15117
+      targetPort: metrics
+  selector:
+      app.kubernetes.io/name: my-release-lizardcd-server
+      app.kubernetes.io/instance: my-release
+      app: my-release-lizardcd-server
+---
+# Source: lizardcd/templates/ui/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-lizardcd-ui
+  labels:
+    helm.sh/chart: lizardcd-2.0.2
+    app: my-release-lizardcd-ui
+    app.kubernetes.io/name: my-release-lizardcd-ui
+    app.kubernetes.io/instance: my-release
+    app: my-release-lizardcd-ui
+    app.kubernetes.io/version: "1.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: web
+      port: 80
+      protocol: TCP
+      targetPort: http
+      nodePort: null
+  selector:
+      app.kubernetes.io/name: my-release-lizardcd-ui
+      app.kubernetes.io/instance: my-release
+      app: my-release-lizardcd-ui
+---
+# Source: lizardcd/templates/agent/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-lizardcd-agent
+  labels:
+    helm.sh/chart: lizardcd-2.0.2
+    app: my-release-lizardcd-agent
+    app.kubernetes.io/name: my-release-lizardcd-agent
+    app.kubernetes.io/instance: my-release
+    app: my-release-lizardcd-agent
+    app.kubernetes.io/version: "1.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-lizardcd-agent
+      app.kubernetes.io/instance: my-release
+      app: my-release-lizardcd-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-lizardcd-agent
+        app.kubernetes.io/instance: my-release
+        app: my-release-lizardcd-agent
+    spec:
+      
+      serviceAccountName: my-release-lizardcd-agent
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      volumes:
+        - name: host-time 
+          hostPath:
+            path: /etc/localtime
+        - name: agent-config
+          configMap:
+            name: lizardcd
+        - name: data
+          persistentVolumeClaim:
+            claimName: lizardcd-agent-data
+      containers:
+        - name: my-release-lizardcd-agent-container
+          image: "docker.io/lizardcd/lizardcd-agent:v1.2.1"
+          imagePullPolicy: IfNotPresent
+          args:
+            - '-f'
+            - '/etc/config/lizardcd-agent.yaml'
+          ports:
+            - name: grpc
+              containerPort: 5017
+              protocol: TCP
+            - name: metrics
+              containerPort: 15017
+              protocol: TCP
+          env:
+            - name: HELM_REPOSITORY_CACHE
+              value: /var/data/lizardcd/repository
+            - name: HELM_REPOSITORY_CONFIG
+              value: /var/data/lizardcd/repositories.yaml
+          volumeMounts:
+            - name: host-time 
+              mountPath: /etc/localtime 
+            - name: data
+              mountPath: /var/data/lizardcd
+            - name: agent-config 
+              mountPath: /etc/config/lizardcd-agent.yaml
+              subPath: lizardcd-agent.yaml
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /metrics
+              port: 15017
+              scheme: HTTP
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /metrics
+              port: 15017
+              scheme: HTTP
+---
+# Source: lizardcd/templates/server/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-lizardcd-server
+  labels:
+    helm.sh/chart: lizardcd-2.0.2
+    app: my-release-lizardcd-server
+    app.kubernetes.io/name: my-release-lizardcd-server
+    app.kubernetes.io/instance: my-release
+    app: my-release-lizardcd-server
+    app.kubernetes.io/version: "1.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-lizardcd-server
+      app.kubernetes.io/instance: my-release
+      app: my-release-lizardcd-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-lizardcd-server
+        app.kubernetes.io/instance: my-release
+        app: my-release-lizardcd-server
+    spec:
+      
+      serviceAccountName: my-release-lizardcd-server
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      volumes:
+        - name: host-time 
+          hostPath:
+            path: /etc/localtime
+        - name: lizardcd-data
+          persistentVolumeClaim:
+            claimName: lizardcd-data
+        - name: server-config
+          configMap:
+            name: lizardcd
+      containers:
+        - name: my-release-lizardcd-server-container
+          image: "docker.io/lizardcd/lizardcd-server:v1.2.1"
+          imagePullPolicy: IfNotPresent
+          args:
+            - '-f'
+            - '/etc/config/lizardcd-server.yaml'
+          ports:
+            - name: grpc
+              containerPort: 5117
+              protocol: TCP
+            - name: metrics
+              containerPort: 15117
+              protocol: TCP
+          env:
+            - name: HELM_REPOSITORY_CACHE
+              value: /var/data/lizardcd/repository
+            - name: HELM_REPOSITORY_CONFIG
+              value: /var/data/lizardcd/repositories.yaml
+          volumeMounts:
+            - name: host-time 
+              mountPath: /etc/localtime 
+            - name: lizardcd-data
+              mountPath: /var/data/lizardcd/
+            - name: server-config 
+              mountPath: /etc/config/lizardcd-server.yaml
+              subPath: lizardcd-server.yaml
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /metrics
+              port: 15117
+              scheme: HTTP
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /metrics
+              port: 15117
+              scheme: HTTP
+---
+# Source: lizardcd/templates/ui/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-lizardcd-ui
+  labels:
+    helm.sh/chart: lizardcd-2.0.2
+    app: my-release-lizardcd-ui
+    app.kubernetes.io/name: my-release-lizardcd-ui
+    app.kubernetes.io/instance: my-release
+    app: my-release-lizardcd-ui
+    app.kubernetes.io/version: "1.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-lizardcd-ui
+      app.kubernetes.io/instance: my-release
+      app: my-release-lizardcd-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-lizardcd-ui
+        app.kubernetes.io/instance: my-release
+        app: my-release-lizardcd-ui
+    spec:
+      
+      serviceAccountName: my-release-lizardcd-ui
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      volumes:
+        - name: host-time 
+          hostPath:
+            path: /etc/localtime
+        - name: ui-config
+          configMap:
+            name: lizardcd
+      containers:
+        - name: my-release-lizardcd-ui-container
+          image: "docker.io/lizardcd/lizardcd-ui:v1.2.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: host-time 
+              mountPath: /etc/localtime 
+            - name: ui-config 
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          resources:
+            {}
+        - name: swagger-ui-container
+          image: "docker.io/swaggerapi/swagger-ui:v5.17.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env: 
+            - name: SWAGGER_JSON_URL
+              value: /lizardcd/server-static/docs/swagger.json/
+---
+# Source: lizardcd/charts/etcd/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-etcd
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.12
+    helm.sh/chart: etcd-9.14.2
+    app.kubernetes.io/component: etcd
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/component: etcd
+  serviceName: my-release-etcd-headless
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: etcd
+        app.kubernetes.io/version: 3.5.12
+        helm.sh/chart: etcd-9.14.2
+        app.kubernetes.io/component: etcd
+      annotations:
+        checksum/token-secret: ae1b0cd43c23bb8e1791767be9f740bacac487125589becd488a751d5e6a0a22
+    spec:
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: etcd
+                    app.kubernetes.io/component: etcd
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      serviceAccountName: "my-release-etcd"
+      containers:
+        - name: etcd
+          image: docker.io/bitnami/etcd:3.4.31-debian-12-r3
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsGroup: 0
+            runAsNonRoot: true
+            runAsUser: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_STS_NAME
+              value: "my-release-etcd"
+            - name: ETCDCTL_API
+              value: "3"
+            - name: ETCD_ON_K8S
+              value: "yes"
+            - name: ETCD_START_FROM_SNAPSHOT
+              value: "no"
+            - name: ETCD_DISASTER_RECOVERY
+              value: "no"
+            - name: ETCD_NAME
+              value: "$(MY_POD_NAME)"
+            - name: ETCD_DATA_DIR
+              value: "/bitnami/etcd/data"
+            - name: ETCD_LOG_LEVEL
+              value: "info"
+            - name: ALLOW_NONE_AUTHENTICATION
+              value: "yes"
+            - name: ETCD_AUTH_TOKEN
+              value: "jwt,priv-key=/opt/bitnami/etcd/certs/token/jwt-token.pem,sign-method=RS256,ttl=10m"
+            - name: ETCD_ADVERTISE_CLIENT_URLS
+              value: "http://$(MY_POD_NAME).my-release-etcd-headless.default.svc.cluster.local:2379,http://my-release-etcd.default.svc.cluster.local:2379"
+            - name: ETCD_LISTEN_CLIENT_URLS
+              value: "http://0.0.0.0:2379"
+            - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+              value: "http://$(MY_POD_NAME).my-release-etcd-headless.default.svc.cluster.local:2380"
+            - name: ETCD_LISTEN_PEER_URLS
+              value: "http://0.0.0.0:2380"
+            - name: ETCD_INITIAL_CLUSTER_TOKEN
+              value: "etcd-cluster-k8s"
+            - name: ETCD_INITIAL_CLUSTER_STATE
+              value: "new"
+            - name: ETCD_INITIAL_CLUSTER
+              value: "my-release-etcd-0=http://my-release-etcd-0.my-release-etcd-headless.default.svc.cluster.local:2380,my-release-etcd-1=http://my-release-etcd-1.my-release-etcd-headless.default.svc.cluster.local:2380,my-release-etcd-2=http://my-release-etcd-2.my-release-etcd-headless.default.svc.cluster.local:2380"
+            - name: ETCD_CLUSTER_DOMAIN
+              value: "my-release-etcd-headless.default.svc.cluster.local"
+          envFrom:
+          ports:
+            - name: client
+              containerPort: 2379
+              protocol: TCP
+            - name: peer
+              containerPort: 2380
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - /opt/bitnami/scripts/etcd/healthcheck.sh
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - /opt/bitnami/scripts/etcd/healthcheck.sh
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /opt/bitnami/scripts/etcd/prestop.sh
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /opt/bitnami/etcd/conf/
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: data
+              mountPath: /bitnami/etcd
+            - name: etcd-jwt-token
+              mountPath: /opt/bitnami/etcd/certs/token/
+              readOnly: true
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: etcd-jwt-token
+          secret:
+            secretName: my-release-etcd-jwt-token
+            defaultMode: 256
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: lizardcd/templates/server-job/server-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-lizardcd-initjob
+  labels:
+    app.kubernetes.io/name: my-release-lizardcd-initjob
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 1.2.1
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: lizardcd
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "5"
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: my-release-lizardcd-initjob
+      labels:
+        app.kubernetes.io/name: my-release-lizardcd-initjob
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: 1.2.1
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: lizardcd
+    spec:
+      volumes:
+        - name: lizardcd-data
+          persistentVolumeClaim:
+            claimName: lizardcd-data
+      serviceAccountName: my-release-lizardcd-initjob
+      restartPolicy: "OnFailure"
+      containers:
+        - name: container-migrate
+          image: "docker.io/lizardcd/migrate:v1.2.1"
+          imagePullPolicy: IfNotPresent
+          args:
+            - '-d'
+            - /var/data/lizardcd/lizardcd.db
+          volumeMounts:
+            - name: lizardcd-data
+              mountPath: /var/data/lizardcd

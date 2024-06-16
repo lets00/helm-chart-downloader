@@ -1,0 +1,333 @@
+---
+# Source: redis/templates/scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-scripts
+  labels:
+    helm.sh/chart: redis-1.2.1
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.2.5"
+    app.kubernetes.io/managed-by: Helm
+data:
+  init.sh: |
+    #!/bin/bash
+    REDIS_CONFIG=/data/conf/redis.conf
+    SENTINEL_CONFIG=/data/conf/sentinel.conf
+    if [ -f "/data/init.log" ]; then
+      echo "Detected restart of this instance ($HOSTNAME)"
+      echo "## This was the previous log:"
+      cat /data/init.log
+      echo "## End of previous log"
+    fi
+
+    # Log a message during initialization phase
+    # $1 - the log message
+    log() {
+      echo "$(date) $1"
+      echo "$(date) $1" >>/data/init.log
+    }
+
+    # Creating redis base configuration
+    configure_redis_base() {
+      log "Creating redis base configuration"
+      mkdir -p /data/conf
+      rm -f $REDIS_CONFIG
+
+      log "Setting redis server defaults"
+      echo "port 6379" >>$REDIS_CONFIG
+      echo "protected-mode no" >>$REDIS_CONFIG
+      echo "bind 0.0.0.0" >>$REDIS_CONFIG
+      echo "dir /data" >>$REDIS_CONFIG
+      log "Finished creating base configuration"
+    }
+
+    configure_redis_ext() {
+      if [ -f /usr/local/etc/redis/redis.conf ]; then
+          log "Adding optional redis configuration"
+          cat /usr/local/etc/redis/redis.conf >>$REDIS_CONFIG
+      fi
+      if [ -d /extraredisconfigs ]; then
+        log "Adding extra redis configs to redis configuration"
+        cat /extraredisconfigs/* >>$REDIS_CONFIG
+      fi
+    }
+
+    test_master_alive() {
+      TEST="$(timeout 2s redis-cli -h $MASTER -p 6379 ping)"
+      if [ -z "$TEST" ]; then
+        log "Master is not alive"
+        return 1
+      fi
+      log "Master is alive"
+      return 0
+    }
+
+    test_valid_dns() {
+      KNOWN_HOSTS=($(getent hosts my-release-redis-headless.default.svc.cluster.local | awk '{ print $1 }'))
+      log "## Known hosts for headless service my-release-redis-headless.default.svc.cluster.local:"
+      for AHOSTIP in "${KNOWN_HOSTS[@]}"; do
+        AHOSTNAME=$(getent hosts $AHOSTIP | awk '{print $2}')
+        log "${AHOSTIP} ${AHOSTNAME}"
+      done
+      log "#####"
+      MASTERENTRY="$(getent hosts $MASTER | awk '{ print $1 }')"
+    }
+
+    configure_sentinel() {
+      log "Configuring sentinel server..."
+      rm -f $SENTINEL_CONFIG
+
+      log "Setting sentinel defaults"
+      if [ -z "$MASTER" ]; then
+        MASTER="$(getent hosts $HOSTNAME | awk '{ print $1 }')"
+        log "No master found - Configuring sentinel for master $HOSTNAME with address $MASTER"
+        echo "sentinel monitor redisha $MASTER 6379 2" >>$SENTINEL_CONFIG
+      else
+        log "Redis master was found - Configuring sentinel for master address $MASTER"
+        echo "sentinel monitor redisha $MASTER 6379 2" >>$SENTINEL_CONFIG
+      fi
+      echo "sentinel down-after-milliseconds redisha 30000" >>$SENTINEL_CONFIG
+      echo "sentinel failover-timeout redisha 180000" >>$SENTINEL_CONFIG
+    }
+
+    configure_sentinel_ext() {
+      if [ -f /usr/local/etc/redis/sentinel.conf ]; then
+          log "Adding optional sentinel configuration settings"
+          cat /usr/local/etc/redis/sentinel.conf >>$SENTINEL_CONFIG
+      fi
+      if [ -d /extrasentinelconfigs ]; then
+        log "Adding extra sentinel configs to sentinel configuration"
+        cat /extrasentinelconfigs/* >>$SENTINEL_CONFIG
+      fi
+      log "Configuring sentinel server finished."
+    }
+
+    configure_redis_cluster() {
+      log "Try to resolve cluster service.."
+      SERVICE="$(getent hosts my-release-redis)"
+      if [ -z "$SERVICE" ]; then
+        log "Can't resolve service - Will restart after DNS failure wait"
+        sleep 15
+        log "Restart"
+        exit 1
+      else
+        log "Service resolved: ${SERVICE}"
+      fi
+      log "Try to detect cluster master.."
+      MASTER="$(timeout 2s redis-cli -h my-release-redis -p 26379 sentinel get-master-addr-by-name redisha | head -n 1)"
+      if [ -z "$MASTER" ]; then
+        log "No master found - This instance ($HOSTNAME) will be master now"
+      else
+        log "Redis master was found with address $MASTER - Checking host dns entry"
+        test_valid_dns
+        if [ -z "$MASTERENTRY" ]; then
+          log "No valid DNS entry found!"
+          if [ -f "/data/failover_restart" ]; then
+            rm /data/failover_restart
+            log "Forcing failover now"
+            redis-cli -h my-release-redis -p 26379 sentinel failover redisha
+          else
+            log "Waiting for failover before restart"
+            sleep 35
+            touch /data/failover_restart
+          fi
+          log "Restart"
+          exit 1
+        else
+          MASTER=$MASTERENTRY
+          log "$MASTER has valid DNS entry"
+          log "Checking if master is alive"
+          test_master_alive
+          if [ "$?" -eq "1" ]; then
+            if [ -f "/data/failover_restart" ]; then
+              rm /data/failover_restart
+              log "Master is still dead! - forcing failover and retry pod initialization"
+              redis-cli -h my-release-redis -p 26379 sentinel failover redisha
+            else
+              log "Dead master at address $MASTER detected! - waiting for failover"
+              sleep 35
+              touch /data/failover_restart
+            fi
+            log "Restart"
+            exit 1
+          else
+            rm -f /data/failover_restart
+            log "Setting this instance ($HOSTNAME) as replicaof $MASTER"
+            echo "replicaof $MASTER 6379" >>$REDIS_CONFIG
+          fi
+        fi
+      fi
+    }
+
+    log "Creating configuration..."
+    configure_redis_base
+    configure_redis_ext
+    log "Done."
+    rm -f /data/init.log
+---
+# Source: redis/templates/service-internal.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-headless
+  labels:
+    helm.sh/chart: redis-1.2.1
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.2.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: 6379
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+---
+# Source: redis/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis
+  labels:
+    helm.sh/chart: redis-1.2.1
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.2.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - port: 6379
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+---
+# Source: redis/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-redis
+  labels:
+    helm.sh/chart: redis-1.2.1
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.2.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/customconfig: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/scripts: 8527002a97b2596cc48cc104710b26f4d71949d3dbd9361c3ff529dbc2f4facf
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 999
+        supplementalGroups:
+        - 999
+      initContainers:
+        - name: redis-init
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "docker.io/redis:7.2.5"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /data
+              name: redis-data
+            - name: scripts
+              mountPath: /scripts
+          command: [ "/scripts/init.sh" ]
+      containers:
+        - name: redis-server
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "docker.io/redis:7.2.5"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli ping
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+            periodSeconds: 10              
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli ping
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli ping
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          command:
+            - redis-server
+          args:
+            - /data/conf/redis.conf
+          envFrom:
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: scripts
+          configMap:
+            name: my-release-redis-scripts
+            defaultMode: 0555
+        - name: redis-data
+          emptyDir: {}

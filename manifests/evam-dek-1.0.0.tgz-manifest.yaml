@@ -1,0 +1,354 @@
+---
+# Source: evam-dek/templates/evam-network-policy.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation
+#
+# SPDX-License-Identifier: MIT
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you ("License").
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-evam-ingress
+  namespace: smartedge-apps
+spec:
+  podSelector:
+    matchLabels:
+      app: evam
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - port: 8080
+    - port: 8554
+---
+# Source: evam-dek/templates/evam-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  namespace: smartedge-apps
+  name: mqtt-vol-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  claimRef:
+    name: mqtt-vol
+    namespace: smartedge-apps
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /var/lib/smartedge/evam/mosquitto/
+---
+# Source: evam-dek/templates/evam-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  namespace: smartedge-apps
+  name: evam-vol1-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  claimRef:
+    name: evam-vol1
+    namespace: smartedge-apps
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /var/lib/smartedge/evam/models/
+---
+# Source: evam-dek/templates/evam-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  namespace: smartedge-apps
+  name: evam-vol2-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  claimRef:
+    name: evam-vol2
+    namespace: smartedge-apps
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /var/lib/smartedge/evam/pipelines/
+---
+# Source: evam-dek/templates/evam-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  namespace: smartedge-apps
+  name: evam-vol3-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  claimRef:
+    name: evam-vol3
+    namespace: smartedge-apps
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /var/lib/smartedge/evam/resources/
+---
+# Source: evam-dek/templates/evam-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: smartedge-apps
+  name: mqtt-vol
+spec:
+  storageClassName: manual
+  volumeName: mqtt-vol-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+---
+# Source: evam-dek/templates/evam-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: smartedge-apps
+  name: evam-vol1
+spec:
+  storageClassName: manual
+  volumeName: evam-vol1-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: evam-dek/templates/evam-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: smartedge-apps
+  name: evam-vol2
+spec:
+  storageClassName: manual
+  volumeName: evam-vol2-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+---
+# Source: evam-dek/templates/evam-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: smartedge-apps
+  name: evam-vol3
+spec:
+  storageClassName: manual
+  volumeName: evam-vol3-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+---
+# Source: evam-dek/templates/evam.yaml
+# Copyright (c) 2022 Intel Corporation
+# SPDX-License-Identifier: MIT
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: evam-service
+  labels:
+    app: evam
+  namespace: smartedge-apps
+spec:
+  type: NodePort
+  ports:
+  - name: rest-api-port
+    port: 8080
+    targetPort: 8080
+    nodePort: 30409
+  - name: rtsp-port
+    port: 8554
+    targetPort: 8554
+    nodePort: 30410
+  selector:
+    app: evam
+---
+# Source: evam-dek/templates/evam.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqtt-broker-service
+  labels:
+    app: evam
+  namespace: smartedge-apps
+spec:
+  ports:
+  - name: mqtt-broker-port
+    port: 1883
+    targetPort: 1883
+  selector:
+    app: evam
+---
+# Source: evam-dek/templates/evam.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-video-analytics-microservice-with-mqtt
+  labels:
+     app: evam
+  namespace: smartedge-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evam
+  template:
+    metadata:
+      labels:
+        app: evam
+    spec:
+      nodeSelector:
+        feature.node.kubernetes.io/cpu-cpuid.AVX512VNNI: "true"
+        feature.node.kubernetes.io/system-os_release.ID: "ubuntu"
+      containers:
+        - name: mqtt-broker
+          image: eclipse-mosquitto:1.6
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 1883
+          volumeMounts:
+            #- mountPath: /mosquitto/config
+            - mountPath: /mosquitto/
+              name: mqtt-pvc
+        - name: edge-video-analytics-microservice
+          image: intel/edge_video_analytics_microservice:0.7.2
+          #image: evam_dek:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+            - containerPort: 8554
+          securityContext:
+            privileged: true
+          tty: true
+          command:
+            - ./run.sh
+          env:
+            - name: ENABLE_RTSP
+              value: "true"
+            - name: HTTPS_PROXY
+              value: 
+            - name: HTTP_PROXY
+              value: 
+            - name: NO_PROXY
+              value: 
+            - name: RTSP_PORT
+              value: '8554'
+            - name: RUN_MODE
+              value: EVA
+          volumeMounts:
+            - mountPath: /home/pipeline-server/models/
+              name: evam-pvc1
+            - mountPath: /home/pipeline-server/pipelines/
+              name: evam-pvc2 
+            - mountPath: /home/pipeline-server/resources/
+              name: evam-pvc3
+          # what about device cgroups rules and devices tab
+      restartPolicy: Always
+      volumes:
+        - name: evam-pvc1
+          persistentVolumeClaim:
+            claimName: evam-vol1
+        - name: evam-pvc2
+          persistentVolumeClaim:
+            claimName: evam-vol2
+        - name: evam-pvc3
+          persistentVolumeClaim:
+            claimName: evam-vol3
+        - name: mqtt-pvc
+          persistentVolumeClaim:
+            claimName: mqtt-vol
+---
+# Source: evam-dek/templates/evam-pv.yaml
+# Copyright (c) 2022 Intel Corporation.
+# SPDX-License-Identifier: MIT
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+---
+# Source: evam-dek/templates/evam-pvc.yaml
+# Copyright (c) 2022 Intel Corporation.
+# SPDX-License-Identifier: MIT
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.

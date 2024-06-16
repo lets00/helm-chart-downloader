@@ -1,0 +1,292 @@
+---
+# Source: cdmswebapp/charts/mysqlWebApp/templates/secret.yaml
+apiVersion: v1
+data:
+  ROOT_PASSWORD: bXlzcWxhZG1pbg==
+kind: Secret
+metadata:
+  creationTimestamp: null
+  name: mysql-secrets
+  namespace: cdms
+---
+# Source: cdmswebapp/charts/mysqlWebApp/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-initdb-config
+  namespace: cdms
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS cdmsusers;
+    USE cdmsusers;
+    CREATE TABLE testusers (id INT, name VARCHAR(256), age INT, gender VARCHAR(3));
+    INSERT INTO testusers VALUES (1, 'sharma', 26, 'm');
+    INSERT INTO testusers VALUES (2, 'Syed', 27, 'm');
+    INSERT INTO testusers VALUES (3, 'Bhatnagar', 27, 'm');
+---
+# Source: cdmswebapp/charts/minioWebApp/templates/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: minio-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  claimRef:
+    namespace: cdms
+    name: minio-pvc
+  hostPath:
+    path: /cdmsData/minioData
+---
+# Source: cdmswebapp/charts/mysqlWebApp/templates/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  claimRef:
+    namespace: cdms
+    name: mysql-pvc
+  hostPath:
+    path: /cdmsData/mysqlData
+---
+# Source: cdmswebapp/charts/minioWebApp/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  # This name uniquely identifies the PVC. Will be used in deployment below.
+  name: minio-pvc
+  namespace: cdms
+  labels:
+    app: minio-storage-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    # This is the request for storage. Should be available in the cluster.
+    requests:
+      storage: 1Gi
+---
+# Source: cdmswebapp/charts/mysqlWebApp/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  # This name uniquely identifies the PVC. Will be used in deployment below.
+  name: mysql-pvc
+  namespace: cdms
+  labels:
+    app: mysql-storage-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    # This is the request for storage. Should be available in the cluster.
+    requests:
+      storage: 900Mi
+---
+# Source: cdmswebapp/charts/minioWebApp/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: cdms
+spec:
+  type: NodePort
+  selector:
+    app: minio
+  ports:
+      # By default and for convenience, the `targetPort` is set to the same value as the `port` field.
+    - name: apiport
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+      # Optional field
+      # By default and for convenience, the Kubernetes control plane will allocate a port from a range (default: 30000-32767)
+      nodePort: 31002
+    - name: webport
+      port: 9001
+      targetPort: 9001
+      protocol: TCP
+      # Optional field
+      # By default and for convenience, the Kubernetes control plane will allocate a port from a range (default: 30000-32767)
+      nodePort: 31003
+      #
+---
+# Source: cdmswebapp/charts/mysqlWebApp/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: cdms
+spec:
+  type: NodePort
+  selector:
+    app: mysql
+  ports:
+      # By default and for convenience, the `targetPort` is set to the same value as the `port` field.
+    - name: mysqlport
+      port: 3306
+      targetPort: 3306
+      protocol: TCP
+      # Optional field
+      # By default and for convenience, the Kubernetes control plane will allocate a port from a range (default: 30000-32767)
+      nodePort: 31001
+---
+# Source: cdmswebapp/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: cdms
+  name: cdms-service
+spec:
+  type: NodePort
+  selector:
+    app: cdms
+  ports:
+      # By default and for convenience, the `targetPort` is set to the same value as the `port` field.
+    - name: cdmswebport
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+      # Optional field
+      # By default and for convenience, the Kubernetes control plane will allocate a port from a range (default: 30000-32767)
+      nodePort: 31000
+---
+# Source: cdmswebapp/charts/minioWebApp/templates/deployment.yaml
+apiVersion: apps/v1 #  for k8s versions before 1.9.0 use apps/v1beta2  and before 1.8.0 use extensions/v1beta1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: minio-deployment
+  namespace: cdms
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        # Label is used as selector in the service.
+        app: minio
+    spec:
+      # Refer to the PVC created earlier
+      volumes:
+      - name: minio-storage
+        persistentVolumeClaim:
+          # Name of the PVC created earlier
+          claimName: minio-pvc
+      containers:
+      - name: minio
+        # Pulls the default Minio image from Docker Hub
+        image: sarwansharma/minio:v3
+        imagePullPolicy: Always
+        args:
+        - server
+        - /storage
+        - --console-address 
+        - ":9001"
+        env:
+        # Minio access key and secret key
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          value: "minioadmin"
+        ports:
+        - containerPort: 9000
+        - containerPort: 9001
+        # Mount the volume into the pod
+        volumeMounts:
+        - name: minio-storage # must match the volume name, above
+          mountPath: /storage
+---
+# Source: cdmswebapp/charts/mysqlWebApp/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    # This name uniquely identifies the Deployment
+  name: mysql-deployment
+  namespace: cdms
+  labels:
+    app: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        # Label is used as selector in the service.
+        app: mysql
+    spec:
+      # Refer to the PVC created earlier
+      containers:
+        - name: mysql
+          image: mysql:5.7
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secrets
+                  key: ROOT_PASSWORD
+          volumeMounts:
+            - name: mysql-initdb
+              mountPath: /docker-entrypoint-initdb.d
+            - mountPath: /var/lib/mysql
+              subPath: "mysql"
+              name: mysql-data
+      volumes:
+        - name: mysql-initdb
+          configMap:
+            name: mysql-initdb-config
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+---
+# Source: cdmswebapp/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: cdms
+  name: cdms-deployment
+  labels:
+    app: cdms
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cdms
+  template:
+    metadata:
+      labels:
+        app: cdms
+    spec:
+      containers:
+      - name: cdms
+        image: sarwansharma/cdms:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080

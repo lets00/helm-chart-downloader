@@ -1,0 +1,296 @@
+---
+# Source: permission-manager/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-permission-manager
+  labels:
+    helm.sh/chart: permission-manager-1.8.0
+    app.kubernetes.io/name: permission-manager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.7.1-rc1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: permission-manager/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-permission-manager 
+  labels:
+    helm.sh/chart: permission-manager-1.8.0
+    app.kubernetes.io/name: permission-manager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.7.1-rc1"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  PORT: "4000" # port where server is exposed
+  CLUSTER_NAME:  
+  CONTROL_PLANE_ADDRESS:  
+  BASIC_AUTH_PASSWORD: RrXwZSBdTXhQL6
+---
+# Source: permission-manager/templates/ClusterRole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-permission-manager 
+  labels:
+    helm.sh/chart: permission-manager-1.8.0
+    app.kubernetes.io/name: permission-manager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.7.1-rc1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # Allow full management of all the Permission Manager resources
+  - apiGroups: [ "permissionmanager.user" ]
+    resources:
+      - "*"
+    verbs: [ "get", "list", "create", "update", "delete", "watch" ]
+  # Allow full management of the RBAC resources
+  - apiGroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      - "clusterrolebindings"
+      - "clusterroles"
+      - "rolebindings"
+      - "roles"
+    verbs: [ "get", "list", "create", "update", "delete", "bind", "watch" ]
+  - apiGroups: [""]
+    resources:
+      - "serviceaccounts"
+      - "secrets"
+    verbs: [ "get", "list", "create", "update", "delete", "watch" ]
+  # Allow full management of certificates CSR, including their approval
+  - apiGroups: [ "certificates.k8s.io" ]
+    resources:
+      - "certificatesigningrequests"
+      - "certificatesigningrequests/approval"
+    verbs: [ "get", "list", "create", "update", "delete", "watch" ]
+  # Support legacy versions, before signerName was added
+  # (see https://github.com/kubernetes/kubernetes/pull/88246)
+  - apiGroups: [ "certificates.k8s.io" ]
+    resources:
+      - "signers"
+    resourceNames:
+      - "kubernetes.io/legacy-unknown"
+      - "kubernetes.io/kube-apiserver-client"
+    verbs: [ "approve" ]
+  # Allow to get and list Namespaces
+  - apiGroups: [ "" ]
+    resources:
+      - "namespaces"
+    verbs: [ "get", "list" ]
+---
+# Source: permission-manager/templates/seed.yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: template-namespaced-resources___operation
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+---
+# Source: permission-manager/templates/seed.yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: template-namespaced-resources___developer
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "configmaps"
+      - "endpoints"
+      - "persistentvolumeclaims"
+      - "pods"
+      - "pods/log"
+      - "pods/portforward"
+      - "podtemplates"
+      - "replicationcontrollers"
+      - "resourcequotas"
+      - "secrets"
+      - "services"
+      - "events"
+      - "daemonsets"
+      - "deployments"
+      - "replicasets"
+      - "ingresses"
+      - "networkpolicies"
+      - "poddisruptionbudgets"
+    verbs:
+      - "*"
+---
+# Source: permission-manager/templates/seed.yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: template-cluster-resources___read-only
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "componentstatuses"
+      - "namespaces"
+      - "nodes"
+      - "persistentvolumes"
+      - "mutatingwebhookconfigurations"
+      - "validatingwebhookconfigurations"
+      - "customresourcedefinitions"
+      - "apiservices"
+      - "tokenreviews"
+      - "selfsubjectaccessreviews"
+      - "selfsubjectrulesreviews"
+      - "subjectaccessreviews"
+      - "certificatesigningrequests"
+      - "runtimeclasses"
+      - "podsecuritypolicies"
+      - "clusterrolebindings"
+      - "clusterroles"
+      - "priorityclasses"
+      - "csidrivers"
+      - "csinodes"
+      - "storageclasses"
+      - "volumeattachment"
+    verbs: ["get", "list", "watch"]
+---
+# Source: permission-manager/templates/seed.yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: template-cluster-resources___admin
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "componentstatuses"
+      - "namespaces"
+      - "nodes"
+      - "persistentvolumes"
+      - "mutatingwebhookconfigurations"
+      - "validatingwebhookconfigurations"
+      - "customresourcedefinitions"
+      - "apiservices"
+      - "tokenreviews"
+      - "selfsubjectaccessreviews"
+      - "selfsubjectrulesreviews"
+      - "subjectaccessreviews"
+      - "certificatesigningrequests"
+      - "runtimeclasses"
+      - "podsecuritypolicies"
+      - "clusterrolebindings"
+      - "clusterroles"
+      - "priorityclasses"
+      - "csidrivers"
+      - "csinodes"
+      - "storageclasses"
+      - "volumeattachment"
+    verbs: ["*"]
+---
+# Source: permission-manager/templates/ClusterRoleBinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-permission-manager
+roleRef:
+  kind: ClusterRole
+  name: my-release-permission-manager
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-permission-manager
+    namespace: default
+---
+# Source: permission-manager/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-permission-manager
+  labels:
+    helm.sh/chart: permission-manager-1.8.0
+    app.kubernetes.io/name: permission-manager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.7.1-rc1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 4000 
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: permission-manager
+    app.kubernetes.io/instance: my-release
+---
+# Source: permission-manager/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-permission-manager
+  labels:
+    helm.sh/chart: permission-manager-1.8.0
+    app.kubernetes.io/name: permission-manager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.7.1-rc1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: permission-manager
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: permission-manager
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-permission-manager
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: permission-manager
+          securityContext:
+            {}
+          image: "quay.io/sighup/permission-manager:v1.7.1-rc1"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: my-release-permission-manager
+          ports:
+            - name: http
+              containerPort: 4000 
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 4000 
+          readinessProbe:
+            tcpSocket:
+              port: 4000
+          resources:
+            {}
+---
+# Source: permission-manager/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-permission-manager-test-connection"
+  labels:
+    helm.sh/chart: permission-manager-1.8.0
+    app.kubernetes.io/name: permission-manager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.7.1-rc1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-permission-manager:80']
+  restartPolicy: Never

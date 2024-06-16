@@ -1,0 +1,137 @@
+---
+# Source: metabase/templates/database-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-metabase-database
+  namespace: default
+  labels:
+    app: metabase
+    chart: metabase-2.7.1
+    release: my-release
+    heritage: Helm
+type: Opaque
+data:
+---
+# Source: metabase/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-metabase-config
+  namespace: default
+  labels:
+    app: metabase
+    chart: metabase-2.7.1
+    release: my-release
+    heritage: Helm
+data:
+---
+# Source: metabase/templates/database-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-metabase
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    component: h2database
+spec:
+  accessModes: 
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: metabase/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-metabase
+  namespace: default
+  labels:
+    app: metabase
+    chart: metabase-2.7.1
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+      name: metabase
+  selector:
+    app: metabase
+    release: my-release
+---
+# Source: metabase/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-metabase
+  namespace: default
+  labels:
+    app: metabase
+    chart: metabase-2.7.1
+    release: my-release
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app: metabase
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        checksum/config: 141a25cb3d86cf0660500db80b9348ff95f2e8a28ca7c310bad9782a657bf46b
+      labels:
+        app: metabase
+        release: my-release
+    spec:
+      containers:
+        - name: metabase
+          image: "metabase/metabase:v0.46.0"
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: MB_JETTY_HOST
+            value: "0.0.0.0"
+          - name: MB_JETTY_PORT
+            value: "3000"
+          - name: MB_DB_TYPE
+            value: h2
+          - name: MB_PASSWORD_COMPLEXITY
+            value: normal
+          - name: MB_PASSWORD_LENGTH
+            value: "6"
+          - name: JAVA_TIMEZONE
+            value: UTC
+          - name: MB_EMOJI_IN_LOGS
+            value: "true"
+          - name: MB_COLORIZE_LOGS
+            value: "true"
+          ports:
+            - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 120
+            timeoutSeconds: 30
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            timeoutSeconds: 3
+            periodSeconds: 5
+          volumeMounts:
+            - name: h2database-data
+              mountPath: /metabase.db
+          resources:
+            {}
+      serviceAccountName: default
+      volumes:
+        - name: h2database-data
+          persistentVolumeClaim:
+            claimName: my-release-metabase

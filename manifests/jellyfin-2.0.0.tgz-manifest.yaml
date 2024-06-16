@@ -1,0 +1,146 @@
+---
+# Source: jellyfin/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-jellyfin
+  labels:
+    helm.sh/chart: jellyfin-2.0.0
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.7.7"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: jellyfin/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-jellyfin
+  labels:
+    helm.sh/chart: jellyfin-2.0.0
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.7.7"
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: jellyfin/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-jellyfin
+  labels:
+    helm.sh/chart: jellyfin-2.0.0
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.7.7"
+    app.kubernetes.io/managed-by: Helm
+data:
+  {}
+---
+# Source: jellyfin/templates/pvc-config.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-jellyfin-config
+  labels:
+    helm.sh/chart: jellyfin-2.0.0
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.7.7"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "2Gi"
+---
+# Source: jellyfin/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jellyfin
+  labels:
+    helm.sh/chart: jellyfin-2.0.0
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.7.7"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8096
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+---
+# Source: jellyfin/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-jellyfin
+  labels:
+    helm.sh/chart: jellyfin-2.0.0
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.7.7"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jellyfin
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: 77b71ea882910512c22e72ad0ad36eaeb4c5c4d04fd443d6cb3aa515a680d3f9
+        checksum/secret: 5754343bbd1df22a1ed2494419de00c387f17a0b91745d10bff4cbb6ac66b022
+      labels:
+        app.kubernetes.io/name: jellyfin
+        app.kubernetes.io/instance: my-release
+    spec:
+      hostNetwork: false
+      serviceAccountName: my-release-jellyfin
+      securityContext:
+        {}
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: jellyfin
+          securityContext:
+            capabilities:
+              add:
+              - NET_ADMIN
+          image: "docker.io/linuxserver/jellyfin:10.7.7"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /config
+              name: config
+            - mountPath: /data
+              name: data
+          envFrom:
+            - configMapRef:
+                name: my-release-jellyfin
+            - secretRef:
+                name: my-release-jellyfin
+          ports:
+            - name: http
+              containerPort: 8096
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: http
+          resources:
+            {}
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: my-release-jellyfin-config
+        - name: data
+          emptyDir: {}

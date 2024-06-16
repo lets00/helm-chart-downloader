@@ -1,0 +1,68 @@
+---
+# Source: keycloak-webhook-router/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-keycloak-webhook-router
+  labels:
+    helm.sh/chart: keycloak-webhook-router-0.1.0
+    app.kubernetes.io/name: keycloak-webhook-router
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: keycloak-webhook-router
+    app.kubernetes.io/instance: my-release
+---
+# Source: keycloak-webhook-router/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-keycloak-webhook-router
+  labels:
+    helm.sh/chart: keycloak-webhook-router-0.1.0
+    app.kubernetes.io/name: keycloak-webhook-router
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak-webhook-router
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak-webhook-router
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: keycloak-webhook-router
+          securityContext:
+            {}
+          image: "ghcr.io/pschichtel/keycloak-webhook-router:main"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {}

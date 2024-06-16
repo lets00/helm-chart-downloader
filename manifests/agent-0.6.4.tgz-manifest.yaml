@@ -1,0 +1,65 @@
+---
+# Source: agent/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-agent
+  labels:
+    app: agent
+    chart: agent-0.6.4
+    release: my-release
+    heritage: Helm
+---
+# Source: agent/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-agent
+  labels:
+    app: agent
+    chart: agent-0.6.4
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+        release: my-release
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+    spec:
+      serviceAccount: my-release-agent
+      containers:
+        - name: agent
+          image: "buildkite/agent:3.25.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            # BUILDKITE AGENT ENV VARS
+            - name: BUILDKITE_AGENT_TAGS
+              value: "role=agent"
+            # EXTRA BUILDKITE AGENT ENV VARS
+          # DEFAULT LIFECYCLE HOOK
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - kill -s SIGTERM `/bin/pidof buildkite-agent` && while pidof -q buildkite-agent; do sleep 1; done
+          livenessProbe:
+            null
+          resources:
+            {}
+          volumeMounts:
+            - name: var-run-docker-sock
+              mountPath: /var/run/docker.sock
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: var-run-docker-sock
+          hostPath:
+            path: /var/run/docker.sock

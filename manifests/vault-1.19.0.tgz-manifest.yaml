@@ -1,0 +1,426 @@
+---
+# Source: vault/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-vault
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+      app.kubernetes.io/instance: my-release
+---
+# Source: vault/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-vault
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: vault/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-vault-tls
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFVENDQWZtZ0F3SUJBZ0lRVzVCN21Mb2lEN2lDUGo0U2ZHbTlNakFOQmdrcWhraUc5dzBCQVFzRkFEQVQKTVJFd0R3WURWUVFERXdoMllYVnNkQzFqWVRBZUZ3MHlOREEyTVRZd01EQTBOVGxhRncweU5UQTJNVFl3TURBMApOVGxhTUJNeEVUQVBCZ05WQkFNVENIWmhkV3gwTFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBCk1JSUJDZ0tDQVFFQTV0TXllSDY2bk9RNVEzNUxlcnlBWTQ1WUhFK2hBcmRvTU9veFhINGRJMEd1RWRzSVVGbXkKZmI1SnJOV2JnRWx1eENaOE1LQ1lxTGxTSXNhN0hPdFFPU0JKV3U1R1EyVlNYZHhRd0U2SUJ2U0IvdVE3NEtVUwpWQTlETXh3WVRWZE5hU05mUytjTWpjUUxKSHFURG5PYjQrQTI1YktQWlIvVEtVd1VTR3AwTmJkZUxRRmp5SklCCmk1QlJ6VFZSS0kxUkZBa0k0ZVFObk9zRkQvSVZLTDNEa0dZS2pKTjZaYlJ5Tm5jNk9obnAyZ05PcXc4MVBpRkIKSHdnT0VFR3pIUzAvVHRiaFg1c1NKWW9vaTZ3RElBV0J4dXM5RUlLVkVKSHRnMTNMdnBCUktnUkg5RXE2OG9iYgpjS1hJU2JWUHRvd3dPdGFxd1lxMUV6UjRCVE5zL01WRkl3SURBUUFCbzJFd1h6QU9CZ05WSFE4QkFmOEVCQU1DCkFxUXdIUVlEVlIwbEJCWXdGQVlJS3dZQkJRVUhBd0VHQ0NzR0FRVUZCd01DTUE4R0ExVWRFd0VCL3dRRk1BTUIKQWY4d0hRWURWUjBPQkJZRUZQMlZGU3NWVENnZFJ5eTdtaHZTVmpxTzhRZDVNQTBHQ1NxR1NJYjNEUUVCQ3dVQQpBNElCQVFCdmI5NFovRTRaNU54OTN2b3FjMVJTdHdmRHcrNEZCbXJ3ZXVpVzIzbTB5U2llWGFxTWZYNEdUa05qCmlpWmpFU1hJU280MURyeC9rLzlmenNpSnBrRU5IczFMWHNGZnNCOUF4dzhSZm9wM1ZON3FJRW1lTkpKQjh6TGYKUlk4WEpLUVN6ckowTEdWL2ZRQmlwcEpNWEp1K3ZyNjdUK2VoczNibWdNdDUzN0JHb015ZVFPOUFrRWpVMG9jMAo1ZDlhWGhsME5GNFZaelRkaXhqc3VWZ0N1a2NscUsreGNEM2F0R05KY2VrOEkrSnRRZEszdkNrcWw0MVZkRk9pCkh1NnJwblVDVEZ6UllTb25zZVR4blBiZFZOU3FTYXJpNjNtaStUcFpqZXE4MDdKSXFXaXFlL2lDMkRlMnlKc0oKQnNnWExNMGtJUi9QaGlmUVdRdHFuK29hanBRUwotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  ca.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBNXRNeWVINjZuT1E1UTM1TGVyeUFZNDVZSEUraEFyZG9NT294WEg0ZEkwR3VFZHNJClVGbXlmYjVKck5XYmdFbHV4Q1o4TUtDWXFMbFNJc2E3SE90UU9TQkpXdTVHUTJWU1hkeFF3RTZJQnZTQi91UTcKNEtVU1ZBOURNeHdZVFZkTmFTTmZTK2NNamNRTEpIcVREbk9iNCtBMjViS1BaUi9US1V3VVNHcDBOYmRlTFFGagp5SklCaTVCUnpUVlJLSTFSRkFrSTRlUU5uT3NGRC9JVktMM0RrR1lLakpONlpiUnlObmM2T2hucDJnTk9xdzgxClBpRkJId2dPRUVHekhTMC9UdGJoWDVzU0pZb29pNndESUFXQnh1czlFSUtWRUpIdGcxM0x2cEJSS2dSSDlFcTYKOG9iYmNLWElTYlZQdG93d090YXF3WXExRXpSNEJUTnMvTVZGSXdJREFRQUJBb0lCQVFDRlpzSGdpYjFvTnk0eApKNmlQd3FtZzMvOWtQVkVjdE1ydW1pcjAvWjN4Wm1BbnlhTEFiVmFPL1k2dTZMVDZLM1pzdnFFL3FWRVJFaW02CkY0akVhZXJ2V1EyTUUvRmZ1Z3NrVzlQL2tHTmxRYUp2b1pCSmdKMWJINGNDM3RYY3ZQdnNLNWxEME1DY25oU2kKZklUSThWL0REeTRyQ2t0OWNpc2p6dWhhQWN3dnpqVEt4SHZSOHRMdHVlVUlCOWpaU0NzdHNWRjRJOWNhTkRjdwpWc0l5dXdndVlrM3lTenV4OVk1aVpYdkg4c2VHRVk3ZERDY1phTDVUNVNQN1hIL21qdW9XbkREQmxid0loMXVQCjBvY0lra0NlTzBiV3ROMUdqZ2JkSVAzRk1YWUk5MEdrNmlvbnlJNHA4WGZ2WmxtYzN5V3JYV05lNzErVktuc1kKTjdhdTd5Y2hBb0dCQU9pZDRjVFcyZE1DcG9CdHpycWtEZFgrVnFmY0ptcUkxNFpkVEkzWnk4UVNiZ2VxSTBHWgovdlBRYjJYREFFbHNoYkEzbCtBdkd2MjNMSkF3bm5IZWNzQjJIYnp3SjA5azBCNVlwUFFLeHdOaExEWUY0MzJpClNtT2toSEU1UkxHQmc2QmFRVEtObUlsWFNMQTFIZkkvRXoxUlpramZ3TjdPS2VNczg1by9pbWdQQW9HQkFQNEgKTlAwUTBjNDY5dFNUcm44bXRHTG5BTUxGOUhobkJxVENuSWtjRlVLQTgvUWxaY1hPS1NaUklnb3MzcjhwVTZCYQpXMUtJcUowaDYzOWlXZjVQc0JVWm5zbHkxNExhT2JPSFhVOW9JR1VrbDFUL3JJNHN6ZENUQStOVlFpT3ZBbWhyCkd0Q1gyUURrOGJJdGErbDlRTUJ5VEsxSU5TMmxJNCtBSHhCQkdOMnRBb0dBU21KNldMU1BzVDlPdVJEa0k2RGsKWDhMV09SVllINGNrekcyM1ZrRUlQT25iejQyamVvM2hEbHhmMHYyNWNNRklPdUo4S1k5R3BVMVc3Y0R1V2VGVgpkcUFPd0dWWFhMY1RLakVVaG9tUHZFL3RrRlR2dXpRVGI2dWpRb1dhcHR5UWw4MWt2ZUt6blcrUTZmQUNaSDJ4CkRGR2tVTGRrZUpzYW4rKzI4bU5SUWhjQ2dZRUErTnVBbXFaK2swV0toOGhCdTBqa2tMdHpNRnlUV2R5OFVtNWcKd2FWa1ltbElGSmNLYzlTNjFWSElRaVdnOWE3N3dPeWo2Ri8rcHlrU3R4Rlh6bDZzeG83NTBxb1IzSndDeVJERQpaY1ZCYnpTQW1JRjh2eSsvVlNTaE8zVkx2UDkzSVdwRHM3UCtuL1NwbnY4R1o1QVAvamc3UzhxZ1poNFFqMFZaCnFTZk12MlVDZ1lBWSswS3JkRXNsSmltRUVieEdCTFJHOUF4UVJFWWJwL2JUOFhxcy9kcXBiYXlrTlk5anF4dkoKc3lLTkFSWnJadU1MNnRUTjY2RlRQKzhOL3BZaU5BRHplZmY1M3pNMUU5REZWOGJqUDVielJZV1B2cGIwZ0pkZwp6R0pjRTZZcllsVWJudDRpaWpiZCtMVW16NFdiZDlQOGY1cW1QUGdCSWI3ZXV0OEZoOVJyTEE9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+  server.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURXRENDQWtDZ0F3SUJBZ0lSQVBUMTNoUDA0S3BESjlKTGx1QjJTSlV3RFFZSktvWklodmNOQVFFTEJRQXcKRXpFUk1BOEdBMVVFQXhNSWRtRjFiSFF0WTJFd0hoY05NalF3TmpFMk1EQXdORFU1V2hjTk1qVXdOakUyTURBdwpORFU1V2pBYk1Sa3dGd1lEVlFRREV4QnRlUzF5Wld4bFlYTmxMWFpoZFd4ME1JSUJJakFOQmdrcWhraUc5dzBCCkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQTFkU3hvRWhZSFBUdDMzZDdPdFF0VkFUL054K25RekFyWU5TWFF6VlIKNUs5OWxNM09QV2ZldFlSWnRjVWZuUERWZDEyKzJkUzhsWVgwRE9wMTJjbFlaNmtuWTh2VzZTZURKdnBmRys1aQptcmpTR0F2a3R2N281MGR2WG51eUgyemxXY3BOYkJIaVk5NWlRK0xWK3JYLzVXRzBoSGcwR0dTVlRsMzlnSVZjCkduclhsYnM2VGNMbFRZU0xNS3RoWmNZVkttY2N5N1VlU21iM1RLRmMwcjBhV296YnZRWHNiYmtxTkk0c056S1UKR292YzdtZWd4YVdFV1Fab2NkTXBYSUxuNVhVYksxRUV6MWRTNVFRMndaVXJNcjl3ODZwc3ZCRFQ3Wk42ajZiMApRbk16bjYwcTZwbDAvQ2NxMXBaajJ1NmorZ2hBZC9jVm5iM214enpIK09QUWhRSURBUUFCbzRHZU1JR2JNQTRHCkExVWREd0VCL3dRRUF3SUZvREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUJCUVVIQXdJd0RBWUQKVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCVDlsUlVyRlV3b0hVY3N1NW9iMGxZNmp2RUhlVEE3QmdOVgpIUkVFTkRBeWdoQnRlUzF5Wld4bFlYTmxMWFpoZFd4MGdoaHRlUzF5Wld4bFlYTmxMWFpoZFd4MExtUmxabUYxCmJIU0hCSDhBQUFFd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFEQkNBYmRnWkJjNGZvU2tJUmM4aG5LYnhrNGYKOWZoejZRTjlucGg4bWZIUy9PQVhQaEdkOU9vZkxHVENVOW95OHN0cXFNaUpkWVZla1YwenRNNzVldEFYTlcrUAprNmtERDNmNllFTzk3clh5aGl4STZOQzhiQkFMKzNHZXNkdDRLMS9ha0lBV2VabExzN0pTcHo5ME9SYVV4VHVuCnROQmg0NUhOV1FvNW4zSlA5SCszWUFZM0ZSVmRnUzM4azVSQ3BDNjBnYnRsRXJBaDV0VkpWUWNGeXJlNjhVSWQKd2owd3EzUWJiWStoaEk5dlpFMmNSWTFMM2xGSEpGWWhVT1ZHZEtqcG5MNE9BNi9IaXVXUU1sTklHeW5kNEg5cApYMmtjbjVVdUZZNWlsTmh1ODl1TU9lRmg2UXVpS1NKTG9ieXV5RmJVUFN1NWp4b1kvRkVRRkhzSFlqQT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  server.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBMWRTeG9FaFlIUFR0MzNkN090UXRWQVQvTngrblF6QXJZTlNYUXpWUjVLOTlsTTNPClBXZmV0WVJadGNVZm5QRFZkMTIrMmRTOGxZWDBET3AxMmNsWVo2a25ZOHZXNlNlREp2cGZHKzVpbXJqU0dBdmsKdHY3bzUwZHZYbnV5SDJ6bFdjcE5iQkhpWTk1aVErTFYrclgvNVdHMGhIZzBHR1NWVGwzOWdJVmNHbnJYbGJzNgpUY0xsVFlTTE1LdGhaY1lWS21jY3k3VWVTbWIzVEtGYzByMGFXb3pidlFYc2Jia3FOSTRzTnpLVUdvdmM3bWVnCnhhV0VXUVpvY2RNcFhJTG41WFViSzFFRXoxZFM1UVEyd1pVck1yOXc4NnBzdkJEVDdaTjZqNmIwUW5Nem42MHEKNnBsMC9DY3ExcFpqMnU2aitnaEFkL2NWbmIzbXh6ekgrT1BRaFFJREFRQUJBb0lCQVFETXZhWUNRYUxVdnhTUQpsdGZRWVY2eGgwTlRaYVNDNmJsdk1yOU80OXZ3NnJPRTZuWmlSM1Z3T2pTbm5nS0NBL3R4R3JybDJoTmoyK250CkFBWXRyT05RQmlBb0p3STFKdGNtV0M3L0VJY3JmSEgyQWxWUmZzeEV2eHA4emxXa1QyRmZVeHhFc084akRzanEKRldVcmRGNThKTXh5MXFHVEJhUU1jR1NOVGFQOTJRY24reU9IeGRkRDlodVdnSnp5QlQ5RnlldFJIakQxS3ZaegpIcFl0V0xjRkdjSWpEN2NLK0hhYWhiZ0JCT2xkV2ZyanFPVGtlT0VCQVBaRTNQcXE4bXQya1RjN1M0cVowRXErCmJXT0RueW05L1JRZlJ4LzB0cVdmKzU0bHVrYnFXZEdEUi90aFlZNytMUk85eFpwd2YxTXJ3YkZDWkgvUzIwV1gKRDI1RHM2VFZBb0dCQU9RZVdUSjFFV3RhSmpmTFNhU3lZYkJ1Nkc5Y3NqTWhQUGc2elFJTmpEUlAvUW0veFN1eAorRElsQkVvdzhyQkZtU3JoQkpzY2t4dnp3a2diQzdSQTVqSlArejBla3Z1QTFpU29RRWZJTDlOeXJTdHlTckxyCi9kcC80VzFhNGNnOFVlVWFQS2o3cWY2WmYrTGVqU1VCK3Y4a0JyNFE5aWNLTzlhckoyTThzT2hEQW9HQkFPLzMKUzBTMDMycXhsbE1OQkRmZXRHVEFyZUxvdW8vdFI1bUEwTGoxOG1yenF2czhKQTFtR3JDTWxlK2ZjcG9rQVdqaQp4cTVKS2thVGRyMnkydVVJVFk4YTRYeURJVEFSMld5dFVrbXhUVjJKNUFaSExGRlFaM1k0clFOQ05Pd2FHZFZiCk1uWkkyS2ZtbDQ4Q0EzR0VFWEJOYXJUUVZ4OEEvZ2xjVkV1MzZWdVhBb0dCQU1lUndXbENQOTRTUFRNOHR3M08KUFdhMGNNYlVhdFlPY3grYm1iVDlFemJFNzlPeW9SV3NHajRNWW1kaDBUL2pjNit1c20vZEhOb3NkRURPNEh0dQo5N1QyZ2c4amkyVmFmbjROY0VjY1hMTDVOWVMzOVovNGs5cXZYQkZtbS9hb3h1RFBCbGl6NnpIaEtwL1pJZFJKCm1rUFNTYy9JV1FFb2s5Y25YMHNUVXBXdkFvR0FjbVRISXVlK29kUXF2MGl6UEJjVWsvc3VhYjljUUlSeTM0Q0MKLzhsdldRRHovM1I2RTFFYlpCS0EzNHg1UzNYaW5pZU5ZMFJKdlA5TFdiOUxqbWRZNGVHRW9LQzZUM29TMWpZQgp4bE9aZC8vbURnQWI1bCtZRXNtTjRNSE5ETWljakJNL2lSZk5BSzF5anAvOUdENUhPZXdOOUVobFg4aFBVaE1MCnRGVG1EOTBDZ1lFQXJUSmJPa2wxRFgxcGt5S1MveXQ5V0kxclgvMWZiYkgzSGtyWjZPRENNOVVQRkVLSTRtVFEKRUkzRnpORGNmMjc3UHFlWm1MWFJGSVI2cjhSU1pxMTRxSDNrZDJ5bWxoUmZTZm9rZU42UGE4Q0hrNDhvTCtJdgpySDNiM2dBSnZicDJyck5qbUs1ZWhWbmZLZFlXRXdjTXJwMjdVenBpZ3l6RjErUzBIWUJmTnR3PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+# Source: vault/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "my-release-vault-config"
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: "vault"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+data:
+  config.json:
+    
+    ewogICJsaXN0ZW5lciI6IHsKICAgICJ0Y3AiOiB7CiAgICAgICJhZGRyZXNzIjogIls6Ol06ODIwMCIsCiAgICAgICJ0bHNfY2VydF9maWxlIjogIi92YXVsdC90bHMvc2VydmVyLmNydCIsCiAgICAgICJ0bHNfa2V5X2ZpbGUiOiAiL3ZhdWx0L3Rscy9zZXJ2ZXIua2V5IgogICAgfQogIH0sCiAgInN0b3JhZ2UiOiB7CiAgICAiZmlsZSI6IHsKICAgICAgInBhdGgiOiAiL3ZhdWx0L2ZpbGUiCiAgICB9CiAgfSwKICAidGVsZW1ldHJ5IjogewogICAgInN0YXRzZF9hZGRyZXNzIjogImxvY2FsaG9zdDo5MTI1IgogIH0sCiAgInVpIjogdHJ1ZQp9
+    
+  vault-config.yml:
+    ewogICJhdXRoIjogWwogICAgewogICAgICAicm9sZXMiOiBbCiAgICAgICAgewogICAgICAgICAgImJvdW5kX3NlcnZpY2VfYWNjb3VudF9uYW1lcyI6ICJkZWZhdWx0IiwKICAgICAgICAgICJib3VuZF9zZXJ2aWNlX2FjY291bnRfbmFtZXNwYWNlcyI6ICJkZWZhdWx0IiwKICAgICAgICAgICJuYW1lIjogImRlZmF1bHQiLAogICAgICAgICAgInBvbGljaWVzIjogImFsbG93X3NlY3JldHMiLAogICAgICAgICAgInR0bCI6ICIxaCIKICAgICAgICB9CiAgICAgIF0sCiAgICAgICJ0eXBlIjogImt1YmVybmV0ZXMiCiAgICB9CiAgXSwKICAicG9saWNpZXMiOiBbCiAgICB7CiAgICAgICJuYW1lIjogImFsbG93X3NlY3JldHMiLAogICAgICAicnVsZXMiOiAicGF0aCBcInNlY3JldC8qXCIgeyBjYXBhYmlsaXRpZXMgPSBbXCJjcmVhdGVcIiwgXCJyZWFkXCIsIFwidXBkYXRlXCIsIFwiZGVsZXRlXCIsIFwibGlzdFwiXSB9IgogICAgfQogIF0sCiAgInNlY3JldHMiOiBbCiAgICB7CiAgICAgICJkZXNjcmlwdGlvbiI6ICJHZW5lcmFsIHNlY3JldHMuIiwKICAgICAgIm9wdGlvbnMiOiB7CiAgICAgICAgInZlcnNpb24iOiAyCiAgICAgIH0sCiAgICAgICJwYXRoIjogInNlY3JldCIsCiAgICAgICJ0eXBlIjogImt2IgogICAgfQogIF0KfQ==
+---
+# Source: vault/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "my-release-vault-statsd-mapping"
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: "vault"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+data:
+  statsd-mapping.conf: |
+      mappings:
+      - labels:
+          method: $1
+          path: $2
+        match: vault.route.*.*
+        name: vault_route
+---
+# Source: vault/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: default-my-release-vault-auth-delegator
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: my-release-vault
+  namespace: default
+---
+# Source: vault/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-vault-secret-access
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["bank-vaults"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["vault-unseal-keys"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: [""]
+  verbs: ["create"]
+---
+# Source: vault/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-vault-secret-access
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  kind: Role
+  name: my-release-vault-secret-access
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: my-release-vault
+  namespace: default
+---
+# Source: vault/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-vault
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8200
+    protocol: TCP
+    name: vault
+  - port: 8201
+    protocol: TCP
+    name: vault-cluster
+  selector:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+---
+# Source: vault/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-vault
+  namespace: default
+  labels:
+    helm.sh/chart: vault-1.19.0
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  serviceName: my-release-vault
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 179c68887798d85680ac6af40731a50ce1177b26fe76da14782a2b1e855318ee
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9102"
+        prometheus.io/scrape: "true"
+    spec:
+      initContainers:
+      - name: vault-config
+        image: "ghcr.io/banzaicloud/bank-vaults:1.19.0"
+        imagePullPolicy: IfNotPresent
+        command: ["template"]
+        args:
+          - "-delims"
+          - "[[:]]"
+          - "-template"
+          - "/vault/raw-config/config.json:/vault/config/config.json"
+          - "-template"
+          - "/vault/raw-config/vault-config.yml:/vault/config/vault-config.yml"
+        envFrom:
+        env:
+        volumeMounts:
+        - name: vault-raw-config
+          mountPath: /vault/raw-config/
+        - name: vault-config
+          mountPath: /vault/config/
+        resources:
+          {}
+
+      containers:
+      - name: vault
+        image: "vault:1.6.2"
+        imagePullPolicy: IfNotPresent
+        command: ["vault", "server", "-config", "/vault/config/config.json"]
+        env:
+        - name: VAULT_CACERT
+          value: /vault/tls/ca.crt
+        - name: VAULT_LOG_LEVEL
+          value: info
+        - name: VAULT_ADDR
+        
+          value: https://127.0.0.1:8200
+          
+        envFrom:
+        ports:
+        - containerPort: 8200
+          name: vault
+        - containerPort: 8201
+          name: cluster
+        # This probe makes sure Vault is responsive in a HTTPS manner
+        # See: https://www.vaultproject.io/api/system/init.html
+        livenessProbe:
+          httpGet:
+            
+            scheme: HTTPS
+            
+            path: /v1/sys/init
+            port: vault
+        # This probe makes sure that only the active Vault instance gets traffic
+        # See: https://www.vaultproject.io/api/system/health.html
+        readinessProbe:
+          httpGet:
+            
+            scheme: HTTPS
+            
+            path: /v1/sys/health?standbyok=true&perfstandbyok=true&drsecondarycode=299
+            port: vault
+        securityContext:
+          readOnlyRootFilesystem: true
+          
+          capabilities:
+            add:
+            - IPC_LOCK
+          
+        volumeMounts:
+        - name: vault-config
+          mountPath: /vault/config/
+        - name: vault-root
+          mountPath: /root/
+        - name: vault-file
+          mountPath: /vault/file
+        - name: vault-tls
+          mountPath: /vault/tls
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+      - name: vault-unsealer
+        image: "ghcr.io/banzaicloud/bank-vaults:1.19.0"
+        imagePullPolicy: IfNotPresent
+        command: ["bank-vaults", "unseal", "--init"]
+        args: ["--mode","k8s","--k8s-secret-namespace","default","--k8s-secret-name","bank-vaults"]
+        env:
+        - name: VAULT_CACERT
+          value: /vault/tls/ca.crt
+        - name: VAULT_ADDR
+        
+          value: https://127.0.0.1:8200
+          
+        envFrom:
+        ports:
+        - containerPort: 9091
+          name: "metrics"
+        volumeMounts:
+        - name: vault-tls
+          mountPath: /vault/tls
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+      - name: vault-configurer
+        image: "ghcr.io/banzaicloud/bank-vaults:1.19.0"
+        imagePullPolicy: IfNotPresent
+        command: ["bank-vaults", "configure"]
+        args: ["--mode","k8s","--k8s-secret-namespace","default","--k8s-secret-name","bank-vaults","--disable-metrics"]
+        env:
+        - name: VAULT_CACERT
+          value: /vault/tls/ca.crt
+        - name: VAULT_ADDR
+        
+          value: https://127.0.0.1:8200
+          
+        envFrom:
+        workingDir: /config
+        volumeMounts:
+        - name: vault-tls
+          mountPath: /vault/tls
+        - name: vault-config
+          mountPath: /config/
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+      - name: prometheus-statsd-exporter
+        image: "prom/statsd-exporter:latest"
+        imagePullPolicy: IfNotPresent
+        args: ["--statsd.mapping-config=/tmp/statsd-mapping.conf"]
+        ports:
+        - containerPort: 9102
+          name: prometheus
+        volumeMounts:
+        - name: statsd-mapping
+          mountPath: /tmp/
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: my-release-vault
+                  app.kubernetes.io/instance: "my-release"
+      serviceAccountName: my-release-vault
+      securityContext:
+        fsGroup: 65534
+      volumes:
+        - name: vault-raw-config
+          secret:
+            secretName: "my-release-vault-config"
+        - name: vault-config
+          emptyDir: {}
+        - name: vault-root
+          emptyDir: {}
+        - name: vault-file
+          emptyDir: {}
+        - name: vault-tls
+          secret:
+            secretName: "my-release-vault-tls"
+        - name: statsd-mapping
+          configMap:
+            name: "my-release-vault-statsd-mapping"
+---
+# Source: vault/templates/tests/test-vault-status.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-vault-status-test"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+  - name: my-release-vault-status-test
+    image: "vault:1.6.2"
+    env:
+      - name: VAULT_SKIP_VERIFY
+        value: "true"
+      - name: VAULT_ADDR
+        value: https://my-release-vault:8200
+    command: ["sh", "-c", "vault status"]
+  restartPolicy: Never
+---
+# Source: vault/templates/secret-cleanup.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-vault-secret-cleanup
+  namespace: default
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+  labels:
+    app.kubernetes.io/name: vault
+spec:
+  template:
+    metadata:
+      name: my-release-vault-secret-cleanup
+      labels:
+        app.kubernetes.io/name: vault
+    spec:
+      serviceAccountName: my-release-vault
+      containers:
+        - name: my-release-vault-secret-cleanup
+          image: "k8s.gcr.io/hyperkube:v1.12.1"
+          imagePullPolicy: "IfNotPresent"
+          command:
+          - /bin/sh
+          - -c
+          - >
+              kubectl delete secret bank-vaults --ignore-not-found=true;
+              kubectl delete secret vault-unseal-keys --ignore-not-found=true;
+      restartPolicy: OnFailure

@@ -1,0 +1,271 @@
+---
+# Source: refinery/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-refinery
+  namespace: default
+  labels:
+    helm.sh/chart: refinery-3.0.0-hnyinternal.3
+    app.kubernetes.io/name: refinery
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: refinery/templates/configmap-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-refinery-config
+  namespace: default
+  labels:
+    helm.sh/chart: refinery-3.0.0-hnyinternal.3
+    app.kubernetes.io/name: refinery
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    CentralStore:
+      SpanChannelSize: 10000
+      Type: redis
+    Collection:
+      AvailableMemory: '2Gi'
+      MaxMemoryPercentage: 75
+      ShutdownDelay: '30s'
+    Debugging:
+      AdditionalErrorFields:
+      - trace.span_id
+    GRPCServerParameters:
+      Enabled: true
+      ListenAddr: 0.0.0.0:4317
+    General:
+      ConfigurationVersion: 2
+      MinRefineryVersion: v3.0
+    PrometheusMetrics:
+      Enabled: true
+      ListenAddr: 0.0.0.0:9090
+    RedisPeerManagement:
+      Host: 'my-release-refinery-redis:6379'
+      MaxActive: 100
+      MaxIdle: 100
+    RefineryTelemetry:
+      AddRuleReasonToTrace: true
+---
+# Source: refinery/templates/configmap-rules.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-refinery-rules
+  namespace: default
+  labels:
+    helm.sh/chart: refinery-3.0.0-hnyinternal.3
+    app.kubernetes.io/name: refinery
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  rules.yaml: |
+    RulesVersion: 2
+    Samplers:
+      __default__:
+        DeterministicSampler:
+          SampleRate: 1
+---
+# Source: refinery/templates/service-redis.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-refinery-redis
+  namespace: default
+  labels:
+    helm.sh/chart: refinery-3.0.0-hnyinternal.3
+    app.kubernetes.io/name: refinery-redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-redis
+      port: 6379
+      protocol: TCP
+      targetPort: redis
+  selector:
+    app.kubernetes.io/name: refinery-redis
+    app.kubernetes.io/instance: my-release
+---
+# Source: refinery/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-refinery
+  namespace: default
+  labels:
+    helm.sh/chart: refinery-3.0.0-hnyinternal.3
+    app.kubernetes.io/name: refinery
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: data
+      protocol: TCP
+      name: data
+    - port: 4317
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+    - port: 9090
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+
+  selector:
+    app.kubernetes.io/name: refinery
+    app.kubernetes.io/instance: my-release
+---
+# Source: refinery/templates/deployment-redis.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-refinery-redis
+  namespace: default
+  labels:
+    helm.sh/chart: refinery-3.0.0-hnyinternal.3
+    app.kubernetes.io/name: refinery-redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: refinery-redis
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: refinery-redis
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-refinery
+      securityContext:
+        {}
+      containers:
+        - name: redis
+          image: "redis:7.2"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 2
+              memory: 2Gi
+            requests:
+              cpu: 1
+              memory: 500Mi
+---
+# Source: refinery/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-refinery
+  namespace: default
+  labels:
+    helm.sh/chart: refinery-3.0.0-hnyinternal.3
+    app.kubernetes.io/name: refinery
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: refinery
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/config: 8aabd12c5c189cdcab141bea8f110e478b7981f9a42e34220f216b09fd1ba95d
+        prometheus.io/port: "9090"
+        prometheus.io/scrape: "true"
+      labels:
+        app.kubernetes.io/name: refinery
+        app.kubernetes.io/instance: my-release
+    spec:
+      terminationGracePeriodSeconds: 35
+      serviceAccountName: my-release-refinery
+      securityContext:
+        {}
+      containers:
+        - name: refinery
+          securityContext:
+            {}
+          image: "tylerhelmuthhc/refinery:3.0.0"
+          imagePullPolicy: IfNotPresent
+          command:
+            - refinery
+            - -c
+            - /etc/refinery/config.yaml
+            - -r
+            - /etc/refinery/rules.yaml
+          ports:
+            - name: data
+              containerPort: 8080
+              protocol: TCP
+            - name: grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: peer
+              containerPort: 8081
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: refinery-config
+              mountPath: /etc/refinery/
+          livenessProbe:
+            httpGet:
+              path: /alive
+              port: data
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 3
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: data
+            failureThreshold: 1
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: 4
+              memory: 2Gi
+            requests:
+              cpu: 2
+              memory: 500Mi
+      volumes:
+        - name: refinery-config
+          projected:
+            sources:
+              - configMap:
+                  name: my-release-refinery-config
+                  items:
+                    - key: config.yaml
+                      path: config.yaml
+              - configMap:
+                  name: my-release-refinery-rules
+                  items:
+                    - key: rules.yaml
+                      path: rules.yaml

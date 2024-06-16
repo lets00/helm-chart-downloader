@@ -1,0 +1,762 @@
+---
+# Source: platzio/templates/api/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platz-api
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: platzio/templates/chart-discovery/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platz-chart-discovery-default
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: platzio/templates/frontend/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platz-frontend
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: platzio/templates/k8s-agent/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platz-k8s-agent-default
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: platzio/templates/resource-sync/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platz-resource-sync
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: platzio/templates/status-updates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platz-status-updates
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: platzio/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.9.13
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  postgres-password: "cjJoRWFNZ0IxcQ=="
+  password: "cGxhdHo="
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: platzio/templates/k8s-agent/serviceaccount.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: platz-k8s-agent-default
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: platz-k8s-agent-default
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: platzio/templates/resource-sync/serviceaccount.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: platz-resource-sync
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: platz-resource-sync
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: platzio/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-hl
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.9.13
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: platzio/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.9.13
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: platzio/templates/api/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-platzio-api
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    platzService: api
+---
+# Source: platzio/templates/frontend/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-platzio-frontend
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    platzService: frontend
+---
+# Source: platzio/templates/api/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-platzio-api
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platzio
+      app.kubernetes.io/instance: my-release
+      platzService: api
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: /metrics
+      labels:
+        app.kubernetes.io/name: platzio
+        app.kubernetes.io/instance: my-release
+        platzService: api
+    spec:
+      serviceAccountName: platz-api
+      securityContext:
+        {}
+      containers:
+        - name: api
+          securityContext:
+            {}
+          image: "platzio/backend:v0.5.3-beta.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          command:
+            - /root/platz-api
+            - run
+          env:
+            - name: DATABASE_URL
+              value: 'postgres://platz:platz@my-release-postgresql.default.svc:5432/platz'
+            - name: PLATZ_OWN_URL
+              value: ''
+            - name: OIDC_SERVER_URL
+              valueFrom:
+                secretKeyRef:
+                  key: serverUrl
+                  name: oidc-config
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: clientId
+                  name: oidc-config
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: clientSecret
+                  name: oidc-config
+            - name: RUST_BACKTRACE
+              value: '1'
+            - name: RUST_LOG
+              value: 'debug,hyper=error,rustls=error,tower=error'
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 3000
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 3000
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+---
+# Source: platzio/templates/frontend/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-platzio-frontend
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platzio
+      app.kubernetes.io/instance: my-release
+      platzService: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: platzio
+        app.kubernetes.io/instance: my-release
+        platzService: frontend
+    spec:
+      serviceAccountName: platz-frontend
+      securityContext:
+        {}
+      containers:
+        - name: frontend
+          securityContext:
+            {}
+          image: "platzio/frontend:v0.5.3-beta.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            limits:
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+---
+# Source: platzio/templates/resource-sync/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-platzio-resource-sync
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platzio
+      app.kubernetes.io/instance: my-release
+      platzService: resource-sync
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: platzio
+        app.kubernetes.io/instance: my-release
+        platzService: resource-sync
+    spec:
+      serviceAccountName: platz-resource-sync
+      securityContext:
+        {}
+      containers:
+        - name: resource-sync
+          securityContext:
+            {}
+          image: 'platzio/backend:v0.5.3-beta.3'
+          imagePullPolicy: IfNotPresent
+          command:
+            - /root/platz-resource-sync
+          env:
+            - name: DATABASE_URL
+              value: 'postgres://platz:platz@my-release-postgresql.default.svc:5432/platz'
+            - name: PLATZ_OWN_URL
+              value: ''
+            - name: RUST_BACKTRACE
+              value: '1'
+            - name: RUST_LOG
+              value: 'debug,hyper=error,rustls=error,tower=error'
+          resources:
+            limits:
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: platzio/templates/status-updates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-platzio-status-updates
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platzio
+      app.kubernetes.io/instance: my-release
+      platzService: status-updates
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: platzio
+        app.kubernetes.io/instance: my-release
+        platzService: status-updates
+    spec:
+      serviceAccountName: platz-status-updates
+      securityContext:
+        {}
+      containers:
+        - name: status-updates
+          securityContext:
+            {}
+          image: 'platzio/backend:v0.5.3-beta.3'
+          imagePullPolicy: IfNotPresent
+          command:
+            - /root/platz-status-updates
+          env:
+            - name: DATABASE_URL
+              value: 'postgres://platz:platz@my-release-postgresql.default.svc:5432/platz'
+            - name: PLATZ_OWN_URL
+              value: ''
+            - name: RUST_BACKTRACE
+              value: '1'
+            - name: RUST_LOG
+              value: 'debug,hyper=error,rustls=error,tower=error'
+          resources:
+            limits:
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: platzio/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.9.13
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  replicas: 1
+  serviceName: my-release-postgresql-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/name: postgresql
+        helm.sh/chart: postgresql-11.9.13
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+      annotations:
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: primary
+                namespaces:
+                  - "default"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      securityContext:
+        fsGroup: 1001
+      hostNetwork: false
+      hostIPC: false
+      initContainers:
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:14.5.0-debian-11-r35
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "platz"
+            - name: POSTGRES_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgres-password
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: password
+            - name: POSTGRES_DB
+              value: "platz"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "platz" -d "dbname=platz" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                
+                - |
+                  exec pg_isready -U "platz" -d "dbname=platz" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits: {}
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: platzio/templates/chart-discovery/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-platzio-chart-discovery-default
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: chart-discovery-default
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platzio
+      app.kubernetes.io/instance: my-release
+      platzService: chart-discovery
+      chartDiscoveryInstance: default
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: platzio
+        app.kubernetes.io/instance: my-release
+        platzService: chart-discovery
+        chartDiscoveryInstance: default
+    spec:
+      serviceAccountName: platz-chart-discovery-default
+      securityContext:
+        {}
+      containers:
+        - name: chart-discovery
+          securityContext:
+            {}
+          image: "platzio/backend:v0.5.3-beta.3"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /root/platz-chart-discovery
+          env:
+            - name: DATABASE_URL
+              value: 'postgres://platz:platz@my-release-postgresql.default.svc:5432/platz'
+            - name: PLATZ_OWN_URL
+              value: ''
+            - name: PLATZ_ECR_EVENTS_QUEUE
+              value: ''
+            - name: PLATZ_ECR_EVENTS_REGION
+              value: ''
+            - name: RUST_BACKTRACE
+              value: '1'
+            - name: RUST_LOG
+              value: 'debug,hyper=error,rustls=error,tower=error'
+          resources:
+            limits:
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: platzio/templates/k8s-agent/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-platzio-k8s-agent-default
+  labels:
+    helm.sh/chart: platzio-0.5.3-beta.3
+    app.kubernetes.io/name: platzio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.5.3-beta.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: k8s-agent-default
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platzio
+      app.kubernetes.io/instance: my-release
+      platzService: k8s-agent
+      k8sAgentName: default
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: platzio
+        app.kubernetes.io/instance: my-release
+        platzService: k8s-agent
+        k8sAgentName: default
+    spec:
+      serviceAccountName: platz-k8s-agent-default
+      securityContext:
+        {}
+      containers:
+        - name: k8s-agent
+          securityContext:
+            {}
+          image: 'platzio/backend:v0.5.3-beta.3'
+          imagePullPolicy: IfNotPresent
+          command:
+            - /root/platz-k8s-agent
+          env:
+            - name: DATABASE_URL
+              value: 'postgres://platz:platz@my-release-postgresql.default.svc:5432/platz'
+            - name: PLATZ_OWN_URL
+              value: ''
+            - name: PLATZ_HELM_IMAGE
+              value: 'platzio/base:v5'
+            - name: PLATZ_SELF_NAMESPACE
+              value: 'default'
+            - name: PLATZ_SELF_SERVICE_ACCOUNT_NAME
+              value: platz-k8s-agent-default
+            - name: RUST_BACKTRACE
+              value: '1'
+            - name: RUST_LOG
+              value: 'debug,hyper=error,rustls=error,tower=error'
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 128Mi

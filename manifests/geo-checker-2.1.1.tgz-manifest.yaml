@@ -1,0 +1,142 @@
+---
+# Source: geo-checker/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-geo-checker
+  labels:
+    helm.sh/chart: geo-checker-2.1.1
+    app.kubernetes.io/name: geo-checker
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: geo-checker/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-geo-checker
+  namespace: default
+  labels:
+    helm.sh/chart: geo-checker-2.1.1
+    app.kubernetes.io/name: geo-checker
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  geoipLicensekey: "TGljZW5zZUtleQ=="
+---
+# Source: geo-checker/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-geo-checker
+  labels:
+    helm.sh/chart: geo-checker-2.1.1
+    app.kubernetes.io/name: geo-checker
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: geo-checker
+    app.kubernetes.io/instance: my-release
+---
+# Source: geo-checker/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-geo-checker
+  labels:
+    helm.sh/chart: geo-checker-2.1.1
+    app.kubernetes.io/name: geo-checker
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: geo-checker
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/secret: e4529dcb25cbf85c295b71d90c1cd1b887649785754019e46b08dc94a9f68299
+      labels:
+        app.kubernetes.io/name: geo-checker
+        app.kubernetes.io/instance: my-release
+    spec:
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: my-release-geo-checker
+      securityContext:
+        {}
+      containers:
+        - name: geo-checker
+          securityContext:
+            {}
+          image: "ymuski/geo-checker:2.1.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            successThreshold: 1
+            tcpSocket:
+              port: http
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            {}
+          env:
+            - name: GEOIP_ACCOUNTID
+              value: "AccountID"
+            - name: GEOIP_EDITIONID
+              value: "GeoLite2-Country"
+            - name: GEOIP_LICENSEKEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-geo-checker
+                  key: geoipLicensekey
+            - name: GEOIP_CRONTAB
+              value: "48 14 * * 3,6"
+---
+# Source: geo-checker/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-geo-checker-test-connection"
+  labels:
+    helm.sh/chart: geo-checker-2.1.1
+    app.kubernetes.io/name: geo-checker
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-geo-checker:80']
+  restartPolicy: Never

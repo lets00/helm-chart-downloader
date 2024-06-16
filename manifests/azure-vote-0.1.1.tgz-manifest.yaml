@@ -1,0 +1,92 @@
+---
+# Source: azure-vote/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: vote-back-my-release
+  labels:
+    name: vote-back-my-release
+spec:
+  ports:
+  - port: 6379
+  selector:
+    app: vote-back-my-release
+---
+# Source: azure-vote/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: azure-vote-front
+  labels:
+    name: azure-vote-front
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: vote-front-my-release
+---
+# Source: azure-vote/templates/deployments.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vote-back-my-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vote-back-my-release
+  template:
+    metadata:
+      labels:
+        app: vote-back-my-release
+    spec:
+      containers:
+      - name: vote-back-my-release
+        image: redis
+        ports:
+        - containerPort: 6379
+          name: redis
+---
+# Source: azure-vote/templates/deployments.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vote-front-my-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vote-front-my-release
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5 
+  template:
+    metadata:
+      labels:
+        app: vote-front-my-release
+    spec:
+      containers:
+      - name: azure-vote-front
+        image: neilpeterson/azure-vote-front:v3
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 250m
+          limits:
+            cpu: 500m
+        env:
+        - name: REDIS
+          value: vote-back-my-release
+        - name: TITLE
+          value: Azure Vote App
+        - name: VOTE1VALUE
+          value: Cats
+        - name: VOTE2VALUE
+          value: Dogs
+
+# Add if operator to env vars

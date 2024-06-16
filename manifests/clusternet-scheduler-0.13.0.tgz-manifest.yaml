@@ -1,0 +1,147 @@
+---
+# Source: clusternet-scheduler/templates/clusternet_scheduler_deployment.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clusternet-scheduler
+  namespace: default
+  labels:
+    app.kubernetes.io/name: clusternet-scheduler
+    helm.sh/chart: clusternet-scheduler-0.13.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: clusternet-scheduler/templates/clusternet_scheduler_rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusternet:scheduler
+  labels:
+    app.kubernetes.io/name: clusternet-scheduler
+    helm.sh/chart: clusternet-scheduler-0.13.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [ "apps.clusternet.io" ]
+    resources: [ "subscriptions", "feedinventories" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "apps.clusternet.io" ]
+    resources: [ "subscriptions/status" ]
+    verbs: [ "update", "patch" ]
+  - apiGroups: [ "clusters.clusternet.io" ]
+    resources: [ "managedclusters" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "events" ]
+    verbs: [ "*" ]
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "*" ]
+  - nonResourceURLs: [ "*" ]
+    verbs: [ "get" ]
+---
+# Source: clusternet-scheduler/templates/clusternet_scheduler_rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusternet:scheduler
+  labels:
+    app.kubernetes.io/name: clusternet-scheduler
+    helm.sh/chart: clusternet-scheduler-0.13.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusternet:scheduler
+subjects:
+  - kind: ServiceAccount
+    name: clusternet-scheduler
+    namespace: default
+---
+# Source: clusternet-scheduler/templates/clusternet_scheduler_rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusternet:scheduler:predictor
+  labels:
+    app.kubernetes.io/name: clusternet-scheduler
+    helm.sh/chart: clusternet-scheduler-0.13.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusternet:system:socketsproxy
+subjects:
+  - kind: ServiceAccount
+    name: clusternet-scheduler
+    namespace: default
+---
+# Source: clusternet-scheduler/templates/clusternet_scheduler_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-clusternet-scheduler
+  namespace: default
+  labels:
+    app.kubernetes.io/name: clusternet-scheduler
+    helm.sh/chart: clusternet-scheduler-0.13.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app: my-release-clusternet-scheduler
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clusternet-scheduler
+      app.kubernetes.io/instance: my-release
+      app: my-release-clusternet-scheduler
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clusternet-scheduler
+        helm.sh/chart: clusternet-scheduler-0.13.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app: my-release-clusternet-scheduler
+    spec:
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: clusternet-scheduler
+                    app.kubernetes.io/instance: my-release
+                namespaces:
+                  - "default"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      hostNetwork: false
+      serviceAccountName: clusternet-scheduler
+      containers:
+        - name: clusternet-scheduler
+          image: ghcr.io/clusternet/clusternet-scheduler:v0.16.0
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits: {}
+            requests: {}
+          env:
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          command:
+            - /usr/local/bin/clusternet-scheduler
+          args:
+            - --leader-elect=true
+            - --leader-elect-resource-namespace=$(SYSTEM_NAMESPACE)
+            - --feature-gates=FailOver=true,FeasibleClustersToleration=true
+            - --kube-api-burst=100
+            - --kube-api-qps=50.0

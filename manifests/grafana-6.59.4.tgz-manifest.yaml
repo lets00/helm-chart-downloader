@@ -1,0 +1,332 @@
+---
+# Source: grafana/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana
+  namespace: default
+---
+# Source: grafana/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-grafana
+  namespace: default
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  admin-user: "YWRtaW4="
+  admin-password: "WDlsQUJwWFdEVDlJbElkemFQVExXTVd1emRqdXR6REphVUdaVndKRg=="
+  ldap-toml: ""
+---
+# Source: grafana/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-grafana
+  namespace: default
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  grafana.ini: |
+    [analytics]
+    check_for_updates = true
+    [grafana_net]
+    url = https://grafana.net
+    [log]
+    mode = console
+    [paths]
+    data = /var/lib/grafana/
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+    [server]
+    domain = ''
+---
+# Source: grafana/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana-clusterrole
+rules: []
+---
+# Source: grafana/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-grafana-clusterrolebinding
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: my-release-grafana
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: my-release-grafana-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: grafana/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-grafana
+  namespace: default
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+rules: []
+---
+# Source: grafana/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-grafana
+  namespace: default
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-grafana
+subjects:
+- kind: ServiceAccount
+  name: my-release-grafana
+  namespace: default
+---
+# Source: grafana/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-grafana
+  namespace: default
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: service
+      port: 80
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+---
+# Source: grafana/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-grafana
+  namespace: default
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 5eb566ee951a1cd382bd197ecf4c6bd5ea247934780edd2322d4bfcc418ea3a9
+        checksum/dashboards-json-config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/sc-dashboard-provider-config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/secret: d849610d08a24f3e00a2c456faa7e16eb5fcd3836be64c25b7b1353be8a3b2b0
+        kubectl.kubernetes.io/default-container: grafana
+    spec:
+      
+      serviceAccountName: my-release-grafana
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 472
+        runAsGroup: 472
+        runAsNonRoot: true
+        runAsUser: 472
+      enableServiceLinks: true
+      containers:
+        - name: grafana
+          image: "docker.io/grafana/grafana:10.1.1"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/grafana/grafana.ini"
+              subPath: grafana.ini
+            - name: storage
+              mountPath: "/var/lib/grafana"
+          ports:
+            - name: grafana
+              containerPort: 3000
+              protocol: TCP
+            - name: gossip-tcp
+              containerPort: 9094
+              protocol: TCP
+            - name: gossip-udp
+              containerPort: 9094
+              protocol: UDP
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-grafana
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-grafana
+                  key: admin-password
+            - name: GF_PATHS_DATA
+              value: /var/lib/grafana/
+            - name: GF_PATHS_LOGS
+              value: /var/log/grafana
+            - name: GF_PATHS_PLUGINS
+              value: /var/lib/grafana/plugins
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-grafana
+        - name: storage
+          emptyDir: {}
+---
+# Source: grafana/templates/tests/test-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana-test
+  namespace: default
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+---
+# Source: grafana/templates/tests/test-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-grafana-test
+  namespace: default
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  run.sh: |-
+    @test "Test Health" {
+      url="http://my-release-grafana/api/health"
+
+      code=$(wget --server-response --spider --timeout 90 --tries 10 ${url} 2>&1 | awk '/^  HTTP/{print $2}')
+      [ "$code" == "200" ]
+    }
+---
+# Source: grafana/templates/tests/test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-release-grafana-test
+  labels:
+    helm.sh/chart: grafana-6.59.4
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.1.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  namespace: default
+spec:
+  serviceAccountName: my-release-grafana-test
+  containers:
+    - name: my-release-test
+      image: "docker.io/bats/bats:v1.4.1"
+      imagePullPolicy: "IfNotPresent"
+      command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+        - mountPath: /tests
+          name: tests
+          readOnly: true
+  volumes:
+    - name: tests
+      configMap:
+        name: my-release-grafana-test
+  restartPolicy: Never

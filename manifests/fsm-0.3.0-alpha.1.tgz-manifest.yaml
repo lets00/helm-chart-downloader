@@ -1,0 +1,2289 @@
+---
+# Source: fsm/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fsm
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+---
+# Source: fsm/templates/flb-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: default
+  name: fsm-flb-secret
+  labels:
+    flb.flomesh.io/config: "true"
+type: Opaque
+data:
+  baseUrl: aHR0cDovL2xvY2FsaG9zdDoxMzM3
+  username: YWRtaW4=
+  password: YWRtaW4=
+  defaultCluster: ZGVmYXVsdA==
+  defaultAddressPool: ZGVmYXVsdA==
+  defaultAlgo: cnI=
+---
+# Source: fsm/templates/crds-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fsm-crds-resources
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+data:
+  flomesh.io_clusters.yaml: |
+    ---
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+      annotations:
+        controller-gen.kubebuilder.io/version: v0.11.3
+      creationTimestamp: null
+      name: clusters.flomesh.io
+    spec:
+      group: flomesh.io
+      names:
+        kind: Cluster
+        listKind: ClusterList
+        plural: clusters
+        singular: cluster
+      scope: Cluster
+      versions:
+      - additionalPrinterColumns:
+        - jsonPath: .spec.region
+          name: Region
+          type: string
+        - jsonPath: .spec.zone
+          name: Zone
+          type: string
+        - jsonPath: .spec.group
+          name: Group
+          type: string
+        - jsonPath: .spec.gatewayHost
+          name: Gateway Host
+          type: string
+        - jsonPath: .spec.gatewayPort
+          name: Gateway Port
+          type: integer
+        - jsonPath: .status.conditions[?(@.type=='Managed')].status
+          name: Managed
+          type: string
+        - jsonPath: .status.conditions[?(@.type=='Managed')].lastTransitionTime
+          name: Managed Age
+          type: date
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        name: v1alpha1
+        schema:
+          openAPIV3Schema:
+            description: Cluster is the Schema for the clusters API
+            properties:
+              apiVersion:
+                description: 'APIVersion defines the versioned schema of this representation
+                  of an object. Servers should convert recognized schemas to the latest
+                  internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                type: string
+              kind:
+                description: 'Kind is a string value representing the REST resource this
+                  object represents. Servers may infer this from the endpoint the client
+                  submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                type: string
+              metadata:
+                type: object
+              spec:
+                description: ClusterSpec defines the desired state of Cluster
+                properties:
+                  gatewayHost:
+                    description: GatewayHost, the Full Qualified Domain Name or IP of
+                      the gateway/ingress of this cluster If it's an IP address, only
+                      IPv4 is supported
+                    type: string
+                  gatewayPort:
+                    default: 80
+                    description: The port number of the gateway
+                    format: int32
+                    maximum: 65535
+                    minimum: 1
+                    type: integer
+                  group:
+                    default: default
+                    description: Group, the locality information of this cluster
+                    type: string
+                  kubeconfig:
+                    description: Kubeconfig, The kubeconfig of the cluster you want to
+                      connnect to This's not needed if ClusterMode is InCluster, it will
+                      use InCluster config
+                    type: string
+                  region:
+                    default: default
+                    description: Region, the locality information of this cluster
+                    type: string
+                  zone:
+                    default: default
+                    description: Zone, the locality information of this cluster
+                    type: string
+                type: object
+              status:
+                description: ClusterStatus defines the observed state of Cluster
+                properties:
+                  conditions:
+                    items:
+                      description: "Condition contains details for one aspect of the current
+                        state of this API Resource. --- This struct is intended for direct
+                        use as an array at the field path .status.conditions.  For example,
+                        \n type FooStatus struct{ // Represents the observations of a
+                        foo's current state. // Known .status.conditions.type are: \"Available\",
+                        \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                        // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                        `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                        protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                      properties:
+                        lastTransitionTime:
+                          description: lastTransitionTime is the last time the condition
+                            transitioned from one status to another. This should be when
+                            the underlying condition changed.  If that is not known, then
+                            using the time when the API field changed is acceptable.
+                          format: date-time
+                          type: string
+                        message:
+                          description: message is a human readable message indicating
+                            details about the transition. This may be an empty string.
+                          maxLength: 32768
+                          type: string
+                        observedGeneration:
+                          description: observedGeneration represents the .metadata.generation
+                            that the condition was set based upon. For instance, if .metadata.generation
+                            is currently 12, but the .status.conditions[x].observedGeneration
+                            is 9, the condition is out of date with respect to the current
+                            state of the instance.
+                          format: int64
+                          minimum: 0
+                          type: integer
+                        reason:
+                          description: reason contains a programmatic identifier indicating
+                            the reason for the condition's last transition. Producers
+                            of specific condition types may define expected values and
+                            meanings for this field, and whether the values are considered
+                            a guaranteed API. The value should be a CamelCase string.
+                            This field may not be empty.
+                          maxLength: 1024
+                          minLength: 1
+                          pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                          type: string
+                        status:
+                          description: status of the condition, one of True, False, Unknown.
+                          enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                          type: string
+                        type:
+                          description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                            --- Many .condition.type values are consistent across resources
+                            like Available, but because arbitrary conditions can be useful
+                            (see .node.status.conditions), the ability to deconflict is
+                            important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                          maxLength: 316
+                          pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                          type: string
+                      required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - type
+                    x-kubernetes-list-type: map
+                type: object
+            type: object
+        served: true
+        storage: true
+        subresources:
+          status: {}
+    
+  flomesh.io_proxyprofiles.yaml: |
+    ---
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+      annotations:
+        controller-gen.kubebuilder.io/version: v0.11.3
+      creationTimestamp: null
+      name: proxyprofiles.flomesh.io
+    spec:
+      group: flomesh.io
+      names:
+        kind: ProxyProfile
+        listKind: ProxyProfileList
+        plural: proxyprofiles
+        shortNames:
+        - pf
+        singular: proxyprofile
+      scope: Cluster
+      versions:
+      - additionalPrinterColumns:
+        - jsonPath: .spec.namespace
+          name: Namespace
+          type: string
+        - jsonPath: .spec.disabled
+          name: Disabled
+          type: boolean
+        - jsonPath: .spec.mode
+          name: Mode
+          type: string
+        - jsonPath: .spec.selector
+          name: Selector
+          priority: 1
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        name: v1alpha1
+        schema:
+          openAPIV3Schema:
+            description: ProxyProfile is the Schema for the proxyprofiles API
+            properties:
+              apiVersion:
+                description: 'APIVersion defines the versioned schema of this representation
+                  of an object. Servers should convert recognized schemas to the latest
+                  internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                type: string
+              kind:
+                description: 'Kind is a string value representing the REST resource this
+                  object represents. Servers may infer this from the endpoint the client
+                  submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                type: string
+              metadata:
+                type: object
+              spec:
+                description: ProxyProfileSpec defines the desired state of ProxyProfile
+                properties:
+                  config:
+                    additionalProperties:
+                      type: string
+                    description: Config contains the configuration data. Each key must
+                      consist of alphanumeric characters, '-', '_' or '.'. Values with
+                      non-UTF-8 byte sequences must use the BinaryData field. This option
+                      is mutually exclusive with RepoBaseUrl option, you can only have
+                      either one.
+                    type: object
+                  disabled:
+                    default: false
+                    description: If this ProxyProfile is Disabled. A disabled ProxyProfile
+                      doesn't participate the sidecar injection process.
+                    type: boolean
+                  mode:
+                    default: Remote
+                    description: ConfigMode tells where the sidecar loads the scripts/config
+                      from, Local means from local files mounted by configmap, Remote
+                      means loads from remote pipy repo. Default value is Remote
+                    type: string
+                  namespace:
+                    description: Namespace ProxyProfile will only match the pods in the
+                      namespace otherwise, match pods in all namespaces(in cluster)
+                    type: string
+                  restartPolicy:
+                    default: Never
+                    description: RestartPolicy indicates if ProxyProfile is updated, those
+                      already injected PODs should be updated or not. Default value is
+                      Never, it only has impact to new created PODs, existing PODs will
+                      not be updated.
+                    enum:
+                    - Never
+                    - Always
+                    type: string
+                  restartScope:
+                    default: Owner
+                    description: RestartScope takes effect when RestartPolicy is Always,
+                      it tells if we can restart the entire POD to apply the changes or
+                      only the sidecar containers inside the POD. Default value is Owner.
+                    enum:
+                    - Owner
+                    type: string
+                  selector:
+                    description: Selector is a label query over pods that should be injected
+                      This's optional, please NOTE a nil or empty Selector match nothing
+                      not everything.
+                    properties:
+                      matchExpressions:
+                        description: matchExpressions is a list of label selector requirements.
+                          The requirements are ANDed.
+                        items:
+                          description: A label selector requirement is a selector that
+                            contains values, a key, and an operator that relates the key
+                            and values.
+                          properties:
+                            key:
+                              description: key is the label key that the selector applies
+                                to.
+                              type: string
+                            operator:
+                              description: operator represents a key's relationship to
+                                a set of values. Valid operators are In, NotIn, Exists
+                                and DoesNotExist.
+                              type: string
+                            values:
+                              description: values is an array of string values. If the
+                                operator is In or NotIn, the values array must be non-empty.
+                                If the operator is Exists or DoesNotExist, the values
+                                array must be empty. This array is replaced during a strategic
+                                merge patch.
+                              items:
+                                type: string
+                              type: array
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: matchLabels is a map of {key,value} pairs. A single
+                          {key,value} in the matchLabels map is equivalent to an element
+                          of matchExpressions, whose key field is "key", the operator
+                          is "In", and the values array contains only "value". The requirements
+                          are ANDed.
+                        type: object
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  serviceEnv:
+                    description: List of environment variables to set in each of the service
+                      containers. Cannot be updated.
+                    items:
+                      description: EnvVar represents an environment variable present in
+                        a Container.
+                      properties:
+                        name:
+                          description: Name of the environment variable. Must be a C_IDENTIFIER.
+                          type: string
+                        value:
+                          description: 'Variable references $(VAR_NAME) are expanded using
+                            the previously defined environment variables in the container
+                            and any service environment variables. If a variable cannot
+                            be resolved, the reference in the input string will be unchanged.
+                            Double $$ are reduced to a single $, which allows for escaping
+                            the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce the
+                            string literal "$(VAR_NAME)". Escaped references will never
+                            be expanded, regardless of whether the variable exists or
+                            not. Defaults to "".'
+                          type: string
+                        valueFrom:
+                          description: Source for the environment variable's value. Cannot
+                            be used if value is not empty.
+                          properties:
+                            configMapKeyRef:
+                              description: Selects a key of a ConfigMap.
+                              properties:
+                                key:
+                                  description: The key to select.
+                                  type: string
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                                  type: string
+                                optional:
+                                  description: Specify whether the ConfigMap or its key
+                                    must be defined
+                                  type: boolean
+                              required:
+                              - key
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            fieldRef:
+                              description: 'Selects a field of the pod: supports metadata.name,
+                                metadata.namespace, `metadata.labels[''<KEY>'']`, `metadata.annotations[''<KEY>'']`,
+                                spec.nodeName, spec.serviceAccountName, status.hostIP,
+                                status.podIP, status.podIPs.'
+                              properties:
+                                apiVersion:
+                                  description: Version of the schema the FieldPath is
+                                    written in terms of, defaults to "v1".
+                                  type: string
+                                fieldPath:
+                                  description: Path of the field to select in the specified
+                                    API version.
+                                  type: string
+                              required:
+                              - fieldPath
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            resourceFieldRef:
+                              description: 'Selects a resource of the container: only
+                                resources limits and requests (limits.cpu, limits.memory,
+                                limits.ephemeral-storage, requests.cpu, requests.memory
+                                and requests.ephemeral-storage) are currently supported.'
+                              properties:
+                                containerName:
+                                  description: 'Container name: required for volumes,
+                                    optional for env vars'
+                                  type: string
+                                divisor:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Specifies the output format of the exposed
+                                    resources, defaults to "1"
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                resource:
+                                  description: 'Required: resource to select'
+                                  type: string
+                              required:
+                              - resource
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            secretKeyRef:
+                              description: Selects a key of a secret in the pod's namespace
+                              properties:
+                                key:
+                                  description: The key of the secret to select from.  Must
+                                    be a valid secret key.
+                                  type: string
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                                  type: string
+                                optional:
+                                  description: Specify whether the Secret or its key must
+                                    be defined
+                                  type: boolean
+                              required:
+                              - key
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-preserve-unknown-fields: true
+                  sidecars:
+                    description: List of sidecars, will be injected into POD. It must
+                      have at least ONE sidecar and up to 5 maximum.
+                    items:
+                      properties:
+                        args:
+                          description: 'Arguments to the entrypoint. The docker image''s
+                            CMD is used if this is not provided. Variable references $(VAR_NAME)
+                            are expanded using the container''s environment. If a variable
+                            cannot be resolved, the reference in the input string will
+                            be unchanged. The $(VAR_NAME) syntax can be escaped with a
+                            double $$, ie: $$(VAR_NAME). Escaped references will never
+                            be expanded, regardless of whether the variable exists or
+                            not. Cannot be updated.'
+                          items:
+                            type: string
+                          type: array
+                        command:
+                          description: 'Entrypoint array. Not executed within a shell.
+                            The docker image''s ENTRYPOINT is used if this is not provided.
+                            Variable references $(VAR_NAME) are expanded using the container''s
+                            environment. If a variable cannot be resolved, the reference
+                            in the input string will be unchanged. The $(VAR_NAME) syntax
+                            can be escaped with a double $$, ie: $$(VAR_NAME). Escaped
+                            references will never be expanded, regardless of whether the
+                            variable exists or not. Cannot be updated.'
+                          items:
+                            type: string
+                          type: array
+                        env:
+                          description: List of environment variables to set in the sidecar
+                            container. Cannot be updated.
+                          items:
+                            description: EnvVar represents an environment variable present
+                              in a Container.
+                            properties:
+                              name:
+                                description: Name of the environment variable. Must be
+                                  a C_IDENTIFIER.
+                                type: string
+                              value:
+                                description: 'Variable references $(VAR_NAME) are expanded
+                                  using the previously defined environment variables in
+                                  the container and any service environment variables.
+                                  If a variable cannot be resolved, the reference in the
+                                  input string will be unchanged. Double $$ are reduced
+                                  to a single $, which allows for escaping the $(VAR_NAME)
+                                  syntax: i.e. "$$(VAR_NAME)" will produce the string
+                                  literal "$(VAR_NAME)". Escaped references will never
+                                  be expanded, regardless of whether the variable exists
+                                  or not. Defaults to "".'
+                                type: string
+                              valueFrom:
+                                description: Source for the environment variable's value.
+                                  Cannot be used if value is not empty.
+                                properties:
+                                  configMapKeyRef:
+                                    description: Selects a key of a ConfigMap.
+                                    properties:
+                                      key:
+                                        description: The key to select.
+                                        type: string
+                                      name:
+                                        description: 'Name of the referent. More info:
+                                          https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind,
+                                          uid?'
+                                        type: string
+                                      optional:
+                                        description: Specify whether the ConfigMap or
+                                          its key must be defined
+                                        type: boolean
+                                    required:
+                                    - key
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  fieldRef:
+                                    description: 'Selects a field of the pod: supports
+                                      metadata.name, metadata.namespace, `metadata.labels[''<KEY>'']`,
+                                      `metadata.annotations[''<KEY>'']`, spec.nodeName,
+                                      spec.serviceAccountName, status.hostIP, status.podIP,
+                                      status.podIPs.'
+                                    properties:
+                                      apiVersion:
+                                        description: Version of the schema the FieldPath
+                                          is written in terms of, defaults to "v1".
+                                        type: string
+                                      fieldPath:
+                                        description: Path of the field to select in the
+                                          specified API version.
+                                        type: string
+                                    required:
+                                    - fieldPath
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  resourceFieldRef:
+                                    description: 'Selects a resource of the container:
+                                      only resources limits and requests (limits.cpu,
+                                      limits.memory, limits.ephemeral-storage, requests.cpu,
+                                      requests.memory and requests.ephemeral-storage)
+                                      are currently supported.'
+                                    properties:
+                                      containerName:
+                                        description: 'Container name: required for volumes,
+                                          optional for env vars'
+                                        type: string
+                                      divisor:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        description: Specifies the output format of the
+                                          exposed resources, defaults to "1"
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      resource:
+                                        description: 'Required: resource to select'
+                                        type: string
+                                    required:
+                                    - resource
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  secretKeyRef:
+                                    description: Selects a key of a secret in the pod's
+                                      namespace
+                                    properties:
+                                      key:
+                                        description: The key of the secret to select from.  Must
+                                          be a valid secret key.
+                                        type: string
+                                      name:
+                                        description: 'Name of the referent. More info:
+                                          https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind,
+                                          uid?'
+                                        type: string
+                                      optional:
+                                        description: Specify whether the Secret or its
+                                          key must be defined
+                                        type: boolean
+                                    required:
+                                    - key
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                type: object
+                            required:
+                            - name
+                            type: object
+                          type: array
+                          x-kubernetes-preserve-unknown-fields: true
+                        image:
+                          description: Docker image name. This field is optional to allow
+                            higher level config management to default or override container
+                            images in workload controllers like Deployments and StatefulSets.
+                          type: string
+                        imagePullPolicy:
+                          description: Image pull policy. One of Always, Never, IfNotPresent.
+                            Defaults to Always if :latest tag is specified, or IfNotPresent
+                            otherwise. Cannot be updated.
+                          type: string
+                        name:
+                          description: Name of the container specified as a DNS_LABEL.
+                            Each container in a pod must have a unique name (DNS_LABEL).
+                            Cannot be updated.
+                          type: string
+                        resources:
+                          description: Compute Resources required by this container. Cannot
+                            be updated.
+                          properties:
+                            claims:
+                              description: "Claims lists the names of resources, defined
+                                in spec.resourceClaims, that are used by this container.
+                                \n This is an alpha field and requires enabling the DynamicResourceAllocation
+                                feature gate. \n This field is immutable. It can only
+                                be set for containers."
+                              items:
+                                description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                                properties:
+                                  name:
+                                    description: Name must match the name of one entry
+                                      in pod.spec.resourceClaims of the Pod where this
+                                      field is used. It makes that resource available
+                                      inside a container.
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              type: array
+                              x-kubernetes-list-map-keys:
+                              - name
+                              x-kubernetes-list-type: map
+                            limits:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Limits describes the maximum amount of compute
+                                resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                            requests:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Requests describes the minimum amount of compute
+                                resources required. If Requests is omitted for a container,
+                                it defaults to Limits if that is explicitly specified,
+                                otherwise to an implementation-defined value. More info:
+                                https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                          type: object
+                        startupScriptName:
+                          description: The file name of entrypoint script for starting
+                            the PIPY instance. If not provided, the default value is the
+                            value of Name field with surfix .js. For example, if the Name
+                            of the sidecar is proxy, it looks up proxy.js in config folder.
+                            It only works in local config mode, if pulls scripts from
+                            remote repo, the repo server returns the name of startup script.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    maxItems: 5
+                    minItems: 1
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
+                type: object
+              status:
+                description: ProxyProfileStatus defines the observed state of ProxyProfile
+                properties:
+                  configMaps:
+                    additionalProperties:
+                      type: string
+                    description: All associated config maps, key is namespace and value
+                      is the name of configmap
+                    type: object
+                required:
+                - configMaps
+                type: object
+            type: object
+        served: true
+        storage: true
+        subresources:
+          status: {}
+    
+  flomesh.io_mcs-api.yaml: |
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+      annotations:
+        controller-gen.kubebuilder.io/version: v0.11.3
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/name: flomesh.io
+      name: globaltrafficpolicies.flomesh.io
+    spec:
+      group: flomesh.io
+      names:
+        kind: GlobalTrafficPolicy
+        listKind: GlobalTrafficPolicyList
+        plural: globaltrafficpolicies
+        shortNames:
+        - gtp
+        singular: globaltrafficpolicy
+      scope: Namespaced
+      versions:
+      - additionalPrinterColumns:
+        - jsonPath: .spec.lbType
+          name: LB Type
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        name: v1alpha1
+        schema:
+          openAPIV3Schema:
+            description: GlobalTrafficPolicy is the Schema for the GlobalTrafficPolicys
+              API
+            properties:
+              apiVersion:
+                description: 'APIVersion defines the versioned schema of this representation
+                  of an object. Servers should convert recognized schemas to the latest
+                  internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                type: string
+              kind:
+                description: 'Kind is a string value representing the REST resource this
+                  object represents. Servers may infer this from the endpoint the client
+                  submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                type: string
+              metadata:
+                type: object
+              spec:
+                description: GlobalTrafficPolicySpec defines the desired state of GlobalTrafficPolicy
+                properties:
+                  lbType:
+                    default: Locality
+                    description: Type of global load distribution
+                    enum:
+                    - Locality
+                    - ActiveActive
+                    - FailOver
+                    type: string
+                  targets:
+                    items:
+                      properties:
+                        clusterKey:
+                          description: 'Format: [region]/[zone]/[group]/[cluster]'
+                          type: string
+                        weight:
+                          type: integer
+                      required:
+                      - clusterKey
+                      type: object
+                    type: array
+                required:
+                - lbType
+                type: object
+              status:
+                description: GlobalTrafficPolicyStatus defines the observed state of GlobalTrafficPolicy
+                type: object
+            type: object
+        served: true
+        storage: true
+        subresources:
+          status: {}
+    ---
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+      annotations:
+        controller-gen.kubebuilder.io/version: v0.11.3
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/name: flomesh.io
+      name: serviceexports.flomesh.io
+    spec:
+      group: flomesh.io
+      names:
+        kind: ServiceExport
+        listKind: ServiceExportList
+        plural: serviceexports
+        shortNames:
+        - sexp
+        singular: serviceexport
+      scope: Namespaced
+      versions:
+      - additionalPrinterColumns:
+        - jsonPath: .status.conditions[?(@.type=='Valid')].status
+          name: Valid
+          type: string
+        - jsonPath: .status.conditions[?(@.type=='Conflict')].status
+          name: Conflict
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        name: v1alpha1
+        schema:
+          openAPIV3Schema:
+            description: ServiceExport is the Schema for the ServiceExports API
+            properties:
+              apiVersion:
+                description: 'APIVersion defines the versioned schema of this representation
+                  of an object. Servers should convert recognized schemas to the latest
+                  internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                type: string
+              kind:
+                description: 'Kind is a string value representing the REST resource this
+                  object represents. Servers may infer this from the endpoint the client
+                  submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                type: string
+              metadata:
+                type: object
+              spec:
+                description: ServiceExportSpec defines the desired state of ServiceExport
+                properties:
+                  loadBalancer:
+                    default: RoundRobinLoadBalancer
+                    description: The LoadBalancer Type applied to the Ingress Rules those
+                      created by the ServiceExport
+                    enum:
+                    - RoundRobinLoadBalancer
+                    - HashingLoadBalancer
+                    - LeastWorkLoadBalancer
+                    type: string
+                  pathRewrite:
+                    description: PathRewrite, it shares ONE rewrite rule for the same
+                      ServiceExport
+                    properties:
+                      from:
+                        type: string
+                      to:
+                        type: string
+                    type: object
+                  rules:
+                    description: The paths for accessing the service via Ingress controller
+                    items:
+                      properties:
+                        path:
+                          description: Path is matched against the path of an incoming
+                            request. Currently it can contain characters disallowed from
+                            the conventional "path" part of a URL as defined by RFC 3986.
+                            Paths must begin with a '/' and must be present when using
+                            PathType with value "Exact" or "Prefix".
+                          type: string
+                        pathType:
+                          description: PathType represents the type of path referred to
+                            by a HTTPIngressPath.
+                          enum:
+                          - Exact
+                          - Prefix
+                          type: string
+                        portNumber:
+                          description: The port number of service
+                          format: int32
+                          type: integer
+                      required:
+                      - pathType
+                      type: object
+                    minItems: 1
+                    type: array
+                  serviceAccountName:
+                    description: The ServiceAccount associated with this service
+                    type: string
+                  sessionSticky:
+                    description: Indicates if session sticky is  enabled
+                    type: boolean
+                  targetClusters:
+                    description: If empty, service is exported to all managed clusters.
+                      If not empty, service is exported to specified clusters, must be
+                      in format [region]/[zone]/[group]/[cluster]
+                    items:
+                      type: string
+                    type: array
+                type: object
+              status:
+                description: ServiceExportStatus defines the observed state of ServiceExport
+                properties:
+                  conditions:
+                    items:
+                      description: "Condition contains details for one aspect of the current
+                        state of this API Resource. --- This struct is intended for direct
+                        use as an array at the field path .status.conditions.  For example,
+                        \n type FooStatus struct{ // Represents the observations of a
+                        foo's current state. // Known .status.conditions.type are: \"Available\",
+                        \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                        // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                        `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                        protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                      properties:
+                        lastTransitionTime:
+                          description: lastTransitionTime is the last time the condition
+                            transitioned from one status to another. This should be when
+                            the underlying condition changed.  If that is not known, then
+                            using the time when the API field changed is acceptable.
+                          format: date-time
+                          type: string
+                        message:
+                          description: message is a human readable message indicating
+                            details about the transition. This may be an empty string.
+                          maxLength: 32768
+                          type: string
+                        observedGeneration:
+                          description: observedGeneration represents the .metadata.generation
+                            that the condition was set based upon. For instance, if .metadata.generation
+                            is currently 12, but the .status.conditions[x].observedGeneration
+                            is 9, the condition is out of date with respect to the current
+                            state of the instance.
+                          format: int64
+                          minimum: 0
+                          type: integer
+                        reason:
+                          description: reason contains a programmatic identifier indicating
+                            the reason for the condition's last transition. Producers
+                            of specific condition types may define expected values and
+                            meanings for this field, and whether the values are considered
+                            a guaranteed API. The value should be a CamelCase string.
+                            This field may not be empty.
+                          maxLength: 1024
+                          minLength: 1
+                          pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                          type: string
+                        status:
+                          description: status of the condition, one of True, False, Unknown.
+                          enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                          type: string
+                        type:
+                          description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                            --- Many .condition.type values are consistent across resources
+                            like Available, but because arbitrary conditions can be useful
+                            (see .node.status.conditions), the ability to deconflict is
+                            important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                          maxLength: 316
+                          pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                          type: string
+                      required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - type
+                    x-kubernetes-list-type: map
+                type: object
+            type: object
+        served: true
+        storage: true
+        subresources:
+          status: {}
+    ---
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+      annotations:
+        controller-gen.kubebuilder.io/version: v0.11.3
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/name: flomesh.io
+      name: serviceimports.flomesh.io
+    spec:
+      group: flomesh.io
+      names:
+        kind: ServiceImport
+        listKind: ServiceImportList
+        plural: serviceimports
+        shortNames:
+        - simp
+        singular: serviceimport
+      scope: Namespaced
+      versions:
+      - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        name: v1alpha1
+        schema:
+          openAPIV3Schema:
+            description: ServiceImport is the Schema for the ServiceImports API
+            properties:
+              apiVersion:
+                description: 'APIVersion defines the versioned schema of this representation
+                  of an object. Servers should convert recognized schemas to the latest
+                  internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                type: string
+              kind:
+                description: 'Kind is a string value representing the REST resource this
+                  object represents. Servers may infer this from the endpoint the client
+                  submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                type: string
+              metadata:
+                type: object
+              spec:
+                description: ServiceImportSpec describes an imported service and the information
+                  necessary to consume it.
+                properties:
+                  ips:
+                    description: ip will be used as the VIP for this service when type
+                      is ClusterSetIP.
+                    items:
+                      type: string
+                    maxItems: 1
+                    type: array
+                  ports:
+                    items:
+                      description: ServicePort represents the port on which the service
+                        is exposed
+                      properties:
+                        appProtocol:
+                          description: The application protocol for this port. This field
+                            follows standard Kubernetes label syntax. Un-prefixed names
+                            are reserved for IANA standard service names (as per RFC-6335
+                            and http://www.iana.org/assignments/service-names). Non-standard
+                            protocols should use prefixed names such as mycompany.com/my-custom-protocol.
+                            Field can be enabled with ServiceAppProtocol feature gate.
+                          type: string
+                        endpoints:
+                          description: The address of accessing the service
+                          items:
+                            properties:
+                              clusterKey:
+                                type: string
+                              target:
+                                properties:
+                                  host:
+                                    type: string
+                                  ip:
+                                    type: string
+                                  path:
+                                    type: string
+                                  port:
+                                    format: int32
+                                    type: integer
+                                required:
+                                - host
+                                - ip
+                                - path
+                                - port
+                                type: object
+                            required:
+                            - clusterKey
+                            - target
+                            type: object
+                          type: array
+                        name:
+                          description: The name of this port within the service. This
+                            must be a DNS_LABEL. All ports within a ServiceSpec must have
+                            unique names. When considering the endpoints for a Service,
+                            this must match the 'name' field in the EndpointPort. Optional
+                            if only one ServicePort is defined on this service.
+                          type: string
+                        port:
+                          description: The port that will be exposed by this service.
+                          format: int32
+                          type: integer
+                        protocol:
+                          default: TCP
+                          description: The IP protocol for this port. Supports "TCP",
+                            "UDP", and "SCTP". Default is TCP.
+                          type: string
+                      required:
+                      - endpoints
+                      - port
+                      type: object
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  serviceAccountName:
+                    description: The ServiceAccount associated with this service
+                    type: string
+                  sessionAffinity:
+                    description: 'Supports "ClientIP" and "None". Used to maintain session
+                      affinity. Enable client IP based session affinity. Must be ClientIP
+                      or None. Defaults to None. Ignored when type is Headless More info:
+                      https://kubernetes.io/docs/concepts/services-networking/service/#virtual-ips-and-service-proxies'
+                    type: string
+                  sessionAffinityConfig:
+                    description: sessionAffinityConfig contains session affinity configuration.
+                    properties:
+                      clientIP:
+                        description: clientIP contains the configurations of Client IP
+                          based session affinity.
+                        properties:
+                          timeoutSeconds:
+                            description: timeoutSeconds specifies the seconds of ClientIP
+                              type session sticky time. The value must be >0 && <=86400(for
+                              1 day) if ServiceAffinity == "ClientIP". Default value is
+                              10800(for 3 hours).
+                            format: int32
+                            type: integer
+                        type: object
+                    type: object
+                  type:
+                    description: type defines the type of this service. Must be ClusterSetIP
+                      or Headless.
+                    enum:
+                    - ClusterSetIP
+                    - Headless
+                    type: string
+                required:
+                - ports
+                type: object
+              status:
+                description: ServiceImportStatus describes derived state of an imported
+                  service.
+                properties:
+                  clusters:
+                    description: clusters is the list of exporting clusters from which
+                      this service was derived.
+                    items:
+                      description: ClusterStatus contains service configuration mapped
+                        to a specific source cluster
+                      properties:
+                        addresses:
+                          description: in-cluster service, it's the cluster IPs otherwise,
+                            it's the url of accessing that service in remote cluster for
+                            example, http(s)://[Ingress IP/domain name]:[port]/[path]
+                          items:
+                            type: string
+                          type: array
+                        cluster:
+                          description: cluster is the name of the exporting cluster. Must
+                            be a valid RFC-1123 DNS label.
+                          type: string
+                      required:
+                      - cluster
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - cluster
+                    x-kubernetes-list-type: map
+                type: object
+            type: object
+        served: true
+        storage: true
+        subresources:
+          status: {}
+---
+# Source: fsm/templates/manager-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fsm-manager-config
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+data:
+  manager_config.yaml: |
+    apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
+    kind: ControllerManagerConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceNamespace: default
+      resourceName: manager.flomesh.io
+---
+# Source: fsm/templates/manifests-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fsm-manifests-config
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+data:
+  default_proxyprofile.yaml: |-
+    apiVersion: flomesh.io/v1alpha1
+    kind: ProxyProfile
+    metadata:
+      name: default-proxyprofile
+      labels:
+        sidecar.flomesh.io/is-default-proxyprofile: "true"
+    spec:
+      mode: Remote
+      sidecars:
+      - name: sidecar
+---
+# Source: fsm/templates/mesh-config-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fsm-mesh-config
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+data:
+  mesh_config.json: |-
+    {
+      "isManaged": false,
+
+      "images": {
+        "repository": "flomesh",
+        "pipyImage": "pipy:0.90.2-31-nonroot",
+        "proxyInitImage": "fsm-proxy-init:0.3.0-alpha.1",
+        "klipperLbImage": "mirrored-klipper-lb:v0.3.5"
+      },
+
+      "repo": {
+        "rootUrl": "http://fsm-repo-service.default.svc:6060",
+        "recoverIntervalInSeconds": 30
+      },
+
+      "webhook": {
+        "serviceName": "fsm-webhook-service"
+      },
+
+      "ingress": {
+        "enabled": true,
+        "namespaced": false,
+        "http": {
+          "enabled": true,
+          "bind": 80,
+          "listen": 8000,
+          "nodePort": 30508
+        },
+        "tls": {
+          "enabled": false,
+          "bind": 443,
+          "listen": 8443,
+          "nodePort": 30607,
+          "mTLS": false,
+          "sslPassthrough": {
+            "enabled": false,
+            "upstreamPort": 443
+          }
+        }
+      },
+
+      "gatewayApi": {
+        "enabled": false
+      },
+
+      "certificate": {
+        "manager": "archon",
+        "caBundleName": "flomesh-ca-bundle",
+        "caBundleNamespace": ""
+      },
+
+      "cluster": {
+        "uid": "",
+        "region": "default",
+        "zone": "default",
+        "group": "default",
+        "name": "local",
+        "controlPlaneUID": ""
+      },
+
+      "serviceLB": {
+        "enabled": false
+      },
+
+      "featuresGate": {
+        "createServiceAndEndpointSlicesForMCS": false
+      },
+
+      "logging": {
+        "enabled": false,
+        "secretName": "fsm-logging-secret"
+      },
+
+      "flb": {
+        "enabled": false,
+        "strictMode": false,
+        "secretName": "fsm-flb-secret"
+      }
+    }
+---
+# Source: fsm/templates/repo-init-scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fsm-repo-init-scripts
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+binaryData:
+  scripts.tar.gz: |
+    H4sIAA05y2QAA+19+1/jxvVof+av0NLcSs4aYfNsfEt8WSBZbtmFAtu0X8J1hS1ARbYcSWYhG/73e868NC/ZBozJtlLyWax5nDkzczRzXnMm66bRMM+W//CCT6PR2Fxfd8jfDfq3sbJG/7LHaa6tbaxsrK42G6tOo7m6ur76B2f9JZHizyjLgxRQiaPBfTC4Ki0HxS4vx8Bh/RB/v5InY/MfDa7SMHsZOnjU/ENGo7neWG1U8z+Pp5j/KPez6xdpY/z8N5uN9Q2c/9VNKLa6it//2sbG5h+cxotgoz3/5fP/xzfLF9FgObteWPjjwh+dD/unzkHUDQdZSN53kuF9Gl1d547XrTlZNOiGzkpjpVl3nMs46YfZtR8lzvYov07SzCdVjsK0H2VZlAycKHOuwzS8uHeu0mCQh726c5mGoZNcOt3rIL0K606eOMHg3hmGaQYVkos8AEocXDmB04WmARyUza8BUJZc5p+DNITiPSfIsqQbBQDR6SXdUT8c5EGOLV5GcZg5Xn4dOosnrMZijTTTC4MY4EUDB3N5pvM5AtxHuQOrX55GXYRSh0LdeNRDPHh2HPUj1gZWJ2OSATgAPMqgH4ht3eknvegS/4akc8PRRRxl13WnFyHwi1EOiRkmkhGuY1+Wk9TJwhhRAxgRYE96XGBISmE7QxzYnA1Vhimfr5O+2psIcbocpQNoNiS1egkMHWn132E3xxSscJnEcfIZO9hNBr0I+5W1yPSdQm5wkdyGpEt07gdJDhhTPHAuhsUUs6zsOohj5yJkIwdNwzgHSq9SxAG+okEeBbEzTFLSqN5bSkOn7/eck8MfTn/aPt5z9k+co+PDv+/v7u06i9sn8L5Yd37aP31/+OnUgRLH2x9P/+kc/uBsf/yn89f9j7t1Z+8fR8d7JyfO4TEA2/9wdLC/B6n7H3cOPu3uf/zReQc1Px4Cqe8DwQPY00PSJAO2v3eC4D7sHe+8h9ftd/sH+6f/rAOoH/ZPPyLcHw6PnW3naPv4dH/n08H2sXP06fjo8GQPUNgFwB/3P/5wDO3sfdj7eOpDu5Dm7P0dXpyT99sHB9gYQNv+BH04RiydncOjfx7v//j+1Hl/eLC7B4nv9gC77XcHe7Qx6NrOwfb+h7qzu/1h+8c9UusQ4GAPsSDF0fnp/R4mYpvb8P/O6f7hR+zMzuHH02N4rUNfj09F5Z/2T/bqzvbx/gkOyw/Hhx+wmziwUOeQgIGaH/coHBx0dW6gCL5/OtkTIJ3dve0DgHaClWlHeXGc3IXjvaPDzvbRfudo+/T91jfev39xllLHT8Nhsj2MjoL82vmLs4xLC/mnAwR6GV35/wairy2Ed0g4joCxvbt7vLV4nefD1vLyN19I+sne8d/3d/ZI3gNL4+09LHIQ77ZP9jo7h7t75AeFIxVmldVSDMICDMkP+z92gJpOTveOO8d7P8LoFF2BLyDLwxS6dIWfSHlvNDj/c/hxz4TyazIIp4fx4/HhpyMTyFWajIbTQ/m4/cGCySDoj8OEDezB4c72gYBEJnkRpsY6Zg9mBg6CJZn0y5KOmBaTqrZdNqkmhjipYfc6cRYtZKFTAYGyyMpbWtQbYOUXLkcDsr3AVhP0Or0o9WpfFmAfhZURty1cMb/x4sz5plmD5F4C/zhOdOmcOUs9Z/Gb5vI3WGzROf/fuGIOSLYjgEklSE4YwxZOi1BM1WzH6Y7S2FnKnKV/OLB0nUIBWz+Xi3aXlnpBHiwBuxCk987i/1EBXkYE6UG48ACsxMwfXMeBRXUuggxHiggrsLXApg7vy8EwWr5tLuMasowluDjzEogwUoMVDreYDiEu8r3wNuUFhpfig7pVNspfDHhIMmVzpIOFsoIObKAWboFpANKDb5qDLAfl/OawD5/Vqjm//eY0GcHvjNIU2C2H5bWcb9ivRakRj2e/bTq1Gqv5MfxsqzV9HxkFOotffl5k1X9eLEDhgL3AfCPhLbElUFAeUpqz3Asvg1GcG3/jpBvEnAaB8Uyj2xAZM8d5cer8oyBPsf7YaNCyQpXQ4B/p/BSTMwZyMUXuFz5DMEEgLSxivxdbi0r/Fx/chT9aKXN8GyX0+cdS+ntaH8aQ2UsvcFmY3gJbPW6F40VecInjjFSxxIlG5TWOF5u8xhkAx61xOlh1jTNBjVnjTFC/kzXOgtjrr3GC+KZZ5ERhc5V7SQq1LHNsLKdZ52x0OG6NMEBPu9DxIZhqpbO1MtOlbkw3xpAbJexdYMvfLL62tqp6Zv1w/e9VkIefg/sXMQA83v6z3tzcrPT/83j4/POV6hXnX9L/r6801qv5n8djzD9V6cyUDB4//xtr6yvV/M/jMea/H0QD/9/ZLNuA8dhYWyud/5XNjRVj/jc3KvvfPJ7lbxecbxWzn0NSHmn4o5VmavoDeLO1/QHAmRr/AN7srH8AbDbmPwD0ZPsfncUZWwClnk1rAmR4zM4ICNBmZgUEWLM0AwK4GdkBAdJsDYEAcLaWQABYmAKdb5cXFhY8ym84W98vLAyj4b1XW1jwqXDvucM0ubt36w6aSTqdHMh6N/k8aDmXARo3HrAofGF5OPDeJpkfDm7P3KP9o392gFL+Af9C/9xzFJiZmYqWReOK3wv7o7v3p6dHnnuZpEB1PRehAQYhbAShnAqlRVkANAjJMgFYebWt712tmlSA1GTvHkcPhueYI9Z2/kV0KNdJlre++WIp8vAvp6UWYj2BRSc9giF6+Bc0X/P+78nhR+gSKgs9HEQ/ToIeQQZZOclI59ZqNXX9L+P/0HYJq9Y9qfbMPWbC/k9elP1/pbnSbFb7/zwe/LQWhZqq5Xx5WHh4bZyqZ35P2fcvLRrPbmPi97+uyX8rjQ2U/6vv/+Uf8v3TjRG+/vU/b2zWMYVvMJD258afG9Wa8J/6GPrfWX747Jnw/a+uNTc1/e/m6tpa9f3P4yHf/w6Zc7L9E1+exb1BcBGHu+HF6AoS83QU1mnGLjX+HYEQnl+nyejq+tMQ2MQw6LPVApZxKPlQX0C4B2RdAYEVMs7OycKyE4LQdxl1gdwIt0ESj0HIDo9HMeNASNqJzJNQcDvXQTSQsESenFRF8MyrabGb9PvJYDnoQt1sCag5T5MYyHmxrpVIAQUi2NsyoV42AjleyUM3w2VksrtmcjDKr83UFLEzk9lma2b0Q1RDZGZGngZdkNbNjDi5urJmdKO0O4rypQuYnBtbR3D+8jwOl3oJ0/mVFTB7cRnFeZiCkPDLKMzypTTsRSmIObYy12HQC9MlohuJNDxYkVEaA4jPaWQbKyaImRnMDo0ZJP28XlDFyQuRRR5nSzmqPgZEG1RRzn8U5ZwenEgL2wypB8hmeVhAnkQ2OlKnjOJ+RwSNPZLGV8V4Z+arct4dms0V+8wPYZCP0lDaGg4ocYvtBNGiH4Kc9IF+NFTsBWj/hWxuOf83uzYm23/WdP6v0Vyt+L95PJX9p7L/VPafyv7zSvYfz4N9l5uAnLF2DG7AwL07FQIj1MLtvOZsfe8grENC5v5NeJ8x01LbL8RLNAZ9eaj5wEvsBd1rj7ABSIcZry8S/GwYR7nn1l2tOC9BahSInGHaOaDDsD1Wc7LzGqtN/+K/pCtGcQBRQMUSlKWh5SjjEmVENKdSeq/lvEuSOAwGosNMnm/7khxPGntYqNU8xQJk7P/z9/9YW93c0Pb/jbXNav+fy1Pt/9X+X+3/1f7/mvv/F84BPMDeR/b9LIlvQ2njd8nuFXN1Mtv0ecoR2Y2dBmMDDDcSXk94kmByyxmM4rhOvUjScBgGOeLC9lBfqK6RZTg7J+1739SduLb1/Tfc64Rsxp6ChBezqlgv9kkq/GrAOiTQPytqIMMwCD87vLntNA3uS4r6Qa8nNVYGsUZ5hC+O7/sxrEJpkifdJG4Bam3/iL05W1tbjvtp98itOW3HHfWGrtNy3LwLf1EVQpxXksEJ7I0562ZNZpHoGALyMdfRYC92gzwouBsEAbvqDUxAMBp0r93aguosI5L9C9gjKH/FmqHwdXxRtQukwLD4BmeiizaBgvEhFoK2LywDbPY4szUR+snU4E8eDf/04MR1/vQnh+fCO/nnA7C7p/fDkJaSNJBT4aIqLWePj1A+TouNqPAoXHamm1iuW9RhF/XgU46DbnhCjFKUfpE06fveoEdJk7hN1RZem/t6/cei/yN62Fm2MaX/v8L/b1Tnf+byGPOPmv0Zt/GE+W80mtX8z+Mx5787fP35X4dy1fzP4zHmn1hIZ9vGE77/5vpGNf/zeIz5j6OL38P3v1Z9/3N5jPlnnhWzbONJ/N9aNf/zeMrmX/WseV4bjfH6/42Grv9faa42K//PuTyV/r/S/1f6/0r//5r6/6swP0rDy+jO2XJGaVTomYVBHoPCkrw2Ncu3fc9tu7WzBjne6bpcCR3GaMkn5bn9ftllCnFFf+1hSaxOtI9EDYopfhwOrqCt750m6sWxtvOWFW6ytmo1p+Ww6oWy26sRV8R+cBO+D4Pee/hS4jBFd4DLK6lD8Nb2Eb22nwsV6zFVWdIx+BDkqBPH1hmu6Acr4+5Iv2Bs+MiJUfSwAm2lVpdKZqNLWlIqwLrkk+8yhfXAo/DYQEj1ayoKjiN1JTU6QDsGo9dW6tDO+Gw+KUJSNo5sefHxDb61gKvr6OIpWhLFFuabgKY+xhm+WxpmuaQaRUBAkJtZ0H+halnvz9ip/2EUxxj5WJl328w7Gppi9m1zSj8A+p3UlWrPIwULMcgzZZ0q3kMxTypCj5ydR82PPEPKbHlivhxqDZQ9cxZoG+xDzpidLoivEn8n6F6HnvapF9//MWWby5YA/lUXgClp/EAYb25v9CkfXnQ7RBBh2y8sM2iF+nR8wJqj1V3eI78fDLXKcnd8WC28UPS/pDXVY0mec459sWA2gHJFn/ThZKtjqoxMRsbRPrDqGGLtwrRLbLgaKMWaG/WJ3ZfaetmJiZbjsl8uKyXskLUF2dJJzVS3SdRjndWbQv8sSz/IiIrmuJXJsGzq0BSbFx2/D2GWBVehZHsFusqu1E8OEto+/Xilr0SHbnqu8an1AACpaVm9pM9Awo73iBrmqAHttaWX6nnuUyb/Ww7oPLmNCfL/Ooj+mvy/srqyUsn/83gq+b+S/yv5v5L/X9f/T3VoH+8HKLhsujGVsNmMYSKcNVBcPsp2kl4oSVcFS5QB99YPudTC3oALJyxW8eqiZdQtxBYhrWxp0guviglFcV2IFcXwRSpG3epoMfjNczSJixRDMUkSmWQmT0KO/+TyYIvqTd468Av+RUgFC2jpHkAm+KqSPPLsjFH1vqiyJRntFpHGipFXxT3GsvLjmsVzkHTJOtvis4JoLhMtjEDoLcFHqfggvT1IHK0siAjG1pOSuVyi0FKJsKdRXEGKLFSBSZHZbVcS/OBtgpRnynjHlA3joKl4pwh3pI7eAVm8szdCs9o+VWLRvmTWfpSMhr3TVklNKcElNSmH0ZHIeRkhzpgce2+nl+OUek+V4/RBAMR00J4p65mimuNIKBJyU9Fk4OtS07K7JP+Upe/IQBUfbaG2KGbwuHgSh36cXHnumS5GnANzRFrKWm4dm6gbKNYUgDV14dALj1fDGb3lsqs+ejbXU9lR9LW59Jd7yuQ/M/jC09uYZP9dXd3U5b/GenX/51yeSv6r5L9K/qvkv9eU/5Cd/MA2mglWkywU0hH85LxB0OvxVPjJU9Owj0TMMuibzRSMMIEdRyDwh5arqayNhRfCWlAG/tiU7IzNRtbtLCQXZ+JJr9C/DeKRwuEo/A2iADDhzziYGsMlN6FbW/X8LeUNZKs6SlYMLa2maYw1oZXULDe+yb1l8wMdpr/G9LkXxmEe0sbPx/N8htGpr1JWiTij0Z+sZyAc7JT0+XyrHmvvPeG/eKvjzHp6/17LtGcbplJJ2lZYHvNsCBvDtIvCLAadNvj1jbp1oEqH3VraKrNTItSsqySHjdRcDK8KFsTwaqUyTWav8+oqqqS+fbymF/oVjGZuvFWgT2G81fUBjzbi2rqojtrM+6iCf8FO/mcL7jN6rOc/imCSM2ljvPzfXFtfXdfjv21uVPH/5/JU8n8l/1fyfyX/v5b8v8DZeBEEbpzh1xEGQ5RAs2HQFYbFm2ggJH/M5L+HCUvWjcq40Y3yKM5k8Fk46L27z8PsNMmDeCcZDXIidyA3jcbMzGdpnnt59ZkzjJ0RC4Le6d518rvOBULo5AjCrYsguEoNRJHKFzxgSxp2w+g2fGbr6RNbD2Dxuw13xPVFPwajq1BpmqSUN0wBTN8gr7uT9Ico3PdI1yZ3NryDpEEQF42nv3S6HMj07fdwyU/uj8N+kofbrPdPGHAGp5MSQB3cMthYAGKPRgft3/EMsCF3Rj0ZGXZr1WnUD2H7exIiDEQnpzCmb3sIXyDsSz8EUTxKwz3ctB6PAJAEg9O5pIA6IUJ6NBqHt2EK/M7nZ6GQMCCPWQuIJPjkCYDGHz3wKXc1IMvQcZiFT2sYVqAUKz+65RMYrqc3mz+62WIF6oXPWHzGNliXc7js28EAp+W4/OM5K+Hd3RPx6XRj4KztWHHFEdmWHjkt+jaUJaOUYUP27wIllvM5SW8w7msHd/TyXLU7ei7s+mpfJ5MB7yTxE3tUH9Ux/z10cPppJj+gFFPJ7o5SIue8jzKVAjEhAVGu7zGYpHinx8p3+pk0But1p9moOyvwd72Bv8lLA9/oK32nCSwF/qzSPxvSG3/FQn9mP1Z5yj4wh4Mov6edecwUWEfeOuBTEhL5wdQmJcdaWMWPxCuv0JQVHnBW3rNlT/Zxaz8ILsI4kwFL9pUydrJVmjMZppVJbNmTJ0Ozc4CtkvTJ8Mo5utaYvKnhmqxZqzxrMlQrj9WyJ0+GVs41tcbkTQ1XY4NaJenTUKWFsWnZk6eGZmFZWmPypoarMyStsozH0DrjNVpm0uOg/MMC5h+PhKPs6y17sgytELqpuE0FbSJiO9O1hFiaDWHqc9qh7r81vg7zTelxC7F9E3wKWjI2zMhHkmyx6fk1Z9bI9I5Tgqt6DJjtO2jdl3YgYtOyz4pxfJcr/O0U8GuYJp5iui8rr0+ku+7WxlS3bxzl5Ut3rvIq9t2zvLx9/S0vX74DTKxj24zKK41ZxSdW0pfpcSNsW4gnlretshMrGasorWFa+fhpek0FKBM7b0b59IUjUJCHB6jCF+u4hbnH0x1MbYLlO0TnT2JGnwmM7IW4mwAXKGj85K/E+mi1/xV3xs2kjQn2v5XGimn/W63Of87lqex/lf2vsv9V9r9Xt/89+hDoc2yBDnwH+4N8Y/URpkG2KW73erBaILOdZH44uPVxNKGTne3dXSS3ulx4b9AbJhFR5npa8b2Pu0eH+0AKeLR0ORhGy7cry9CLQcYDVjEYhHMJe/u7ZpMn20DUe7udH47Z/KLT8qQysNpjeKxh8tlbqTsbqzXWXJxc/U80hKGDdrS+AljkmPiNsXhNF16wiWzTr6QKcPl5gvFoKB/FTmxqUN7qo1IXM3iBIZzk06DMetFymgUDGSGjdouCqpRIYxS1HPdMOpo7TLKcpp5LqVk4DIBrS4D/c+ucaXvg+ZYjqe57gOO2tH4UAF2QXHLYfpbQkRTKucFwGEf0AOsyua1MFVBBvIMhlMVCmYrF4GiXeol54YSIIxHl7DrT9xxtj3WA3fhRKxcXswD1aj0yzSPlYO5oFGEykZXxt8q+kzxMlkJEEb1sjZ8i3I5jz10Cltl1x0mbBEFCqwznM/duiV3vGvaWSLaL7uW0JzIOUoWL1SX8XKIeFDXOIXpqQZh4mCdRfKsETk1HSm5jCwag1Jf9jVoJ5zKcCrOiJIH/ZAS0OnSKbe0Xs6+3I+oQl+gm3seBBCK3iIuV1h0J3htjxYLibKEt63bN+Yux0NVIFLRS7AhuTmtsiYY71VTx46n2qSorSL+CiTNxefV5iQiZS4Uhgtz3o29XJbWIkQIryNvZmBYE8All0aRBvq5EgcrGzyZ+i4UHvchhMfprNMCrflrkfEvdESuPrG3S1p8elDcWAkzEu5yUUXcJbez3YEFlgNu+7bMqISjYiE7o2qQdHXYjG0h5CbF/d+UAyaBLINWAD7QvsI/BqPeHUA6GLPQHsO3WYA8mRjC1LNEr8L3RNWMjuMgwQ7pWD3s2vF2DDLbzHx3udvaP1MCYoqg0RVBDpxZpP+QdCK4yGy7ocZMMQoKoC+v03b3ZFrIC/iiN9WE3l3opyoM8mPAuuZGrgTLkNvohyGk4u1JpmmaUH6ANlFCCNFqf6FJlGS4Cnl+hpTbAU406V7A4tJQlQ+u/vJgYtUGeTDvBFR1ZqRqmL9F0SyVujeZHLVrytzh2goMBCHCEZcF5PpNPVz2UbzDahopLJ37MZy7N2Lftsmod5WOidcWCh4uVa+aDiJmyBf4yiLNQL+EjsZ653DadRb+GfDcoLcpM41OUJaRAA5pQBw5SfL2xUlZhGIYpnkdEppEWtvSJKyxJgYaeP3YxzoLbkHGBsBJTRhyX5TqPsYC8Yd0h7oCwgo26wHDnqHrJtYW4qKrvgUVOWZ8owPq4OtaBk1BkeW2x0LZ9dak1IBozLPVRaJchr2TptsDTyUAFSHOngqjNqLHmO0tK4WJ/UD5qwfNL06ry4kYcDjXuBmOpzh0UQzDUhgTHJKqvUG9dPbN5rPp/LujPR//fXFlrmvr/RqX/n8dT6f8r/X+l/6/0/5X+f5L+P9AV/8d7Hw5P9zoHhz/+WKb/t+jutVrjVPiTio7R5B/QHRyVuZN1+EG3CyWWYvJqV+VzKG/Z8JWgqBo12sCIp/dbESx2af6/VhrRIE/gD3KojP2vwetlkvYDzEaUtjPKXqPy8XduHJha+Q9l6T4Z/UoFg1YZBZF1YP9/tsnsEoVEmf3AZgOQVLpqgBuBxzj9/tO0+5okOUGfb4RQnUqb/+K6fGkUptXjz0qLX9L0OL30lFrpmmWYH6GRnl4fPb02erwumlMU+VujpGkxk7EFzGYmY4ueqq5mibK+mh7VQ3Me/32EkXYdooClyeQnpk5lR9O0UaZ7pTUWhmpseKOHu5hsSrItAmOiZmhUoXZhvPFmEm5WK06ZgYQ3qger0nXMQN3ohygrznXFJ8ohqOEUK+qHvZP3nY/bH/bs+lxp5q05R1LEZf4UVGHLsNUYECdnvTswW0Objr65suk34L+mgS1lXkSd94cnp6JrpHHUkRu1HvQE+LZs2ADDL2ODkE+Otnco+F54GYxiE/izO8GbwlrP7BehPus494iiXqFYiw3JSiFAnrBSj6kvFvKS6nR7GgNA27/KsKAfSQuNnRNHAr6UFvcuB/E4uhp4XzARNZYUk4ukB9wtvNYd/CklCoWmexFk4caaWwP4Ant19ZDDbGuxtctV1OoCHBdvLP4vM1SU6Kal8j4rqVkMKXnxPBzOYJAM7vvJCI+kUaAt9ldUk4ZQbgF4XICujaQ8HKXViBL5hKuP1SEvr4Nl1ArmdFirk+ZwddS0zCWFw0Fv+sJ4O5nNDFPssPIsyizkBKU0q1UopWUwlS76VR6r/pfLvjNqY9L9Pxvra7r+d219vdL/zuOp9L+V/rfS/1b639eM/3wd3u3AmoB8HfpfoIcTsr2oynPcFfi7An9X4e8q/EVHpzX4uw5/1+HvBvzdgL+b8HcT/v4Z/v4Z/n4Hf7+DvwHCQYAX+AMhdvEHgkTHnCbCRP1dE4Fe4o91yh0y2RdvCslTM+gsCXxMM/nNOi6qynqjbuh5IMR062Slo/wsvqMHwEaN+DiR/p5h9nndacgXFFOwy87KglCCMH84FNJJEUl9N6WubkEw1ZRxFvqellDklouADDtU+qjFCSUdHhzsHXfwgyOVdqH55B7XZF6Psue83sne8d/3d/Y62zs7h5+Ynhi5TB51J+mZKLGLabkbvqy4Z0MjqUSP+Vm/VnHsT5YoRGLbJ2c2FS2ELFZ06fFqxSXnIujeAM8qgaZA/Hc0AzFVKvwySlDqEQeQ/4bvqtbDADVKMxKPXM9gh5MzoxFTczJMEyRDE88xMPCsf2rWOIF9D0WHn2D6k8+WeopMKGdxt5nWFHdFmXgyl5vi5i5oeW3lO7VtoZZnEttlmvT3BvA9hJnnlcFkirLTZJsGfMcI0RjfGUTmj+Q899/JJ/hAvpkzKem8pvTvQXrjg6BeJMxjyl2PLi9jjJORXtn18hm99CsguQHBhsbAZZjRz54sM7C4EKMPMFW9pE/cigIeMxrnxmni7V61MgU9otC2DReiQP9hmSHLgBq1Grnz/IvoZaGiJb8wxBbGuGoRwU5ukLzDF+YlF/9GdTAMjYYQzbAgJI20hhEC1UJyk+E8u6k7t+eWq6kh75Y4tTeIYzmWa54b+ouiZ+w3j+HNpsKmWZdP9ENPanwmSGPQFjbgSN//MSwqvePkIhocJEHvXRAHwFenpCofW+V6Mk5EDwu1FxKFrfIfOwS/lM9GCpx4/+umfv9rY3298v+Zy1PJf5X8V8l/lfz3uve/suC/k1x+RoMI+NedbZQUH0hK0OuRV9hFc1NG6/fWubvDdZBde1jKcvfGGw73DCpodlY1Sz8yiRt7N70f5om/A7CjS3QACaV2bBfSAMhkQLBm7AOR+cpDAglOJ7Fzj92gLv1GA8bZeQn7l7T9TzxeFODY9vezbASrAGCDve4G1GFoZ9tLlIJFuVpNt0NDk/5whKMbjOORWCcBA37EyewgfSy3HIVT4x1OjXcp7sWs6b9rykDr3PAC/e1fxkHu0V8KA0km/ypOLoL4NKaX1bAZl2iHvuzg9RzMgGKWOEqjW/jx1/C+JsRXLlch6bVK6ZJ+T1JS0ZroGzCzCoCiNVt9CRcOoBu07Hgrk8a+Ajr80+MrTahkKXL4NTQLdARKIn8t8BGSKaxLCEoddZJUdE0lHUVLMG60kQDN8Z00xljLMqqSkFmsKObNPcCyK1fyhHfkSh5XYuld6lrX6TBaKQrLN/PoF8N4CJqttEV8MQqkpt2fymJoHZx4MlmycWlxgMU4UkSwAb8ru1OQYSLJ8IsnF3I3rMVZjjZyRks8PYiHg5bjXvOTWQ/o0ugR1IBbo+6dYjy6Q7K/mLfAlhZd+E+6Xma8/Ed6/Ow2Jsh/ayDtGfLfylol/83jqeS/Sv6r5L9K/ntd+e8xRz84A6aHf7Qd4iguMsOaPBZrwS2x/PEcU3coOCbuTSauQ2QQSLjTUlZq7CWHY4K3KtD5rYbjY6fCxweyTxaK2+uhcZC3xjZdAqoX6qAKllCdL+3uPRB86D2BJ0QOU64J9DSBVHUQk4b8nA8Hd+Fz0GFMGZG6mBCLrI34UizQuwwbpMFGvtc7bw8QK8aRnOdHL77ySyEZEniMPc2zn2DP8Ap/2JZr5Y09tS7Ql3NBDKyi5oYLfOsCkzknAnhcn0vj6JZ3+8UMENXzqo/B/+MRneUUuJ5wZg6AE85/b0Ku7v+3sVHFf53LU/H/Ff9f8f8V//97sP/UH3sEHM/3fcDTwbtJHxaP4pp4JK1j3MOOR7gmGIahHimfMTsSTcN9YFekFyYU+E7CtAtMEc2UfPU4NNkLRGvZfqsDR8AIjKlUPqOFzv0Buf2B1VHDBCmoiTJ+nhxg1g5h3+UaLF9mVb91a8ZRvBJEsBq9ikJvWnJEbOpnDItxpcp+O3DF4oLRHRUgbMLOtGbPjbnm4Oz2Gy4n1BU6UKeBN8UAaWOj5RagNZTlXl9GVAKToNiclNjcgDxCZ6YnxhsnqDfRX8nspmF67BsfS2ZaSexfFTNfhflRkAJKOa2KMfnMzwuP0vfVr+uXLCh+CkV9Kg5V3txaPiwCXbG9eACHNcu9bttu7ax5bpj3oCQUhOK83B9d4hlnicgKaJCivOSfXLu1EMrZrqtnuNqmlPYMEeawt1zt85BH7OzmFlAkR6xvoU9GudrCuPcJxFBXJsdCGjfhLmWBgvSezD85DOf1RCK98KZmzndOfEqVsrJnZfFp6WMENI7hE2jE2b27oJtbFiOvd4btnltB0ofQoLwMX5fYlulzQ/Agroffowdi2z+7oWFvr+HHhFEu7LsiyViulH4dh1fhnaVfU/Xs0X3jvbNkOCWp6KsLKLKVANDduxt6tpHg3S2Fz/w5v6cAfaQLT4wvdeO2g7Sk1jwz1ZgaczLodJxR9Qg5mD9hLzCXHY/QM/fl/B7dRpXVgPWRlgpvw/TeC6iHLn25JE0Tr85a+VqMa9gRCVCCXw4JbsoClkjI0IWu2K15AQkfmlRsG+6yq8VplucqDrKcHbYgsFEY284ZXNblcbG7i/pI2i42pCYtu+YQe1LvxWLzPs+HxTKTwuZtceDB/COyx8j9wcJtH9Pblu9M3wg8AsXufiwaUYlfbgD/1dZsMlsEEqlL6ZykyaQmEzCdETvefN3T8RaN0E12iw6SjNZU4CmNTYJPSzEyNLqvNmS0o0Muvr3ybYiMXBG5xrr9sB695/GlXfbLVaF8IKF+FRKhFWkGCbZhPSEAhXgZupr2ic9/nwY+P6/ZkT7i3M04nP+GoY9oScCb/uBoKzQoeUEQ6aZFcC/orU+jH7GAScYG+kYeAZgb6fWM1VEjIls5oDfFh8Zh4IunQRiSKZf4LjxpYOOUGEA+vRymiFGiguWRSqygJOzIsBf44aunMKQ2fIslWCdF883q6YWHfmBxZV553Gd/slM/pYN3Sm22czPYD1Ym7Md02J1qXZzLx2MuVPokqSKAmDRt0K+gV3yfY5wAJ6RlnSW2H+EQq6C7jMB8WLBiaq/yb5tBPLwOiOdkmB6LjGU9YX9wmei7o2hA7TafMWwR2xMyhlqMDx8vtTKJfZTJzXbZ3UstEc//FsetNfYv7/f2aRE1Afs8CmURMXYglYuvzvq5hbJaSOUXdQht/5inUIrFeHqEV5qq5Iq+WRftW5riWNtliD7lUhR2y+uPEQ8nd+bH46Odl8BQWvjGYmilc4aAoWuh0H2SLaIOlgkBErmkJqmUqEosREVBYBSj8qqkRXLJgdWpO5W0l8KbtlBzgUTV6aDmC/gw+PdcWwyEPtCi8CGuBQV46XPsWWp5iKKqT5Rq8Cju6rekDRtpkMIuO5ZYsnR16Pg4+sUanU5PVXjKmRpOxjLW6RAkpRj0tKRJHWPERa/E/RYxRX/UHnDTg7CnuZSQhoUzCUVddiYh+YobSdQnNWkF/Nly3DjK8nCAV5OSVHShGPVx2XT5T9fihEIdA9gxXOGT0c+kI6kywZJJM+PW0Xs5am0f89hsvhHTAWNd4AOM4iCSh98AX5TFohwoHWALaOFTTv4CKhgpabg9uMdruvArGNtYWV8EP9tyAQPkaBU8Fh7h+/JUtxcy7edEkV2ntC6ow6dXTDPSINsq9YMpvv06pbqiTlut1Pb5wBUCHS7FRjbdyUt8abrow+79p3g9Vw9/7P4f+XWa5HkcLjEqfJ4nyKTzv42VVc3/uwm/K/+PeTyV/0fl/1H5f1T+H6/s/y1H7pkYjh9riOguzHV1CvdvKdZO2OPVtgxIPn71xME481xtI9TAlBwzVHpj9TvHaCmwjH6WmH8BtJz/5wIDlyMmH9rrSDGQNLQZB85ZRglfmaMtABZsbAHUZwGR0EZWl9hbS1VrdRJjybFBrGtCm3At5w8PdEU8nWvWLB5ySFckltgvTeKQvOlNm/2ZhDQPdVQnlED5/71BTzfgj9EETu6vRX6zj+fbt9pwcBpmdXGmzaokUhVIphdx0r3ZHwzxegViwXnQoHFB4GnILS1N8lLQyEi8TENPpBM+Eyq9Zs15s7WFQeTMsX0ijTyaSuZBJ5YpGavhUs8jiLqVl/9/42OX/1g07RmdAJh4/hfkJe38b3Otkv/m8lTyXyX/VfJfJf99tf7/zPxbmKCki68LJk6PrdT2z6RyspM3a4MXVIpxT3wprT5FNWYxFv7bFPlMQbzEuKj2zmJwktqxnmLmF4JzoxN7LxcymQ2qXMa0G5JkjtnrKHNQWBrs9n5IT9I0+dz2vS8PtbbPL9BiIytwLgZetSJJjc3RaMNaPad3XDkhD2pFzDMygSi+u6IzZhisEsOLedxYXJhiZ+PNIDaEpWPhnPUINnb+r1CczILHmMT/NZtG/M/mRhX/ZS5Pxf9V/F/F/1X836vyf2S/0uO5OE5vlJKP7lkhXtgdmfQmQcKAmTyPYIoEu/QUtkduSrlnS/ehKIOFXiem86HOSwkGQr5ckwbSpxeJcTcXmqaW2IkDcoUxiSEPC3mSeqzqstNsNCQfu9KoNDK7Jc5Rspl6HxF/LWXiSiopzJVSH3g/+d1PLrB26BUD6iwpg21grbomMgIZ8bigCd6sx/W3Vu2tXoVfHUBipVhrsEHUnM3MpnshbVWyMdGqtRI1sg3EP0pgkMmdFhDvEwKcAtQ4hbJXqY6/2qfE/4fe5Ton/n9lxaL/bVb8/zyeiv+v+P+K/6/4/9fn/9mew1V0JM2835ymo2r0f6LhX6MBuUiYpOFdw6xsmaxQbGvUkYddsswM+Q2mgiU30/ss0cPryTqsYodV6DRs9ZvT12/aZRVx6TO/ZaDzazS8oZ2UXIVwiyax+06gXHeMw5D9wIAp7dB0HtxSjXw5QRKyCC7qRMo8sdcpLpyf4up6yc89TfKkm8T6sTR9KJSQI2a2z4QGvKeZy0p463Jbu6dZGnZ2urIgNo9cWm1DVRHMjFNLneLae41sJC7baek0qbPgE4TJqaZDoCJr2c2hYlewjR0r6aPzpFGrF3Jo3QCtx+2snE9e8bHz/wHwdXO7/xnZfuP+542K/5/LU/H/Ff9f8f8V///1xH+XPCAMhnfKs7DP8wtQzsziozoG4N557vDmCSdEj2wqSb+XY5b2/R96cjU3/d/qxkbT0P9V93/O56n2/2r/r/b/av9/ff0f23MU/R+qXg5ouqro0xJtyr5iD3uEsi8aXGDIIaKy6DAIT9L6jQVUov6Li049wlVhtso7dRYUDZGEHtOKSbNA1WKdDuu3n4b9JA+3ez1YWjMzgwWuEKk9WICjAVliLXWkXKxY6NRklF5cr6bwfeY4KchI46aRqyeXI6ygoTucp4JsQvyHmVwEMjH+w6pu/22uN1cr/m8eT8X/Vfxfxf9V/F8V/2F8/Ad6HOZVwz9MPJnz+OgPWgSwKghEFQSiCgKhQq6CQFTPf/Bjl/+6SS/szun+x8YKyH26/X99szr/N5enkv8q+a+S/yr575XkP2bGV8SYXtgf3WEcfK/m5wmyKQqTUrEms3xK9v8o7Y6ifOkCmNMb4G5fMv5vc311bdOI/9uo/P/m8lT7f7X/V/t/tf9/Rf5/jsO2p3d0d+IXzS5Qf4EdJRNvpGHGVXpvhKLUUXLIzRIDelHUSZjn8HXgHRGwH0KOBBS/GrTvalicKcB8erGncm2hpJtRD/WbNekVWcr57WhwTE+vbPeJxlSvZiJPcNdRb/sfdEjQVrPRkBtDZwY8Wf9TNOgln5/e1IkKBxpabdSd5WX4k8nNwVqExU6vYSG+TuLeM1o0QEGj66TNdb1J2v0ZNaoDg2bVIYUyx7iHzKg9DRY25ysNhmmapDPr4p4Nmt5H0uSsOrlnAWb2shcCfwG7zSyoddeEVUaxvNkTGi0h6Zmf8aOblWBBs2uN72z9LMI2AFP1nFVgtwQgLjw7SR8XuSyB7d33fWUdgs3+BlrVJiEO7vXEHINl6InFZ6fnSORqgqeoQjqxRsh5ePns7ph8bPBvaBHAkbJ8pt87DeNiZmHPIxU9W7UltCh8UWo5yBS1tKVTKaFYUXg8QGMMOLbW73cKdK31XgZfHBm+Z29JQ433K1rWO7xJ2ehuUV/qPQKwLSY6hGQYKnd/deNEnn7DgIPlcU+2WHZUJ362t3eYAHxOqXm5IIVlmV49hFtz3LoSGZLWqUtkV5cnVTXpLOi9eAk0CeDarNBUyYkbwFoldrO3b0k7qlVLgUdPY9BPuQwKXwrGguleh92bE2Jfz0KUbzIbKJl4kZ3jRb/fMvmRkptptcWHI2daAKU1xPkLHXAC8u1badSNWsUHRfDjb6pt02lS5KRFEk+Pl1xy6pR+mAQIXbNhBHRusyZQYL1YdkRZE2DJcMkTyNC0lLHc+m4OzRtl6DFilPQbv0bj8vjaZJIhHEeLR8oie7pJNsqiRQalKP69s/bdd8+mFfmTVYlFyjHrScsnIlC8PpNeytbhaQhG7opEMRaQXx/JpOEl4o7rRDppuSq52PrtW8o5fW9hY0sHpISQbMwPf8i6b/dM4KwbY+s406bwaRprZg62Pm56Q28mjgNp/nuNGSkdgpkiO3aS2Z2gZfN7ZoBHZoz7k3xhS0nLJi481Mt4ess8KZ4iWu653oHi5cH0APFq/OZSXY1S4s1mqlQsUaiNIIvEp02FX+7YZjvTYDi3gUCjBl28TaIej7zY1XU+lq4xlzfWxFxiRGtmlHPOd9WNsXGlQwDsDMC7BAAFA08rOnWcaLWa3B3yw+7Vp1byC4bMM5yyxnhP2YGxb8l66Xmpw5c9VKbakHa/b1kYTvWzMrpqhjq0uVBZnN8m4GgcF7a1XvAfRRQcFhhyPNqC1/XGxMekwT0bM3EO8/Mgu/HcJoYRNz9KaflDojRJRJ4xFhj9NogBU12dWvMvgc8KCgpNLv6NVeGPL2+9/PwOHSZ9oeRhzl/bzPa7fez23yJY/CzamHT+e2VzxYz/WPl/zeWp7L+V/bey/1b239f0/yJSwDBN7u6ZBoYJsjO7nEZhwaSWgD3kXLYUN52F9Gv7Z+7dEjAhQJNAzvjLPRfstnryxOS+i0YUZsrOM9uFxvXGCkqJ7hGCcggsV2bSRGNv2MA8tiVZk8/aXGusilQpkKK73e1CLVhHB1HYcy0c44Izi8bXpMYd92OSw0I1GtgarNwAZ/PY+T9G9XPh/5obDUjU+b/NKv7PXJ6K/6v4v4r/q/i/r8r/jzIP2fXo8jJmBo/LIIrxWHVZNCD5/PgCGm/y9L44A14StpvfldJJf+mQGm7dOeNK6g6qaYEjrHNwJyPCJD0eaiejNcdCVw67PwI2Wbs64V03DOGjHNvEITuW/oRW+In2sfDfBd2b5PLyCeAvaM0O3mo5CMnyMU1LTx0z3hwe2o3pOV97cwvKHaTUBWucx6mSrkRGF4wvv0hyO2d7Bndv5QWIHlRxvqCxgvh1mi3NI6y4ZxLaE8adY+Srj5OLaHCQBD1eV1VSsw/MY3rayzTp7w0AqzDjSSF7LWlRt7X5/WDoeWc3def2nI6K2duzG/SavYXhxmL+TyHuP+c1AxTs9jiDMrRbYpdWzWGa+0rxYrYs5/LlZKpB5YWfMVDGyGi9V1AfhGgzBEJtCfFVhUsyjxJgNO7b/sdRH9+hdRWISNb7VlJbrkzXO2HMBBDjMCAvhwPiWrh+d+fW/GwYR7nn1uFnGvZGXe3svRePcmSqeqHV6ooZMKK97CfgzzwXIRpOcXScPjvbaRrce3i1GVJM7DUKu4LXAV6PNADNnXkEKvKm2zmUcn5DF4dv0W7ivHWic+4moVuPnZbN1wPgdYkfp9M4t7stGEZeqFNuyHWcs/MyQpYXvHdBFu7jynYbxGOn9bikEnxBTRjLpvOk2gZabJ1tKW/KbWOG57vZN3VfbdkSHwtS3hhaZtJjwWkbZ8ua+lig6m7ZsiU+EaSl95acRwDH85p5PjwcUjlC8wyEYUBBQfhQdDq9pA+yXhs3oTw8vR+GztbWluP+eHy04+IqUVoCT4WukK99BSi0qX4i/eCOaZeMJa38YMeH4I75LWUgvRblZC+KohnxU1uXqFFSIvFfwzSRLc6igEa3peWUmSgtpZNYaUGNbiaVm9S6qo/zCpcSZdjH32nOmCNaDcTsmO5phH0SO4vlPszgCigDb8LUDu/oexJe8S7ezpUNwusUk+X8RYPkFzujvq1oBZUZtweAsdXQ5qKkYgH87VvFrV7eS/Ttx9acMpf2xoi+3XQIUIDLQ4Ze6OQeGbM1jb5t7cmtMQqSvybvDZ1hbEBnwwjL/CZTDkoo/pfu2nffuTV13joqf4yko8OVrv4xmtzS3N7lgVAOKkgzg0NHelEorD2r2xSH1KKA1BGVXKl0Fl9kmIyqVocyoFKyvliXeWXRJVgytowLPwstK8Fn42x8XFrMotHZyA4zOW7tOPcvTx02/UxMpnl+KW6FChry/brK9braoBmrj6/mi2om5anV1HxRTS1k/QjGEuwEADZrisWEpa2vQuogO7TxBRn+ZcQGdC8MPcTRtGWFrSyLCjf6Lb2ouB8NgIWv05dh8tlbqcsfz1Kz9huT+x54yAgFF8AG6OjGc7mo7/I1TrNUac5bFtctaacyPLVg1VH8jzz3mIyBi8sBFDZX2GIGFNudBVnqeyW+CDlzKqNnqeZBWSaQdlSaxEu/0jT53Pa9Lw9F4GVWqihP67f9qMdWdKtyIwBh2/x62r4pjMPuzRvhko/GcxFYbf8TvxgZViB9uybLEjRnKVq+hfJKUlBme0UbE/TSHqXMMHfOdD4gJOPC6xYRoyW/UdKRad1F3xQApnIULfv+RQfHflglnpuP2ahJhYmbNT4l36QsT5uTavRH9fosN33z2DVsnOSvo84HT90t9CXLCHLIapH5VGP/keKjjOm4pd2XaLqLXk1VqzvUalkpp/Km/I96DPs/kMGMzf+T/D83V5srevy/zc2Vyv4/j6ey/1f2/8r+X9n/X9f+Tw389fn7AUj6yPeEI08L7QENzsOZVB4jnZUm6sWinKxfZFjygkoxGtxHaaI+RTUmU7FbgTRlK0N8vLaVFaps1pXN+hVs1mPsJjYp+jmmBNxVyr8I0goWUTTOAh+i6jwexYSAxa0IIhG+eax7XtIbqTZ+JpPotiiuC+liFDR98YWp5LUqjIn2FH1lQOZ2gaHnXuwujQEjqXHLlL/4s+XAipnl4YBcojoXLa9VKyKrCjwxBri2S1PNdLyY1PbJJWGqCkr0uVh81aocLtN3obbLj3o17Qz6c1TN+EynbmYYFzq2cVpjVUOHGjjLuXndR+FZijgr8Utwxyrl+DhMoZrj7dhcLKZW08kflu2tZjuPXKYrm71CT/o6zwlB1y2qvYKqX0jRx7V1MvqK2sym6bLqBQ0l1VQqKlPdNkk9VSmlZvOY+p84Wx6CjI0XxoyurmehA5qg/9lY3dDv/2tsVvf/zeep9D+V/qfS/1T6n69S/9MP8u71+yRDPlASp+rONaRJbJcqmGGmXY/RvUSOvih9hkXLpL03WFpjtFU+tZcgYgjDjwa98O7w0nN9V3Ps/RzFvS5wf3KqhbVGWMztSmeGOQRoy/3Wdd7SFsmXlsIX7kFVw9vY6CkHMiaalL3LVmiAhwbIbm2V3cIASKkuAHs0Qagns2oV6rmrBLm0mhGMZxXuZU77nFGR5N9F2WbxzoKkHBFtgtAWMEEQA+zS7IKX4vIJqYHO8Gtrq66duATOqvDEk9HjJM2Z//uZxf1dFBSEd96CYrbwsbxj0AdeS5PzTPnLqAFU57aQ9qRBKScAA6KJ7u8I24JcNdgCLtPKslI6xUyn28kGUcsZQfcvowENC9mR2PBTpmCRCkyttKHRH1OqfSE/X0Rrc3pwshNHwI29B36GODRc4w/ZB2kQ4XqIqW0fpfYwRe02fnmNcznivdlzto6qKhuAxwa76CWqmclQYi6XpVsWiJB3P0RHRinHfeDgCtWLrrAxAJUJ2pZOYIhNW9+2KAnVNN+bF1c+oAt8tiQhxFUQ8tiZGgiSq15Rb6gduLuMMSxCa2GMg+oDN04BUHu87oIpCRZeW976vT1W+X+u/h/NxlpTv/8Ja1Ty/zyeSv6v5P9K/q/k/69S/q/8Pyr/j8r/gz+V/0elE9QhVDpBHLZJs/sMtaAuX7PBmLRmQbmXdfqJs5k5/ZTqj17cHchQqQhk2j5RQpjqksd5EJk6JdECNlD5EMnfa+VDVPb22j5Excd+LqvuZBcimawrJyJrL/8rnYgM/V836feTAaoBl3IU8gdE7/EsVeAE/V9zvan7/6w016v4/3N5Kv1fpf+r9H+V/u+r1P+NBtEvo3BnW2ibICEZkHchyR0waSZD6+vZeY0rYcjWT6zTSds/PThp+8jyRZdRF5YWvOqZ6jekYlhKKVQUAI4Mi3T9/SwbwVcFKKgsv8Qs9nvryLOicHgdZNeeVEl2NdAY4ze8r2dQ/9xkztVsGnLQDIPQTe+HeSJ3wt68NSQCv2lJGUHe84KT8i/jIPfoBF3FCchEp3Emz4jUOn3ZuWbxnqwljtLoFn78Nbwv3Fy4JpFKoGU9Y7HfiqSiNSG/34T3CoCiNVt9CRehtg1adrwVUmCE6Q9HMOPT41tMDWsPb/QrbmKGF+DTSi7uI+Vxjd25vLI7RoV3QTcnHhiauhZZIjNdo0mPwbZ8PeJTU2/wwicxJT7DXYeQi35Z9YTJTixzWzxjZjmxTarUKExvon3WpSgY01U8D4a2jfDZ1MaAXfaxez7bpv0i18+Tg+Qz3mFoXuFZEh1VVJW9xL4tCZIq5vpMrigUhc3aOcVvKom6oCgJWgkAfUD0MdiOKSQbFdGHLcvT9FLuZ6J0Tx1fO65l3VU6nEwJ6WlahWK05A+jaF4eTdFVSQFfqkYlus9dEuuNESP/sOsOCfRpRmDEfLqm89WHqKxYNYFqTwY6KCVlji19V0iaNeRLo1wARZPbhALynPFmAJeiiKIRF4myYl4aeN5YQUn8l4yKLbdVbISm5sEWGBDGVXcGLPCboRfgk135lLmdxqOPLuoasbEDm3UZHhtwjROU+B1T9yXpKbgDWwGv7ux8BMY2zjOLJ5tcDFFskxWozZegtrQOWwvwNWqCukwo2QCC6rtmV39RHMm22od/Db1W0O2GwxxylGuUusVehPG4Uc9HdHqWQFu6uyQtCZIrwGxR3pG7R/LBDV1tC9M3aLo9d/gyri/vZAsmufBLzXyQ3pRtAcgJBGroTHIzTV+QSCRNJ1Puknpqg8lNWYvQdfhsei3OsEkrKAnTJYcCK9c7vtj8vPqcjBmF4hOoC8Knnz1zb52kK1Y+gmJAylcC0sPxqwFeIUYWHQdmgw2ivJS66tpj229td2//5yiOy/S/4uqLGTiBTrr/FZI1/W+z0dys9L/zeCr9b6X/rfS/lf73Ne9/nUKEMQQVGiJZ7FKufOTEzJMjJyt1TA8TyntfDDMSNx/9qxS+BU+s5HlMLn49Rq1PCdcilHF/GyV5oLpvYBOiBZntUtm3YZrg1TitcTUc/BJhqJqZKycX3Nu4UNOIMXOcee1tqHpe6Snj/wJyjcMS7A55msTPYwIn8H/ra82mzv9trq1X/N88nor/q/i/iv+r+L+v6v7XYZBm4f4QTftQMmI/hJkiGmbwFQ+PYTnHO5xk2ycrW2afNKyTSWEMWC6JSPCGt0RUU+JlC1tQWTWeV1iBP4Z5P8huvEQ982EYm6ANDp7aZA3I2VliuWnQdrFBMRTETluME3Tsi6OMnfOAqAhrg2azcJygO976jPnyiBb87UUcdG9wKlryZHpYAZhvzETmX+rl5+soD8sqkEylwoOsjYR/AaXuzfbOQUboxXKpGMG06JASTnKbXWlFWCFstrhJk7TMKjI8sADPJj0R2aLTSvYHvLlKddi4iBNSjdyUxRPxvLyappA2xUTRjsrgFVDQb1K87cN0t/2zaEg9SlgT5KLLGolWINESyxQVKYm0fSCNXtv3UkQm9ZFhhH08A/KqjaG+AjXVT4ak62jx4bDjxXNF1Rkh1hZmmzekCfwUeAqOhWbCKyx4TxFndTlU0CsQYTS4wEMkfhr2kzzc7vWAW9HMSMXlJHoMCeP+Frv7uYBU6oJOpsdiq1AU8O9woGAB3z9yAoonNbrZuzB+oVoo/n2EtUC77KW40PE4zMK88vzWnzL5T1jRXj7+48oGvGjxHzY2Kv/vuTyV/FfJf5X8V8l/X4/8xzb8wnTAz7wWfk3swGvh8ySdeLVzXbM/lMcbP1fP300Il7VQmzMrwvd/WAqQJ+N/ZxX6iTyT9v+VdbL/r242NtdXV8n9X421yv4/l6fa/6v9v9r/q/3/lfb//3ty+NHvhd2kF3pkx4+ToMc3fGkzSgZu7b9VRH/RR9//2cjPtA3c99fXS/d/sl+i/N9orq+tb67A/r+x2mj8wVmfKRYlz3/5/q/P/zAeXUWDbKYEMOX8S/zfxnpzvZr/eTz273+m7P/k+A8r6/r8b6xV97/M5an4/4r/r/j/iv9/Hf6fGDwXmPKMxkIbLxHgSR0uDrCDgnTj0jSGheTAYyvSE5gLitWcpkmHzfvBUJzhbklH3yOemLWcMxH8EUqfHpzQ44xy6TzOaKKl9E8spqK1lpqp1JYOj2VyrTi5OkiuruTwgOSwudQ/P+j1igPsW043UFxiSDwKWY9JA1S4GDVSilIRSM4YbxhgebiscSlYuWL4xgdACPRz86XtaJ4uQqsqglQYIyBmShwAfsIo0Ir2kRANjBuJgjToSBgA1V5rMJ/Ua5WoXrD3akMTRkEjdToaLBv/nJBT2afJcXgV3vGWx42TrfVHjtcwDYew/6DHPjkHD7s2bN70sECYqo5khcuK4ROB9fCGGVd2cOAuDKrzBH4I0MO9u6Hnnvk/w/P22/bPP5/9/PP/+/nn82+82peHrTd/+f631s8/41R4Ahl6trqGzSydu3XHvcJ1zv3552/+5EotSG4VJX02xpp1fOreSl2wTY48pgSuUsg+Kuq4wKB8y3vouP63bk0rLIHR6rXFyDhQ01XqCVqCAo8asWIxk6mbxUy+DeJRmHl8+5FXbYu7oXdrDOdtW64EL4EZ68eyrHu3cjWoNZVzzTQdY11p++xoNGS3p+qJFctJqPBIOuKofclA2IAz0ZUfdtbHQuutPDVI8+o8yuGwBcpaXGz7JEsxocjAFPGxtag3NmcqMv9RhmeVobPc2+zGEoxVlOXrHgl53R639HvEhc2yI0KGBtsIzqK9YqfMAD0E8VbRBVijNLdDgTk52E9jTJAKcsLEervhML+WqpF3rNW0xO8hJ+CNr8qM7opPuyy6kPZ14al9S3V7iJixRG3HYywuZWReghRFTPXhVZ+yeEn6oEHipDGT4iqpQwZ1ZzNidiTGIVIyXiUYPWm4Utw4W+O+R5OluTFdq4vnQQuTLIcCmno9F6KBdDshpF0BEhikmbpatOlmy9J9lL5oJc/F28FcjPfw/vT0SIq+gqPJy4/SmA9HsR5ch0EvTLOWXjhPbsIBCQexePbp418/Hv708XwRMNCKseowPGzBDbIsuhp49mKwEFEtVPQr0dDYW5Ud5i8wHoRRjKSyMsx7XI6zVuwbXFBlMQvlTOrN8VX5kur6XyZgz7SNCf4fG6vr0vk/yED7TxX/YT5Ppf+t9L+V/rfS/76a/+cXSe6je7QsT/FgcFwyXTBv9dIPB6JYRQ4J8mh6E2/SxbBW8I9wJMU90OUCTqdD7rDRKmA6E3eEqILupdpxGy7BcfYLWSrBe0lxw8RhHXx8elBIq0QTUcr5M+wvNbk0RrtgJ2yWKNO2wJnCySgRFvuRGJE6EkJra6sSQup5I3zYmSZWO8ti6VLsghVFxpCGnlPu5JXZbdFNvGtG44KL7haxPuTi7ChRMhjrxGsRy2+TqOex6ean0EwtkXZiyQwBN134N8WJ+OTjvksu45W4V7xEGbUBMoaaYkLTOkWDnqZ6kG8zs+kfNBmGUDjKajdkjhAfVTyRZZO2f9aUpZfffpsfoh4nbsgkMhkear2lP31oI8dhR7a+6IjDPuBpO2QcPywTVeV41nbBf3wJXdBtlwT3e4KWwBoG8NHCc3m8QLsELcVLZD9EsEXrmoSxKHH+JLWksQhPDhEpQj3S1mn8Qn21VBcNefFhX3NZWFR8tNCo+NjvL8dycpBU6JuRJsKmQl9dV0GdoWKLGDrFndr40KOi9EQkW+f+9c0Xs9JD65svbOLVtdofsduRMHzqw7/MM+VqU9PcByT3z752Szua3wv7ozuijiDzuCD3i5ygYGgzLzYOuLr4u/Qp8/8bpkmedJ8b+Yc+E+T/tSaN/1j4f600NpvV/d9zeSr5v5L/K/m/kv9fyf9Lc/4qlesJV9ULcyBhfkh0S2MbfZp9xDYuUkkJyiFJ+GR3k0T8KNun3MaPx0c7Ldn6KOUh37FiyvvSgdJSBk1F3eDJVMyVoCuYZoo/LBlkGJdg5doMxDrqZnggTdIxzUo6pjaGlPLGH4B5CK5CRbbuZ1caX6xjpGENFdrErtPm1h0QvpAQcljklzD4uXtOex0MhzGKIrB+LF+lw66ryplPB/QWh3Z20IiroiQ8Gle5KpRnOCwx6xI+6uliQgDnFuqk4VaURPk+5QlAKPmrMDDNquLgZ5Yr7vorfsr4/zREdoEIX88WASbx/8jzq/x/c7VR2f/m8lT8f8X/V/x/xf+/Kv8vTCSSFVA+RlF+RIIqdaewCCrmQLq5FZp/xslLQfskux8zB6pGP5pYLgQ8gin2vOsky+sO/ksvXNP5fczBy7My6vTEmdAzFzPc87pWdMBu5aI2EfzjZ8CW5t5ia7GGCuYWuZZLtWEItnDxTNr6zwXARQnB+nRV2WAt1vmvmtLoG25SM0QXNj+SVy5/uMQnHaMgVqPiSAP/tbVV4FtT2XkNkH4SwQqQWo8KiGMMYNOODn3D0aG/JtsUbZKlx2srohqP7M8fropnBGkeQuAZuo1pEVbrfJQttpy1xqpuN1pkhAi5pjPw4gmxakDeIn56yw1/s+E3FrVyqtnooe64PyTpRdTrhQPXJpta7Bki9KU8XpVMMuVTxv/3Q2SIZhMHahL/v7Km8/+N9ZUq/uNcnor/r/j/iv+v+P/XjP8ITDHZbY7DX0bwIe4ko0HOIsoj+5H5JAWPJKS0RKeLCW7dOVtElgwoYXEY5Nf4FyBdJ71FHnqfA86GQGjIiAMzUwaalulQjmcc8Lpgi+zNHMDiNOjeK+28hzUggaWwz9kX0ZeYlhZ+blhnO02De29lA52i4tijp8q8Tj0iPN8HQMcfJp+9pr8Oy9XbZu23Rg0dO7pB7p3tg/AziPL74vaB8lFiceTrCxYRiWB3GuF9w426SHwPLF9x1HxKwenRQpIHso7myMMblwShupLJ0YUCu+ijNIABkphxk8R8XN4PgoswzjwOnctWPpXJRDIOnPRKx6/mw1qXhuQ263EK8gmdNSRCKzXNANvkgngaecXwOEvK0FmGS/5wno1CvZBh6QeEvk4rjcaYgfy6TtN8fU8Z/8+PRc2B/19fW2sY/H+j4v/n8lT8f8X/V/x/xf+/Lv/P3I3rRTijsTp9q0pfY01p2rukd0/V3TzF4GhPol+VhMwCJ9NrZUYtrSXYQ4HOuyG5Zd5JMj8c3PrvD09OP25/2GN68A7OBVBD5/SfR3snhRLVdVvKdVBuHt7lsDMjO63lyA4nxNdkTP5dP9az+6M4j4bAiy5fJml/qRfkgVLk4Uncu+n3M4l3x8GjmW3/An63/Tyhx+XbvlejHvFqDYPTL3dNwqt6Pewa8cRiM+683XIwzc/g5XH8OgonuOQT95/T+2FoSirZuN5mY6QUCSqaP3STD9pKTDOQ6olkG66MDbA4KKBQ3pnU6jkeuRg7D6UnE+yjnZWNtjLAe8XRH/0AllgSSPQCwEO2NcBs6sYH3/c5vakGiwvyhXJyk/Me6grIzA4yGwMyGwvyrgPfGCwEOYmK8MUJoh5ZKpzoiv8a0h9qPXURUdYUFWO2qvEPQ+uOyMz0zHDQo5k2WiSA6TrHvxoNsMjMzEx+0VeruP6rrd7/ZZY/IhelGeUxWS4cJ90gNmCLVA00STcgi9Si6INxHuW/QPgs9f9CHc5Mbv+aKP+tYnBoTf5ba1T3P8/lqeS/Sv6r5L9K/vv9nf8wQ/jSPUm+a/jT8cExSXxC+D4mURKgJXH7vjioMAfqrsMK8TnFC3Yf6Gn0M4UNtBZtiTrAtJ9JkSlZ8lnjvCYKnzXPzxVnGOnEucqVaB5tL2SAsXipydwazAFjEMxD+7p8Qi0D9iLESmBx89HuNpZ6hS23fT7WMk7ILYrxLkEJ25M96fBdBA9N/WJmYGL8Ymqm8u9yz+iQnDvMyORgVAJymqLMc+8RsI4CDHkow0LcJ/uMFRfL2T2iyvi/iyBGUWMO97821xsbKzr/t7FSnf+dy1PxfxX/V/F/Ff/3qvzftHc48PAjH6T7APD2hgc1e7+IGLMlrlAIer1Pej6qWLuBGur8Kdch2PCyxr83MXzUhQjl7UwR6R7/8F09k+68cFMSZiVNLoh5gfTxGJOOMeUgCXrvWC1hNojDIMuXPifpDa9wgCk/QYK1PA4ZIMsLv6evZlE2j4y7e2ZYbg7lMSG5cxL/JquLgSp+7Q8yPbYQfVgdQPa2LQLkYFSz3jCJBjlGMgqGbd8LhyzgTjj0oyHG2IEfQxpIR/esVyBlWYxEYY8FX0ba3q2AwAFoUeElsige3lvojaCVM8BGpKMJQCYYEq6oKKrmlUHHsWRiHE/iQ4/gzs7VkyL42COO89otBbTeLPDWQfc6JAGaM9isbu5xHIUQuYOZtjjU1BIhQ/YH4V3u6aNojQnNR//k5ICq7/U5xVTsbWFoLKn+dxbiSgdA08dESxexz220hAHISlvn8b8tFSGrvB47HSWFYbOSsWW4ouzDNFVJgC8pNH4pjlOUsuLB4x5p3acBF5D48Ui9q1V7Trhuw5Kd2wJUQjpbzxTLNEs7+bhvS+aEY+bgAOxckwuIzMwi/JuSywKHqTEvIb1vpETZ4Sg3w2moGNAvUoJP+62ksxrJKO2G+0dq6lVLPjaImAEvub8rbPL8DqROkXuU4LyK7/44pJAxWTU+vn3bufJlqPIeyrsRkyOEnlD7EKKT9geWgXQGXUJyxE+nLa3faom2D933pLD0NSU8vijM16M2XYy+6GarR/jl2sKb8NgoejYLDVHkjtUpyTHflKGVzOQyJchKPWM9Xl52blCgDKRt+ZYmUKKRN/cbGnCFzo8Hu4agH+Vrxxx6Z8mNGFG/F7JqGFyyJ5WXfsp0OiXWtIbAuSAsh1GWirpKsD7IUAnhBm9KOqBXQDnbu5WxtymG5HkaY32Xu+t3YTVNZROxMoc829YaDVKbsGXBHndRz5XQnNZHnE81TIyw9ZYZnTnuUJazimfsGzm3lNIjtxRLLzYmvk5t269bqrB9u6QWzbXVE4u2UhW3RFvpYhVXisP6opTOeXhKdSpxKeIpCtlJ24ACl+z8SsG+WeSDXkbdKeisKQFxYMctAPC9mcbawXxX/kLFb/XULf+6zwvyWLSvCqX1ij5jzeJtmrp9Vqs/ZXk6IbD8QCWPTw8Mw5eoRzxvHmrq0lQKSB1bREFNmfqIsXAaosgQzuqNNArGkVweo5PFvpJXEEJXOQ9N+gXDt2bk0g5WViOItrMCnW6ysK0S5VhCmRYjZw9kVdoXmaRJ11Qkntq9cSjLcaHZNCrRodnRbvIJPTLwr7FaPCbcr7l46GF+5Ri8Wp4I52tqOdSC2SASEy4to0DkRnhf+kwK8kufN9oCiyt2csMjduujIAIDq5RCOqlP3dT0VhZEbVramxHpKV/WyvivpyLFR5FiEA9hTN3rFfflSXTORKqSWmlchde2WFXPLJ8y+y8QfzCK83mc/1pZ27Sc/1qp7L/zeCr7b2X/rey/lf33lc5/MR82ix7RHrHKHqtKjlK1VnBRJfGpzMhU3ymRqbgbHkajOmHan49J7vyAbDm/W+m11+1ZPfr+T70i+TWQyWAWbUzY/5tNdv9jo7m+tr65gvs/pFX7/zwe/DAWUeEqPpJFdh/XonwQcJHe9gVpePvYAjevLOZxZqsoWYOkmsDisTSiFFOLSVInQnwo2lDvoJnUnHxFDS4Ia6sFJDXOuuggZjG+F9Koa++iPRDyYl3Nla5J0bPECRo9Q3Kt1LMKrhuXo3OKGgvFMLHjKfaIzGVreZmcb0Iv09afmyury0MEwApKqyJzuFgkd+RibV6G3IYrrZuLeHAP3psw+3WRFuKxtjwhS+nPA7qCShPHVBBYbeHhtQm9eqxPyfpf+F7NYAuYsP7DYr9h+P+uVfE/5vKQ9Z+py3a2yfpHrF/yelwsFYv0tETxzi1ndMmuPvLqqZ7qqZ6v5vn/l0DSNgDKAgA=
+---
+# Source: fsm/templates/fsm-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fsm-role
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+  creationTimestamp: null
+rules:
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["apps"]
+  resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["list", "get", "watch"]
+
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["list", "get", "watch"]
+
+- apiGroups: [""]
+  resources: ["endpoints", "pods", "services", "secrets", "configmaps", "volumes"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+
+- apiGroups: [""]
+  resources: ["services/status"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+- apiGroups: [""]
+  resources: ["services/finalizers"]
+  verbs: ["update"]
+
+- apiGroups: [ "" ]
+  resources: [ "serviceaccounts" ]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["discovery.k8s.io"]
+  resources: ["endpointslices"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["list", "get", "create", "watch", "patch", "update"]
+
+- apiGroups: ["flomesh.io"]
+  resources: ["clusters", "proxyprofiles", "serviceimports", "serviceexports", "globaltrafficpolicies"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["flomesh.io"]
+  resources: ["clusters/finalizers", "proxyprofiles/finalizers", "serviceimports/finalizers", "serviceexports/finalizers", "globaltrafficpolicies/finalizers"]
+  verbs: ["update"]
+
+- apiGroups: ["flomesh.io"]
+  resources: ["clusters/status", "proxyprofiles/status", "serviceimports/status", "serviceexports/status", "globaltrafficpolicies/status"]
+  verbs: ["get", "patch", "update"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingressclasses"]
+  verbs: ["list", "get", "watch"]
+
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["list", "get", "watch", "create", "update", "patch", "delete"]
+---
+# Source: fsm/templates/mesh-config-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fsm-mesh-config-clusterrole
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+rules:
+  - apiGroups:
+      - "apps"
+    resources:
+      - deployments
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: fsm/templates/fsm-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fsm-rolebinding
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    helm.sh/chart: fsm-0.3.0-alpha.1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fsm-role
+subjects:
+- kind: ServiceAccount
+  name: fsm
+  namespace: default
+---
+# Source: fsm/templates/leader-election-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fsm-leader-election-role
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+rules:
+- apiGroups:
+  - ""
+  - coordination.k8s.io
+  resources:
+  - configmaps
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+# Source: fsm/templates/mesh-config-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fsm-mesh-config-role
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: fsm/templates/leader-election-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fsm-leader-election-rolebinding
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: fsm-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: fsm
+  namespace: default
+---
+# Source: fsm/templates/fsm-manager-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fsm-manager
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+    app.kubernetes.io/component: fsm-manager
+    app.kubernetes.io/instance: fsm-manager
+spec:
+  type: ClusterIP
+  ports:
+  - name: health
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app: fsm-manager
+    flomesh.io/app: fsm-manager
+---
+# Source: fsm/templates/ingress-pipy-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fsm-ingress-pipy-controller
+  namespace: default
+  labels:
+    ingress.flomesh.io/namespaced: "false"
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: fsm-ingress-pipy
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8000
+    nodePort: 30508
+  selector:
+    app: fsm-ingress-pipy
+    flomesh.io/app: fsm-ingress-pipy
+    ingress.flomesh.io/namespaced: "false"
+---
+# Source: fsm/templates/repo-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fsm-repo-service
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+    app.kubernetes.io/component: fsm-repo
+    app.kubernetes.io/instance: fsm-repo
+spec:
+  type: ClusterIP
+  ports:
+  - name: repo
+    port: 6060
+    protocol: TCP
+    targetPort: repo
+  selector:
+    app: fsm-repo
+    flomesh.io/app: fsm-repo
+---
+# Source: fsm/templates/webhook-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fsm-webhook-service
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+    app.kubernetes.io/component: fsm-manager
+    app.kubernetes.io/instance: fsm-manager
+spec:
+  type: ClusterIP
+  ports:
+  - name: webhook
+    port: 443
+    protocol: TCP
+    targetPort: webhook
+  selector:
+    app: fsm-manager
+    flomesh.io/app: fsm-manager
+---
+# Source: fsm/templates/ingress-pipy-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fsm-ingress-pipy
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: fsm-ingress-pipy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fsm-ingress-pipy
+      flomesh.io/app: fsm-ingress-pipy
+      ingress.flomesh.io/namespaced: "false"
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: fsm-0.3.0-alpha.1
+        app.kubernetes.io/version: "0.3.0-alpha.1"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: fsm
+        app.kubernetes.io/component: controller
+        app.kubernetes.io/instance: fsm-ingress-pipy
+        app: fsm-ingress-pipy
+        flomesh.io/app: fsm-ingress-pipy
+        ingress.flomesh.io/namespaced: "false"
+    spec:
+      initContainers:
+      - name: wait-manager
+        image: flomesh/curl:7.84.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        command:
+          - curl
+          - http://fsm-manager.default.svc:8081/healthz
+          - --connect-timeout
+          - "2"
+          - --retry
+          - "100"
+          - --retry-connrefused
+          - --retry-delay
+          - "5"
+      containers:
+      - name: ingress
+        image: flomesh/fsm-ingress-pipy:0.3.0-alpha.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8000
+        - name: health
+          containerPort: 8081
+        args:
+        - --v=2
+        resources:
+          limits:
+            cpu: "2"
+            memory: 1G
+          requests:
+            cpu: "0.5"
+            memory: 128M
+        env:
+        - name: FSM_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: FSM_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: FSM_NAMESPACE
+          value: default
+        - name: GIN_MODE
+          value: release
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          tcpSocket:
+            port: 8000
+        readinessProbe:
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          tcpSocket:
+            port: 8000
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: fsm
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: flomesh.io/app
+                  operator: In
+                  values:
+                  - fsm-ingress-pipy
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+---
+# Source: fsm/templates/manager-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fsm-manager
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+    app.kubernetes.io/component: fsm-manager
+    app.kubernetes.io/instance: fsm-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fsm-manager
+      flomesh.io/app: fsm-manager
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: fsm-0.3.0-alpha.1
+        app.kubernetes.io/version: "0.3.0-alpha.1"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: fsm
+        app.kubernetes.io/component: fsm-manager
+        app.kubernetes.io/instance: fsm-manager
+        app: fsm-manager
+        flomesh.io/app: fsm-manager
+    spec:
+      initContainers:
+      - name: init
+        image: flomesh/toolbox:1.3.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        command:
+        - sh
+        - -c
+        - |
+          tar -C /repo -zxvf /scripts.tar.gz
+          kubectl apply -f /crds
+        volumeMounts:
+        - mountPath: /scripts.tar.gz
+          name: fsm-repo-init-scripts
+          subPath: scripts.tar.gz
+        - mountPath: /crds
+          name: fsm-crds-resources
+        - mountPath: /repo
+          name: shared-repo
+      containers:
+      - name: manager
+        image: flomesh/fsm-manager:0.3.0-alpha.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: webhook
+          containerPort: 9443
+        - name: health
+          containerPort: 8081
+        command:
+        - /manager
+        args:
+        - --v=2
+        - --config=manager_config.yaml
+        env:
+          - name: FSM_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: FSM_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: FSM_NAMESPACE
+            value: default
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 2000Mi
+          requests:
+            cpu: 200m
+            memory: 200Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 1
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: fsm-manager-config
+          mountPath: /manager_config.yaml
+          subPath: manager_config.yaml
+        - mountPath: /repo
+          name: shared-repo
+      volumes:
+      - configMap:
+          name: fsm-manager-config
+        name: fsm-manager-config
+      - configMap:
+          name: fsm-repo-init-scripts
+        name: fsm-repo-init-scripts
+      - configMap:
+          name: fsm-crds-resources
+        name: fsm-crds-resources
+      - emptyDir: {}
+        name: shared-repo
+      priorityClassName: system-node-critical
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: fsm
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: flomesh.io/app
+                  operator: In
+                  values:
+                  - fsm-manager
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+---
+# Source: fsm/templates/repo-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fsm-repo
+  namespace: default
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+    app.kubernetes.io/component: fsm-repo
+    app.kubernetes.io/instance: fsm-repo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fsm-repo
+      flomesh.io/app: fsm-repo
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: fsm-0.3.0-alpha.1
+        app.kubernetes.io/version: "0.3.0-alpha.1"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: fsm
+        app.kubernetes.io/component: fsm-repo
+        app.kubernetes.io/instance: fsm-repo
+        app: fsm-repo
+        flomesh.io/app: fsm-repo
+    spec:
+      containers:
+      - name: repo
+        image: flomesh/pipy:0.90.2-31-nonroot
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: repo
+          containerPort: 6060
+        command:
+        - pipy
+        args:
+        - --admin-port=6060
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 500Mi
+          requests:
+            cpu: 100m
+            memory: 20M
+        env:
+          - name: FSM_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: FSM_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: FSM_NAMESPACE
+            value: default
+        livenessProbe:
+          initialDelaySeconds: 1
+          timeoutSeconds: 5
+          tcpSocket:
+            port: 6060
+        readinessProbe:
+          initialDelaySeconds: 1
+          timeoutSeconds: 5
+          tcpSocket:
+            port: 6060
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      priorityClassName: system-node-critical
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: fsm
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: flomesh.io/app
+                  operator: In
+                  values:
+                  - fsm-repo
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+---
+# Source: fsm/templates/ingress-class.yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: pipy
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+  annotations:
+    meta.flomesh.io/namespace: default
+    meta.flomesh.io/ingress-pipy-svc: fsm-ingress-pipy-controller
+spec:
+  controller: flomesh.io/ingress-pipy
+---
+# Source: fsm/templates/ingress-repo.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pipy-repo
+  namespace: default
+  annotations:
+    pipy.ingress.kubernetes.io/rewrite-target-from: ^/mesh/?
+    pipy.ingress.kubernetes.io/rewrite-target-to: /
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+spec:
+  ingressClassName: pipy
+  rules:
+  - http:
+      paths:
+      - path: /mesh
+        pathType: Prefix
+        backend:
+          service:
+            name: fsm-repo-service
+            port:
+              number: 6060
+---
+# Source: fsm/templates/mutating-webhook-configuration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: flomesh-mutating-webhook-configuration
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+  creationTimestamp: null
+webhooks: []
+---
+# Source: fsm/templates/validating-webhook-configuration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: flomesh-validating-webhook-configuration
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+  creationTimestamp: null
+webhooks: []
+---
+# Source: fsm/templates/tests/test-ingress-pipy.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-fsm-test-ingress-pipy"
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: pipy
+      image: flomesh/curl:7.84.0
+      command:
+        - curl
+        - http://fsm-ingress-pipy-controller.default.svc:80/mesh/repo
+        - --connect-timeout
+        - "2"
+        - --retry
+        - "5"
+        - --retry-connrefused
+        - --retry-delay
+        - "5"
+  restartPolicy: Never
+---
+# Source: fsm/templates/tests/test-repo.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-fsm-test-repo"
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: pipy
+      image: flomesh/curl:7.84.0
+      command:
+        - curl
+        - http://fsm-repo-service.default.svc:6060/repo
+        - --connect-timeout
+        - "2"
+        - --retry
+        - "5"
+        - --retry-connrefused
+        - --retry-delay
+        - "5"
+  restartPolicy: Never
+---
+# Source: fsm/templates/post-install.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fsm-post-install
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: fsm-post-install
+      labels:
+        helm.sh/chart: fsm-0.3.0-alpha.1
+        app.kubernetes.io/version: "0.3.0-alpha.1"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: fsm
+    spec:
+      containers:
+        - name: install
+          image: flomesh/toolbox:1.3.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              kubectl get pf default-proxyprofile --ignore-not-found=false
+              if [ $? -eq 0 ];
+              then
+                  echo "ProxyProfile default-proxyprofile exists, ignore creating ..."
+              else
+                  echo "ProxyProfile default-proxyprofile doesn't exist, will create it ..."
+                  kubectl apply -f /manifests/default_proxyprofile.yaml --validate='false'
+              fi
+          volumeMounts:
+            - mountPath: /manifests
+              name: fsm-manifests-config
+      volumes:
+        - configMap:
+            name: fsm-manifests-config
+          name: fsm-manifests-config
+      restartPolicy: OnFailure
+      serviceAccountName: fsm
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+---
+# Source: fsm/templates/pre-delete.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fsm-pre-delete
+  labels:
+    helm.sh/chart: fsm-0.3.0-alpha.1
+    app.kubernetes.io/version: "0.3.0-alpha.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fsm
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: fsm-pre-delete
+      labels:
+        helm.sh/chart: fsm-0.3.0-alpha.1
+        app.kubernetes.io/version: "0.3.0-alpha.1"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: fsm
+    spec:
+      containers:
+      - name: uninstall
+        image: flomesh/toolbox:1.3.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - |
+          kubectl delete namespacedingresses.flomesh.io --all -A --ignore-not-found=true
+          kubectl delete globaltrafficpolicies.flomesh.io --all -A --ignore-not-found=true
+          kubectl delete multiclusterendpoints.flomesh.io --all -A --ignore-not-found=true
+          kubectl delete serviceimports.flomesh.io --all -A --ignore-not-found=true
+          kubectl delete serviceexports.flomesh.io --all -A --ignore-not-found=true
+          kubectl delete proxyprofiles.flomesh.io --all --ignore-not-found=true
+          kubectl delete clusters.flomesh.io --all --ignore-not-found=true
+          kubectl delete --ignore-not-found=true -f /crds/
+        volumeMounts:
+        - mountPath: /manifests
+          name: fsm-manifests-config
+        - mountPath: /crds
+          name: fsm-crds-resources
+      volumes:
+      - configMap:
+          name: fsm-manifests-config
+        name: fsm-manifests-config
+      - configMap:
+          name: fsm-crds-resources
+        name: fsm-crds-resources
+      restartPolicy: Never
+      serviceAccountName: fsm
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64

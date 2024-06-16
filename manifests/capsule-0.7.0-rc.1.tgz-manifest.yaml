@@ -1,0 +1,734 @@
+---
+# Source: capsule/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: capsule
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: capsule/templates/certs.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-capsule-tls
+---
+# Source: capsule/templates/rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-capsule-manager-rolebinding
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: capsule
+  namespace: default
+---
+# Source: capsule/templates/metrics-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-capsule-controller-manager-metrics-service
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8080
+    name: metrics
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+  sessionAffinity: None
+  type: ClusterIP
+---
+# Source: capsule/templates/webhook-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-capsule-webhook-service
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 443
+    name: https
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+  sessionAffinity: None
+  type: ClusterIP
+---
+# Source: capsule/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-capsule-controller-manager
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: capsule
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: capsule-0.7.0-rc.1
+        app.kubernetes.io/name: capsule
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.7.0-rc.1"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: capsule
+      securityContext:
+        runAsGroup: 1002
+        runAsNonRoot: true
+        runAsUser: 1002
+        seccompProfile:
+          type: RuntimeDefault
+      priorityClassName: 
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: my-release-capsule-tls
+      containers:
+        - name: manager
+          args:
+          - --webhook-port=9443
+          - --enable-leader-election
+          - --zap-log-level=4
+          - --configuration-name=default
+          image: ghcr.io/projectcapsule/capsule:v0.7.0-rc.1
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          ports:
+            - name: webhook-server
+              containerPort: 9443
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10080
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 10080
+          volumeMounts:
+          - mountPath: /tmp/k8s-webhook-server/serving-certs
+            name: cert
+            readOnly: true
+          resources:
+            {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+---
+# Source: capsule/templates/configuration-default.yaml
+apiVersion: capsule.clastix.io/v1beta2
+kind: CapsuleConfiguration
+metadata:
+  name: default
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  enableTLSReconciler: true
+  overrides:
+    mutatingWebhookConfigurationName: my-release-capsule-mutating-webhook-configuration
+    TLSSecretName: my-release-capsule-tls
+    validatingWebhookConfigurationName: my-release-capsule-validating-webhook-configuration
+  forceTenantPrefix: false
+  userGroups:
+    - capsule.clastix.io
+  protectedNamespaceRegex: ""
+  nodeMetadata:
+    forbiddenAnnotations:
+      denied: []
+      deniedRegex: ""
+    forbiddenLabels:
+      denied: []
+      deniedRegex: ""
+---
+# Source: capsule/templates/mutatingwebhookconfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: my-release-capsule-mutating-webhook-configuration
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /defaults
+  failurePolicy: Fail
+  name: pod.defaults.capsule.clastix.io
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - pods
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists 
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /defaults
+  failurePolicy: Fail
+  name: storage.defaults.capsule.clastix.io
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - persistentvolumeclaims
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists  
+  sideEffects: None  
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /defaults
+  failurePolicy: Fail
+  name: ingress.defaults.capsule.clastix.io
+  rules:
+  - apiGroups:
+    - networking.k8s.io
+    apiVersions:
+    - v1beta1
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - ingresses
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists
+  sideEffects: None  
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /namespace-owner-reference
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: owner.namespace.capsule.clastix.io
+  namespaceSelector: {}
+  objectSelector: {}
+  reinvocationPolicy: Never
+  rules:
+    - apiGroups:
+      - ""
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - namespaces
+      scope: '*'
+  sideEffects: NoneOnDryRun
+  timeoutSeconds: 30
+---
+# Source: capsule/templates/validatingwebhookconfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: my-release-capsule-validating-webhook-configuration
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+webhooks:
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /cordoning
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: cordoning.tenant.capsule.clastix.io
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - '*'
+      apiVersions:
+        - '*'
+      operations:
+        - CREATE
+        - UPDATE
+        - DELETE
+      resources:
+        - '*'
+      scope: Namespaced
+  sideEffects: None
+  timeoutSeconds: 30
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /ingresses
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: ingress.capsule.clastix.io
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - networking.k8s.io
+        - extensions
+      apiVersions:
+        - v1
+        - v1beta1
+      operations:
+        - CREATE
+        - UPDATE
+      resources:
+        - ingresses
+      scope: Namespaced
+  sideEffects: None
+  timeoutSeconds: 30
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /namespaces
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: namespaces.capsule.clastix.io
+  namespaceSelector: {}
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - ""
+      apiVersions:
+        - v1
+      operations:
+        - CREATE
+        - UPDATE
+        - DELETE
+      resources:
+        - namespaces
+      scope: '*'
+  sideEffects: None
+  timeoutSeconds: 30
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /networkpolicies
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: networkpolicies.capsule.clastix.io
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - networking.k8s.io
+      apiVersions:
+        - v1
+      operations:
+        - UPDATE
+        - DELETE
+      resources:
+        - networkpolicies
+      scope: Namespaced
+  sideEffects: None
+  timeoutSeconds: 30
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /nodes
+      port: 443
+  failurePolicy: Fail
+  name: nodes.capsule.clastix.io
+  matchPolicy: Exact
+  namespaceSelector: {}
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - ""
+      apiVersions:
+        - v1
+      operations:
+        - UPDATE
+      resources:
+        - nodes
+  sideEffects: None
+  timeoutSeconds: 30
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /pods
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: pods.capsule.clastix.io
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - ""
+      apiVersions:
+        - v1
+      operations:
+        - CREATE
+        - UPDATE
+      resources:
+        - pods
+      scope: Namespaced
+  sideEffects: None
+  timeoutSeconds: 30
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /persistentvolumeclaims
+  failurePolicy: Fail
+  name: pvc.capsule.clastix.io
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - ""
+      apiVersions:
+        - v1
+      operations:
+        - CREATE
+      resources:
+        - persistentvolumeclaims
+      scope: Namespaced
+  sideEffects: None
+  timeoutSeconds: 30
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /services
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: services.capsule.clastix.io
+  namespaceSelector:
+    matchExpressions:
+    - key: capsule.clastix.io/tenant
+      operator: Exists
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - ""
+      apiVersions:
+        - v1
+      operations:
+        - CREATE
+        - UPDATE
+      resources:
+        - services
+      scope: Namespaced
+  sideEffects: None
+  timeoutSeconds: 30
+- admissionReviewVersions:
+    - v1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: capsule-webhook-service
+      namespace: default
+      path: /tenantresource-objects
+  failurePolicy:  Fail
+  name: resource-objects.tenant.capsule.clastix.io
+  namespaceSelector:
+    matchExpressions:
+      - key: capsule.clastix.io/tenant
+        operator: Exists
+  objectSelector:
+    matchExpressions:
+      - key: capsule.clastix.io/resources
+        operator: Exists
+  rules:
+    - apiGroups:
+        - '*'
+      apiVersions:
+        - '*'
+      operations:
+        - UPDATE
+        - DELETE
+      resources:
+        - '*'
+      scope: Namespaced
+  sideEffects: None
+- admissionReviewVersions:
+    - v1
+    - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-capsule-webhook-service
+      namespace: default
+      path: /tenants
+      port: 443
+  failurePolicy:  Fail
+  matchPolicy: Exact
+  name: tenants.capsule.clastix.io
+  namespaceSelector: {}
+  objectSelector: {}
+  rules:
+    - apiGroups:
+        - capsule.clastix.io
+      apiVersions:
+        - v1beta2
+      operations:
+        - CREATE
+        - UPDATE
+        - DELETE
+      resources:
+        - tenants
+      scope: '*'
+  sideEffects: None
+  timeoutSeconds: 30
+---
+# Source: capsule/templates/post-install-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-waiting-certs"
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "my-release"
+      labels:
+        app.kubernetes.io/managed-by: "Helm"
+        app.kubernetes.io/instance: "my-release"
+        helm.sh/chart: "capsule-0.7.0-rc.1"
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: post-install-job
+        image: docker.io/clastix/kubectl:v1.30
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c", "while [ -z $$(kubectl -n $NAMESPACE get secret my-release-capsule-tls -o jsonpath='{.data.tls\\.crt}') ]; do echo 'waiting Capsule to be up and running...' && sleep 5; done"]
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+      serviceAccountName: capsule
+      securityContext:
+        runAsGroup: 1002
+        runAsNonRoot: true
+        runAsUser: 1002
+        seccompProfile:
+          type: RuntimeDefault
+---
+# Source: capsule/templates/pre-delete-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-rbac-cleaner"
+  labels:
+    helm.sh/chart: capsule-0.7.0-rc.1
+    app.kubernetes.io/name: capsule
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.0-rc.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "my-release"
+      labels:
+        app.kubernetes.io/managed-by: "Helm"
+        app.kubernetes.io/instance: "my-release"
+        helm.sh/chart: "capsule-0.7.0-rc.1"
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pre-delete-job
+          image: docker.io/clastix/kubectl:v1.30
+          imagePullPolicy: IfNotPresent
+          command: [ "sh", "-c",  " kubectl delete secret -n $NAMESPACE my-release-capsule-tls --ignore-not-found && kubectl delete clusterroles.rbac.authorization.k8s.io capsule-namespace-deleter capsule-namespace-provisioner --ignore-not-found && kubectl delete clusterrolebindings.rbac.authorization.k8s.io capsule-namespace-deleter capsule-namespace-provisioner --ignore-not-found"]
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+      serviceAccountName: capsule
+      securityContext:
+        runAsGroup: 1002
+        runAsNonRoot: true
+        runAsUser: 1002
+        seccompProfile:
+          type: RuntimeDefault

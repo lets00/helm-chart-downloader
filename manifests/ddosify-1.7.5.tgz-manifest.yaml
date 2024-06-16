@@ -1,0 +1,1213 @@
+---
+# Source: ddosify/templates/00_env-configmap.yaml
+apiVersion: v1
+data:
+  DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: "5yR2qD5zCqqvjwCKKXojnPviQaB87w9JcGweVChXkhWRL"
+  DOCKER_INFLUXDB_INIT_USERNAME: "admin"
+  DOCKER_INFLUXDB_INIT_PASSWORD: "ChangeMe"
+  DOCKER_INFLUXDB_INIT_ORG: "ddosify"
+  DOCKER_INFLUXDB_INIT_BUCKET: "hammerBucket"
+  DOCKER_INFLUXDB_INIT_MODE: "setup"
+  INFLUXDB_URL: "http://influxdb:8086"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "ChangeMe"
+kind: ConfigMap
+metadata:
+  labels:
+    service: backend-env
+  name: env
+---
+# Source: ddosify/templates/influxdb.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-influx-script
+data:
+  init.sh: |
+    #!/bin/bash
+
+    set -e
+    influx bucket create -n hammerBucketDetailed -o ddosify
+    influx bucket create -n hammerBucketIteration -o ddosify
+---
+# Source: ddosify/templates/nginx.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-conf
+data:
+  default.conf: |
+    upstream frontend {
+      server frontend:3000;
+    }
+
+    upstream backend {
+      server backend:8008;
+    }
+
+    upstream alaz-backend {
+      server alaz-backend:8008;
+    }
+
+    server {
+      listen 80;
+      client_max_body_size 96M;
+
+      location / {
+        proxy_pass http://frontend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+
+      location /api/ {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+
+      location /api-alaz/ {
+        proxy_pass http://alaz-backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+    }
+---
+# Source: ddosify/templates/postgres.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-db-script
+data:
+  init.sql: |
+    CREATE DATABASE backend;
+    CREATE DATABASE alazbackend;
+    CREATE DATABASE hammermanager;
+---
+# Source: ddosify/templates/prometheus.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 10s
+      evaluation_interval: 10s
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: []
+    scrape_configs:
+      - job_name: "backend"
+        metrics_path: '/metrics/scrape'
+        static_configs:
+          - targets: ["alaz-backend:8008"]
+        basic_auth:
+          username: alaz-backend
+          password: jRTyHAbUHYE37hRBgEz
+---
+# Source: ddosify/templates/influxdb.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    service: influxdb-data
+  name: influxdb-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "5Gi"
+  storageClassName: 
+status: {}
+---
+# Source: ddosify/templates/postgres.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    service: postgres-data
+  name: postgres-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "5Gi"
+  storageClassName: 
+status: {}
+---
+# Source: ddosify/templates/seaweedfs.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    service: seaweedfs-data
+  name: seaweedfs-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "30Gi"
+  storageClassName: 
+status: {}
+---
+# Source: ddosify/templates/alaz-backend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: alaz-backend
+  name: alaz-backend
+spec:
+  ports:
+    - name: "8008"
+      port: 8008
+      targetPort: 8008
+  selector:
+    service: alaz-backend
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/backend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: backend
+  name: backend
+spec:
+  ports:
+    - name: "8008"
+      port: 8008
+      targetPort: 8008
+  selector:
+    service: backend
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/frontend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: frontend
+  name: frontend
+spec:
+  ports:
+    - name: "3000"
+      port: 3000
+      targetPort: 3000
+  selector:
+    service: frontend
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/hammermanager.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: hammermanager
+  name: hammermanager
+spec:
+  ports:
+    - name: "8001"
+      port: 8001
+      targetPort: 8001
+  selector:
+    service: hammermanager
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/influxdb.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: influxdb
+  name: influxdb
+spec:
+  ports:
+    - name: "8086"
+      port: 8086
+      targetPort: 8086
+  selector:
+    service: influxdb
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/nginx.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30000
+  selector:
+    app: nginx
+---
+# Source: ddosify/templates/postgres.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: postgres
+  name: postgres
+spec:
+  ports:
+    - name: "5432"
+      port: 5432
+      targetPort: 5432
+  selector:
+    service: postgres
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/prometheus.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+spec:
+  type: NodePort
+  ports:
+    - port: 9090
+      targetPort: 9090
+      nodePort: 30090
+  selector:
+    app: prometheus
+---
+# Source: ddosify/templates/rabbitmq.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: rabbitmq-job
+  name: rabbitmq-job
+spec:
+  ports:
+    - name: "5672"
+      port: 5672
+      targetPort: 5672
+  selector:
+    service: rabbitmq-job
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/rabbitmq.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: rabbitmq-celery
+  name: rabbitmq-celery
+spec:
+  ports:
+    - name: "5672"
+      port: 5672
+      targetPort: 5672
+  selector:
+    service: rabbitmq-celery
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/rabbitmq.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: rabbitmq-celery-backend
+  name: rabbitmq-celery-backend
+spec:
+  ports:
+    - name: "5672"
+      port: 5672
+      targetPort: 5672
+  selector:
+    service: rabbitmq-celery-backend
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/rabbitmq.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: rabbitmq-celery-alaz-backend
+  name: rabbitmq-celery-alaz-backend
+spec:
+  ports:
+    - name: "5672"
+      port: 5672
+      targetPort: 5672
+  selector:
+    service: rabbitmq-celery-alaz-backend
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/redis.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: redis-backend
+  name: redis-backend
+spec:
+  ports:
+    - name: "6379"
+      port: 6379
+      targetPort: 6379
+  selector:
+    service: redis-backend
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/redis.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: redis-alaz-backend
+  name: redis-alaz-backend
+spec:
+  ports:
+    - name: "6379"
+      port: 6379
+      targetPort: 6379
+  selector:
+    service: redis-alaz-backend
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/seaweedfs.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: seaweedfs
+  name: seaweedfs
+spec:
+  ports:
+    - name: "8333"
+      port: 8333
+      targetPort: 8333
+  selector:
+    service: seaweedfs
+status:
+  loadBalancer: {}
+---
+# Source: ddosify/templates/alaz-backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: alaz-backend
+  name: alaz-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      service: alaz-backend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: alaz-backend
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z postgres 5432 && nc -z backend 8008; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_app_onprem.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_alaz_backend:1.0.6
+          name: alaz-backend
+          imagePullPolicy: IfNotPresent
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/alaz-backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: alaz-backend-celery-beat
+  name: alaz-backend-celery-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: alaz-backend-celery-beat
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: alaz-backend-celery-beat
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z alaz-backend 8008 && nc -z rabbitmq-celery-alaz-backend 5672; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_celery_beat.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_alaz_backend:1.0.6
+          name: alaz-backend-celery-beat
+          imagePullPolicy: IfNotPresent
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/alaz-backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: alaz-backend-celery-worker-1
+  name: alaz-backend-celery-worker-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: alaz-backend-celery-worker-1
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: alaz-backend-celery-worker-1
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z alaz-backend 8008 && nc -z rabbitmq-celery-alaz-backend 5672; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_celery_worker.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_alaz_backend:1.0.6
+          name: alaz-backend-celery-worker-1
+          imagePullPolicy: IfNotPresent
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/alaz-backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: alaz-backend-celery-worker-2
+  name: alaz-backend-celery-worker-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: alaz-backend-celery-worker-2
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: alaz-backend-celery-worker-2
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z alaz-backend 8008 && nc -z rabbitmq-celery-alaz-backend 5672; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_celery_worker.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_alaz_backend:1.0.6
+          name: alaz-backend-celery-worker-2
+          imagePullPolicy: IfNotPresent
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: backend
+  name: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      service: backend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: backend
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_app_onprem.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_backend:2.6.11
+          name: backend
+          imagePullPolicy: IfNotPresent
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: backend-celery-beat
+  name: backend-celery-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: backend-celery-beat
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: backend-celery-beat
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z backend 8008 && nc -z rabbitmq-celery-backend 5672; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_celery_beat.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_backend:2.6.11
+          name: backend-celery-beat
+          imagePullPolicy: IfNotPresent
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: backend-celery-worker
+  name: backend-celery-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: backend-celery-worker
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: backend-celery-worker
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z backend 8008 && nc -z rabbitmq-celery-backend 5672; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_celery_worker.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_backend:2.6.11
+          name: backend-celery-worker
+          imagePullPolicy: IfNotPresent
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/frontend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: frontend
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: frontend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: frontend
+    spec:
+      containers:
+        - image: ddosify/selfhosted_frontend:2.7.4
+          name: frontend
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/hammer.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: hammer
+  name: hammer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: hammer
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: hammer
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z hammermanager 8001; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_hammer:1.4.2
+          name: hammer
+          imagePullPolicy: IfNotPresent
+          resources: {}
+      restartPolicy: Always
+---
+# Source: ddosify/templates/hammerdebug.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: hammerdebug
+  name: hammerdebug
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: hammerdebug
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: hammerdebug
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z hammermanager 8001; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - env:
+            - name: IS_DEBUG
+              value: "true"
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_hammer:1.4.2
+          imagePullPolicy: IfNotPresent
+          name: hammerdebug
+          resources: {}
+      restartPolicy: Always
+---
+# Source: ddosify/templates/hammermanager.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: hammermanager
+  name: hammermanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: hammermanager
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: hammermanager
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_app.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_hammermanager:1.2.4
+          imagePullPolicy: IfNotPresent
+          name: hammermanager
+          ports:
+            - containerPort: 8001
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/hammermanager.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: hammermanager-celery-beat
+  name: hammermanager-celery-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: hammermanager-celery-beat
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: hammermanager-celery-beat
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z hammermanager 8001 && nc -z rabbitmq-celery 5672 && nc -z rabbitmq-job 5672; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_celery_beat.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_hammermanager:1.2.4
+          imagePullPolicy: IfNotPresent
+          name: hammermanager-celery-beat
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/hammermanager.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: hammermanager-celery-worker
+  name: hammermanager-celery-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: hammermanager-celery-worker
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: hammermanager-celery-worker
+    spec:
+      initContainers:
+        - name: check-dependencies
+          image: busybox:1.36.1
+          command: ['sh', '-c', 'until nc -z hammermanager 8001 && nc -z rabbitmq-celery 5672 && nc -z rabbitmq-job 5672; do echo waiting for dependencies; sleep 2; done;']
+      containers:
+        - args:
+            - /workspace/start_scripts/start_celery_worker.sh
+          envFrom:
+            - configMapRef:
+                name: env
+          image: ddosify/selfhosted_hammermanager:1.2.4
+          imagePullPolicy: IfNotPresent
+          name: hammermanager-celery-worker
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/influxdb.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: influxdb
+  name: influxdb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: influxdb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: influxdb
+    spec:
+      containers:
+        - envFrom:
+            - configMapRef:
+                name: env
+          image: influxdb:2.6.1-alpine
+          name: influxdb
+          ports:
+            - containerPort: 8086
+          resources: {}
+          volumeMounts:
+            - mountPath: /var/lib/influxdb
+              name: influxdb-data
+            - name: scripts
+              mountPath: /docker-entrypoint-initdb.d
+      restartPolicy: Always
+      volumes:
+        - name: influxdb-data
+          persistentVolumeClaim:
+            claimName: influxdb-data
+        - name: scripts
+          configMap:
+            name: init-influx-script
+            defaultMode: 0777
+status: {}
+---
+# Source: ddosify/templates/nginx.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25.4-alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx/conf.d
+      volumes:
+      - name: nginx-conf
+        configMap:
+          name: nginx-conf
+---
+# Source: ddosify/templates/postgres.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: postgres
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: postgres
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: postgres
+    spec:
+      containers:
+        - env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: env
+            - name: PGDATA
+              value: /var/lib/postgresql/data/postgres
+          image: postgres:13.6-alpine
+          name: postgres
+          resources: {}
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-data
+              subPath: postgres
+            - name: scripts
+              mountPath: /docker-entrypoint-initdb.d
+      restartPolicy: Always
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data
+        - name: scripts
+          configMap:
+            name: init-db-script
+status: {}
+---
+# Source: ddosify/templates/prometheus.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.37.9
+          args:
+            - "--config.file=/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+            - "--web.console.templates=/usr/share/prometheus/consoles"
+            - "--storage.tsdb.retention=10d"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /prometheus/prometheus.yml
+              subPath: prometheus.yml
+            - name: prometheus-storage
+              mountPath: /prometheus
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
+        - name: prometheus-storage
+          emptyDir: {}
+---
+# Source: ddosify/templates/rabbitmq.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: rabbitmq-job
+  name: rabbitmq-job
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: rabbitmq-job
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: rabbitmq-job
+    spec:
+      containers:
+        - name: rabbitmq-job
+          image: rabbitmq:3.13.0-alpine
+          ports:
+            - containerPort: 5672
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/rabbitmq.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: rabbitmq-celery
+  name: rabbitmq-celery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: rabbitmq-celery
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: rabbitmq-celery
+    spec:
+      containers:
+        - name: rabbitmq-celery
+          image: rabbitmq:3.13.0-alpine
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/rabbitmq.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: rabbitmq-celery-backend
+  name: rabbitmq-celery-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: rabbitmq-celery-backend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: rabbitmq-celery-backend
+    spec:
+      containers:
+        - name: rabbitmq-celery-backend
+          image: rabbitmq:3.13.0-alpine
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/rabbitmq.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: rabbitmq-celery-alaz-backend
+  name: rabbitmq-celery-alaz-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: rabbitmq-celery-alaz-backend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: rabbitmq-celery-alaz-backend
+    spec:
+      containers:
+        - name: rabbitmq-celery-alaz-backend
+          image: rabbitmq:3.13.0-alpine
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/redis.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: redis-backend
+  name: redis-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: redis-backend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: redis-backend
+    spec:
+      containers:
+        - name: redis-backend
+          image: redis:7.2.4-alpine
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/redis.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: redis-alaz-backend
+  name: redis-alaz-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: redis-alaz-backend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: redis-alaz-backend
+    spec:
+      containers:
+        - name: redis-alaz-backend
+          image: redis:7.2.4-alpine
+          resources: {}
+      restartPolicy: Always
+status: {}
+---
+# Source: ddosify/templates/seaweedfs.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: seaweedfs
+  name: seaweedfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: seaweedfs
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: seaweedfs
+    spec:
+      containers:
+        - args:
+            - server
+            - -s3
+            - -dir=/data
+          image: chrislusf/seaweedfs:3.56
+          name: seaweedfs
+          ports:
+            - containerPort: 8333
+          resources: {}
+          volumeMounts:
+            - mountPath: /data
+              name: seaweedfs-data
+      restartPolicy: Always
+      volumes:
+        - name: seaweedfs-data
+          persistentVolumeClaim:
+            claimName: seaweedfs-data
+status: {}

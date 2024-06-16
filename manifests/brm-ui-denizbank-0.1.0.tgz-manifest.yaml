@@ -1,0 +1,91 @@
+---
+# Source: brm-ui-denizbank/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: denizbank-ui
+  labels:
+    app: denizbank-ui
+data:
+  version: "1.0"
+  TZ: Europe/Istanbul
+---
+# Source: brm-ui-denizbank/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: denizbank-ui
+  labels:
+    app: denizbank-ui
+spec:
+  selector:
+    app: denizbank-ui
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: LoadBalancer
+---
+# Source: brm-ui-denizbank/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  name: denizbank-ui
+  labels:
+    app: denizbank-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: denizbank-ui
+  strategy: { }
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: denizbank-ui
+    spec:
+      containers:
+        - image: linktera/brm:denizbank-ui-v1.0.27
+          name: ui
+          env:
+            - name: API_URL
+              value: ltbrmapp.apps.uat.deniz.denizbank.com
+          resources:
+            limits:
+              cpu: 2
+              memory: "4Gi"
+            requests:
+              cpu: 1
+              memory: "2Gi"
+          ports:
+            - containerPort: 3000
+      imagePullPolicy:  
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: regcred
+status: { }
+---
+# Source: brm-ui-denizbank/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: brm-ui-denizbank
+  namespace: brm
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName:  nginx
+  rules:
+    - host: ltbrm.apps.uat.deniz.denizbank.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: denizbank-ui
+                port:
+                  number: 80

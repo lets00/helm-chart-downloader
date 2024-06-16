@@ -1,0 +1,85 @@
+---
+# Source: folding-at-home/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-folding-at-home
+  namespace: default
+  labels:
+    helm.sh/chart: folding-at-home-0.1.1
+    app.kubernetes.io/name: folding-at-home
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.5.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.xml: |
+    <config>
+      <!--
+        To set your user name, team and passkey just edit the text
+        in quotes below.
+      -->
+
+      <!-- User Information -->
+      <user value=""/>         <!-- Enter your user name here -->
+      <team value=""/>         <!-- Your team number -->
+      <passkey value=""/>      <!-- 32 hexadecimal characters if provided -->
+
+      <power value="full"/>    <!-- Throttling this at K8s level -->
+      <gpu value="false"/>      <!-- If true, attempt to autoconfigure GPUs -->
+      <fold-anon value="true"/>
+    </config>
+---
+# Source: folding-at-home/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-folding-at-home
+  namespace: default
+  labels:
+    helm.sh/chart: folding-at-home-0.1.1
+    app.kubernetes.io/name: folding-at-home
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.5.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 100%
+      maxSurge: 100%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: folding-at-home
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: folding-at-home
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+        - name: folding-at-home
+          image: "brannondorsey/fah:7.5.1"
+          imagePullPolicy: IfNotPresent
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /tmp/fahclient
+          command:
+            - sh
+            - "-c"
+            - |
+              /bin/sh << 'EOF'
+              # exit when any command fails
+              set -e
+              cp /tmp/fahclient/config.xml /etc/fahclient/config.xml
+              FAHClient --config /etc/fahclient/config.xml --config-rotate=false
+              EOF
+      volumes:
+        - name: config-volume
+          configMap:
+            # Provide the name of the ConfigMap containing the files you want
+            # to add to the container
+            name: my-release-folding-at-home

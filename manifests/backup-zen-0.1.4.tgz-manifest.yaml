@@ -1,0 +1,123 @@
+---
+# Source: backup-zen/templates/namespace.yml
+apiVersion: v1
+kind: Namespace
+metadata: 
+  name: maintenance
+  labels: 
+    app.kubernetes.io/name: backup-zen
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: backup-zen-0.1.4
+---
+# Source: backup-zen/templates/backup-creds-secret.yml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-zen-my-release-backup-creds
+  labels: 
+    app.kubernetes.io/name: backup-zen
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: backup-zen-0.1.4
+  namespace: maintenance
+data:
+  creds.json: W3siZGF0YWJhc2VfbmFtZSI6ImRiMSIsInBhc3N3b3JkIjoicGFzc3dvcmQxIiwidXNlcm5hbWUiOiJ1c2VyMSJ9XQ==
+type: Opaque
+---
+# Source: backup-zen/templates/backup-config-configmap.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-zen-my-release-backup-config
+  labels: 
+    app.kubernetes.io/name: backup-zen
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: backup-zen-0.1.4
+  namespace: maintenance
+data:
+  DB_HOST: "mydb.rds.amazonaws.com"
+  DB_PORT: "54325"
+  TEAMS_NOTIFICATION: "false"
+  DAYS_TO_KEEP: "5"
+  DAY_OF_WEEK_TO_KEEP: "5"
+  WEEKS_TO_KEEP: "7"
+---
+# Source: backup-zen/templates/pvc.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mydb-backup
+  namespace: maintenance
+  labels: 
+    app.kubernetes.io/name: backup-zen
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: backup-zen-0.1.4
+
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard
+  volumeMode: Filesystem
+---
+# Source: backup-zen/templates/cronjob.yml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-zen-my-release
+  namespace: maintenance
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - args:
+              - /app/pg_backup_rotated.sh
+              envFrom:
+                - configMapRef:
+                    name: backup-zen-my-release-backup-config
+                - secretRef:
+                    name: backup-zen-my-release-backup-creds
+              env:
+                - name: BACKUP_DIR
+                  value: /backups
+                - name: KUBERNETES_POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: rezachalak/bzen-mongo:1.0.0
+              imagePullPolicy: Always
+              name: dumper
+              resources: {}
+              volumeMounts:
+                - mountPath: /backups
+                  name: backups
+                - mountPath: /app/creds.json
+                  subPath: creds.json
+                  name: credentials
+                  readOnly: true
+                
+          imagePullSecrets: []
+          restartPolicy: Never
+          terminationGracePeriodSeconds: 30
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: mydb-backup
+            - name: credentials
+              secret:
+                defaultMode: 0400
+                items:
+                  - key: creds.json
+                    path: creds.json
+                secretName: backup-zen-my-release-backup-creds
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  schedule: 0 0 * * *
+  successfulJobsHistoryLimit: 3

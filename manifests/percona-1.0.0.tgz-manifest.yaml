@@ -1,0 +1,110 @@
+---
+# Source: percona/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-percona
+  labels:
+    app: my-release-percona
+    chart: "percona-1.0.0"
+    release: "my-release"
+    heritage: "Helm"
+type: Opaque
+data:
+  
+  mysql-root-password: "RGJlM2pMdFZTcw=="
+  
+  
+  mysql-password: "YTlYcmtqdkgxTg=="
+---
+# Source: percona/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-percona
+  labels:
+    app: my-release-percona
+    chart: "percona-1.0.0"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: mysql
+  selector:
+    app: my-release-percona
+---
+# Source: percona/templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: my-release-percona
+  labels:
+    app: my-release-percona
+    chart: "percona-1.0.0"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  template:
+    metadata:
+      labels:
+        app: my-release-percona
+    spec:
+      initContainers:
+      - name: "remove-lost-found"
+        image: "busybox:1.25.0"
+        imagePullPolicy: "IfNotPresent"
+        command:
+        - "rm"
+        - "-fr"
+        - "/var/lib/mysql/lost+found"
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+      containers:
+      - name: my-release-percona
+        image: "percona:5.7.17"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-percona
+              key: mysql-root-password
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-percona
+              key: mysql-password
+        - name: MYSQL_USER
+          value: ""
+        - name: MYSQL_DATABASE
+          value: ""
+        ports:
+        - name: mysql
+          containerPort: 3306
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: data
+        emptyDir: {}

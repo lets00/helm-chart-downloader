@@ -1,0 +1,65 @@
+---
+# Source: k8s-logrotate/templates/configMap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+      chart: "k8s-logrotate-1.0.0"
+      release: "my-release"
+      heritage: "Helm"
+  name: k8s-logrotate-config
+data:
+  k8s-logrotate.conf:  |-
+      /var/log/containers/*.log {
+        rotate 1
+        copytruncate
+        missingok
+        notifempty
+        compress
+        maxsize 100M
+        daily
+        create 1234 dummy dummy
+      }
+---
+# Source: k8s-logrotate/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: k8s-logrotate
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      chart: "k8s-logrotate-1.0.0"
+      release: "my-release"
+      heritage: "Helm"
+  template:
+    metadata:
+      labels:
+        chart: "k8s-logrotate-1.0.0"
+        release: "my-release"
+        heritage: "Helm"
+      name: k8s-logrotate
+    spec:
+      containers:
+      - name: k8s-logrotate
+        image: "devopstales/k8s-logrotate:1.0"
+        securityContext:
+          privileged: true
+        volumeMounts:
+         - name: containers
+           mountPath: /var/lib/docker/containers
+         - name: k8s-logrotate-config
+           mountPath: /etc/k8s-logrotate.d/k8s-logrotate.conf
+           subPath: k8s-logrotate.conf
+        env:
+          - name: CRON_SCHEDULE
+            value: "0 */12 * * *"
+      volumes:
+         - hostPath:
+             path: /var/lib/docker/containers
+           name: containers
+         - configMap:
+            name: k8s-logrotate-clusterrole
+           name: k8s-logrotate-config

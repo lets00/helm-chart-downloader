@@ -1,0 +1,144 @@
+---
+# Source: dockerhub-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-dockerhub-exporter
+  labels:
+    helm.sh/chart: dockerhub-exporter-1.2.0
+    app.kubernetes.io/name: dockerhub-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: dockerhub-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-dockerhub-exporter
+  labels:
+    helm.sh/chart: dockerhub-exporter-1.2.0
+    app.kubernetes.io/name: dockerhub-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+   username: ""
+   password: ""
+---
+# Source: dockerhub-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-dockerhub-exporter
+  labels:
+    helm.sh/chart: dockerhub-exporter-1.2.0
+    app.kubernetes.io/name: dockerhub-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9505
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: dockerhub-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: dockerhub-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-dockerhub-exporter
+  labels:
+    helm.sh/chart: dockerhub-exporter-1.2.0
+    app.kubernetes.io/name: dockerhub-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/secret: 1c83402be89f201ce4188ab2047ec013e869e3e9e8bc11ea3383b442abde3dea
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dockerhub-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: dockerhub-exporter-1.2.0
+        app.kubernetes.io/name: dockerhub-exporter
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.1.0"
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        checksum/secret: 1c83402be89f201ce4188ab2047ec013e869e3e9e8bc11ea3383b442abde3dea
+    spec:
+      serviceAccountName: my-release-dockerhub-exporter
+      containers:
+        - name: dockerhub-exporter
+          image: "quay.io/promhippie/dockerhub-exporter:1.1.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - all
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000
+          env:
+            - name: DOCKERHUB_EXPORTER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-dockerhub-exporter
+                  key: username
+            - name: DOCKERHUB_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-dockerhub-exporter
+                  key: password
+            - name: DOCKERHUB_EXPORTER_COLLECTOR_REPOS
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 9505
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+---
+# Source: dockerhub-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-dockerhub-exporter-test-connection"
+  labels:
+    helm.sh/chart: dockerhub-exporter-1.2.0
+    app.kubernetes.io/name: dockerhub-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  restartPolicy: Never
+  containers:
+    - name: wget
+      image: busybox
+      command:
+        - wget
+      args:
+        - --spider
+        - http://my-release-dockerhub-exporter:9505

@@ -1,0 +1,125 @@
+---
+# Source: cloudify-manager-aio/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudify-manager-aio
+  labels:
+    app.kubernetes.io/name: cloudify-manager-aio
+    helm.sh/chart: cloudify-manager-aio-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+      name: https
+    - port: 5671
+      targetPort: 5671
+      protocol: TCP
+      name: rabbitmq
+    - port: 53333
+      targetPort: 53333
+      protocol: TCP
+      name: internal-rest
+  selector:
+    app: cloudify-manager-aio
+---
+# Source: cloudify-manager-aio/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudify-manager-aio
+  labels:
+    name: cloudify-manager-aio
+    app.kubernetes.io/name: cloudify-manager-aio
+    helm.sh/chart: cloudify-manager-aio-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudify-manager-aio
+  template:
+    metadata:
+      labels:
+        app: cloudify-manager-aio
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: false
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: cloudify-manager-aio
+        image: cloudifyplatform/community-cloudify-manager-aio:6.4.2
+        startupProbe:
+          httpGet:
+            path: /console
+            port: 80
+            scheme: HTTP
+          timeoutSeconds: 5
+          successThreshold: 1
+          periodSeconds: 10
+          failureThreshold: 30
+          initialDelaySeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /console
+            port: 80
+            scheme: HTTP
+          timeoutSeconds: 5
+          successThreshold: 2
+          periodSeconds: 10
+          failureThreshold: 2
+          initialDelaySeconds: 0
+        resources:
+          limits:
+            cpu: 3
+            memory: 6Gi
+          requests:
+            cpu: 0.5
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - CHOWN
+            - KILL
+            - MKNOD
+            - NET_BIND_SERVICE
+            - DAC_OVERRIDE
+            - DAC_READ_SEARCH
+            - FOWNER
+            - FSETID
+            - SETUID
+            - SETGID
+            - SETFCAP
+            - SETPCAP
+            - AUDIT_WRITE
+            drop:
+            - ALL
+          runAsNonRoot: false
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /run
+          name: run
+        - mountPath: /run/lock
+          name: runlock
+      volumes:
+      - name: run
+        emptyDir:
+          medium: Memory
+          sizeLimit: "2Gi"
+      - name: runlock
+        emptyDir:
+          medium: Memory
+          sizeLimit: "2Gi"

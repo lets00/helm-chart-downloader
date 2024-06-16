@@ -1,0 +1,85 @@
+---
+# Source: whoami/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-whoami
+  labels:
+    helm.sh/chart: whoami-0.1.2
+    app.kubernetes.io/name: whoami
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.6.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: whoami
+    app.kubernetes.io/instance: my-release
+---
+# Source: whoami/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-whoami
+  labels:
+    helm.sh/chart: whoami-0.1.2
+    app.kubernetes.io/name: whoami
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.6.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: whoami
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: whoami
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: whoami
+          securityContext:
+            {}
+          image: "traefik/whoami:v1.6.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {}
+---
+# Source: whoami/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-whoami-test-connection"
+  labels:
+    helm.sh/chart: whoami-0.1.2
+    app.kubernetes.io/name: whoami
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.6.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-whoami:80']
+  restartPolicy: Never

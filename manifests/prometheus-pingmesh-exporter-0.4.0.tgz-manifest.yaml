@@ -1,0 +1,269 @@
+---
+# Source: prometheus-pingmesh-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-prometheus-pingmesh-exporter
+  namespace: default
+  labels:
+    helm.sh/chart: prometheus-pingmesh-exporter-0.4.0
+    release: metrics
+    app.kubernetes.io/name: prometheus-pingmesh-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.2.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prometheus-pingmesh-exporter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-prometheus-pingmesh-exporter
+  namespace: default
+  labels:
+    helm.sh/chart: prometheus-pingmesh-exporter-0.4.0
+    release: metrics
+    app.kubernetes.io/name: prometheus-pingmesh-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.2.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  pingmesh.yaml: |
+    modules:
+      dns:
+        dns:
+          preferred_ip_protocol: ip4
+          query_name: kubernetes.defalut.svc.cluster.local
+          transport_protocol: tcp
+        prober: dns
+      dns_ipv6:
+        dns:
+          preferred_ip_protocol: ip6
+          query_name: kubernetes.defalut.svc.cluster.local
+          transport_protocol: tcp
+        prober: dns
+      http_2xx:
+        http:
+          method: GET
+          preferred_ip_protocol: ip4
+          valid_http_versions:
+          - HTTP/1.1
+          - HTTP/2
+          valid_status_codes:
+          - 200
+          - 201
+          - 204
+          - 304
+          - 312
+        prober: http
+        timeout: 10s
+      http_2xx_ipv6:
+        http:
+          method: GET
+          preferred_ip_protocol: ip6
+          valid_http_versions:
+          - HTTP/1.1
+          - HTTP/2
+          valid_status_codes:
+          - 200
+          - 201
+          - 204
+          - 304
+          - 312
+        prober: http
+        timeout: 10s
+      http_post_2xx:
+        http:
+          method: POST
+          preferred_ip_protocol: ip4
+          valid_http_versions:
+          - HTTP/1.1
+          - HTTP/2
+          valid_status_codes:
+          - 200
+          - 201
+          - 204
+          - 304
+          - 312
+        prober: http
+        timeout: 10s
+      http_post_2xx_ipv6:
+        http:
+          method: POST
+          preferred_ip_protocol: ip6
+          valid_http_versions:
+          - HTTP/1.1
+          - HTTP/2
+          valid_status_codes:
+          - 200
+          - 201
+          - 204
+          - 304
+          - 312
+        prober: http
+        timeout: 10s
+      ping:
+        icmp:
+          preferred_ip_protocol: ip4
+        prober: icmp
+        timeout: 5s
+      ping_ipv6:
+        icmp:
+          preferred_ip_protocol: ip6
+        prober: icmp
+        timeout: 5s
+      tcp_connect:
+        prober: tcp
+        timeout: 2s
+  pinglist.yaml: |
+    mesh:
+      add-ping-public:
+        ips:
+        - 127.0.0.1
+        - 8.8.8.8
+        - kubernetes.default.svc.cluster.local
+        name: ping-public-demo
+        type: OtherIP
+    setting:
+      concurrent_limit: 20
+      delay: 200
+      interval: 60
+      ip_protocol: ip6
+      source_ip_addr: 0.0.0.0
+      timeout: 2
+---
+# Source: prometheus-pingmesh-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-prometheus-pingmesh-exporter
+  namespace: default
+  labels:
+    helm.sh/chart: prometheus-pingmesh-exporter-0.4.0
+    release: metrics
+    app.kubernetes.io/name: prometheus-pingmesh-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  type: ClusterIP
+  ports:
+    - port: 9115
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: prometheus-pingmesh-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: prometheus-pingmesh-exporter/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-release-prometheus-pingmesh-exporter
+  namespace: default
+  labels:
+    helm.sh/chart: prometheus-pingmesh-exporter-0.4.0
+    release: metrics
+    app.kubernetes.io/name: prometheus-pingmesh-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-pingmesh-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: prometheus-pingmesh-exporter-0.4.0
+        release: metrics
+        app.kubernetes.io/name: prometheus-pingmesh-exporter
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v1.2.1"
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        checksum/config: ab69b3b099e4834a648d1be284c401b2a6ca719dea0ba161ee2f14562691dae0
+    spec:
+      serviceAccountName: my-release-prometheus-pingmesh-exporter
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/pid-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/unschedulable
+        operator: Exists
+      restartPolicy: Always
+      containers:
+        - name: pingmesh-exporter
+          image: "dongjiang1989/pingmesh-agent:v1.2.1"
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities:
+              drop:
+              - ALL
+            privileged: true
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+          args:
+            - "--config.file=/config/pingmesh.yaml"
+            - "--pinglist.file=/config/pinglist.yaml"
+            - "--log.level=error"
+          resources:
+            {}
+          ports:
+            - containerPort: 9115
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+          volumeMounts:
+            - mountPath: /config
+              name: config
+      dnsPolicy: ClusterFirst
+      hostNetwork: false
+      dnsConfig:
+        options:
+        - name: single-request-reopen
+        - name: timeout
+          value: "1"
+        - name: attempts
+          value: "3"
+        - name: ndots
+          value: "3"
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-prometheus-pingmesh-exporter

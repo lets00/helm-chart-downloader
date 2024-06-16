@@ -1,0 +1,149 @@
+---
+# Source: directclusterendpoint/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: loft-directclusterendpoint
+  namespace: default
+  labels:
+    app: my-release-directclusterendpoint
+    chart: "directclusterendpoint-1.13.0-alpha.2"
+    release: "my-release"
+    heritage: "Helm"
+---
+# Source: directclusterendpoint/templates/rbac/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: loft-directclusterendpoint-admin
+  labels:
+    app: my-release-directclusterendpoint
+    chart: "directclusterendpoint-1.13.0-alpha.2"
+    release: "my-release"
+    heritage: "Helm"
+subjects:
+- kind: ServiceAccount
+  name: loft-directclusterendpoint
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: directclusterendpoint/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: loft-directclusterendpoint
+  namespace: default
+  labels:
+    app: my-release-directclusterendpoint
+    loft.sh/service: my-release-directclusterendpoint
+    chart: "directclusterendpoint-1.13.0-alpha.2"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 443
+      nodePort: 
+      protocol: TCP
+  selector:
+    app: my-release-directclusterendpoint
+    release: my-release
+---
+# Source: directclusterendpoint/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-directclusterendpoint
+  namespace: default
+  labels:
+    app: my-release-directclusterendpoint
+    chart: "directclusterendpoint-1.13.0-alpha.2"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  selector:
+    matchLabels:
+      app: my-release-directclusterendpoint
+      release: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: my-release-directclusterendpoint
+        release: my-release
+    spec:
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: loft-directclusterendpoint
+      containers:
+      - name: directclusterendpoint
+        image: "loftsh/directclusterendpoint:1.13.0-alpha.2"
+        ports:
+        - name: http
+          containerPort: 80
+        - name: https
+          containerPort: 443
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        env:
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+---
+# Source: directclusterendpoint/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: loft-directclusterendpoint-ingress
+  namespace: default
+  labels:
+    app: my-release-directclusterendpoint
+    chart: "directclusterendpoint-1.13.0-alpha.2"
+    release: "my-release"
+    heritage: "Helm"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "43200"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "43200"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8 32k"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "32k"
+    nginx.org/websocket-services: loft-directclusterendpoint
+    cert-manager.io/cluster-issuer: lets-encrypt-http-issuer
+spec:
+  rules:
+    - host: loft.mydomain.tld
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: loft-directclusterendpoint
+              servicePort: 80
+  tls:
+    - hosts:
+        - loft.mydomain.tld
+      secretName: tls-loft

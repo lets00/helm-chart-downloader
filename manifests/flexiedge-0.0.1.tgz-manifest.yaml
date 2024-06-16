@@ -1,0 +1,172 @@
+---
+# Source: flexiedge/templates/Namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-release
+  namespace: my-release
+---
+# Source: flexiedge/templates/ServiceAccount.yaml
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+    name: my-release
+    namespace: my-release
+---
+# Source: flexiedge/templates/StorageClass.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: my-release
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
+# Source: flexiedge/templates/PersistentVolume.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-release-pv
+  namespace: my-release
+spec:
+  capacity:
+    storage: 25Gi
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: my-release
+  hostPath:
+    path: /mnt/flexiedge
+---
+# Source: flexiedge/templates/ServiceAccount.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release
+  namespace: my-release
+rules:
+  - apiGroups: ["*"] 
+    resources: ["*"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["crd.projectcalico.org"]
+    resources: ["*"]
+    verbs: ["get", "create", "apply", "update", "patch", "delete", "watch", "list"]
+---
+# Source: flexiedge/templates/ServiceAccount.yaml
+kind: ClusterRoleBinding   
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release
+  namespace: my-release
+subjects:
+  - kind: ServiceAccount
+    name: my-release
+    namespace: my-release
+roleRef:
+  kind: ClusterRole
+  name: my-release
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: flexiedge/templates/VMI.yaml
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  labels:
+    kubevirt.io/vm: my-release
+  name: flexiedge
+  namespace: my-release
+spec:
+  dataVolumeTemplates:
+  - metadata:
+      name: my-release-dv
+    spec:
+      pvc:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 25Gi
+        storageClassName: my-release
+      source:
+        registry:
+          url: "docker://flexiwan/flexiedge:latest"
+          pullMethod: node
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: my-release
+    spec:
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: my-release
+            - disk:
+                bus: virtio
+              name: serviceaccountdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:              
+              - name: cni0
+                bridge: {}
+              - name: cni1
+                sriov: {}
+        resources:
+          requests:
+            memory: 4096M
+            cpu: 2
+      networks:            
+            - name: cni0
+              pod: {}
+            - name: cni1
+              multus:
+                networkName: smartedge-apps/sriov-vfio-network-c1p1
+      volumes:
+        - dataVolume:
+            name: my-release-dv
+          name: my-release
+        - name: serviceaccountdisk
+          serviceAccount:
+            serviceAccountName: my-release
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+             networkData: |-
+               network:
+                 version: 2
+                 ethernets:
+                    eth0:
+                      dhcp4: true
+                      nameservers:
+                        search: [flexiwan.local]
+                        addresses:
+                          - 8.8.8.8
+                          - 1.1.1.1
+                      routes:
+                    eth1:
+                      dhcp4: false
+                      addresses: 
+                      -  192.168.1.1/24
+                      nameservers:
+                        search: [flexiwan.local]
+                        addresses:
+                          - 8.8.8.8
+                          - 1.1.1.1
+             userData: |-
+               #cloud-config
+               write_files:
+                - path: /etc/environment
+                  permissions: '0644'
+                  owner: root:root
+                  append: true
+                  content: |  
+                    KubernetesAPI=172.27.56.15
+                    NameSpace=my-release
+               runcmd:
+                - export HTTPS_PROXY="http://" 
+                - export HTTP_PROXY="http://" 
+                - curl -L https://helm.flexiwan.com/scripts/smartedge.sh --output /tmp/smartedge.sh
+                - chmod 775 /tmp/smartedge.sh 
+                - tmp/smartedge.sh

@@ -1,0 +1,135 @@
+---
+# Source: relay-proxy/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-relay-proxy
+  labels:
+    helm.sh/chart: relay-proxy-1.30.0
+    app.kubernetes.io/name: relay-proxy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.30.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: relay-proxy/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-relay-proxy
+  labels:
+    app: my-release-relay-proxy
+    chart: "relay-proxy-1.30.0"
+    release: "my-release"
+    heritage: "Helm"
+data:
+  goff-proxy.yml:
+    |
+      listen: 1031
+      pollingInterval: 1000
+      startWithRetrieverError: false
+      logLevel: info
+      retriever:
+        kind: http
+        url: https://raw.githubusercontent.com/thomaspoignant/go-feature-flag/main/examples/retriever_file/flags.goff.yaml
+      exporter:
+        kind: log
+---
+# Source: relay-proxy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-relay-proxy
+  labels:
+    helm.sh/chart: relay-proxy-1.30.0
+    app.kubernetes.io/name: relay-proxy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.30.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 1031
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: relay-proxy
+    app.kubernetes.io/instance: my-release
+---
+# Source: relay-proxy/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-relay-proxy
+  labels:
+    helm.sh/chart: relay-proxy-1.30.0
+    app.kubernetes.io/name: relay-proxy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.30.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: relay-proxy
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: relay-proxy
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-relay-proxy
+      securityContext:
+        {}
+      volumes:
+        - name: relay-proxy-config-volume
+          configMap:
+            name: my-release-relay-proxy
+      containers:
+        - name: relay-proxy
+          env:
+          securityContext:
+            {}
+          image: "gofeatureflag/go-feature-flag:v1.30.0"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: relay-proxy-config-volume
+              mountPath: /goff
+          ports:
+            - name: http
+              containerPort: 1031
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            requests:
+              cpu: 500m
+              memory: 128Mi
+---
+# Source: relay-proxy/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-relay-proxy-test-connection"
+  labels:
+    helm.sh/chart: relay-proxy-1.30.0
+    app.kubernetes.io/name: relay-proxy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.30.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-relay-proxy:1031/health']
+  restartPolicy: Never

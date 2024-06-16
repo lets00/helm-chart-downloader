@@ -1,0 +1,708 @@
+---
+# Source: thehive/charts/elasticsearch/templates/poddisruptionbudget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: "elasticsearch-master-pdb"
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: "elasticsearch-master"
+---
+# Source: thehive/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-thehive
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-thehive
+---
+# Source: thehive/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-thehive
+  labels:
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: thehive/charts/elasticsearch/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-master-config
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "elasticsearch-master"
+data:
+  elasticsearch.yml: |
+    xpack.security.enabled: false
+    xpack.security.transport.ssl.enabled: false
+    xpack.security.http.ssl.enabled: false
+---
+# Source: thehive/templates/serviceaccount.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-thehive-pod-reader
+  labels:
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""] # "" indicates the core API group
+    resources: ["pods"]
+    verbs: ["get", "watch", "list"]
+---
+# Source: thehive/templates/serviceaccount.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-thehive-read-pods
+  labels:
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: my-release-thehive
+roleRef:
+  kind: Role
+  name: my-release-thehive-pod-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: thehive/charts/elasticsearch/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: elasticsearch-master
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "elasticsearch-master"
+  annotations:
+    {}
+spec:
+  type: ClusterIP
+  selector:
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "elasticsearch-master"
+  publishNotReadyAddresses: false
+  ports:
+  - name: http
+    protocol: TCP
+    port: 9200
+  - name: transport
+    protocol: TCP
+    port: 9300
+---
+# Source: thehive/charts/elasticsearch/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: elasticsearch-master-headless
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "elasticsearch-master"
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None # This is needed for statefulset hostnames like elasticsearch-0 to resolve
+  # Create endpoints also if the related pod isn't ready
+  publishNotReadyAddresses: true
+  selector:
+    app: "elasticsearch-master"
+  ports:
+  - name: http
+    port: 9200
+  - name: transport
+    port: 9300
+---
+# Source: thehive/templates/database/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: thehive-cassandra
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-thehive-cassandra
+spec:
+  ports:
+    - port: 9042
+  selector:
+    app: thehive-cassandra
+---
+# Source: thehive/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-thehive
+  labels:
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+---
+# Source: thehive/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-thehive
+  labels:
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thehive
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: thehive-0.1.6
+        app.kubernetes.io/name: thehive
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "5.2"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-thehive
+      securityContext:
+        {}
+      
+      # See https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use
+      initContainers:
+        - name: init-cassandra
+          image: busybox:1.28
+          command: ['sh', '-c', "until nslookup thehive-cassandra.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for cassandra; sleep 2; done"]
+        - name: init-elastic
+          image: busybox:1.28
+          command: ['sh', '-c', "until nslookup elasticsearch-master.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for elasticsearch; sleep 2; done"]
+      containers:
+        - name: thehive
+          securityContext:
+            {}
+          image: "strangebee/thehive:5.2"
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/opt/thehive/entrypoint"
+            - "--secret"
+            - "SuperSecretForKubernetes"
+            - "--cql-hostnames"
+            - "thehive-cassandra"
+            - "--no-cql-wait"
+            - "--no-config-cortex"
+            - "--kubernetes"
+            - "--kubernetes-pod-label-selector"
+            - "app.kubernetes.io/name=thehive"
+            - "--index-backend"
+            - "elasticsearch"
+            - "--es-hostnames"
+            - "elasticsearch-master"
+            - "--s3-endpoint"
+            - "http://thehive-minio:9000"
+            - "--s3-access-key"
+            - "minio"
+            - "--s3-secret-key"
+            - "minio123"
+            - "--s3-use-path-access-style"
+            - "--cluster-min-nodes-count"
+            - "0"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: thehive/charts/elasticsearch/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch-master
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "elasticsearch-master"
+  annotations:
+    esMajorVersion: "7"
+spec:
+  serviceName: elasticsearch-master-headless
+  selector:
+    matchLabels:
+      app: "elasticsearch-master"
+  replicas: 2
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: elasticsearch-master
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 500M
+      storageClassName: standard
+  template:
+    metadata:
+      name: "elasticsearch-master"
+      labels:
+        release: "my-release"
+        chart: "elasticsearch"
+        app: "elasticsearch-master"
+      annotations:
+        
+        configchecksum: a34931594e405e1585aca238f474145d905ca956ebb3133523d875c20c2ec6c
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      automountServiceAccountToken: true
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - "elasticsearch-master"
+      terminationGracePeriodSeconds: 120
+      volumes:
+        - name: esconfig
+          configMap:
+            name: elasticsearch-master-config
+      enableServiceLinks: true
+      initContainers:
+      - name: configure-sysctl
+        securityContext:
+          runAsUser: 0
+          privileged: true
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.3"
+        imagePullPolicy: "IfNotPresent"
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        resources:
+          {}
+
+      containers:
+      - name: "elasticsearch"
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.3"
+        imagePullPolicy: "IfNotPresent"
+        readinessProbe:
+          exec:
+            command:
+              - bash
+              - -c
+              - |
+                set -e
+                # If the node is starting up wait for the cluster to be ready (request params: "wait_for_status=green&timeout=1s" )
+                # Once it has started only check that the node itself is responding
+                START_FILE=/tmp/.es_start_file
+
+                # Disable nss cache to avoid filling dentry cache when calling curl
+                # This is required with Elasticsearch Docker using nss < 3.52
+                export NSS_SDB_USE_CACHE=no
+
+                http () {
+                  local path="${1}"
+                  local args="${2}"
+                  set -- -XGET -s
+
+                  if [ "$args" != "" ]; then
+                    set -- "$@" $args
+                  fi
+
+                  if [ -n "${ELASTIC_PASSWORD}" ]; then
+                    set -- "$@" -u "elastic:${ELASTIC_PASSWORD}"
+                  fi
+
+                  curl --output /dev/null -k "$@" "http://127.0.0.1:9200${path}"
+                }
+
+                if [ -f "${START_FILE}" ]; then
+                  echo 'Elasticsearch is already running, lets check the node is healthy'
+                  HTTP_CODE=$(http "/" "-w %{http_code}")
+                  RC=$?
+                  if [[ ${RC} -ne 0 ]]; then
+                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} http://127.0.0.1:9200/ failed with RC ${RC}"
+                    exit ${RC}
+                  fi
+                  # ready if HTTP code 200, 503 is tolerable if ES version is 6.x
+                  if [[ ${HTTP_CODE} == "200" ]]; then
+                    exit 0
+                  elif [[ ${HTTP_CODE} == "503" && "7" == "6" ]]; then
+                    exit 0
+                  else
+                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} http://127.0.0.1:9200/ failed with HTTP code ${HTTP_CODE}"
+                    exit 1
+                  fi
+
+                else
+                  echo 'Waiting for elasticsearch cluster to become ready (request params: "wait_for_status=green&timeout=1s" )'
+                  if http "/_cluster/health?wait_for_status=green&timeout=1s" "--fail" ; then
+                    touch ${START_FILE}
+                    exit 0
+                  else
+                    echo 'Cluster is not yet ready (request params: "wait_for_status=green&timeout=1s" )'
+                    exit 1
+                  fi
+                fi
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 3
+          timeoutSeconds: 5
+        ports:
+        - name: http
+          containerPort: 9200
+        - name: transport
+          containerPort: 9300
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512M
+          requests:
+            cpu: 100m
+            memory: 512M
+        env:
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: cluster.initial_master_nodes
+            value: "elasticsearch-master-0,elasticsearch-master-1,"
+          - name: discovery.seed_hosts
+            value: "elasticsearch-master-headless"
+          - name: cluster.name
+            value: "elasticsearch"
+          - name: network.host
+            value: "0.0.0.0"
+          - name: cluster.deprecation_indexing.enabled
+            value: "false"
+          - name: ES_JAVA_OPTS
+            value: "-Xmx128m -Xms128m"
+          - name: node.data
+            value: "true"
+          - name: node.ingest
+            value: "true"
+          - name: node.master
+            value: "true"
+          - name: node.ml
+            value: "true"
+          - name: node.remote_cluster_client
+            value: "true"
+        volumeMounts:
+          - name: "elasticsearch-master"
+            mountPath: /usr/share/elasticsearch/data
+
+          - name: esconfig
+            mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+            subPath: elasticsearch.yml
+---
+# Source: thehive/templates/database/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-thehive-cassandra
+  labels:
+    app: thehive-cassandra
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: my-release-thehive-cassandra
+  volumeClaimTemplates:
+      - metadata:
+          name: thehive-cassandra-pv-claim
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          storageClassName: standard
+          volumeMode: Filesystem
+          resources:
+            requests:
+              storage: 2Gi
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thehive-cassandra
+  template:
+    metadata:
+      labels:
+        app: thehive-cassandra
+        helm.sh/chart: thehive-0.1.6
+        app.kubernetes.io/name: thehive
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "5.2"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      terminationGracePeriodSeconds: 1800
+      containers:
+        - name: cassandra
+          image: "cassandra:4.1"
+          ports:
+            - containerPort: 7000
+              name: intra-node
+            - containerPort: 7001
+              name: tls-intra-node
+            - containerPort: 7199
+              name: jmx
+            - containerPort: 9042
+              name: cql
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1600Mi
+            requests:
+              cpu: 500m
+              memory: 1600Mi
+          #securityContext:
+          #  capabilities:
+          #    add:
+          #      - IPC_LOCK
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - nodetool drain
+          env:
+            - name: MAX_HEAP_SIZE
+              value: "1024M"
+            - name: HEAP_NEWSIZE
+              value: "1024M"
+            - name: CASSANDRA_CLUSTER_NAME
+              value: "TheHive"
+            - name: CASSANDRA_DC
+              value: "DC1-TheHive"
+            - name: CASSANDRA_RACK
+              value: "Rack1-TheHive"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: thehive-cassandra-pv-claim
+              mountPath: /var/lib/cassandra
+---
+# Source: thehive/templates/minio/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-thehive-minio
+  labels:
+    
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: my-release-minio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-1"
+spec:
+  ports:
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+  selector:
+    
+    app.kubernetes.io/name: my-release-minio
+    app.kubernetes.io/instance: my-release
+---
+# Source: thehive/charts/elasticsearch/templates/test/test-elasticsearch-health.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-ipxlr-test"
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+  containers:
+  - name: "my-release-miuqg-test"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.3"
+    imagePullPolicy: "IfNotPresent"
+    command:
+      - "sh"
+      - "-c"
+      - |
+        #!/usr/bin/env bash -e
+        curl -XGET --fail 'elasticsearch-master:9200/_cluster/health?wait_for_status=green&timeout=1s'
+  restartPolicy: Never
+---
+# Source: thehive/templates/minio/pod.yaml
+# This pod creates the state-storage bucket in the minio server,
+# which the local cloud deployment requires to store its state.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: thehive-minio-create-bucket
+  annotations:
+    "helm.sh/hook": post-install, post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded, before-hook-creation
+spec:
+  restartPolicy: OnFailure
+  containers:
+    - name: minio-mc
+      image: minio/mc
+      command: ["/bin/sh", "-c",
+        "until (/usr/bin/mc config host add myminio $MINIO_ENDPOINT $MINIO_ACCESS_KEY $MINIO_SECRET_KEY) do echo '...waiting...' && sleep 1; done;
+          /usr/bin/mc mb --ignore-existing myminio/state-storage;
+          /usr/bin/mc policy set public myminio/state-storage;
+          /usr/bin/mc mb --ignore-existing myminio/thehive-dev-logs;
+          /usr/bin/mc policy set public myminio/thehive-dev-logs;"]
+      env:
+        - name: MINIO_ACCESS_KEY
+          value: minio
+        - name: MINIO_SECRET_KEY
+          value: minio123
+        - name: MINIO_ENDPOINT
+          value: http://thehive-minio:9000
+---
+# Source: thehive/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-thehive-test-connection"
+  labels:
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: thehive
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-thehive:9000']
+  restartPolicy: Never
+---
+# Source: thehive/templates/minio/sts.yaml
+apiVersion: apps/v1 #  for k8s versions before 1.9.0 use apps/v1beta2  and before 1.8.0 use extensions/v1beta1
+kind: StatefulSet
+metadata:
+  # This name uniquely identifies the Deployment
+  name: my-release-thehive-minio
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-1"
+  labels:
+    
+    helm.sh/chart: thehive-0.1.6
+    app.kubernetes.io/name: my-release-minio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: my-release-minio
+      app.kubernetes.io/instance: my-release
+  serviceName: thehive-minio-svc
+  volumeClaimTemplates:
+      - metadata:
+          name: thehive-minio-pv-claim
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 2Gi
+  template:
+    metadata:
+      labels:
+        # Label is used as selector in the service.
+        
+        app.kubernetes.io/name: my-release-minio
+        app.kubernetes.io/instance: my-release
+    spec:
+      # Refer to the PVC created earlier
+      containers:
+        - name: thehive-minio
+          # Pulls the default Minio image from Docker Hub
+          image: "minio/minio:RELEASE.2024-01-18T22-51-28Z"
+          args:
+            - server
+            - /storage
+          env:
+            # Minio access key and secret key. This must match the S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY declared in /dev/.env.
+            - name: MINIO_ROOT_USER
+              value: minio
+            - name: MINIO_ROOT_PASSWORD
+              value: minio123
+          ports:
+            - containerPort: 9000
+          # Mount the volume into the pod
+          volumeMounts:
+            - name: thehive-minio-pv-claim # must match the volume name, above
+              mountPath: "/storage"

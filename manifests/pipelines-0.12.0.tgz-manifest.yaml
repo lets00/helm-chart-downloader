@@ -1,0 +1,887 @@
+---
+# Source: pipelines/templates/controller_serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pipelines
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: controller
+---
+# Source: pipelines/templates/webhook_serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pipelines-webhook
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: webhook
+---
+# Source: pipelines/templates/webhook_secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-pipelines
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: webhook
+---
+# Source: pipelines/templates/configmaps.yaml
+apiVersion: v1
+data: null
+kind: ConfigMap
+metadata:
+  name: my-release-pipelines-artifact-bucket
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+data:
+  {}
+---
+# Source: pipelines/templates/configmaps.yaml
+apiVersion: v1
+data: null
+kind: ConfigMap
+metadata:
+  name: my-release-pipelines-artifact-pvc
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+data:
+  {}
+---
+# Source: pipelines/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-pipelines-defaults
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+data:
+  _example: |-
+    ################################
+    #                              #
+    #    EXAMPLE CONFIGURATION     #
+    #                              #
+    ################################
+  
+    # This block is not actually functional configuration,
+    # but serves to illustrate the available configuration
+    # options and document them in a way that is accessible
+    # to users that `kubectl edit` this config map.
+    #
+    # These sample configuration options may be copied out of
+    # this example block and unindented to be in the data block
+    # to actually change the configuration.
+  
+    # default-timeout-minutes contains the default number of
+    # minutes to use for TaskRun and PipelineRun, if none is specified.
+    default-timeout-minutes: "60"  # 60 minutes
+  
+    # default-service-account contains the default service account name
+    # to use for TaskRun and PipelineRun, if none is specified.
+    default-service-account: "default"
+  
+    # default-managed-by-label-value contains the default value given to the
+    # "app.kubernetes.io/managed-by" label applied to all Pods created for
+    # TaskRuns. If a user's requested TaskRun specifies another value for this
+    # label, the user's request supercedes.
+    default-managed-by-label-value: "tekton-pipelines"
+  
+    # default-pod-template contains the default pod template to use
+    # TaskRun and PipelineRun, if none is specified. If a pod template
+    # is specified, the default pod template is ignored.
+    # default-pod-template:
+---
+# Source: pipelines/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-pipelines-feature-flags
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+data:
+  disable-home-env-overwrite: "false"
+  disable-working-directory-overwrite: "false"
+---
+# Source: pipelines/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-pipelines-leader-election
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+data:
+  leaseDuration: 15s
+  renewDeadline: 10s
+  resourceLock: leases
+  retryPeriod: 2s
+---
+# Source: pipelines/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-pipelines-logging
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+data:
+  loglevel.controller: info
+  loglevel.webhook: info
+  zap-logger-config: |
+    {
+      "level": "info",
+      "development": false,
+      "sampling": {
+        "initial": 100,
+        "thereafter": 100
+      },
+      "outputPaths": ["stdout"],
+      "errorOutputPaths": ["stderr"],
+      "encoding": "json",
+      "encoderConfig": {
+        "timeKey": "",
+        "levelKey": "level",
+        "nameKey": "logger",
+        "callerKey": "caller",
+        "messageKey": "msg",
+        "stacktraceKey": "stacktrace",
+        "lineEnding": "",
+        "levelEncoder": "",
+        "timeEncoder": "",
+        "durationEncoder": "",
+        "callerEncoder": ""
+      }
+    }
+---
+# Source: pipelines/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-pipelines-observability
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+data:
+  _example: |
+    ################################
+    #                              #
+    #    EXAMPLE CONFIGURATION     #
+    #                              #
+    ################################
+  
+    # This block is not actually functional configuration,
+    # but serves to illustrate the available configuration
+    # options and document them in a way that is accessible
+    # to users that `kubectl edit` this config map.
+    #
+    # These sample configuration options may be copied out of
+    # this example block and unindented to be in the data block
+    # to actually change the configuration.
+  
+    # metrics.backend-destination field specifies the system metrics destination.
+    # It supports either prometheus (the default) or stackdriver.
+    # Note: Using Stackdriver will incur additional charges.
+    metrics.backend-destination: prometheus
+  
+    # metrics.stackdriver-project-id field specifies the Stackdriver project ID. This
+    # field is optional. When running on GCE, application default credentials will be
+    # used and metrics will be sent to the cluster's project if this field is
+    # not provided.
+    metrics.stackdriver-project-id: "<your stackdriver project id>"
+  
+    # metrics.allow-stackdriver-custom-metrics indicates whether it is allowed
+    # to send metrics to Stackdriver using "global" resource type and custom
+    # metric type. Setting this flag to "true" could cause extra Stackdriver
+    # charge.  If metrics.backend-destination is not Stackdriver, this is
+    # ignored.
+    metrics.allow-stackdriver-custom-metrics: "false"
+---
+# Source: pipelines/templates/aggregate_clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-pipelines-edit
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    rbac.authorization.k8s.io/aggregate-to-edit: 'true'
+    rbac.authorization.k8s.io/aggregate-to-admin: 'true'
+rules:
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks
+      - taskruns
+      - pipelines
+      - pipelineruns
+      - pipelineresources
+      - conditions
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+# Source: pipelines/templates/aggregate_clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-pipelines-view
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    rbac.authorization.k8s.io/aggregate-to-view: 'true'
+rules:
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks
+      - taskruns
+      - pipelines
+      - pipelineruns
+      - pipelineresources
+      - conditions
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: pipelines/templates/controller_clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-pipelines
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: controller
+rules:
+  - apiGroups:
+      - ''
+    # Namespace access is required because the controller timeout handling logic
+    # iterates over all namespaces and times out any PipelineRuns that have expired.
+    # Pod access is required because the taskrun controller wants to be updated when
+    # a Pod underlying a TaskRun changes state.
+    resources:
+      - namespaces
+      - pods
+    verbs:
+      - list
+      - watch
+    # Controller needs cluster access to all of the CRDs that it is responsible for
+    # managing.
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks
+      - clustertasks
+      - taskruns
+      - pipelines
+      - pipelineruns
+      - pipelineresources
+      - conditions
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - patch
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - taskruns/finalizers
+      - pipelineruns/finalizers
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - patch
+      - watch
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - tasks/status
+      - clustertasks/status
+      - taskruns/status
+      - pipelines/status
+      - pipelineruns/status
+      - pipelineresources/status
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - patch
+      - watch
+---
+# Source: pipelines/templates/webhook_clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-pipelines-webhook
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: webhook
+rules:
+  # The webhook needs to be able to list and update customresourcedefinitions,
+  # mainly to update the webhook certificates.
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+      - customresourcedefinitions/status
+    verbs:
+      - get
+      - list
+      - update
+      - patch
+      - watch
+  - apiGroups:
+      - admissionregistration.k8s.io
+    # The webhook performs a reconciliation on these two resources and continuously
+    # updates configuration.
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
+    # knative starts informers on these things, which is why we need get, list and watch.
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - mutatingwebhookconfigurations
+    # This mutating webhook is responsible for applying defaults to tekton objects
+    # as they are received.
+    resourceNames:
+      - webhook.pipeline.tekton.dev
+    # When there are changes to the configs or secrets, knative updates the mutatingwebhook config
+    # with the updated certificates or the refreshed set of rules.
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    # validation.webhook.pipeline.tekton.dev performs schema validation when you, for example, create TaskRuns.
+    # config.webhook.pipeline.tekton.dev validates the logging configuration against knative's logging structure
+    resourceNames:
+      - validation.webhook.pipeline.tekton.dev
+      - config.webhook.pipeline.tekton.dev
+    # When there are changes to the configs or secrets, knative updates the validatingwebhook config
+    # with the updated certificates or the refreshed set of rules.
+    verbs:
+      - get
+      - update
+---
+# Source: pipelines/templates/controller_clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-pipelines
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-pipelines
+subjects:
+  - kind: ServiceAccount
+    name: my-release-pipelines
+    namespace: default
+---
+# Source: pipelines/templates/webhook_clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-pipelines-webhook
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-pipelines-webhook
+subjects:
+  - kind: ServiceAccount
+    name: my-release-pipelines-webhook
+    namespace: default
+---
+# Source: pipelines/templates/controller_role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-pipelines
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: controller
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    verbs:
+      - list
+      - watch
+  # The controller needs access to these configmaps for logging information and runtime configuration.
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    verbs:
+      - get
+    resourceNames:
+      - my-release-pipelines-artifact-bucket
+      - my-release-pipelines-artifact-pvc
+      # - my-release-pipelines-defaults
+      - my-release-pipelines-feature-flags
+      - my-release-pipelines-leader-election
+      - my-release-pipelines-logging
+      - my-release-pipelines-observability
+---
+# Source: pipelines/templates/webhook_role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-pipelines-webhook
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: webhook
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    verbs:
+      - list
+      - watch
+  # The webhook needs access to these configmaps for logging information.
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    verbs:
+      - get
+    resourceNames:
+      - my-release-pipelines-logging
+      - my-release-pipelines-observability
+  - apiGroups:
+      - ''
+    resources:
+      - secrets
+    verbs:
+      - list
+      - watch
+  # The webhook daemon makes a reconciliation loop on webhook-certs. Whenever
+  # the secret changes it updates the webhook configurations with the certificates
+  # stored in the secret.
+  - apiGroups:
+      - ''
+    resources:
+      - secrets
+    verbs:
+      - get
+      - update
+    resourceNames:
+      - webhook-certs
+---
+# Source: pipelines/templates/controller_rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: my-release-pipelines
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-pipelines
+subjects:
+  - kind: ServiceAccount
+    name: my-release-pipelines
+    namespace: default
+---
+# Source: pipelines/templates/webhook_rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: my-release-pipelines-webhook
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-pipelines-webhook
+subjects:
+  - kind: ServiceAccount
+    name: my-release-pipelines-webhook
+    namespace: default
+---
+# Source: pipelines/templates/controller_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pipelines-controller
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/version: v0.12.1
+    pipeline.tekton.dev/release: v0.12.1
+    version: v0.12.1
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: controller
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: controller
+---
+# Source: pipelines/templates/webhook_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pipelines-webhook
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/version: v0.12.1
+    pipeline.tekton.dev/release: v0.12.1
+    version: v0.12.1
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/name: webhook
+spec:
+  type: ClusterIP
+  ports:
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 8443
+    - name: http-metrics
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+    - name: http-profiling
+      port: 8008
+      protocol: TCP
+      targetPort: 8008
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/name: webhook
+---
+# Source: pipelines/templates/controller_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pipelines-controller
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/version: v0.12.1
+    pipeline.tekton.dev/release: v0.12.1
+    version: v0.12.1
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/part-of: tekton-pipelines
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/name: controller
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/part-of: tekton-pipelines
+        app.kubernetes.io/managed-by: Helm
+        helm.sh/chart: pipelines-0.12.0
+        app.kubernetes.io/version: v0.12.1
+        pipeline.tekton.dev/release: v0.12.1
+        version: v0.12.1
+        app.kubernetes.io/component: controller
+        app.kubernetes.io/name: controller
+    spec:
+      serviceAccountName: my-release-pipelines
+      containers:
+        - name: controller
+          image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/controller:v0.12.1
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - "-kubeconfig-writer-image"
+            - "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/kubeconfigwriter:v0.12.1"
+            - "-creds-image"
+            - "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/creds-init:v0.12.1"
+            - "-git-image"
+            - "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.12.1"
+            - "-nop-image"
+            - "tianon/true@sha256:009cce421096698832595ce039aa13fa44327d96beedb84282a69d3dbcf5a81b"
+            - "-shell-image"
+            - "busybox@sha256:a2490cec4484ee6c1068ba3a05f89934010c85242f736280b35343483b2264b6"
+            - "-gsutil-image"
+            - "google/cloud-sdk@sha256:6e8676464c7581b2dc824956b112a61c95e4144642bec035e6db38e3384cae2e"
+            - "-entrypoint-image"
+            - "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/entrypoint:v0.12.1"
+            - "-imagedigest-exporter-image"
+            - "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/imagedigestexporter:v0.12.1"
+            - "-pr-image"
+            - "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/pullrequest-init:v0.12.1"
+            - "-build-gcs-fetcher-image"
+            - "gcr.io/tekton-releases/github.com/tektoncd/pipeline/vendor/github.com/googlecloudplatform/cloud-builders/gcs-fetcher/cmd/gcs-fetcher:v0.12.1"
+          env:
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CONFIG_DEFAULTS_NAME
+              value: my-release-pipelines-defaults
+            - name: CONFIG_LOGGING_NAME
+              value: my-release-pipelines-logging
+            - name: CONFIG_OBSERVABILITY_NAME
+              value: my-release-pipelines-observability
+            - name: CONFIG_ARTIFACT_BUCKET_NAME
+              value: my-release-pipelines-artifact-bucket
+            - name: CONFIG_ARTIFACT_PVC_NAME
+              value: my-release-pipelines-artifact-pvc
+            - name: CONFIG_FEATURE_FLAGS_NAME
+              value: my-release-pipelines-feature-flags
+            - name: CONFIG_LEADERELECTION_NAME
+              value: my-release-pipelines-leader-election
+            - name: METRICS_DOMAIN
+              value: tekton.dev/pipeline
+          volumeMounts:
+            - mountPath: /etc/config-logging
+              name: config-logging
+          ports:
+            - containerPort: 9090
+              protocol: TCP
+      volumes:
+        - name: config-logging
+          configMap:
+            name: my-release-pipelines-logging
+---
+# Source: pipelines/templates/webhook_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pipelines-webhook
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/version: v0.12.1
+    pipeline.tekton.dev/release: v0.12.1
+    version: v0.12.1
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/name: webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/part-of: tekton-pipelines
+      app.kubernetes.io/component: webhook
+      app.kubernetes.io/name: webhook
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/part-of: tekton-pipelines
+        app.kubernetes.io/managed-by: Helm
+        helm.sh/chart: pipelines-0.12.0
+        app.kubernetes.io/version: v0.12.1
+        pipeline.tekton.dev/release: v0.12.1
+        version: v0.12.1
+        app.kubernetes.io/component: webhook
+        app.kubernetes.io/name: webhook
+    spec:
+      serviceAccountName: my-release-pipelines-webhook
+      containers:
+        - name: webhook
+          image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/webhook:v0.12.1
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CONFIG_DEFAULTS_NAME
+              value: my-release-pipelines-defaults
+            - name: CONFIG_LOGGING_NAME
+              value: my-release-pipelines-logging
+            - name: CONFIG_OBSERVABILITY_NAME
+              value: my-release-pipelines-observability
+            - name: WEBHOOK_SERVICE_NAME
+              value: my-release-pipelines-webhook
+            - name: CONFIG_LEADERELECTION_NAME
+              value: my-release-pipelines-leader-election
+            - name: WEBHOOK_SECRET_NAME
+              value: my-release-pipelines
+            - name: METRICS_DOMAIN
+              value: tekton.dev/pipeline
+          securityContext:
+            allowPrivilegeEscalation: false
+          ports:
+            - name: metrics
+              containerPort: 9090
+            - name: profiling
+              containerPort: 8008
+            - name: https-webhook
+              containerPort: 8443
+---
+# Source: pipelines/templates/webhook_admission.yaml
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: webhook.pipeline.tekton.dev
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: webhook
+webhooks:
+  - name: webhook.pipeline.tekton.dev
+    admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      service:
+        name: my-release-pipelines-webhook
+        namespace: default
+    failurePolicy: Fail
+    sideEffects: None
+---
+# Source: pipelines/templates/webhook_admission.yaml
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.pipeline.tekton.dev
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/component: webhook
+webhooks:
+  - name: validation.webhook.pipeline.tekton.dev
+    admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      service:
+        name: my-release-pipelines-webhook
+        namespace: default
+    failurePolicy: Fail
+    sideEffects: None
+---
+# Source: pipelines/templates/webhook_admission.yaml
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: config.webhook.pipeline.tekton.dev
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: tekton-pipelines
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pipelines-0.12.0
+    app.kubernetes.io/component: webhook
+webhooks:
+  - name: config.webhook.pipeline.tekton.dev
+    admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      service:
+        name: my-release-pipelines-webhook
+        namespace: default
+    failurePolicy: Fail
+    sideEffects: None
+    objectSelector:
+      matchLabels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/part-of: tekton-pipelines

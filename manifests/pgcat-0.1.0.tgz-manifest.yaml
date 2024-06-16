@@ -1,0 +1,125 @@
+---
+# Source: pgcat/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pgcat
+  labels:
+    helm.sh/chart: pgcat-0.1.0
+    app.kubernetes.io/name: pgcat
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: pgcat/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-pgcat
+  labels:
+    helm.sh/chart: pgcat-0.1.0
+    app.kubernetes.io/name: pgcat
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.1"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  pgcat.toml: |
+    [general]
+    host = "0.0.0.0"
+    port = 6432
+    enable_prometheus_exporter = false
+    prometheus_exporter_port = 9930
+    connect_timeout = 5000
+    idle_timeout = 30000
+    server_lifetime = 86400000
+    idle_client_in_transaction_timeout = 0
+    healthcheck_timeout = 1000
+    healthcheck_delay = 30000
+    shutdown_timeout = 60000
+    ban_time = 60
+    log_client_connections = false
+    log_client_disconnections = false
+    tcp_keepalives_idle = 5
+    tcp_keepalives_count = 5
+    tcp_keepalives_interval = 5
+    admin_username = "postgres"
+    admin_password = "postgres"
+---
+# Source: pgcat/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pgcat
+  labels:
+    helm.sh/chart: pgcat-0.1.0
+    app.kubernetes.io/name: pgcat
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6432
+      targetPort: pgcat
+      protocol: TCP
+      name: pgcat
+  selector:
+    app.kubernetes.io/name: pgcat
+    app.kubernetes.io/instance: my-release
+---
+# Source: pgcat/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pgcat
+  labels:
+    helm.sh/chart: pgcat-0.1.0
+    app.kubernetes.io/name: pgcat
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pgcat
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 33ba5153d0d6397eb5bcaa0cd2ee0a9accfd3ed74277a92cd3486c042bbcf697
+      labels:
+        app.kubernetes.io/name: pgcat
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-pgcat
+      securityContext:
+        {}
+      containers:
+        - name: pgcat
+          securityContext:
+            {}
+          image: "ghcr.io/postgresml/pgcat:main"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: pgcat
+              containerPort: 6432
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: pgcat
+          readinessProbe:
+            tcpSocket:
+              port: pgcat
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+          - mountPath: /etc/pgcat
+            name: config
+      volumes:
+      - secret:
+          defaultMode: 420
+          secretName: my-release-pgcat
+        name: config

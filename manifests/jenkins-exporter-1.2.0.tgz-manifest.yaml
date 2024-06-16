@@ -1,0 +1,146 @@
+---
+# Source: jenkins-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-jenkins-exporter
+  labels:
+    helm.sh/chart: jenkins-exporter-1.2.0
+    app.kubernetes.io/name: jenkins-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: jenkins-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-jenkins-exporter
+  labels:
+    helm.sh/chart: jenkins-exporter-1.2.0
+    app.kubernetes.io/name: jenkins-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+   username: ""
+   password: ""
+---
+# Source: jenkins-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jenkins-exporter
+  labels:
+    helm.sh/chart: jenkins-exporter-1.2.0
+    app.kubernetes.io/name: jenkins-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9506
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: jenkins-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: jenkins-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-jenkins-exporter
+  labels:
+    helm.sh/chart: jenkins-exporter-1.2.0
+    app.kubernetes.io/name: jenkins-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/secret: 0d2421e1e2251a7b853bb159ab9b0e0dcf723e5ba11d460a74dff43cc91e14c0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jenkins-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: jenkins-exporter-1.2.0
+        app.kubernetes.io/name: jenkins-exporter
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.1.0"
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        checksum/secret: 0d2421e1e2251a7b853bb159ab9b0e0dcf723e5ba11d460a74dff43cc91e14c0
+    spec:
+      serviceAccountName: my-release-jenkins-exporter
+      containers:
+        - name: jenkins-exporter
+          image: "quay.io/promhippie/jenkins-exporter:1.1.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - all
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000
+          env:
+            - name: JENKINS_EXPORTER_URL
+              value: 
+            - name: JENKINS_EXPORTER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jenkins-exporter
+                  key: username
+            - name: JENKINS_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jenkins-exporter
+                  key: password
+            - name: JENKINS_EXPORTER_COLLECTOR_JOBS
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 9506
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+---
+# Source: jenkins-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-jenkins-exporter-test-connection"
+  labels:
+    helm.sh/chart: jenkins-exporter-1.2.0
+    app.kubernetes.io/name: jenkins-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  restartPolicy: Never
+  containers:
+    - name: wget
+      image: busybox
+      command:
+        - wget
+      args:
+        - --spider
+        - http://my-release-jenkins-exporter:9506

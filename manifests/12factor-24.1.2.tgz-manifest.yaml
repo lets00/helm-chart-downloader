@@ -1,0 +1,43 @@
+---
+# Source: 12factor/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-12factor
+  labels:
+    helm.sh/chart: 12factor-24.1.2
+    app.kubernetes.io/name: 12factor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: 12factor/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-12factor
+  labels:
+    helm.sh/chart: 12factor-24.1.2
+    app.kubernetes.io/name: 12factor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: app
+      app.kubernetes.io/name: 12factor
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: app
+        helm.sh/chart: 12factor-24.1.2
+        app.kubernetes.io/name: 12factor
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-12factor
+      containers:
+        - name: app
+          image: "nginx:"
+          imagePullPolicy: IfNotPresent

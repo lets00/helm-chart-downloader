@@ -1,0 +1,117 @@
+---
+# Source: geoserver/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-geoserver
+  labels:
+    app: my-release-geoserver
+    chart: geoserver-1.0.13
+    release: "my-release"
+    heritage: "Helm"
+type: Opaque
+data:
+  geoserver-user: "YWRtaW4="
+  geoserver-password: "WUE2eXJpczU5Rg=="
+---
+# Source: geoserver/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: geoserver
+  labels:
+    app: my-release-geoserver
+    chart: geoserver-1.0.13
+    release: "my-release"
+    heritage: "Helm"
+    kubernetes.io/cluster-service: "true"
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-geoserver
+      port: 80
+      protocol: TCP
+      targetPort: http-geoserver
+  selector:
+    app: my-release-geoserver
+    release: "my-release"
+---
+# Source: geoserver/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-geoserver
+  labels:
+    app: my-release-geoserver
+    chart: geoserver-1.0.13
+    release: my-release
+    heritage: "Helm"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-geoserver
+      release: "my-release"
+  template:
+    metadata:
+      name: geoserver
+      labels:
+        app: my-release-geoserver
+        chart: geoserver-1.0.13
+        release: "my-release"
+        heritage: "Helm"
+      annotations:
+        checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        checksum/secrets: 9b698a3777f0fc8d3bef3d5f084e5a26fa4e20b0b3b95ba6170d729eabb232ab
+    spec:
+      containers:
+        - name: geoserver
+          image: docker.io/kartoza/geoserver:2.23.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GEOSERVER_DATA_DIR
+              value: "/opt/geoserver/data_dir"
+            - name: GEOWEBCACHE_CACHE_DIR
+              value: "/opt/geoserver/data_dir/gwc"
+            - name: GEOSERVER_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-geoserver
+                  key: geoserver-user
+            - name: GEOSERVER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-geoserver
+                  key: geoserver-password
+          ports:
+            - name: http-geoserver
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /geoserver
+              port: http-geoserver
+            failureThreshold: 60
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /geoserver
+              port: http-geoserver
+              scheme: HTTP
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /geoserver
+              port: http-geoserver
+              scheme: HTTP
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          volumeMounts:
+      volumes:
+        - name: geoserver-data-dir
+          emptyDir: {}
+        - name: geowebcache-cache-dir
+          emptyDir: {}

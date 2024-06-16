@@ -1,0 +1,106 @@
+---
+# Source: docker-registry-ui/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-docker-registry-ui
+  namespace: default
+  labels:
+    helm.sh/chart: docker-registry-ui-0.0.1
+    app.kubernetes.io/name: docker-registry-ui
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yml: |-
+    listen_addr: 0.0.0.0:8000
+    base_path: /
+    registry_url: http://registry:5000
+    event_listener_token: token
+    anyone_can_delete: true
+    event_database_driver: sqlite3
+---
+# Source: docker-registry-ui/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-docker-registry-ui
+  namespace: default
+  labels:
+    helm.sh/chart: docker-registry-ui-0.0.1
+    app.kubernetes.io/name: docker-registry-ui
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: docker-registry-ui
+    app.kubernetes.io/instance: my-release
+---
+# Source: docker-registry-ui/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-docker-registry-ui
+  namespace: default
+  labels:
+    helm.sh/chart: docker-registry-ui-0.0.1
+    app.kubernetes.io/name: docker-registry-ui
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: docker-registry-ui
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: docker-registry-ui
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 5c9e7c4c8f8f297d89bb7367ea4a5bb9a953ea0f05ccd1b5b9560d917623b3cf
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: docker-registry-ui
+          securityContext:
+            {}
+          image: "quiq/docker-registry-ui:0.9.4"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+          volumeMounts:
+            - name: my-release-docker-registry-ui
+              mountPath: /opt/config.yml
+              subPath: config.yml
+      volumes:
+        - name: my-release-docker-registry-ui
+          configMap:
+            name: my-release-docker-registry-ui
+            items:
+              - key: config.yml
+                path: config.yml
+                mode: 292 # 0444

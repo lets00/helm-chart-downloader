@@ -1,0 +1,180 @@
+---
+# Source: azure-janitor/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-release-azure-janitor
+  namespace: default
+  labels:     
+    helm.sh/chart: azure-janitor-1.0.9
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-janitor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-janitor
+    app.kubernetes.io/version: "22.9.0"
+spec:
+  podSelector:
+    matchLabels:
+      
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: azure-janitor
+  policyTypes: 
+    - Ingress
+    - Egress
+  ingress: 
+    []
+  egress: 
+    - ports:
+      - port: 53
+        protocol: TCP
+    - ports:
+      - port: 53
+        protocol: UDP
+    - ports:
+      - port: 443
+        protocol: TCP
+---
+# Source: azure-janitor/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "azure-janitor"
+  namespace: default
+  labels:
+    
+    helm.sh/chart: azure-janitor-1.0.9
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-janitor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-janitor
+    app.kubernetes.io/version: "22.9.0"
+---
+# Source: azure-janitor/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release-azure-janitor
+  namespace: default
+  labels:
+    
+    helm.sh/chart: azure-janitor-1.0.9
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-janitor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-janitor
+    app.kubernetes.io/version: "22.9.0"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http-metrics
+      appProtocol: http
+  selector:
+    
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-janitor
+---
+# Source: azure-janitor/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-azure-janitor
+  namespace: default
+  labels:     
+    helm.sh/chart: azure-janitor-1.0.9
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-janitor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-janitor
+    app.kubernetes.io/version: "22.9.0"
+spec:
+  replicas: 1
+  strategy: 
+    rollingUpdate:
+      maxUnavailable: 33%
+    type: RollingUpdate
+
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: azure-janitor
+
+  minReadySeconds: 
+  template:
+    metadata:
+      labels:
+        
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: azure-janitor
+      annotations:
+        checksum/secret: "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+
+    spec:
+      serviceAccountName: "azure-janitor"
+      priorityClassName: ""
+
+      securityContext: 
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+        supplementalGroups:
+        - 1000
+      terminationGracePeriodSeconds: 60
+
+      containers:
+        #######################
+        # Kube pool manager
+        #######################
+        - name: azure-janitor
+          image: "docker.io/webdevops/azure-janitor:22.9.0"
+          imagePullPolicy: "IfNotPresent"
+
+          securityContext: 
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          env:
+          ports:
+            - containerPort: 8080
+              name: http-metrics
+              protocol: TCP
+          resources: 
+            limits:
+              cpu: 500m
+              memory: 200Mi
+            requests:
+              cpu: 25m
+              memory: 200Mi
+          startupProbe: 
+            failureThreshold: 5
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            tcpSocket:
+              port: http-metrics
+          livenessProbe: 
+            failureThreshold: 5
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            tcpSocket:
+              port: http-metrics
+          readinessProbe: 
+            failureThreshold: 5
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            tcpSocket:
+              port: http-metrics
+      nodeSelector: 
+        kubernetes.io/os: linux

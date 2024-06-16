@@ -1,0 +1,103 @@
+---
+# Source: csv-view/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "csv-view"
+  labels:
+    app.kubernetes.io/name: csv-view
+    helm.sh/chart: csv-view-1.0.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: csvview
+      port: 8000
+      targetPort: csvview
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: csv-view
+    app.kubernetes.io/instance: my-release
+  sessionAffinity: ClientIP
+---
+# Source: csv-view/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-csv-view
+  labels:
+    app.kubernetes.io/name: csv-view
+    helm.sh/chart: csv-view-1.0.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: csv-view
+  annotations:
+    helm.sh/hook-weight: "0"
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: csv-view
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: csv-view
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: csv-view
+        helm.sh/chart: csv-view-1.0.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: csv-view
+    spec:
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: csv-view
+                    app.kubernetes.io/instance: my-release
+                namespaces:
+                  - "default"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+
+      containers:
+        - name: "csv-view"
+          image: svtechnmaa/svtech_csv:v1.0.1
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - name: "csvview"
+              containerPort: 8000
+          env:
+            - name: TZ
+              value: Asia/Ho_Chi_Minh
+---
+# Source: csv-view/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: csv-view-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  ingressClassName: default
+  rules:
+  - http:
+      paths:
+      - path: /csv/(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: csv-view
+            port:
+              number: 8000

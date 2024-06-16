@@ -1,0 +1,189 @@
+---
+# Source: promitor-agent-scraper/templates/serviceaccount.yaml
+apiVersion: v1
+automountServiceAccountToken: false
+kind: ServiceAccount
+metadata:
+  name: my-release-promitor-agent-scraper
+  namespace: default
+  labels:
+    helm.sh/chart: promitor-agent-scraper-2.12.1
+    app.kubernetes.io/name: promitor-agent-scraper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: promitor-agent-scraper/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-promitor-agent-scraper
+  namespace: default
+  labels:
+    helm.sh/chart: promitor-agent-scraper-2.12.1
+    app.kubernetes.io/name: promitor-agent-scraper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.2"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+---
+# Source: promitor-agent-scraper/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-map-promitor-agent-scraper
+  namespace: default
+  labels:
+    helm.sh/chart: promitor-agent-scraper-2.12.1
+    app.kubernetes.io/name: promitor-agent-scraper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  runtime.yaml: |-
+      server:
+        httpPort: "5000"
+      authentication:
+        mode: ServicePrincipal
+      metricSinks:
+        prometheusScrapingEndpoint:
+          metricUnavailableValue: "NaN"
+          enableMetricTimestamps: "true"
+          baseUriPath: "/metrics"
+          labels:
+            transformation: "None"
+      metricsConfiguration:
+        absolutePath: /config/metrics-declaration.yaml
+      telemetry:
+        applicationInsights:
+          isEnabled: "false"
+        containerLogs:
+          isEnabled: "true"
+        defaultVerbosity: "Error"
+  metrics-declaration.yaml: |-
+    version: v1
+    azureMetadata:
+      tenantId: 
+      subscriptionId: 
+      resourceGroupName: promitor
+      cloud: Global
+    metricDefaults:
+      aggregation:
+        interval: 00:05:00
+      scraping:
+        schedule: "*/5 * * * *"
+    metrics: []
+---
+# Source: promitor-agent-scraper/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: promitor-agent-scraper
+  namespace: default
+  labels:
+    helm.sh/chart: promitor-agent-scraper-2.12.1
+    app.kubernetes.io/name: promitor-agent-scraper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "5000"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8888
+      targetPort: 5000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: promitor-agent-scraper
+    app.kubernetes.io/instance: my-release
+---
+# Source: promitor-agent-scraper/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: promitor-agent-scraper
+  namespace: default
+  labels:
+    helm.sh/chart: promitor-agent-scraper-2.12.1
+    app.kubernetes.io/name: promitor-agent-scraper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: promitor-agent-scraper
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: promitor-agent-scraper
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 361df6c11649cadcfa01df408a220b15152e194cea8c7b6b5f2443ccdf9202bc
+        checksum/secret: 0418b9fbcfe1c9b1e49a3d5809db771d84b7259197540599329ad5cc3f797fb6
+    spec:
+      securityContext:
+        runAsGroup: 10000
+        runAsNonRoot: true
+        runAsUser: 10000
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: my-release-promitor-agent-scraper
+      containers:
+        - name: promitor-agent-scraper
+          image: "containers.promitor.io/tomkerkhove/promitor-agent-scraper:2.11.2"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          resources:
+            {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+          - name: config-volume-promitor-agent-scraper
+            mountPath: /config/
+          - name: tmp
+            mountPath: /tmp/
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/v1/health?includeDependencies=false
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/v1/health?includeDependencies=false
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+      volumes:
+        - name: config-volume-promitor-agent-scraper
+          configMap:
+            name: config-map-promitor-agent-scraper
+        - emptyDir: {}
+          name: tmp

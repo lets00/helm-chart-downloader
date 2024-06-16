@@ -1,0 +1,166 @@
+---
+# Source: apm-server/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: apm-server
+  annotations:
+  labels:
+    app: "apm-server"
+    chart: "apm-server-7.13.2"
+    heritage: "Helm"
+---
+# Source: apm-server/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apm-server-config
+  labels:
+    app: "apm-server"
+    chart: "apm-server-7.13.2"
+    heritage: "Helm"
+data:
+  apm-server.yml: |
+    apm-server:
+      host: "0.0.0.0:8200"
+    
+    queue: {}
+    
+    output.elasticsearch:
+      hosts: ["http://elasticsearch:9200"]
+      ## If you have security enabled- you'll need to add the credentials
+      ## as environment variables
+      # username: "${ELASTICSEARCH_USERNAME}"
+      # password: "${ELASTICSEARCH_PASSWORD}"
+      ## If SSL is enabled
+      # protocol: https
+      # ssl.certificate_authorities:
+      #  - /usr/share/apm-server/config/certs/elastic-ca.pem
+---
+# Source: apm-server/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: apm-server-role
+  labels:
+    app: "apm-server"
+    chart: "apm-server-7.13.2"
+    heritage: "Helm"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Source: apm-server/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: apm-server-role-binding
+  labels:
+    app: "apm-server"
+    chart: "apm-server-7.13.2"
+    heritage: "Helm"
+roleRef:
+  kind: ClusterRole
+  name: apm-server-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: apm-server
+  namespace: default
+---
+# Source: apm-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: apm-server
+  labels:
+    app: apm-server
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8200
+      protocol: TCP
+      name: http
+      targetPort: 8200
+  selector:
+    app: apm-server
+---
+# Source: apm-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apm-server
+  labels:
+    app: apm-server
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: apm-server
+  template:
+    metadata:
+      labels:
+        app: apm-server
+      annotations:
+        
+        configChecksum: 596c1fefe952265cd475371ea18f2973f31c92ac3bc59fa2e0f9b8bc5368c46
+    spec:
+      securityContext:
+          fsGroup: 1000
+          runAsGroup: 0
+          runAsUser: 1000
+      serviceAccountName: apm-server
+      volumes:
+        - name: apm-server-config
+          configMap:
+            name: apm-server-config
+            defaultMode: 0600
+      containers:
+      - name: apm-server
+        image: "registry.cn-beijing.aliyuncs.com/kubegemsapp/apm-server:7.13.2"
+        imagePullPolicy: "IfNotPresent"
+        securityContext:
+          privileged: false
+          runAsGroup: 0
+          runAsNonRoot: true
+          runAsUser: 1000
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+        ports:
+          - containerPort: 8200
+            name: http
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+          - name: apm-server-config
+            mountPath: /usr/share/apm-server/apm-server.yml
+            subPath: apm-server.yml
+            readOnly: true

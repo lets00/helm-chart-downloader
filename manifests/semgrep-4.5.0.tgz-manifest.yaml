@@ -1,0 +1,70 @@
+---
+# Source: semgrep/templates/semgrep-parse-definition.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: "execution.securecodebox.io/v1"
+kind: ParseDefinition
+metadata:
+  name: "semgrep-json"
+spec:
+  image: "securecodebox/parser-semgrep:4.5.0"
+  imagePullPolicy: IfNotPresent
+  ttlSecondsAfterFinished: 
+  env:
+    []
+  scopeLimiterAliases:
+    {}
+  affinity:
+    {}
+  tolerations:
+    []
+---
+# Source: semgrep/templates/semgrep-scan-type.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: "execution.securecodebox.io/v1"
+kind: ScanType
+metadata:
+  name: "semgrep"
+spec:
+  extractResults:
+    type: semgrep-json
+    location: "/home/securecodebox/semgrep-results.json"
+  jobTemplate:
+    spec:
+      suspend: false
+      backoffLimit: 3
+      template:
+        spec:
+          restartPolicy: OnFailure
+          affinity:
+            {}
+          tolerations:
+            []
+          securityContext:
+            {}
+          containers:
+            - name: semgrep
+              image: "docker.io/returntocorp/semgrep:1.65.0"
+              imagePullPolicy: IfNotPresent
+              command: ["semgrep", "--json", "-o", "/home/securecodebox/semgrep-results.json"]
+              resources:
+                {}
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                  - all
+                privileged: false
+                readOnlyRootFilesystem: false
+                runAsNonRoot: false
+              env:
+                []
+              volumeMounts:
+                []
+          volumes:
+            []

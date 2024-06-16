@@ -1,0 +1,195 @@
+---
+# Source: me-untethr-nostr-relay/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-me-untethr-nostr-relay
+  namespace: "default"
+  labels:
+    helm.sh/chart: me-untethr-nostr-relay-0.1.4
+    app.kubernetes.io/name: me-untethr-nostr-relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: me-untethr-nostr-relay/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-me-untethr-nostr-relay-conf
+  namespace: "default"
+data:
+  relay.yaml: |-
+    hostname: relay.localhost
+    http:
+      port: 9000
+      host: 0.0.0.0
+    sqlite:
+      file: "data/n.db"
+
+    # This is optional. If not specified, the relay will store events of any numeric
+    # kind. Otherwise, the relay will (quietly) not store events not whitelisted
+    # here.
+    supported-kinds: ["0-5", "7", "40-49", "10000-19999", "20000-29999"]
+
+    # Optional. If not specified, then content of any length is accepted.
+    max-content-length: 1048576
+
+    # Optional. If not specified, events with any created_at are permitted.
+    # If specified, events with a created_at more than the current system's
+    # epoch millis *plus* this delta will be accepted.
+    max-created-at-delta: 2700
+
+    # Optional websockets config.
+    websockets:
+      max-outgoing-frames: 5000
+      disable-permessage-deflate: false
+      enable-batch-mode: false
+  nip05.json: |-
+    { "names": { "": "" } }
+  nip11.json: |-
+    {
+      "name": "relay.localhost",
+      "description": "If I had more time, I would have written a shorter letter.",
+      "pubkey": "",
+      "contact": "",
+      "supported_nips": "${runtime.nips}",
+      "software": "https://github.com/duck1123/me.untethr.nostr-relay",
+      "version": "${runtime.version}"
+    }
+---
+# Source: me-untethr-nostr-relay/templates/data-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-me-untethr-nostr-relay-data
+  namespace: "default"
+  labels:
+    app: my-release-me-untethr-nostr-relay-data
+    type: local
+    chart: "me-untethr-nostr-relay-0.1.4"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: "1G"
+  storageClassName: "local-path"
+---
+# Source: me-untethr-nostr-relay/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-me-untethr-nostr-relay
+  namespace: "default"
+  labels:
+    helm.sh/chart: me-untethr-nostr-relay-0.1.4
+    app.kubernetes.io/name: me-untethr-nostr-relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: me-untethr-nostr-relay
+    app.kubernetes.io/instance: my-release
+---
+# Source: me-untethr-nostr-relay/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-me-untethr-nostr-relay
+  namespace: "default"
+  labels:
+    helm.sh/chart: me-untethr-nostr-relay-0.1.4
+    app.kubernetes.io/name: me-untethr-nostr-relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: me-untethr-nostr-relay
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: me-untethr-nostr-relay
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-me-untethr-nostr-relay
+      securityContext:
+        fsGroup: 3434
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 3434
+        runAsUser: 3434
+      containers:
+      - name: me-untethr-nostr-relay
+        image: docker.io/duck1123/me.untethr.nostr-relay:0.2.1
+        imagePullPolicy: Always
+        securityContext:
+            runAsGroup: 3434
+            runAsUser: 3434
+        ports:
+        - name: http
+          containerPort: 9000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          failureThreshold: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          failureThreshold: 20
+        resources:
+            null
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+          subPath: data
+        - name: conf
+          mountPath: /app/conf
+          readOnly: true
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-release-me-untethr-nostr-relay-data
+      - name: conf
+        configMap:
+          name: my-release-me-untethr-nostr-relay-conf
+---
+# Source: me-untethr-nostr-relay/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-me-untethr-nostr-relay
+  namespace: "default"
+  labels:
+    helm.sh/chart: me-untethr-nostr-relay-0.1.4
+    app.kubernetes.io/name: me-untethr-nostr-relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+  - host: "relay.localhost"
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: my-release-me-untethr-nostr-relay
+            port:
+              name: http

@@ -1,0 +1,28 @@
+---
+# Source: jupyter-imagepuller/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: "my-release"
+  labels:
+    chart: "jupyter-imagepuller-1.0.0"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jupyter-imagepuller
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: jupyter-imagepuller
+        app.kubernetes.io/name: jupyter-imagepuller
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+      - image: k8s.gcr.io/pause:3.2
+        imagePullPolicy: IfNotPresent
+        name: pause
+      dnsPolicy: ClusterFirst
+      initContainers:

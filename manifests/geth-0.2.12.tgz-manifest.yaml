@@ -1,0 +1,207 @@
+---
+# Source: geth/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-geth-configmap
+data:
+  config.custom.toml: |
+    [Eth]
+    NetworkId = 1
+    
+  genesis.custom.json: |
+---
+# Source: geth/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-geth-env-configmap
+data:
+  {}
+---
+# Source: geth/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-geth
+  labels:
+    helm.sh/chart: geth-0.2.12
+    geth/cluster: jyliu
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    geth/cluster: jyliu
+    app.kubernetes.io/version: "1.10.26"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8545
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 8546
+      targetPort: ws
+      protocol: TCP
+      name: ws
+    - port: 6060
+      targetPort: prometheus
+      protocol: TCP
+      name: prometheus
+  selector:
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    geth/cluster: jyliu
+---
+# Source: geth/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-geth-p2p
+  labels:
+    helm.sh/chart: geth-0.2.12
+    geth/cluster: jyliu
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    geth/cluster: jyliu
+    app.kubernetes.io/version: "1.10.26"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 30303
+      targetPort: listener 
+      protocol: TCP
+      name: listener
+      nodePort: 30303
+    - port: 30303
+      targetPort: discovery 
+      protocol: UDP
+      name: discovery
+      nodePort: 30303
+  selector:
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    geth/cluster: jyliu
+---
+# Source: geth/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-geth
+  labels:
+    helm.sh/chart: geth-0.2.12
+    geth/cluster: jyliu
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    geth/cluster: jyliu
+    app.kubernetes.io/version: "1.10.26"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: geth
+      app.kubernetes.io/instance: my-release
+      geth/cluster: jyliu
+  serviceName: my-release-geth
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: 34c42e573220fc25b586c5c9f224e152c0084c0761bfeb2386c712e17924377b
+      labels:
+        app.kubernetes.io/name: geth
+        app.kubernetes.io/instance: my-release
+        geth/cluster: jyliu
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      
+      containers:
+        - name: geth
+          securityContext:
+            {}
+          image: "ethereum/client-go:v1.10.26"
+          imagePullPolicy: IfNotPresent
+          command:
+            - geth
+          args:
+            - --config
+            - /root/config/config.custom.toml
+          ports:
+            - name: http
+              containerPort: 8545
+              
+              protocol: TCP
+            - name: ws
+              containerPort: 8546
+              
+              protocol: TCP
+            - name: prometheus
+              containerPort: 6060
+              
+              protocol: TCP
+            - name: listener
+              containerPort: 30303
+              
+              protocol: TCP
+            - name: discovery
+              containerPort: 30303
+              
+              protocol: UDP
+          envFrom:
+            - configMapRef:
+                name: my-release-geth-env-configmap
+          volumeMounts:
+            - name: data
+              mountPath: /root/.ethereum
+            - name: config
+              mountPath: /root/config
+            
+            
+          resources:
+            {}
+      nodeSelector:
+        geth/role: node
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-geth-configmap
+        
+        
+        
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "20Gi"
+---
+# Source: geth/templates/secret.yaml
+---
+---
+# Source: geth/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-geth-test-connection"
+  labels:
+    helm.sh/chart: geth-0.2.12
+    geth/cluster: jyliu
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    geth/cluster: jyliu
+    app.kubernetes.io/version: "1.10.26"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-geth:']
+  restartPolicy: Never

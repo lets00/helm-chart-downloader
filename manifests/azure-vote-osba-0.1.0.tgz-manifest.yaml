@@ -1,0 +1,78 @@
+---
+# Source: azure-vote-osba/templates/azure-vote-osba.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: azure-vote-front
+  labels:
+    name: azure-vote-front
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: vote-front-my-release
+---
+# Source: azure-vote-osba/templates/azure-vote-osba.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: vote-front-my-release
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5 
+  template:
+    metadata:
+      labels:
+        app: vote-front-my-release
+    spec:
+      containers:
+      - name: azure-vote-front
+        image: neilpeterson/azure-vote-front:v3
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 250m
+          limits:
+            cpu: 500m
+        env:
+        - name: REDIS
+          valueFrom:
+            secretKeyRef:
+              key: host
+              name: azure-rediscache-secret-my-release
+        - name: REDIS_PWD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: azure-rediscache-secret-my-release
+---
+# Source: azure-vote-osba/templates/azure-vote-osba.yaml
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceBinding
+metadata:
+  name: azure-rediscache-binding-my-release
+  namespace: default
+spec:
+  instanceRef:
+    name: azure-rediscache-my-release
+  secretName: azure-rediscache-secret-my-release
+---
+# Source: azure-vote-osba/templates/azure-vote-osba.yaml
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ServiceInstance
+metadata:
+  name: azure-rediscache-my-release
+  namespace: default
+spec:
+  clusterServiceClassExternalName: azure-rediscache
+  clusterServicePlanExternalName: basic
+  parameters:
+    location: eastus
+    resourceGroup: azure-rediscache-my-release

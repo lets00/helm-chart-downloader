@@ -1,0 +1,174 @@
+---
+# Source: raponchi/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: raponchi-consumer-key
+type: Opaque
+data:
+  token: "WW91cl9Db25zdW1lcl9LZXk="
+---
+# Source: raponchi/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: raponchi-consumer-secret
+type: Opaque
+data:
+  token: "WW91cl9Db25zdW1lcl9TZWNyZXQ="
+---
+# Source: raponchi/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: raponchi-access-token
+type: Opaque
+data:
+  token: "WW91cl9BY2Nlc3NfVG9rZW4="
+---
+# Source: raponchi/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: raponchi-access-secret
+type: Opaque
+data:
+  token: "WW91cl9BY2Nlc3NfU2VjcmV0"
+---
+# Source: raponchi/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: raponchi-elk-pass
+type: Opaque
+data:
+  token: "ZWxrcGFzcw=="
+---
+# Source: raponchi/templates/persistentvolume.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: raponchi-pv
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /mnt/raponchi
+  storageClassName: local-storage
+---
+# Source: raponchi/templates/persistentvolumeclaim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: raponchi-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-storage
+---
+# Source: raponchi/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: raponchi-prometheus-svc
+spec:
+  type: ClusterIP
+  ports:
+  - port: 10090
+    targetPort: 10090
+  selector:
+      app: raponchi
+---
+# Source: raponchi/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raponchi
+spec:
+  selector:
+    matchLabels:
+      app: raponchi
+  template:
+    metadata:
+      labels:
+        app: raponchi
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: raponchi
+          image: elautoestopista/raponchi:0.3.0
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256M
+            limits:
+              cpu: 150m
+              memory: 300M
+          env:
+          - name: TIMEZONE
+            value: "Europe/Berlin"
+          - name: FROGWORD
+            value: "rana"
+          - name: FROG_NUMBER
+            value: "5"
+          - name: FROG_SCHEDULER_INTERVAL
+            value: "3600"
+          - name: FROG_SCHEDULER_RUN_NOW
+            value: "true"
+          - name: PATH_TO_FROGS
+            value: /opt/raponchi/dataset
+          - name: FROG_NAMES_URL
+            value: "https://raw.githubusercontent.com/olea/lemarios/master/nombres-propios-es.txt"
+          - name: LOGLEVEL
+            value: "INFO"
+          - name: TW_CONSUMER_KEY
+            valueFrom:
+              secretKeyRef:
+                name: raponchi-consumer-key
+                key: token
+          - name: TW_CONSUMER_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: raponchi-consumer-secret
+                key: token
+          - name: TW_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: raponchi-access-token
+                key: token
+          - name: TW_ACCESS_TOKEN_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: raponchi-access-secret
+                key: token
+          - name: ELK_URL
+            value: elasticsearch.logging.svc.cluster.local
+          - name: ELK_PORT
+            value: 
+          - name: ELK_USER
+            value: elkuser
+          - name: ELK_PASS
+            valueFrom:
+              secretKeyRef:
+                name: raponchi-elk-pass
+                key: token
+          - name: ELK_TLS_VERIFY
+            value: "true"
+          - name: ELK_INDEX
+            value: raponchi-index
+          volumeMounts:
+            - name: raponchi-storage
+              mountPath: /opt/raponchi/dataset
+      volumes:
+        - name: raponchi-storage
+          persistentVolumeClaim:
+            claimName: raponchi-pvc

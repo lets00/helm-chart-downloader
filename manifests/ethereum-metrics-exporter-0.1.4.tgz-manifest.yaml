@@ -1,0 +1,140 @@
+---
+# Source: ethereum-metrics-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-ethereum-metrics-exporter-env
+  labels:
+    helm.sh/chart: ethereum-metrics-exporter-0.1.4
+    app.kubernetes.io/name: ethereum-metrics-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: ethereum-metrics-exporter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-ethereum-metrics-exporter
+  labels:
+    helm.sh/chart: ethereum-metrics-exporter-0.1.4
+    app.kubernetes.io/name: ethereum-metrics-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |-
+    
+    consensus:
+      enabled: true
+      name: consensus-client
+      url: http://localhost:5053
+    execution:
+      enabled: true
+      modules:
+      - eth
+      - net
+      - web3
+      - txpool
+      name: execution-client
+      url: http://localhost:8545
+---
+# Source: ethereum-metrics-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ethereum-metrics-exporter
+  labels:
+    helm.sh/chart: ethereum-metrics-exporter-0.1.4
+    app.kubernetes.io/name: ethereum-metrics-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: ethereum-metrics-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: ethereum-metrics-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-ethereum-metrics-exporter
+  labels:
+    helm.sh/chart: ethereum-metrics-exporter-0.1.4
+    app.kubernetes.io/name: ethereum-metrics-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ethereum-metrics-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ethereum-metrics-exporter
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 2c65248e98b502accaaad5cd196efe22baa3ee17189bd51dfecf4cbabdf020a5
+        checksum/secrets: dc4562cc1337b260a1d42c84ef1415aeabbfd7f089c33c426dccba889336f8f2
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+      - name: ethereum-metrics-exporter
+        image: "samcm/ethereum-metrics-exporter:latest"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/ethereum-metrics-exporter"
+          - --config=/config.yaml
+          - --metrics-port=9090
+        securityContext:
+            {}
+        volumeMounts:
+          - name: config
+            mountPath: "/config.yaml"
+            subPath: config.yaml
+            readOnly: true
+        ports:
+          - name: http
+            containerPort: 9090
+            protocol: TCP
+        livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http
+        readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http
+        resources:
+            {}
+        env:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-ethereum-metrics-exporter

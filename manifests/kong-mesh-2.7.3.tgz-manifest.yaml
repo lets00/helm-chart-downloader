@@ -1,0 +1,1391 @@
+---
+# Source: kong-mesh/charts/kuma/templates/cp-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kong-mesh-control-plane
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kong-mesh/charts/kuma/templates/cp-webhooks-and-secrets.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: kong-mesh-tls-cert
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURjVENDQWxtZ0F3SUJBZ0lRUjJjd3RHK3QrNUhGOU1SQ3d0bW9GREFOQmdrcWhraUc5dzBCQVFzRkFEQVMKTVJBd0RnWURWUVFERXdkcmRXMWhMV05oTUI0WERUSTBNRFl4TlRJek5URTBObG9YRFRNME1EWXhNekl6TlRFMApObG93SWpFZ01CNEdBMVVFQXhNWGEyOXVaeTF0WlhOb0xXTnZiblJ5YjJ3dGNHeGhibVV3Z2dFaU1BMEdDU3FHClNJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUURRNnFES1Z1WDVNSlY5cUZpODBHM21xS1ZOK1pVTFFhTVYKYzA0OGN2enNGeXZ0YWx1RkdYM3V0clExM0UrdEUvaDlSTFNyeVY5SUUvRXVjZUI4NW1JNE41eHhVRVhUTlRYMwp6eTZDWGxJMEFsV3VwbC9TN3BEbTltM21FTDRGb0gzK3hYM0tKYUQ2N2dMcWszRm5KNnFEclFnU3h1RW1qNUNlCnEwaEFxK3RmbnhKSDd2VVRGQzJuT3R6RlJRblNyYzVNVDZkN0lzdy9BSU8rczVCc3U1ZCtkWTdNTmx3ZkhrWnUKR01UdmZYckxUTmtGYitmUVQ2dkJrSW8zYUZKeHVhZUhqcDV3cEJSRXpiMStyZ29qMFlqMGxlUzdFNUsvNm9ROQpNRXdFa2x0U3lka0hBbnBwQ256RWJtd2loNURhY094LzBRMUlUaEFiN0RqMk1yN1J6TUhaQWdNQkFBR2pnYkl3CmdhOHdEZ1lEVlIwUEFRSC9CQVFEQWdXZ01CMEdBMVVkSlFRV01CUUdDQ3NHQVFVRkJ3TUJCZ2dyQmdFRkJRY0QKQWpBTUJnTlZIUk1CQWY4RUFqQUFNQjhHQTFVZEl3UVlNQmFBRlBjajRwbFA4cTF5dmpkelhDMndwYU56N1NZVgpNRThHQTFVZEVRUklNRWFDSDJ0dmJtY3RiV1Z6YUMxamIyNTBjbTlzTFhCc1lXNWxMbVJsWm1GMWJIU0NJMnR2CmJtY3RiV1Z6YUMxamIyNTBjbTlzTFhCc1lXNWxMbVJsWm1GMWJIUXVjM1pqTUEwR0NTcUdTSWIzRFFFQkN3VUEKQTRJQkFRQnc2QkZjaGFUMytwQWFWOXVjbGZEZ3hTTUNPR2lvTmR1MzV1dHdkcmQ5bFRYRlZRQ3NHQjlsL0FsbwpJRjVvZStkdlYreCtWTko2SnlNVnBYUEVvcTBxK2VBcU10OGp5ZkIwZnN4QmVSdUlpSS8wZnBsWWRVaTc1QklDCklaSFBsaUZnOHorMjhZSVdieHA5VEhMQnNSWFRhNUUxbXIxT3JBbmd3dEZ4OGFRRTI2ejNIa3JtR1V4UnlVUG8KMlhDQ0ZhZC9EcHZZd0lXTHQzbm03cWdsYno2YXQzWDB4cTlBRHowaVJnS3lrT2hwMUN4NFY0aXV0bkZxZ3I4SApBYTRnYW5DUDR1T2x3RFpEblVkTjYrVkx2KzI3ZU1INGhiZVpnSHRpWEd6RGM5Rmg5b25TMkVvZ0lIL2hCUnVHClJUdlJYbnFXYXN6eU1rQ21yVVRXOFVJQUtHUDIKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBME9xZ3lsYmwrVENWZmFoWXZOQnQ1cWlsVGZtVkMwR2pGWE5PUEhMODdCY3I3V3BiCmhSbDk3cmEwTmR4UHJSUDRmVVMwcThsZlNCUHhMbkhnZk9aaU9EZWNjVkJGMHpVMTk4OHVnbDVTTkFKVnJxWmYKMHU2UTV2WnQ1aEMrQmFCOS9zVjl5aVdnK3U0QzZwTnhaeWVxZzYwSUVzYmhKbytRbnF0SVFLdnJYNThTUis3MQpFeFF0cHpyY3hVVUowcTNPVEUrbmV5TE1Qd0NEdnJPUWJMdVhmbldPekRaY0h4NUdiaGpFNzMxNnkwelpCVy9uCjBFK3J3WkNLTjJoU2NibW5oNDZlY0tRVVJNMjlmcTRLSTlHSTlKWGt1eE9TditxRVBUQk1CSkpiVXNuWkJ3SjYKYVFwOHhHNXNJb2VRMm5Ec2Y5RU5TRTRRRyt3NDlqSyswY3pCMlFJREFRQUJBb0lCQUZHeUxzWnhUT1V4Vm9RWQovUHA1RjBFSDJmeXdDTlNxQ2pndEt2OEFpRjlhZ0ZjTExGYlVMU2JZVTRoc2Fzdm43MWd0TWVtcmlaTUtHVnBzCk5ia2g3bTdGY0d2dlZCN1B4QmJ2OGVRUk5sd1lQYUZhZGtacC9FZ1ZQY3lsNTJrVDViRm5VVlZuZVpnbTB3VWcKTzB4M2VucWJnM2kwUlA5clRNWi9mSFd0eFJGUzBrYVVmVm5ndnFPVzBCK0RqL29mZ1Vtb21rV3FrbnNIdFI3WQpTK25XVjByZ1pYUVoxZDVWWGV0UDF3Z2F1Y1J3NlhCTlRzYk55OEtaM1dPZDFJaVhLaUtKcjQ4ZXpQVlh3Vmg4Ck1nRmo0NGJqdHpEbklvaXZWU2VyaW8vQXF4REJuMFdTcW1mc1NjTUFlQVpFck1WK1had2V4aERYeUtJeGlLQXEKRzVGVnliRUNnWUVBN2JUamNjVVFxWm95aHl3OG5pKzluQk50bGtTdWpPSU5KMndiN09hMGdxbFVtR1ZaN1MrRwpZR2QrVG1iZmY2VzZSeFNOeUVwQWdBZ2IzYUM5Qk1jUnFLVE96MjFrNVExL2lZL2ZUaEJ4QjBMQVR2RjNnTkFLCmF0T05LM2k5VmJEcFhrRHZVOHRFaXRKSkk2TkFGdDBET2U1WXlCSzdZRnM3cU5hcVZVLzQ0bThDZ1lFQTRQNksKTE5EUFNhdmlZUFpMUmIyMjB5ZVFLRk1pWUNhMVJGMEJ2REg2SDg3d1N0MU1jMzArL2tYQnQzYVVTdnpleWJVegplNzNmVzRJWm5TYVBRS2dhSDZJRmwyS3R5RjM1M2tPZWovenhUSkNqWVJRNWl5QlM0QlhYaHdxS2ppWVYzR1VmCkdSWFFvdldaZkYrQnlFaGE3Vkd5R3ZCNFZ6Q1Y3SVp1MThDTHBEY0NnWUJzQkhnYW1mZGhhczJ0T1QvdWpqazIKZEdtbkVGelZibCtWMjMyeElJRkVvdGZyVEpzWnVpL3hIUFo3Z0NudDRveU1nbDJQZDVacDE4VjU1L0ljK3EwZQptbzNVR3B6dnJUdVlja1dDUHR4dDlUcFlaVWZ0eEJ3SHdVeDBSYkNjQVFGN01EelJNaHhhalFacGFHVFdQdWFaCmE2THlmL2lmNTdWcm11amFUYllHaHdLQmdRRFRXc2w2Si8xUmU0SUJDOXpSK3RGUHNnNmRrdHJyNy9DLzg0NjUKdDBqN3NHM1NKZWkzWktSVVFEc2xtT0xkUG9ZYWZYbUxlR1hsbEdWelZ0R2pMMGE3Q0h5d0pTYVMzcFRtMGlhVgpwRXNZWFpiY2p4OHZMb0lydHRqc0psN2FBYlR2Z0o2aDlmZ3ozUHI5OXNuMzF1QnpweGJrYjVqY2J1dW5jUEdYCkEyMHFLUUtCZ1FDR1IyOW1xQW1ENFdGOEtNTzUzdG5XZW5ROEZEN2MvOWl0emlsd3NGS011VnlhWllVbXZMR00KeGFFV1RESU43aDdRTnRHQk1BQkVDQWtIdlUyRWV1REJhdWRxSFFEQk80Q1g5eUQzc0ZGZWNrMU8reWhzNUd3Tgp2R2MrZjI1NFRPNmhneHVTV2s2cFROMi9PK01NZXBsWlVwT0Q3ZFgxOWdYdzYxYnBrL0I4Q2c9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+---
+# Source: kong-mesh/charts/kuma/templates/cp-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-mesh-control-plane-config
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    # use this file to override default configuration of `kuma-cp`
+    #
+    # see conf/kuma-cp.conf.yml for available settings
+---
+# Source: kong-mesh/charts/kuma/templates/cp-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kong-mesh-control-plane
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - pods
+      - configmaps
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+    - ""
+    resources:
+      - secrets
+    verbs:
+    - list
+    - watch
+  - apiGroups:
+      - "apps"
+    resources:
+      - deployments
+      - replicasets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "batch"
+    resources:
+      - jobs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - gatewayclasses
+      - gateways
+      - referencegrants
+      - httproutes
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - gatewayclasses/status
+      - gateways/status
+      - httproutes/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - delete
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - kuma.io
+    resources:
+      - dataplanes
+      - dataplaneinsights
+      - meshes
+      - zones
+      - zoneinsights
+      - zoneingresses
+      - zoneingressinsights
+      - zoneegresses
+      - zoneegressinsights
+      - meshinsights
+      - serviceinsights
+      - proxytemplates
+      - ratelimits
+      - trafficpermissions
+      - trafficroutes
+      - timeouts
+      - retries
+      - circuitbreakers
+      - virtualoutbounds
+      - containerpatches
+      - externalservices
+      - faultinjections
+      - healthchecks
+      - trafficlogs
+      - traffictraces
+      - meshgateways
+      - meshgatewayroutes
+      - meshgatewayinstances
+      - meshgatewayconfigs
+      - meshaccesslogs
+      - meshcircuitbreakers
+      - meshfaultinjections
+      - meshglobalratelimits
+      - meshhealthchecks
+      - meshhttproutes
+      - meshloadbalancingstrategies
+      - meshmetrics
+      - meshopas
+      - meshproxypatches
+      - meshratelimits
+      - meshretries
+      - meshtcproutes
+      - meshtimeouts
+      - meshtraces
+      - meshtrafficpermissions
+      - meshservices
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - kuma.io
+    resources:
+      - meshgatewayinstances/status
+      - meshgatewayinstances/finalizers
+      - meshes/finalizers
+      - dataplanes/finalizers
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - pods/finalizers
+    verbs:
+      - get
+      - patch
+      - update
+  # validate k8s token before issuing mTLS cert
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+---
+# Source: kong-mesh/templates/cp-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kong-mesh-control-plane-kmesh
+  labels:
+    helm.sh/chart: kong-mesh-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - kuma.io
+    resources:
+      - opapolicies
+      - accessroles
+      - accessrolebindings
+      - accessaudits
+      - meshopas
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups: 
+      - cert-manager.io
+    resources: 
+      - certificaterequests
+    verbs: 
+      - create
+      - get
+      - list
+      - watch
+      - update
+      - delete
+      - patch
+---
+# Source: kong-mesh/charts/kuma/templates/cp-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kong-mesh-control-plane
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kong-mesh-control-plane
+subjects:
+  - kind: ServiceAccount
+    name: kong-mesh-control-plane
+    namespace: default
+---
+# Source: kong-mesh/templates/cp-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kong-mesh-control-plane-kmesh
+  labels:
+    helm.sh/chart: kong-mesh-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kong-mesh-control-plane-kmesh
+subjects:
+  - kind: ServiceAccount
+    name: kong-mesh-control-plane
+    namespace: default
+---
+# Source: kong-mesh/charts/kuma/templates/cp-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kong-mesh-control-plane
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  # leader-for-life election deletes Pods in some circumstances
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - delete
+---
+# Source: kong-mesh/charts/kuma/templates/cp-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kong-mesh-control-plane
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kong-mesh-control-plane
+subjects:
+  - kind: ServiceAccount
+    name: kong-mesh-control-plane
+    namespace: default
+---
+# Source: kong-mesh/charts/kuma/templates/cp-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-mesh-control-plane
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    prometheus.io/port: "5680"
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5680
+      name: diagnostics
+      appProtocol: http
+    - port: 5681
+      name: http-api-server
+      appProtocol: http
+    - port: 5682
+      name: https-api-server
+      appProtocol: https
+    - port: 443
+      name: https-admission-server
+      targetPort: 5443
+      appProtocol: https
+    - port: 5676
+      name: mads-server
+      appProtocol: https
+    - port: 5678
+      name: dp-server
+      appProtocol: https
+  selector:
+    app: kong-mesh-control-plane
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+---
+# Source: kong-mesh/charts/kuma/templates/cp-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-mesh-control-plane
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations: 
+    
+spec:
+  replicas: 1
+  minReadySeconds: 0
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kong-mesh
+      app.kubernetes.io/instance: my-release
+      app: kong-mesh-control-plane
+  template:
+    metadata:
+      annotations:
+        checksum/config: 8bc0539644dcd2a231845c4c276ce841eda064b0a31c9d811df25c39a351cb75
+        checksum/tls-secrets: 644fdd93f576d1e680ebe7600f367df4fcc973fb0ee86cc8e4911b8c1203f2c9
+      labels: 
+        app: kong-mesh-control-plane
+        helm.sh/chart: kuma-2.7.3
+        app.kubernetes.io/name: kong-mesh
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.7.3"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      affinity: 
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - 'kong-mesh'
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                  - 'my-release'
+                - key: app
+                  operator: In
+                  values:
+                  - 'kong-mesh-control-plane'
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: kong-mesh-control-plane
+      automountServiceAccountToken: true
+      nodeSelector:
+        
+        kubernetes.io/os: linux
+      hostNetwork: false
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: control-plane
+          image: "docker.io/kong/kuma-cp:2.7.3"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            readOnlyRootFilesystem: true
+          env:
+            - name: KUMA_API_SERVER_AUTHN_LOCALHOST_IS_ADMIN
+              value: "false"
+            - name: KUMA_API_SERVER_READ_ONLY
+              value: "true"
+            - name: KUMA_DEFAULTS_SKIP_MESH_CREATION
+              value: "false"
+            - name: KUMA_DP_SERVER_HDS_ENABLED
+              value: "false"
+            - name: KUMA_ENVIRONMENT
+              value: "kubernetes"
+            - name: KUMA_GENERAL_TLS_CERT_FILE
+              value: "/var/run/secrets/kuma.io/tls-cert/tls.crt"
+            - name: KUMA_GENERAL_TLS_KEY_FILE
+              value: "/var/run/secrets/kuma.io/tls-cert/tls.key"
+            - name: KUMA_INJECTOR_INIT_CONTAINER_IMAGE
+              value: "docker.io/kong/kuma-init:2.7.3"
+            - name: KUMA_MODE
+              value: "zone"
+            - name: KUMA_PLUGIN_POLICIES_ENABLED
+              value: "meshaccesslogs,meshcircuitbreakers,meshfaultinjections,meshglobalratelimits,meshhealthchecks,meshhttproutes,meshloadbalancingstrategies,meshmetrics,meshopas,meshproxypatches,meshratelimits,meshretries,meshtcproutes,meshtimeouts,meshtraces,meshtrafficpermissions"
+            - name: KUMA_RUNTIME_KUBERNETES_ADMISSION_SERVER_CERT_DIR
+              value: "/var/run/secrets/kuma.io/tls-cert"
+            - name: KUMA_RUNTIME_KUBERNETES_ADMISSION_SERVER_PORT
+              value: "5443"
+            - name: KUMA_RUNTIME_KUBERNETES_CONTROL_PLANE_SERVICE_NAME
+              value: "kong-mesh-control-plane"
+            - name: KUMA_RUNTIME_KUBERNETES_INJECTOR_CA_CERT_FILE
+              value: "/var/run/secrets/kuma.io/tls-cert/ca.crt"
+            - name: KUMA_RUNTIME_KUBERNETES_INJECTOR_CNI_ENABLED
+              value: "false"
+            - name: KUMA_RUNTIME_KUBERNETES_INJECTOR_SIDECAR_CONTAINER_IMAGE
+              value: "docker.io/kong/kuma-dp:2.7.3"
+            - name: KUMA_RUNTIME_KUBERNETES_SERVICE_ACCOUNT_NAME
+              value: "system:serviceaccount:default:kong-mesh-control-plane"
+            - name: KUMA_STORE_KUBERNETES_SYSTEM_NAMESPACE
+              value: "default"
+            - name: KUMA_STORE_TYPE
+              value: "kubernetes"
+            - name: KUMA_INTER_CP_CATALOG_INSTANCE_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          args:
+            - run
+            - --log-level=info
+            - --log-output-path=
+            - --config-file=/etc/kuma.io/kuma-control-plane/config.yaml
+          ports:
+            - containerPort: 5680
+              name: diagnostics
+              protocol: TCP
+            - containerPort: 5681
+            - containerPort: 5682
+            - containerPort: 5443
+            - containerPort: 5678
+          livenessProbe:
+            timeoutSeconds: 10
+            httpGet:
+              path: /healthy
+              port: 5680
+          readinessProbe:
+            timeoutSeconds: 10
+            httpGet:
+              path: /ready
+              port: 5680
+          resources:
+            limits:
+              memory: 256Mi
+            requests:
+              cpu: 500m
+              memory: 256Mi
+          
+          volumeMounts:
+            - name: general-tls-cert
+              mountPath: /var/run/secrets/kuma.io/tls-cert/tls.crt
+              subPath: tls.crt
+              readOnly: true
+            - name: general-tls-cert
+              mountPath: /var/run/secrets/kuma.io/tls-cert/tls.key
+              subPath: tls.key
+              readOnly: true
+            - name: general-tls-cert
+              mountPath: /var/run/secrets/kuma.io/tls-cert/ca.crt
+              subPath: ca.crt
+              readOnly: true
+            - name: kong-mesh-control-plane-config
+              mountPath: /etc/kuma.io/kuma-control-plane
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: general-tls-cert
+          secret:
+            secretName: kong-mesh-tls-cert
+        - name: kong-mesh-control-plane-config
+          configMap:
+            name: kong-mesh-control-plane-config
+        - name: tmp
+          emptyDir: {}
+---
+# Source: kong-mesh/charts/kuma/templates/cp-webhooks-and-secrets.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: kong-mesh-admission-mutating-webhook-configuration
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: mesh.defaulter.kuma-admission.kuma.io
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Fail
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["kube-system"]
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: default
+        name: kong-mesh-control-plane
+        path: /default-kuma-io-v1alpha1-mesh
+    rules:
+      - apiGroups:
+          - kuma.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - meshes
+          - meshgateways
+          - meshaccesslogs
+          - meshcircuitbreakers
+          - meshfaultinjections
+          - meshglobalratelimits
+          - meshhealthchecks
+          - meshhttproutes
+          - meshloadbalancingstrategies
+          - meshmetrics
+          - meshopas
+          - meshproxypatches
+          - meshratelimits
+          - meshretries
+          - meshtcproutes
+          - meshtimeouts
+          - meshtraces
+          - meshtrafficpermissions
+          - meshservices
+    sideEffects: None
+  - name: owner-reference.kuma-admission.kuma.io
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Fail
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["kube-system"]
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: default
+        name: kong-mesh-control-plane
+        path: /owner-reference-kuma-io-v1alpha1
+    rules:
+      - apiGroups:
+          - kuma.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+        resources:
+          - circuitbreakers
+          - externalservices
+          - faultinjections
+          - healthchecks
+          - meshgateways
+          - meshgatewayroutes
+          - proxytemplates
+          - ratelimits
+          - retries
+          - timeouts
+          - trafficlogs
+          - trafficpermissions
+          - trafficroutes
+          - traffictraces
+          - virtualoutbounds
+          - meshaccesslogs
+          - meshcircuitbreakers
+          - meshfaultinjections
+          - meshglobalratelimits
+          - meshhealthchecks
+          - meshhttproutes
+          - meshloadbalancingstrategies
+          - meshmetrics
+          - meshopas
+          - meshproxypatches
+          - meshratelimits
+          - meshretries
+          - meshtcproutes
+          - meshtimeouts
+          - meshtraces
+          - meshtrafficpermissions
+          - meshservices
+  
+      - apiGroups:
+          - kuma.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+        resources:
+          - opapolicies
+      
+    sideEffects: None
+  - name: namespace-kuma-injector.kuma.io
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Fail
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["kube-system"]
+        - key: kuma.io/sidecar-injection
+          operator: In
+          values: ["enabled", "true"]
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: default
+        name: kong-mesh-control-plane
+        path: /inject-sidecar
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+        resources:
+          - pods
+    sideEffects: None
+  - name: pods-kuma-injector.kuma.io
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Fail
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["kube-system"]
+    objectSelector:
+      matchLabels:
+        kuma.io/sidecar-injection: enabled
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: default
+        name: kong-mesh-control-plane
+        path: /inject-sidecar
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+        resources:
+          - pods
+    sideEffects: None
+---
+# Source: kong-mesh/charts/kuma/templates/cp-webhooks-and-secrets.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: kong-mesh-validating-webhook-configuration
+  namespace: default
+  labels: 
+    app: kong-mesh-control-plane
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: validator.kuma-admission.kuma.io
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Fail
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["kube-system"]
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: default
+        name: kong-mesh-control-plane
+        path: /validate-kuma-io-v1alpha1
+    rules:
+      - apiGroups:
+          - kuma.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - circuitbreakers
+          - dataplanes
+          - externalservices
+          - faultinjections
+          - gatewayinstances
+          - healthchecks
+          - meshes
+          - meshgateways
+          - meshgatewayroutes
+          - proxytemplates
+          - ratelimits
+          - retries
+          - trafficlogs
+          - trafficpermissions
+          - trafficroutes
+          - traffictraces
+          - virtualoutbounds
+          - zones
+          - containerpatches
+          - meshaccesslogs
+          - meshcircuitbreakers
+          - meshfaultinjections
+          - meshglobalratelimits
+          - meshhealthchecks
+          - meshhttproutes
+          - meshloadbalancingstrategies
+          - meshmetrics
+          - meshopas
+          - meshproxypatches
+          - meshratelimits
+          - meshretries
+          - meshtcproutes
+          - meshtimeouts
+          - meshtraces
+          - meshtrafficpermissions
+          - meshservices
+    
+      - apiGroups:
+          - kuma.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - opapolicies
+          - accessaudits
+          - accessroles
+          - accessrolebindings
+      
+    sideEffects: None
+  - name: service.validator.kuma-admission.kuma.io
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Ignore
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["kube-system"]
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: default
+        name: kong-mesh-control-plane
+        path: /validate-v1-service
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - services
+    sideEffects: None
+  - name: secret.validator.kuma-admission.kuma.io
+    admissionReviewVersions: ["v1"]
+    namespaceSelector:
+      matchLabels:
+        kuma.io/system-namespace: "true"
+    failurePolicy: Ignore
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: default
+        name: kong-mesh-control-plane
+        path: /validate-v1-secret
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - secrets
+    sideEffects: None
+  - name: gateway.validator.kuma-admission.kuma.io
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Ignore
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["kube-system"]
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU1iZHVYSUVZYjEwQzZXc2VPSW5QT1F3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEzVnRZUzFqWVRBZUZ3MHlOREEyTVRVeU16VXhORFZhRncwek5EQTJNVE15TXpVeApORFZhTUJJeEVEQU9CZ05WQkFNVEIydDFiV0V0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFEUldRdXNnNFVPZW1KQjNRY3Nnc3lhVXRwdUFoZWtvcllpNVRUVk9mOFM1MUJZM0RzNVk4bXUKQXNDNkUxMVdvRHFxV3A0QjF1TUtwL1N2RC9iTmc4Q3JRaWdzcFVBd3BjVEExcUd3YnRrVHFmNkFlSVNwelo4cwpZczdRM1BHa0dodmxpakZ4WnNyVU1KMllqL1lHYVlKK012UFBHaHIydnltOTJTZEZJbjluc1lxalZGWTVxWlBJClhSalFNYmpwWmJKdENNMW0rUlVyd0VEN3hrSGJ6TFJ6eVZncnEzOU43cVVpSkJqemRNbWc3bVdpY3pwK2FpUHcKWUlwaTdnUUZOUXUwNEQ1eHJHckdiQTVhV1BKTkZ1WXY2UndnQlRNdUZnZlpwVlAyYkhMWTJvMGtJNW9lVndvLwpLNi9rZk5NRE5zVS9aZnlTSkhBckx5a3NKVHQyVHRVZEFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVTl5UGltVS95clhLK04zTmNMYkNsbzNQdEpoVXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUszZ0ZWdENOeTl3UXNUVEZFTXBNeWhzM0o3V1BYMlZqcUZqMVhuNHVkbnFrRmRTZW15VWQzbG9LK3NGCk5rUVF0WDFBQVBWSWtJSEdCMDVsd1J2NWR1ZnN2OTNOU1BnR1VKU29IdG94Z3JXMHIxSzYrbzRiQjlMQUJSWloKcC92QkZpclRDVnpNbk9OdTA5OSswTjE5Tmt4alRFd1p2K2ZHVk9ueHMyN2VZSmo3cEpNVEl2WU00Um5Najc5TgpJby9IM2hkQWsvd01naTZrZFB0SW5VZzRaS09uaFF1SHUyb1dMM0RtYXRPY1BrSlhIY2I3bnhPbzRRNkpLNVNSCkFxTi9GNUtBRWg2Q1RNY2JTeXNrL2NvckxDSDVDcWVhd3dOaVUzRmVCUW5iRjZaRU5PcjZWcU0yRW9acmV1UFQKSGdNYkJEU2pBUkZjQVFIQUQ0TW10TnZnb1UwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        namespace: default
+        name: kong-mesh-control-plane
+        path: /validate-gatewayclass
+    rules:
+      - apiGroups:
+          - "gateway.networking.k8s.io"
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+        resources:
+          - gatewayclasses
+    sideEffects: None
+---
+# Source: kong-mesh/charts/kuma/templates/pre-delete-webhooks.yaml
+# HELM first deletes RBAC of Kuma, then it tries to delete Secrets. We've got validating webhook on Secrets.
+# But even that the policy of this webhook is Ignore, it fails because Kuma does not have permission to access Secrets anymore.
+# Therefore we first need to delete webhook so we can delete the rest of the deployment
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kong-mesh-pre-delete-job
+  namespace: default
+  annotations:
+    "helm.sh/hook": "pre-delete"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kong-mesh/charts/kuma/templates/pre-install-patch-namespace-job.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kong-mesh-patch-ns-job
+  namespace: default
+  annotations:
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kong-mesh/charts/kuma/templates/pre-upgrade-install-crds-job.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kong-mesh-install-crds
+  namespace: default
+  annotations:
+    "helm.sh/hook": "pre-upgrade,pre-install"
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kong-mesh/charts/kuma/templates/pre-upgrade-install-crds-job.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-mesh-install-crds-scripts
+  namespace: default
+  annotations:
+    "helm.sh/hook": "pre-upgrade,pre-install"
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  install_crds.sh: |
+    #!/usr/bin/env sh
+    set -e
+
+    if [ -s /kuma/crds/crds.yaml ]; then
+      echo "/kuma/crds/crds.yaml found and is not empty, adding crds"
+      kubectl apply -f /kuma/crds/crds.yaml
+    else
+      echo "/kuma/crds/crds.yaml not found or empty, it looks like there is no crds to install"
+    fi
+  save_crds.sh: |
+    set -e
+
+    crds="$(kumactl install crds --no-config)"
+
+    if [ -n "${crds}" ]; then
+      echo "found crds - saving to /kuma/crds/crds.yaml"
+      echo "${crds}" > /kuma/crds/crds.yaml
+    fi
+---
+# Source: kong-mesh/charts/kuma/templates/pre-delete-webhooks.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kong-mesh-pre-delete-job
+  annotations:
+    "helm.sh/hook": "pre-delete"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    resourceNames:
+      - kong-mesh-validating-webhook-configuration
+    verbs:
+      - delete
+---
+# Source: kong-mesh/charts/kuma/templates/pre-install-patch-namespace-job.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kong-mesh-patch-ns-job
+  namespace: default
+  annotations:
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    resourceNames:
+      - default
+    verbs:
+      - get
+      - patch
+---
+# Source: kong-mesh/charts/kuma/templates/pre-upgrade-install-crds-job.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kong-mesh-install-crds
+  annotations:
+    "helm.sh/hook": "pre-upgrade,pre-install"
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+    - "apiextensions.k8s.io"
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - create
+      - patch
+      - update
+      - list
+      - get
+---
+# Source: kong-mesh/charts/kuma/templates/pre-delete-webhooks.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kong-mesh-pre-delete-job
+  annotations:
+    "helm.sh/hook": "pre-delete"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kong-mesh-pre-delete-job
+subjects:
+  - kind: ServiceAccount
+    name: kong-mesh-pre-delete-job
+    namespace: default
+---
+# Source: kong-mesh/charts/kuma/templates/pre-install-patch-namespace-job.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kong-mesh-patch-ns-job
+  namespace: default
+  annotations:
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kong-mesh-patch-ns-job
+subjects:
+  - kind: ServiceAccount
+    name: kong-mesh-patch-ns-job
+    namespace: default
+---
+# Source: kong-mesh/charts/kuma/templates/pre-upgrade-install-crds-job.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kong-mesh-install-crds
+  annotations:
+    "helm.sh/hook": "pre-upgrade,pre-install"
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+  labels:
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kong-mesh-install-crds
+subjects:
+  - kind: ServiceAccount
+    name: kong-mesh-install-crds
+    namespace: default
+---
+# Source: kong-mesh/charts/kuma/templates/pre-delete-webhooks.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-mesh-delete-webhook
+  namespace: default
+  labels:
+  
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": "pre-delete"
+    
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+spec:
+  template:
+    metadata:
+      name: kong-mesh-delete-webhook
+      labels:
+    
+        helm.sh/chart: kuma-2.7.3
+        app.kubernetes.io/name: kong-mesh
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.7.3"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: kong-mesh-pre-delete-job
+      nodeSelector:
+      
+        kubernetes.io/os: linux
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: pre-delete-job
+          image: "docker.io/bitnami/kubectl:1.27.5"
+          command:
+            - 'kubectl'
+            - 'delete'
+            - 'ValidatingWebhookConfiguration'
+            - kong-mesh-validating-webhook-configuration
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+          resources:
+             requests:
+               cpu: "100m"
+               memory: "256Mi"
+             limits:
+               cpu: "100m"
+               memory: "256Mi"
+---
+# Source: kong-mesh/charts/kuma/templates/pre-install-patch-namespace-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-mesh-patch-ns
+  namespace: default
+  labels:
+  
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": "pre-install"
+    
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded,hook-failed"
+spec:
+  template:
+    metadata:
+      name: kong-mesh-patch-ns-script
+      labels:
+    
+        helm.sh/chart: kuma-2.7.3
+        app.kubernetes.io/name: kong-mesh
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.7.3"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: kong-mesh-patch-ns-job
+      nodeSelector:
+      
+        kubernetes.io/os: linux
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: pre-install-job
+          image: "docker.io/bitnami/kubectl:1.27.5"
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+          resources:
+             requests:
+               cpu: "100m"
+               memory: "256Mi"
+             limits:
+               cpu: "100m"
+               memory: "256Mi"
+          command:
+            - 'kubectl'
+            - 'patch'
+            - 'namespace'
+            - "default"
+            - '--type'
+            - 'merge'
+            - '--patch'
+            - '{ "metadata": { "labels": { "kuma.io/system-namespace": "true" } } }'
+---
+# Source: kong-mesh/charts/kuma/templates/pre-upgrade-install-crds-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-mesh-install-crds
+  namespace: default
+  labels:
+  
+    helm.sh/chart: kuma-2.7.3
+    app.kubernetes.io/name: kong-mesh
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": "pre-upgrade,pre-install"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+spec:
+  template:
+    metadata:
+      name: kong-mesh-install-crds-job
+      labels:
+    
+        helm.sh/chart: kuma-2.7.3
+        app.kubernetes.io/name: kong-mesh
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.7.3"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: kong-mesh-install-crds
+      nodeSelector:
+      
+        kubernetes.io/os: linux
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: pre-upgrade-job
+          image: "docker.io/bitnami/kubectl:1.27.5"
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsUser: 65534
+          resources:
+             requests:
+               cpu: "100m"
+               memory: "256Mi"
+             limits:
+               cpu: "100m"
+               memory: "256Mi"
+          command: ["/kuma/scripts/install_crds.sh"]
+          volumeMounts:
+            - mountPath: /kuma/crds
+              name: crds
+              readOnly: true
+            - mountPath: /kuma/scripts
+              name: scripts
+              readOnly: true
+      initContainers:
+        - name: pre-upgrade-job-init
+          image: "docker.io/kong/kumactl:2.7.3"
+          securityContext:
+            readOnlyRootFilesystem: true
+          resources:
+             requests:
+               cpu: "100m"
+               memory: "256Mi"
+             limits:
+               cpu: "100m"
+               memory: "256Mi"
+          volumeMounts:
+          - mountPath: /kuma/crds
+            name: crds
+          - mountPath: /kuma/scripts
+            name: scripts
+            readOnly: true
+          command: ["sh", "-c"]
+          args: ["/kuma/scripts/save_crds.sh"]
+      volumes:
+        - name: scripts
+          configMap:
+            name: kong-mesh-install-crds-scripts
+            defaultMode: 0755
+        - name: crds
+          emptyDir: {}

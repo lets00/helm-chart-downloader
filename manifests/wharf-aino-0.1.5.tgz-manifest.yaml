@@ -1,0 +1,1019 @@
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wharf-cmd
+---
+# Source: wharf-aino/charts/wharf-helm/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wharf-aino
+  labels:
+
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: wharf-aino/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wharf-aino-db
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.2.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  postgres-password: "NXlkaFdJd09sUg=="
+  password: "MElmb2xqam9rOQ=="
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/aggregator.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wharf-aino-cmd-aggregator-config
+  labels:
+    component: aggregator
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  wharf-cmd-config.yml: |
+    aggregator:
+      wharfApiUrl: http://wharf-aino-api:80
+    instanceId: dev
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/provisioner.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wharf-aino-cmd-provisioner-config
+  labels:
+    component: provisioner
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  wharf-cmd-config.yml: |
+    instanceId: dev
+    provisioner:
+      k8s:
+        worker:
+          configMapName: wharf-aino-cmd-worker-config
+          container:
+            image: quay.io/iver-wharf/wharf-cmd
+            imageTag: v0.8.2
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/watchdog.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wharf-aino-cmd-watchdog-config
+  labels:
+    component: watchdog
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  wharf-cmd-config.yml: |
+    instanceId: dev
+    watchdog:
+      provisionerUrl: http://wharf-aino-cmd-provisioner:80
+      wharfApiUrl: http://wharf-aino-api:80
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/worker.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wharf-aino-cmd-worker-config
+  labels:
+    component: worker
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  wharf-cmd-config.yml: |
+    instanceId: dev
+  wharf-vars.yml: |
+    vars:
+      {}
+---
+# Source: wharf-aino/charts/wharf-helm/templates/web.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: wharf-aino-web-config
+data:
+  config.json: |
+    {
+      "Environment": {
+        "Name": "dev",
+        "IsProduction": false
+      },
+      "UpdateLatency": 20000,
+      "UpdateFrequency": 30000,
+      "BackendUrls": {
+        "Api": "/api",
+        "GitlabImport" : "/import",
+        "GithubImport" : "/import",
+        "AzureDevopsImport" : "/import"
+      }
+    }
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wharf-cmd
+rules:
+- apiGroups: [""]
+  resources: [pods]
+  verbs: ["*"]
+
+- apiGroups: [""]
+  resources: [pods/log]
+  verbs: [get, list, watch]
+
+- apiGroups: [""]
+  resources: [pods/portforward]
+  verbs: [get, list, create]
+
+- apiGroups: [""]
+  resources: [pods/exec]
+  verbs: [create]
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wharf-cmd
+subjects:
+- kind: ServiceAccount
+  name: wharf-cmd
+roleRef:
+  kind: Role
+  name: wharf-cmd
+  apiGroup: ""
+---
+# Source: wharf-aino/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: wharf-aino-db-hl
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.2.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: wharf-aino/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: wharf-aino-db
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.2.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/provisioner.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: wharf-aino-cmd-provisioner
+  labels:
+    component: provisioner
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: "ClusterIP"
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  selector:
+    component: provisioner
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+  type: ClusterIP
+---
+# Source: wharf-aino/charts/wharf-helm/templates/api.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: wharf-aino-api
+  labels:
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: "ClusterIP"
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    component: api
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+---
+# Source: wharf-aino/charts/wharf-helm/templates/provider.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "wharf-aino-azuredevops"
+  labels:
+    wharf.iver.com/provider: "azuredevops"
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: "ClusterIP"
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    wharf.iver.com/provider: "azuredevops"
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+---
+# Source: wharf-aino/charts/wharf-helm/templates/provider.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "wharf-aino-github"
+  labels:
+    wharf.iver.com/provider: "github"
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: "ClusterIP"
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    wharf.iver.com/provider: "github"
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+---
+# Source: wharf-aino/charts/wharf-helm/templates/provider.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "wharf-aino-gitlab"
+  labels:
+    wharf.iver.com/provider: "gitlab"
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: "ClusterIP"
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    wharf.iver.com/provider: "gitlab"
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+---
+# Source: wharf-aino/charts/wharf-helm/templates/web.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: wharf-aino-web
+  labels:
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    component: web
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/aggregator.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wharf-aino-cmd-aggregator
+  labels:
+    component: aggregator
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: aggregator
+      app.kubernetes.io/name: wharf-cmd
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        component: aggregator
+        app.kubernetes.io/name: wharf-cmd
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-cmd
+      containers:
+        - name: aggregator
+          image: "quay.io/iver-wharf/wharf-cmd:v0.8.2"
+          args: 
+            - --loglevel
+            - "debug"
+            - aggregator
+            - serve
+          volumeMounts:
+          - mountPath: /etc/iver-wharf/wharf-cmd
+            name: config
+            readOnly: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      volumes:
+      - name: config
+        configMap:
+          name: wharf-aino-cmd-aggregator-config
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/provisioner.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wharf-aino-cmd-provisioner
+  labels:
+    component: provisioner
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: provisioner
+      app.kubernetes.io/name: wharf-cmd
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        component: provisioner
+        app.kubernetes.io/name: wharf-cmd
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-cmd
+      containers:
+        - name: provisioner
+          image: "quay.io/iver-wharf/wharf-cmd:v0.8.2"
+          args:
+            - --loglevel
+            - "debug"
+            - provisioner
+            - serve
+          volumeMounts:
+          - mountPath: /etc/iver-wharf/wharf-cmd
+            name: config
+            readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          ports:
+            - name: http
+              containerPort: 5009
+              protocol: TCP
+      nodeSelector:
+        kubernetes.io/os: linux
+      volumes:
+      - name: config
+        configMap:
+          name: wharf-aino-cmd-provisioner-config
+---
+# Source: wharf-aino/charts/wharf-cmd/templates/watchdog.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wharf-aino-cmd-watchdog
+  labels:
+    component: watchdog
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: watchdog
+      app.kubernetes.io/name: wharf-cmd
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        component: watchdog
+        app.kubernetes.io/name: wharf-cmd
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-cmd
+      containers:
+        - name: watchdog
+          image: "quay.io/iver-wharf/wharf-cmd:v0.8.2"
+          args: 
+            - --loglevel
+            - "debug"
+            - watchdog
+            - serve
+          volumeMounts:
+          - mountPath: /etc/iver-wharf/wharf-cmd
+            name: config
+            readOnly: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      volumes:
+      - name: config
+        configMap:
+          name: wharf-aino-cmd-watchdog-config
+---
+# Source: wharf-aino/charts/wharf-helm/templates/api.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wharf-aino-api
+  labels:
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: api
+      wharf.iver.com/instance: "dev"
+      app.kubernetes.io/name: wharf-helm
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        component: api
+        wharf.iver.com/instance: "dev"
+        app.kubernetes.io/name: wharf-helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-aino
+      containers:
+        - name: "wharf-helm"
+          image: "quay.io/iver-wharf/wharf-api:v5.2.0"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          env:
+            - name: WHARF_INSTANCEID
+              value: "dev"
+            - name: WHARF_CI_TRIGGERURL
+              value: ""
+            - name: WHARF_CI_TRIGGERTOKEN
+              value: ""
+            - name: WHARF_HTTP_BASICAUTH
+              value: ""
+            - name: WHARF_HTTP_BINDADDRESS
+              value: 0.0.0.0:8080
+            - name: WHARF_DB_LOG
+              value: "true"
+            - name: WHARF_DB_DRIVER
+              value: postgres
+            - name: WHARF_DB_NAME
+              value: wharf
+            - name: WHARF_DB_USERNAME
+              value: postgres
+            - name: WHARF_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: postgres-password
+                  name: wharf-aino-db
+            - name: WHARF_DB_PORT
+              value: "5432"
+            - name: WHARF_DB_HOST
+              value: wharf-aino-db
+            - name: WHARF_DB_MAXIDLECONNS
+              value: "2"
+            - name: WHARF_DB_MAXOPENCONNS
+              value: "0"
+            - name: WHARF_DB_MAXCONNLIFETIME
+              value: 20m
+            - name: WHARF_CI_ENGINE_NAME
+              value: wharf-cmd
+            - name: WHARF_CI_ENGINE_ID
+              value: wharf-cmd
+            - name: WHARF_CI_ENGINE_URL
+              value: http://wharf-aino-cmd-provisioner:80/api/worker
+            - name: WHARF_CI_ENGINE_API
+              value: wharf-cmd.v1
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: wharf-aino/charts/wharf-helm/templates/provider.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "wharf-aino-azuredevops"
+  labels:
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      wharf.iver.com/provider: "azuredevops"
+      wharf.iver.com/instance: "dev"
+      app.kubernetes.io/name: wharf-helm
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        wharf.iver.com/provider: "azuredevops"
+        wharf.iver.com/instance: "dev"
+        app.kubernetes.io/name: wharf-helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-aino
+      containers:
+        - name: "azuredevops"
+          image: "quay.io/iver-wharf/wharf-provider-azuredevops:v3.0.1"
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          env:
+            - name: WHARF_URL
+              value: wharf.example.org
+            - name: WHARF_API_URL
+              value: http://wharf-aino-api
+            - name: WHARF_PROVIDER_URL_BASE
+              value: "/import/azuredevops"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: wharf-aino/charts/wharf-helm/templates/provider.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "wharf-aino-github"
+  labels:
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      wharf.iver.com/provider: "github"
+      wharf.iver.com/instance: "dev"
+      app.kubernetes.io/name: wharf-helm
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        wharf.iver.com/provider: "github"
+        wharf.iver.com/instance: "dev"
+        app.kubernetes.io/name: wharf-helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-aino
+      containers:
+        - name: "github"
+          image: "quay.io/iver-wharf/wharf-provider-github:v3.0.1"
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          env:
+            - name: WHARF_URL
+              value: wharf.example.org
+            - name: WHARF_API_URL
+              value: http://wharf-aino-api
+            - name: WHARF_PROVIDER_URL_BASE
+              value: "/import/github"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: wharf-aino/charts/wharf-helm/templates/provider.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "wharf-aino-gitlab"
+  labels:
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      wharf.iver.com/provider: "gitlab"
+      wharf.iver.com/instance: "dev"
+      app.kubernetes.io/name: wharf-helm
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        wharf.iver.com/provider: "gitlab"
+        wharf.iver.com/instance: "dev"
+        app.kubernetes.io/name: wharf-helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-aino
+      containers:
+        - name: "gitlab"
+          image: "quay.io/iver-wharf/wharf-provider-gitlab:v2.0.1"
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          env:
+            - name: WHARF_URL
+              value: wharf.example.org
+            - name: WHARF_API_URL
+              value: http://wharf-aino-api
+            - name: WHARF_PROVIDER_URL_BASE
+              value: "/import/gitlab"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: wharf-aino/charts/wharf-helm/templates/web.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wharf-aino-web
+  labels:
+    helm.sh/chart: wharf-helm-3.2.6
+    wharf.iver.com/instance: "dev"
+    app.kubernetes.io/name: wharf-helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: web
+      wharf.iver.com/instance: "dev"
+      app.kubernetes.io/name: wharf-helm
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        component: web
+        wharf.iver.com/instance: "dev"
+        app.kubernetes.io/name: wharf-helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-aino
+      volumes:
+        - emptyDir: {}
+          name: cache
+        - emptyDir: {}
+          name: run
+        - name: wharf-aino-web-config-volume
+          configMap:
+            name: wharf-aino-web-config
+      containers:
+        - name: "wharf-helm-web"
+          image: "quay.io/iver-wharf/wharf-web:v1.6.2"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+            - mountPath: /var/cache/nginx
+              name: cache
+            - mountPath: /run
+              name: run
+            - name: wharf-aino-web-config-volume
+              mountPath: /usr/share/nginx/html/assets/config.json
+              subPath: config.json
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: wharf-aino/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: wharf-aino-db
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.2.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  replicas: 1
+  serviceName: wharf-aino-db-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: wharf-aino-db
+      labels:
+        app.kubernetes.io/name: postgresql
+        helm.sh/chart: postgresql-11.2.6
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+      annotations:
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: primary
+                namespaces:
+                  - "default"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      hostNetwork: false
+      hostIPC: false
+      initContainers:
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:14.3.0-debian-10-r8
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wharf-aino-db
+                  key: postgres-password
+            - name: POSTGRES_DB
+              value: "wharf"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "postgres" -d "dbname=wharf" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                
+                - |
+                  exec pg_isready -U "postgres" -d "dbname=wharf" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits: {}
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"

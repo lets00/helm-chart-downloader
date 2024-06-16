@@ -1,0 +1,516 @@
+---
+# Source: gitlab/templates/service-account/gitlab-omniauth.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitlab-omniauth-sa
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: gitlab/templates/secrets/gitlab-root-password.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitlab-root-password
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+type: Opaque
+data:
+  admin:
+---
+# Source: gitlab/templates/secrets/initial-root-password.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitlab-gitlab-initial-root-password
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  password: "YLZXRfav7jmyUlpRLuRbDtvP"
+---
+# Source: gitlab/templates/secrets/omniauth.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitlab-omniauth
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  provider: |
+    name: saml
+    label: "Some Company"
+    groups_attribute: roles
+    external_groups:
+      - "my-release-gitlab-gitlab:external"
+    args:
+      assertion_consumer_service_url: "https:///users/auth/saml/callback"
+      idp_cert: -----BEGIN CERTIFICATE----------END CERTIFICATE-----
+      idp_cert_fingerprint_algorithm: 'http://www.w3.org/2000/09/xmldsig#sha1'
+      idp_sso_target_url: /auth/realms/main/protocol/saml/clients/my-release-gitlab-gitlab
+      issuer: my-release-gitlab-gitlab
+      name_identifier_format: urn:oasis:names:tc:SAML:2.0:nameid-format:persistent
+      attribute_statements:
+        email: ['email']
+        first_name: ['first_name']
+        last_name: ['last_name']
+        name: ['name']
+        username: ['name']
+---
+# Source: gitlab/templates/secrets/postgres.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: ""
+---
+# Source: gitlab/templates/secrets/smtp-password.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mailgun-password
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  password:
+---
+# Source: gitlab/templates/secrets/store.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: store
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  objectStoreConnection: |
+    provider: AWS
+    region: "us-west-2"
+    aws_access_key_id: ""
+    aws_secret_access_key: ""
+    aws_signature_version: 2
+    host: ""
+    path_style: true
+---
+# Source: gitlab/templates/service-account/gitlab-omniauth.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitlab-omniauth-role
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: ["*"]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: ["*"]
+    resources: ["pods"]
+    verbs: ["get", "watch", "list"]
+---
+# Source: gitlab/templates/service-account/postgres-sa-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitlab
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # TODO: narrow api groups
+  - apiGroups:
+      - '*'
+    resources:
+      - '*'
+    verbs:
+      - '*'
+---
+# Source: gitlab/templates/service-account/gitlab-omniauth.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitlab-omniauth-rolebinding
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gitlab-omniauth-role
+subjects:
+- namespace:  default
+  kind: ServiceAccount
+  name: gitlab-omniauth-sa
+---
+# Source: gitlab/templates/service-account/postgres-sa-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitlab
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gitlab
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+---
+# Source: gitlab/templates/ingress/ingress.yaml
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   annotations:
+#     cert-manager.io/cluster-issuer: \{\{ .Values.gitlabConfig.ingress.annotations.clusterIssuer }}
+#     external-dns.alpha.kubernetes.io/target: \{\{ .Values.gitlabConfig.ingress.annotations.externalDnsTarget }}
+#     kubernetes.io/ingress.class: nginx
+#     kubernetes.io/tls-acme: "true"
+#     nginx.ingress.kubernetes.io/proxy-body-size: 512m
+#     nginx.ingress.kubernetes.io/keepalive: "50000s"
+#     nginx.ingress.kubernetes.io/proxy-connect-timeout: "50000s"
+#     nginx.ingress.kubernetes.io/proxy-read-timeout: "50000s"
+#     nginx.ingress.kubernetes.io/proxy-send-timeout: "50000s"
+#     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+#   labels:
+#     app: gitlab-app
+#     app: gitlab
+#     helm.sh/chart: gitlab-0.7.0
+#     app.kubernetes.io/managed-by: Helm
+#     app.kubernetes.io/instance: my-release
+#   name: gitlab-webservice-app-2
+#   namespace: gitlab-system
+# spec:
+#   rules:
+#   - host: 
+#     http:
+#       paths:
+#       - backend:
+#           service:
+#             name: gitlab-webservice-default
+#             port:
+#               number: 8181
+#         path: /
+#         pathType: ImplementationSpecific
+#   tls:
+#   - hosts:
+#     - \{\{ .Values.ingressDomain }}
+#     secretName: wildcard-letsencrypt
+---
+# Source: gitlab/templates/gitlab.yaml
+apiVersion: apps.gitlab.com/v1beta1
+kind: GitLab
+metadata:
+  name: gitlab
+  labels:
+    app.kubernetes.io/name: gitlab
+    helm.sh/chart: gitlab-0.7.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  chart:
+    version: '5.8.2'
+    values:
+      global:
+        edition: ce
+        application:
+          create: true
+          allowClusterRoles: true
+        hosts:
+          domain: my-release-gitlab-gitlab
+          https: false
+          gitlab:
+            name: my-release-gitlab-gitlab
+            https: false
+        ingress:
+          enabled: false
+          provider: nginx
+          pathType: Prefix
+          path: /
+          configureCertmanager: false
+          class: nginx
+          annotations:
+            kubernetes.io/ingress.class: nginx
+          tls:
+            enabled: false
+            secretName: my-release-gitlab-gitlab-letsencrypt
+        # psql:
+        #   password:
+        #     useSecret: true
+        #     secret: gitlab-postgres
+        #     key: POSTGRES_PASSWORD
+        #   host: ""
+        #   port: 5432
+        #   username: "postgres"
+        #   database: "postgres"
+        #   preparedStatements: false
+        redis:
+          password:
+            enabled: true
+        gitaly:
+          enabled: true
+          internal:
+            names:
+              - default
+          tls:
+            enabled: false
+        praefect:
+          enabled: false
+        minio:
+          enabled: true
+          ingress:
+            enabled: false
+            tls:
+              enabled: false
+              secretName: my-release-gitlab-gitlab-letsencrypt
+        grafana:
+          enabled: false
+        initialRootPassword:
+          secret: gitlab-root-password
+          key: admin
+        appConfig:
+          enableUsagePing: false
+          enableSeatLink: false
+          enableImpersonation: true
+          defaultCanCreateGroup: true
+          usernameChangingEnabled: true
+          defaultTheme: "2"
+          defaultProjectsFeatures:
+            issues: true
+            mergeRequests: true
+            wiki: true
+            snippets: true
+            builds: true
+          contentSecurityPolicy:
+            enabled: false
+            report_only: true
+          object_store:
+            enabled: false
+            proxy_download: true
+            connection:
+              secret: store
+              key: objectStoreConnection
+          lfs:
+            enabled: true
+            proxy_download: true
+            bucket: gitlab-lfs
+            connection: {}
+          artifacts:
+            enabled: true
+            proxy_download: true
+            bucket: gitlab-artifacts
+            connection: {}
+          uploads:
+            enabled: true
+            proxy_download: true
+            bucket: gitlab-uploads
+            connection: {}
+          packages:
+            enabled: true
+            proxy_download: true
+            bucket: gitlab-packages
+            connection: {}
+          externalDiffs:
+            enabled: false
+            when:
+            proxy_download: true
+            bucket: gitlab-external-diffs
+            connection: {}
+          terraformState:
+            enabled: false
+            bucket: gitlab-terraform-state
+            connection: {}
+          dependencyProxy:
+            enabled: false
+            proxy_download: true
+            bucket: gitlab-dependency-proxy
+            connection: {}
+          pseudonymizer:
+            configMap:
+            bucket: gitlab-pseudonymizer
+            connection: {}
+          backups:
+            bucket: gitlab-backups
+            tmpBucket: gitlab-tmp
+          incomingEmail:
+            enabled: false
+            # address: ""
+            # host: "imap.gmail.com"
+            # port: 993
+            # ssl: true
+            # startTls: false
+            # user: ""
+            # password:
+            #   secret: ""
+            #   key: password
+            # expungeDeleted: false
+            # logger:
+            #   logPath: '/dev/stdout'
+            # mailbox: inbox
+            # idleTimeout: 60
+          serviceDeskEmail:
+            enabled: false
+            # address: ""
+            # host: 'imap.gmail.com'
+            # port: 993
+            # ssl: true
+            # startTls: false
+            # user: ""
+            # password:
+            #   secret: ""
+            #   key: password
+            # expungeDeleted: false
+            # logger:
+            #   logPath: "/dev/stdout"
+            # mailbox: inbox
+            # idleTimeout: 60
+          ldap:
+            preventSignin: false
+          omniauth:
+            enabled: true
+            allowBypassTwoFactor: []
+            allowSingleSignOn: ['saml']
+            autoLinkLdapUser: false
+            autoLinkSamlUser: true
+            autoLinkUser: ['saml']
+            autoSignInWithProvider: 
+            blockAutoCreatedUsers: false
+            externalProviders: []
+            syncProfileAttributes: ['email']
+            syncProfileFromProvider: ['saml']
+            providers:
+              - secret: gitlab-omniauth
+          sentry:
+            enabled: false
+          smartcard:
+            enabled: false
+        geo:
+          enabled: false
+        kas:
+          enabled: false
+        shell:
+          port: 22
+        rails:
+          bootsnap:
+            enabled: true
+        registry:
+          bucket: gitlab-registry
+        pages:
+          enabled: false
+          # accessControl: false
+          # path:
+          # host:
+          # port:
+          # https:
+          # externalHttp: []
+          # externalHttps: []
+          # artifactsServer: true
+          # objectStore:
+          #   enabled: true
+          #   bucket: gitlab-pages
+          #   connection: {}
+          # apiSecret: {}
+        smtp:
+          enabled: false
+          address: smtp.sendgrid.net
+          port: 587
+          user_name: apikey
+          password:
+            secret: mailgun-password
+            key: password
+          domain: em9444.promanager.online
+          authentication: plain
+        email:
+          from: no-reply@promanager.online
+          display_name: GitLab
+          reply_to: no-reply@promanager.online
+          subject_suffix: ''
+          smime:
+            enabled: false
+            secretName: ""
+            keyName: "tls.key"
+            certName: "tls.crt"
+        time_zone: UTC
+        deployment:
+          annotations: {}
+        serviceAccount:
+          enabled: false
+          create: true
+        extraEnv: {}
+      certmanager-issuer:
+        email: nope@nope.no
+      certmanager:
+        installCRDs: false
+        install: false
+      nginx-ingress:
+        enabled: false
+      prometheus:
+        install: false
+      redis:
+        install: true
+        usePasswordFile: true
+      postgresql:
+        install: true
+      registry:
+        enabled: false
+        ingress:
+          enabled: false
+          tls:
+            enabled: false
+            secretName: my-release-gitlab-gitlab-letsencrypt
+      shared-secrets:
+        enabled: true
+        rbac:
+          create: true
+      gitlab:
+        toolbox:
+          enabled: true
+          replicas: 1
+        gitlab-shell:
+          enabled: true
+          service:
+            internalPort: 2222
+            type: ClusterIP
+        webservice:
+          ingress:
+            enabled: false
+            tls:
+              enabled: false
+              secretName: my-release-gitlab-gitlab-letsencrypt

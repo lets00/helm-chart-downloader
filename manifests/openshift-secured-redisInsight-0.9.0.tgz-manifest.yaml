@@ -1,0 +1,122 @@
+---
+# Source: openshift-secured-redisInsight/charts/base/templates/service-account.yaml
+# Create a proxy service account and ensure it will use the route "proxy"
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: proxy
+  annotations:
+    serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"proxy"}}'
+---
+# Source: openshift-secured-redisInsight/templates/redisinsight-envs-configmap.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: redisinsight-envs
+data:
+  RITRUSTEDORIGINS: https://changeme.org
+---
+# Source: openshift-secured-redisInsight/charts/base/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy
+  annotations:
+    service.alpha.openshift.io/serving-cert-secret-name: proxy-tls
+spec:
+  ports:
+    - name: proxy
+      port: 443
+      targetPort: 8443
+  selector:
+    app: proxy
+---
+# Source: openshift-secured-redisInsight/charts/base/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redisinsight
+  labels:
+    helm.sh/chart: base-0.3.1
+    app.kubernetes.io/name: redisinsight
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy
+      app.kubernetes.io/name: redisinsight
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app: proxy
+        app.kubernetes.io/name: redisinsight
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: proxy
+      volumes:
+        - name: proxy-tls
+          secret:
+            secretName: proxy-tls
+        
+        - emptyDir: {}
+          name: db
+      
+      containers:
+        - name: oauth-proxy
+          image: "quay.io/openshift/origin-oauth-proxy:4.14"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8443
+              name: public
+          args:
+            - --https-address=:8443
+            - --provider=openshift
+            - --openshift-service-account=proxy
+            - --upstream=http://localhost:8001
+            - --tls-cert=/etc/tls/private/tls.crt
+            - --tls-key=/etc/tls/private/tls.key
+            - --cookie-secret=bA7kPuPzko-igWaLPhVDWVj_VhENVnVcHce6rYQwu_s=
+          volumeMounts:
+            - mountPath: /etc/tls/private
+              name: proxy-tls
+        
+        - env:
+          - name: RIPROXYENABLE
+            value: "true"
+          envFrom:
+          - configMapRef:
+              name: redisinsight-envs
+          image: redislabs/redisinsight:1.14.0
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 2
+            httpGet:
+              path: /healthcheck/
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          name: app
+          ports:
+          - containerPort: 8001
+            name: http
+            protocol: TCP
+          resources: {}
+          volumeMounts:
+          - mountPath: /db
+            name: db
+---
+# Source: openshift-secured-redisInsight/charts/base/templates/route.yaml
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: proxy
+spec:
+  host: changeme.org
+  to:
+    kind: Service
+    name: proxy
+  tls:
+    termination: reencrypt

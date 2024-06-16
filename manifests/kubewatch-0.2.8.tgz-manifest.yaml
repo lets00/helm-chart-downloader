@@ -1,0 +1,87 @@
+---
+# Source: kubewatch/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: kubewatch
+    chart: kubewatch-0.2.8
+    heritage: Helm
+    release: my-release
+  name: my-release-kubewatch
+---
+# Source: kubewatch/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: kubewatch
+    chart: kubewatch-0.2.8
+    heritage: Helm
+    release: my-release
+  name: my-release-kubewatch
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - '*'
+---
+# Source: kubewatch/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: kubewatch
+    chart: kubewatch-0.2.8
+    heritage: Helm
+    release: my-release
+  name: my-release-kubewatch
+subjects:
+  - kind: ServiceAccount
+    name: my-release-kubewatch
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kubewatch
+---
+# Source: kubewatch/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kubewatch
+  labels:
+    app: kubewatch
+    chart: kubewatch-0.2.8
+    heritage: Helm
+    release: my-release
+spec:
+  selector:
+    matchLabels:
+      app: my-release-kubewatch
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: my-release-kubewatch
+      annotations:
+    spec:
+      serviceAccountName: my-release-kubewatch
+      containers:
+      - name: kubewatch
+        image: "softonic/kubewatch:v0.4.0"
+        imagePullPolicy: IfNotPresent
+        args: [ "-allnamespaces", "-flatten", "deployments", "events" ]
+        resources:
+          limits:
+            cpu: 100m
+            memory: 32Mi
+          requests:
+            cpu: 100m
+            memory: 32Mi

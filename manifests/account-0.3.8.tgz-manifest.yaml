@@ -1,0 +1,126 @@
+---
+# Source: account/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: account
+  namespace: kafka
+data:
+  application.yaml: |-
+            security.basic.enabled: "false"
+            server.port: "8080"
+            spring:
+              cloud:
+                kubernetes:
+                  discovery.all-namespaces: "true"
+              datasource:
+                driverClassName: org.postgresql.Driver
+                hikari:
+                  connectionTimeOut: "2000"
+                  maximumPoolSize: "5"
+                password: postgres
+                url: jdbc:postgresql://postgres:5432/quotes_provider
+                username: postgres
+              jpa:
+                database-platform: org.hibernate.dialect.PostgreSQLDialect
+                hibernate.ddl-auto: update
+                properties:
+                  hibernate:
+                    dialect: org.hibernate.dialect.PostgreSQLDialect
+                    format_sql: "true"
+                    temp.use_jdbc_metadata_defaults: "false"
+                show-sql: "true"
+              security:
+                oauth2:
+                  client:
+                    provider:
+                      my-keycloak-provider:
+                        authorization-uri: http://keycloak-headless.kafka.svc.cluster.local/auth/realms/My-Realm/protocol/openid-connect/auth
+                        issuer-uri: http://keycloak-headless.kafka.svc.cluster.local/auth/realms/My-Realm
+                        jwk-set-uri: http://keycloak-headless.kafka.svc.cluster.local/auth/realms/My-Realm/protocol/openid-connect/certs
+                    registration:
+                      keycloak-spring-gateway-client:
+                        authorization-grant-type: authorization_code
+                        client-id: spring-gateway-client
+                        client-secret: 3RhEF8pqKTANrQ6BhfxaYVmcjTXsDK0u
+                        provider: my-keycloak-provider
+                        redirect-uri: '{baseUrl}/login/oauth2/code/keycloak'
+                        scope: openid
+                  resourceserver:
+                    jwt:
+                      jwk-set-uri: http://keycloak-headless.kafka.svc.cluster.local/auth/realms/My-Realm/protocol/openid-connect/certs
+---
+# Source: account/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: account
+  namespace: kafka
+spec:
+  ports:
+  - targetPort: 8080
+    name: http
+    port: 8080
+  selector:
+    app: account
+  type: LoadBalancer
+  externalIPs:
+    - 192.168.64.8
+---
+# Source: account/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account
+  namespace: kafka
+  labels:
+    app: account
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account
+
+  template:
+    metadata:
+      labels:
+        app: account
+        env: dev
+    spec:
+      serviceAccountName: api-service-account
+      containers:
+        - name: account
+          image: vitalii1992/account-service:latest
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          livenessProbe:
+            initialDelaySeconds: 30
+            httpGet:
+              port: http
+              path: /actuator/health/liveness
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 3
+            periodSeconds: 5
+          readinessProbe:
+            initialDelaySeconds: 30
+            httpGet:
+              port: http
+              path: /actuator/health/readiness
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 3
+            periodSeconds: 5
+          ports:
+          - containerPort: 8080
+            name: http
+          env:
+          - name: SPRING_PROFILES_ACTIVE
+            value: deployment
+          imagePullPolicy: Always

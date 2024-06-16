@@ -1,0 +1,193 @@
+---
+# Source: gateway/templates/gate-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-gateway-config
+  namespace: default
+  labels:
+    app: my-release-gateway
+    aqua.component: gateway
+    helm.sh/chart: 'gateway-2022.4.14'
+    app.kubernetes.io/name: "my-release-gateway"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2022.4"
+data:
+  SCALOCK_LOG_LEVEL: INFO
+  AQUA_CONSOLE_SECURE_ADDRESS: my-release-console-svc:443
+  SCALOCK_GATEWAY_PUBLIC_IP: my-release-gateway-svc
+  HEALTH_MONITOR: "0.0.0.0:8082"
+  SCALOCK_DBUSER: 
+  SCALOCK_DBNAME: 
+  SCALOCK_DBHOST: 
+  SCALOCK_DBPORT: ""
+  SCALOCK_AUDIT_DBUSER: 
+  SCALOCK_AUDIT_DBNAME: 
+  SCALOCK_AUDIT_DBHOST: 
+  SCALOCK_AUDIT_DBPORT: ""
+---
+# Source: gateway/templates/gate-headless-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gateway-headless-svc
+  namespace: default
+  labels:
+    app: my-release-gateway
+    aqua.component: gateway
+    helm.sh/chart: 'gateway-2022.4.14'
+    app.kubernetes.io/name: "my-release-gateway"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2022.4"
+spec:
+  clusterIP: None
+  type: ClusterIP
+  selector:
+    app: my-release-gateway
+  ports:
+    - name: aqua-gate
+      port: 3622
+      targetPort: 3622
+      protocol: TCP
+    - name: aqua-gate-ssl
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+    - name: aqua-health
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+---
+# Source: gateway/templates/gate-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gateway-svc
+  namespace: default
+  labels:
+    app: my-release-gateway
+    aqua.component: gateway
+    helm.sh/chart: 'gateway-2022.4.14'
+    app.kubernetes.io/name: "my-release-gateway"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2022.4"
+spec:
+  type: ClusterIP
+  selector:
+    app: my-release-gateway
+  ports:
+    - name: aqua-gate
+      port: 3622
+      targetPort: 3622
+      protocol: TCP
+    - name: aqua-gate-ssl
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+    - name: aqua-health
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+---
+# Source: gateway/templates/gate-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-gateway
+  namespace: default
+  labels:
+    app: my-release-gateway
+    aqua.component: gateway
+    helm.sh/chart: 'gateway-2022.4.14'
+    app.kubernetes.io/name: "my-release-gateway"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2022.4"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-gateway
+  template:
+    metadata:
+      annotations:
+        checksum/config: 7149325c15b5f62b2adb10eb3e038f4f1ecfd6595146d2cc81b40de95088d7c5
+      labels:
+        app: my-release-gateway
+        aqua.component: gateway
+        helm.sh/chart: 'gateway-2022.4.14'
+        app.kubernetes.io/name: "my-release-gateway"
+        app.kubernetes.io/instance: "my-release"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: "2022.4"
+      name: my-release-gateway
+    spec:
+      securityContext:
+        fsGroup: 11433
+        runAsGroup: 11433
+        runAsUser: 11431
+      serviceAccount: aqua-sa
+      containers:
+      - name: gate
+        image: "registry.aquasec.com/gateway:2022.4"
+        imagePullPolicy: "Always"
+        envFrom:
+        - configMapRef:
+            name: my-release-gateway-config
+        env:
+        - name: SCALOCK_DBPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-database-password
+              key: db-password
+        - name: SCALOCK_AUDIT_DBPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-database-password
+              key: db-password
+        
+        
+        ports:
+        - containerPort: 3622
+          protocol: TCP
+        - containerPort: 8443
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8082
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          tcpSocket:
+            port: 8443
+        volumeMounts:
+        resources:
+            {}
+      volumes:
+---
+# Source: gateway/templates/db-password-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-database-password
+  namespace: default
+  labels:
+    app: my-release-database
+    aqua.component: database
+    helm.sh/chart: 'gateway-2022.4.14'
+    app.kubernetes.io/name: "my-release-gateway"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2022.4"
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": before-hook-creation
+type: Opaque
+data:
+  db-password: ""

@@ -1,0 +1,209 @@
+---
+# Source: palworld/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: default
+  name: "my-release-rcon-password"
+  annotations:
+  labels:
+    helm.sh/chart: palworld-0.30.1
+    app.kubernetes.io/name: "my-release-rcon-password"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: "my-release-rcon-password"
+    app.kubernetes.io/version: v0.30.1
+type: Opaque
+stringData:
+  rconPassword: "oXYzCVcDiseHbR64ZafuqZ2x"
+---
+# Source: palworld/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: default
+  name: "my-release-community-password"
+  annotations:
+  labels:
+    helm.sh/chart: palworld-0.30.1
+    app.kubernetes.io/name: "my-release-community-password"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: "my-release-community-password"
+    app.kubernetes.io/version: v0.30.1
+type: Opaque
+stringData:
+  communityPassword: "0wGyc8AmJBmPoE8pZszbpAxm"
+---
+# Source: palworld/templates/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: default
+  name: "my-release-env-config"
+  annotations:
+  labels:
+    helm.sh/chart: palworld-0.30.1
+    app.kubernetes.io/name: "my-release-config"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: "my-release-config"
+    app.kubernetes.io/version: v0.30.1
+data:
+  PUID: "1000"
+  PGID: "1000"
+  PORT: "8211"
+  PLAYERS: "16"
+  MULTITHREADING: "true"
+  
+  RCON_ENABLED: "true"
+  RCON_PORT: "25575"
+  
+  
+  COMMUNITY: "true"
+  
+  
+  SERVER_NAME: palworld_41BP77
+  
+  TZ: UTC
+  PUBLIC_IP: ""
+  PUBLIC_PORT: ""
+  SERVER_DESCRIPTION: 
+  UPDATE_ON_BOOT: "true"
+  QUERY_PORT: "27015"
+  
+  DISABLE_GENERATE_SETTINGS: "false"
+---
+# Source: palworld/templates/pvcs.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: default
+  name: "my-release-datadir-pvc"
+  annotations:
+  labels:
+    helm.sh/chart: palworld-0.30.1
+    app.kubernetes.io/name: "my-release-datadir-pvc"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: "my-release-datadir-pvc"
+    app.kubernetes.io/version: v0.30.1
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 12Gi
+  storageClassName:
+---
+# Source: palworld/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: "my-release-svc"
+  labels:
+    helm.sh/chart: palworld-0.30.1
+    app.kubernetes.io/name: "my-release-svc"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: "my-release-svc"
+    app.kubernetes.io/version: v0.30.1
+  annotations:
+spec:
+  selector:
+    app.kubernetes.io/component: "my-release-server"
+  ports:
+    
+    - name: game
+      port: 8211
+      protocol: UDP
+      targetPort: 8211
+    - name: query
+      port: 27015
+      protocol: UDP
+      targetPort: 27015
+    - name: rcon
+      port: 25575
+      protocol: TCP
+      targetPort: 25575
+  type: ClusterIP
+---
+# Source: palworld/templates/deployments.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: "my-release-server"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: "my-release-server"
+  strategy:
+    type: "Recreate"
+  template:
+    metadata:
+      annotations:
+        checksum/configs: 656380f4b36883ddc100127181d0d5baeeec444c7e373d4eaa273f858e42af87
+        checksum/secrets: 6faf94b60d076ef32bd1081a00c01b708cdf94ac80a881df43ec34ce4bceb43c
+      labels:
+        helm.sh/chart: palworld-0.30.1
+        app.kubernetes.io/name: "my-release-server"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: "my-release-server"
+        app.kubernetes.io/version: v0.30.1
+    spec:
+      containers:
+        
+        - name: server
+          image: "thijsvanloef/palworld-server-docker:v0.30.1"
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - bash
+                - /usr/local/bin/backup
+          resources:
+            limits:
+              cpu: 4
+              memory: 12Gi
+            requests:
+              cpu: 4
+              memory: 8Gi
+          ports:
+            - containerPort: 8211
+              name: game
+              protocol: UDP
+            - containerPort: 27015
+              name: query
+              protocol: UDP
+            - containerPort: 25575
+              name: rcon
+              protocol: TCP
+          env:
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "my-release-rcon-password"
+                  key: "rconPassword"
+            - name: SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "my-release-community-password"
+                  key: "communityPassword"
+          envFrom:
+            - configMapRef:
+                name: "my-release-env-config"
+          volumeMounts:
+            - mountPath: /palworld
+              name: datadir
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: datadir
+          persistentVolumeClaim:
+            claimName: "my-release-datadir-pvc"
+---
+# Source: palworld/templates/pvcs.yaml
+---

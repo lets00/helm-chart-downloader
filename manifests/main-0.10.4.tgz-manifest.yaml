@@ -1,0 +1,68 @@
+---
+# Source: main/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release
+spec:
+  selector:
+    app: my-release
+  type: ClusterIP
+  publishNotReadyAddresses: false
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: tcp-80
+---
+# Source: main/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: my-release
+        image: gcarrarom/landing:0.0.0
+        imagePullPolicy: Always
+        resources:
+            limits:
+            requests:
+        ports:
+          - containerPort: 80
+            protocol: TCP
+---
+# Source: main/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: my-release.fancywhale.ca
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: my-release
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - my-release.fancywhale.ca
+    secretName: my-release-fancywhale-ca

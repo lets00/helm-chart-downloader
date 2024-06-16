@@ -1,0 +1,105 @@
+---
+# Source: mariadb/templates/common.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mariadb
+  labels:
+    helm.sh/chart: mariadb-1.0.6
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "110.4.21"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: ROOT_ACCESS_PASSWORD
+---
+# Source: mariadb/templates/common.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mariadb
+  labels:
+    helm.sh/chart: mariadb-1.0.6
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "110.4.21"
+    app.kubernetes.io/managed-by: Helm
+data:
+  TZ: America/Los_Angeles
+---
+# Source: mariadb/templates/common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mariadb
+  labels:
+    helm.sh/chart: mariadb-1.0.6
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "110.4.21"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+---
+# Source: mariadb/templates/common.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mariadb
+  labels:
+    helm.sh/chart: mariadb-1.0.6
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "110.4.21"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mariadb
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      dnsPolicy: ClusterFirst
+      containers:
+      - name: my-release-mariadb
+        image: "ghcr.io/linuxserver/mariadb:version-110.4.21mariabionic"
+        imagePullPolicy: IfNotPresent
+        envFrom:
+          - configMapRef:
+              name: my-release-mariadb
+          - secretRef:
+              name: my-release-mariadb
+        ports:
+        - name: http
+          containerPort: 3306
+          protocol: TCP
+        volumeMounts:
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 30
+          failureThreshold: 5
+          timeoutSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 30
+          failureThreshold: 5
+          timeoutSeconds: 10

@@ -1,0 +1,93 @@
+---
+# Source: marge-bot/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-marge-bot-secret
+  labels:
+    helm.sh/chart: marge-bot-1.1.0
+    app.kubernetes.io/name: marge-bot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.12.1"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  gitlab-url: "aHR0cHM6Ly9naXRsYWIuY29t"
+  ssh-key: ""
+  auth-token: ""
+---
+# Source: marge-bot/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-marge-bot-config
+  labels:
+    helm.sh/chart: marge-bot-1.1.0
+    app.kubernetes.io/name: marge-bot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.12.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: marge-bot/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-marge-bot
+  labels:
+    helm.sh/chart: marge-bot-1.1.0
+    app.kubernetes.io/name: marge-bot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.12.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: marge-bot
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: marge-bot
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/configmap: 5bfd92f94f8d814d099efdae57412f7b2cc1e21dff737e1f5d4cc9cb4f04330b
+        checksum/secret: 371dc2cbb33ae0280f808662005de3c9cdbf367cd7db4ab178b6aa9e9bbc6938
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: marge-bot
+          securityContext:
+            {}
+          image: "hiboxsystems/marge-bot:0.12.1"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MARGE_GITLAB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-marge-bot-secret
+                  key: gitlab-url
+            - name: MARGE_SSH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-marge-bot-secret
+                  key: ssh-key
+            - name: MARGE_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-marge-bot-secret
+                  key: auth-token
+          volumeMounts:
+          - name: tmp-volume
+            mountPath: /tmp
+          resources:
+            {}
+      volumes:
+        - name: 'config-volume'
+          configMap:
+            name: my-release-marge-bot-config
+        - name: 'tmp-volume'
+          emptyDir:
+            sizeLimit: 1Gi

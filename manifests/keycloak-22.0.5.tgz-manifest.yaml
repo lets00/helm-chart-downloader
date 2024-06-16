@@ -1,0 +1,343 @@
+---
+# Source: keycloak/templates/secrets/keycloak-db-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-db-secret
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/managed-by: Helm
+    keycloak: keycloak
+    app.kubernetes.io/instance: my-release
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: ""
+  POSTGRES_USERNAME: "postgres"
+---
+# Source: keycloak/templates/secrets/keycloak-initial-admin.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-initial-admin
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+type: Opaque
+data:
+  username: "YWRtaW4="
+  password: "R0VYbGJxaVZ5R3FUQUIxekx2WUl2NjF6"
+---
+# Source: keycloak/templates/secrets/keycloak-vault.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-vault
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/managed-by: Helm
+    keycloak: keycloak
+    app.kubernetes.io/instance: my-release
+type: Opaque
+stringData:
+---
+# Source: keycloak/templates/secrets/ldap-cert.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ldap-cert
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+type: Opaque
+---
+# Source: keycloak/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # TODO: narrow api groups
+  - apiGroups:
+      - '*'
+    resources:
+      - '*'
+    verbs:
+      - '*'
+---
+# Source: keycloak/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keycloak
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+---
+# Source: keycloak/templates/services/keycloak.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: keycloak
+    app.kubernetes.io/managed-by: keycloak-operator
+---
+# Source: keycloak/templates/keycloak.yaml
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+spec:
+  instances: 1
+  image: registry.gitlab.com/bitspur/rock8s/images/keycloak:22.0.5
+  imagePullSecrets:
+    - name: registry
+  hostname:
+    hostname: keycloak-discovery.default.svc.cluster.local
+    strict: true
+    strictBackchannel: true
+  http:
+    httpEnabled: true
+    httpPort: 8080
+    httpsPort: 8443
+  db:
+    vendor: postgres
+    database: "keycloak"
+    host: ""
+    port: 5432
+    usernameSecret:
+      name: keycloak-db-secret
+      key: POSTGRES_USERNAME
+    passwordSecret:
+      name: keycloak-db-secret
+      key: POSTGRES_PASSWORD
+  transaction:
+    xaEnabled: true
+  features:
+    disabled: []
+    enabled: []
+  ingress:
+    enabled: false
+  unsupported:
+    podTemplate:
+      spec:
+        containers:
+          - command:
+              - sh
+              - -c
+              - |
+                  mkdir -p /opt/keycloak/cacerts
+                  mkdir -p /opt/keycloak/certs
+                  for CERT in $(ls /opt/keycloak/cacerts/*.crt 2>/dev/null); do
+                    if [ -f "$CERT" ] && [ "$(cat $CERT)" != "" ]; then
+                      ALIAS=$(keytool -printcert -file "$CERT" | grep -E '^Owner: CN=' | head -n1 | sed 's|Owner: CN=||g')
+                      echo keytool -import -trustcacerts -file "$CERT" -keystore "$KC_SPI_TRUSTSTORE_FILE_FILE" -alias "$ALIAS" -storepass "$KC_SPI_TRUSTSTORE_FILE_PASSWORD" -noprompt
+                      keytool -import -trustcacerts -file "$CERT" -keystore "$KC_SPI_TRUSTSTORE_FILE_FILE" -alias "$ALIAS" -storepass "$KC_SPI_TRUSTSTORE_FILE_PASSWORD" -noprompt
+                    fi
+                  done
+                  for CERT in $(ls /opt/keycloak/certs/*.crt 2>/dev/null); do
+                    if [ -f "$CERT" ] && [ "$(cat $CERT)" != "" ]; then
+                      ALIAS=$(keytool -printcert -file "$CERT" | grep -E '^Owner: CN=' | head -n1 | sed 's|Owner: CN=||g')
+                      echo keytool -import -file "$CERT" -keystore "$KC_HTTPS_KEY_STORE_FILE" -alias "$ALIAS" -storepass "$KC_HTTPS_KEY_STORE_PASSWORD" -noprompt
+                      keytool -import -file "$CERT" -keystore "$KC_HTTPS_KEY_STORE_FILE" -alias "$ALIAS" -storepass "$KC_HTTPS_KEY_STORE_PASSWORD" -noprompt
+                    fi
+                  done
+                  if [ ! -f "$KC_SPI_TRUSTSTORE_FILE_FILE" ]; then
+                    unset KC_SPI_TRUSTSTORE_FILE_FILE
+                    unset KC_SPI_TRUSTSTORE_FILE_PASSWORD
+                    unset KC_SPI_TRUSTSTORE_FILE_HOSTNAME_VERIFICATION_POLICY
+                  fi
+                  if [ ! -f "$KC_HTTPS_KEY_STORE_FILE" ]; then
+                    unset KC_HTTPS_KEY_STORE_FILE
+                    unset KC_HTTPS_KEY_STORE_PASSWORD
+                  fi
+                  exec /opt/keycloak/bin/kc.sh start --optimized
+            env:
+              - name: KC_SPI_TRUSTSTORE_FILE_FILE
+                value: /opt/keycloak/conf/ca.truststore
+              - name: KC_SPI_TRUSTSTORE_FILE_PASSWORD
+                value: changeit
+              - name: KC_SPI_TRUSTSTORE_FILE_HOSTNAME_VERIFICATION_POLICY
+                value: ANY
+              - name: KC_HTTPS_KEY_STORE_FILE
+                value: /opt/keycloak/conf/https.keystore
+              - name: KC_HTTPS_KEY_STORE_PASSWORD
+                value: changeit
+              - name: KC_VAULT
+                value: file
+              - name: KC_VAULT_DIR
+                value: /opt/keycloak/secrets
+              - name: KC_LOG_LEVEL
+                value: "INFO"
+              - name: KC_HOSTNAME_STRICT
+                value: 'true'
+              - name: KC_HOSTNAME_STRICT_BACKCHANNEL
+                value: 'true'
+            envFrom:
+              - secretRef:
+                  name: keycloak-vault
+            volumeMounts:
+              - name: keycloak-vault
+                mountPath: /opt/keycloak/secrets
+                readOnly: true
+            resources:
+              requests:
+                cpu: 500m
+                memory: 600Mi
+              limits:
+                cpu: 1500m
+                memory: 1000Mi
+        volumes:
+          - name: keycloak-vault
+            secret:
+              secretName: keycloak-vault
+---
+# Source: keycloak/templates/keycloak-main-realm.yaml
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakRealmImport
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+spec:
+  keycloakCRName: keycloak
+  realm:
+    realm: main
+    enabled: true
+    displayName: 'Main Realm'
+---
+# Source: keycloak/templates/operator.yaml
+apiVersion: easyolm.rock8s.com/v1alpha1
+kind: ManualSubscription
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  channel: fast
+  name: keycloak-operator
+  source: operatorhubio-catalog
+  sourceNamespace: olm
+  startingCSV: keycloak-operator.v22.0.5
+---
+# Source: keycloak/templates/socket.yaml
+apiVersion: integration.rock8s.com/v1beta1
+kind: Socket
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak
+    helm.sh/chart: keycloak-22.0.5
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  epoch: "1718500559"
+  interface:
+    config:
+      plug:
+        clientId:
+          required: true
+        attributes: {}
+        cleanup: {}
+        clientSecret: {}
+        consentRequired: {}
+        description: {}
+        directAccessGrantsEnabled: {}
+        implicitFlowEnabled: {}
+        name: {}
+        protocol: {}
+        realm: {}
+        redirectUris: {}
+        webOrigins: {}
+      socket:
+        keycloakAdminPassword:
+          required: true
+        keycloakBaseUrl:
+          required: true
+        defaultRealm:
+          required: true
+        keycloakAdminUsername: {}
+  apparatus:
+    endpoint: /socket
+    containers:
+      - image: registry.gitlab.com/bitspur/rock8s/keycloak-integration-apparatus:0.1.0
+        imagePullPolicy: Always
+        name: apparatus
+        ports:
+          - containerPort: 3000
+            name: container
+            protocol: TCP
+      - name: kubectl
+        image: bitnami/kubectl:1.17.12
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -c
+          - kubectl proxy
+  config:
+    keycloakBaseUrl: http://keycloak-discovery.default.svc.cluster.local
+    defaultRealm: main
+  configTemplate:
+    keycloakAdminPassword: '{% .vars.BASE64_ENCODED_KEYCLOAK_ADMIN_PASSWORD | b64dec %}'
+    keycloakAdminUsername: '{% .vars.BASE64_ENCODED_KEYCLOAK_ADMIN_USERNAME | b64dec %}'
+  vars:
+    - name: BASE64_ENCODED_KEYCLOAK_ADMIN_PASSWORD
+      objref:
+        version: v1
+        kind: Secret
+        name: keycloak-initial-admin
+        namespace: default
+      fieldref:
+        fieldPath: data.password
+    - name: BASE64_ENCODED_KEYCLOAK_ADMIN_USERNAME
+      objref:
+        version: v1
+        kind: Secret
+        name: keycloak-initial-admin
+        namespace: default
+      fieldref:
+        fieldPath: data.username

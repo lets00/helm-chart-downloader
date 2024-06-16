@@ -1,0 +1,111 @@
+---
+# Source: varnish/templates/poddisruptionbudget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-varnish
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: varnish
+      app.kubernetes.io/instance: my-release
+---
+# Source: varnish/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-varnish
+  labels:
+    helm.sh/chart: varnish-0.18.9
+    app.kubernetes.io/name: varnish
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9131
+      targetPort: http
+      protocol: TCP
+      name: exporter
+  selector:
+    app.kubernetes.io/name: varnish
+    app.kubernetes.io/instance: my-release
+---
+# Source: varnish/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-varnish
+  labels:
+    helm.sh/chart: varnish-0.18.9
+    app.kubernetes.io/name: varnish
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: varnish
+      app.kubernetes.io/instance: my-release
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: varnish
+        app.kubernetes.io/instance: my-release
+        app: varnish
+        version: 0.18.9
+      annotations:
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: varnishd
+          securityContext:
+            {}
+          image: varnish:7.2.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: VARNISH_SIZE
+              value: "100M"
+            - name: VARNISH_HTTP_PORT
+              value: "80"
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {}
+          volumeMounts:
+          - name: vsm
+            mountPath: /var/lib/varnish
+        - name: varnishncsa
+          image: varnish:7.2.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            {}
+          command:
+          - varnishncsa
+          - -t
+          - "off"
+          resources:
+            {}
+          volumeMounts:
+          - name: vsm
+            mountPath: /var/lib/varnish
+      volumes:
+      - name: vsm
+        emptyDir:
+          medium: Memory

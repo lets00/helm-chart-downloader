@@ -1,0 +1,227 @@
+---
+# Source: headless-viewerrobot-api/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-headless-viewerrobot-api
+  labels:
+    helm.sh/chart: headless-viewerrobot-api-0.1.16
+    app.kubernetes.io/name: headless-viewerrobot-api
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.16"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: headless-viewerrobot-api/templates/configmap_twitch-usernames.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-headless-viewerrobot-api-twitch-usernames-config
+  labels:
+        app.kubernetes.io/name: headless-viewerrobot-api
+        app.kubernetes.io/instance: my-release    
+data:
+  twitch.usernames.txt: |-
+---
+# Source: headless-viewerrobot-api/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+ name: helm
+roleRef:
+ apiGroup: rbac.authorization.k8s.io
+ kind: ClusterRole
+ name: cluster-admin
+subjects:
+ - kind: ServiceAccount
+   name: my-release-headless-viewerrobot-api
+   namespace: default
+---
+# Source: headless-viewerrobot-api/templates/api-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-headless-viewerrobot-api
+  labels:
+    helm.sh/chart: headless-viewerrobot-api-0.1.16
+    app.kubernetes.io/name: headless-viewerrobot-api
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.16"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: headless-viewerrobot-api
+    app.kubernetes.io/instance: my-release
+---
+# Source: headless-viewerrobot-api/templates/ui-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-headless-viewerrobot-api-ui
+  labels:
+    helm.sh/chart: headless-viewerrobot-api-0.1.16
+    app.kubernetes.io/name: headless-viewerrobot-api
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.16"
+    app.kubernetes.io/managed-by: Helm-ui
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: httpui
+  selector:
+    app.kubernetes.io/name: headless-viewerrobot-api
+    app.kubernetes.io/instance: my-release-ui
+---
+# Source: headless-viewerrobot-api/templates/api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-headless-viewerrobot-api
+  labels:
+    helm.sh/chart: headless-viewerrobot-api-0.1.16
+    app.kubernetes.io/name: headless-viewerrobot-api
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.16"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headless-viewerrobot-api
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: headless-viewerrobot-api
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-headless-viewerrobot-api
+      securityContext:
+        {}
+      volumes:
+        - name: twitch-usernames-config
+          configMap:
+            name: my-release-headless-viewerrobot-api-twitch-usernames-config
+            items:
+            - key: twitch.usernames.txt
+              path: twitch.usernames.txt
+      containers:
+        - name: headless-viewerrobot-api
+          securityContext:
+            {}
+          image: "jfwenisch/headless-viewerrobot-api:0.1.16"
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: GITHUBTOKEN
+            value: 
+          - name: MAIL
+            value: 
+          - name: PASSWORD
+            value: 
+          - name: PORT
+            value: "993"
+          - name: SERVER
+            value: 
+          - name: UI_URL
+            value: "my-release-headless-viewerrobot-api-ui.default.svc.cluster.local:8080"
+          - name: API_URL
+            value: "my-release-headless-viewerrobot-api.default.svc.cluster.local:8080"
+          - name: TWITCHSTATUSAPI_URL
+            value: 
+          volumeMounts:
+            - name: twitch-usernames-config
+              mountPath: /twitch.usernames.txt
+              subPath: twitch.usernames.txt
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+          resources:
+            {}
+---
+# Source: headless-viewerrobot-api/templates/ui-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-headless-viewerrobot-api-ui
+  labels:
+    helm.sh/chart: headless-viewerrobot-api-0.1.16
+    app.kubernetes.io/name: headless-viewerrobot-api
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.16"
+    app.kubernetes.io/managed-by: Helm-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headless-viewerrobot-api
+      app.kubernetes.io/instance: my-release-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: headless-viewerrobot-api
+        app.kubernetes.io/instance: my-release-ui
+    spec:
+      serviceAccountName: my-release-headless-viewerrobot-api
+      securityContext:
+        {}
+      containers:
+        - name: headless-viewerrobot-api-ui
+          securityContext:
+            {}
+          image: "jfwenisch/headless-viewerrobot-ui:latest"
+          imagePullPolicy: Always
+          env:
+          - name: API_URL
+            value: "my-release-headless-viewerrobot-api.default.svc.cluster.local:8080"
+          ports:
+            - name: httpui
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+          resources:
+            {}
+---
+# Source: headless-viewerrobot-api/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-headless-viewerrobot-api-test-connection"
+  labels:
+    helm.sh/chart: headless-viewerrobot-api-0.1.16
+    app.kubernetes.io/name: headless-viewerrobot-api
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.16"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-headless-viewerrobot-api:80']
+  restartPolicy: Never

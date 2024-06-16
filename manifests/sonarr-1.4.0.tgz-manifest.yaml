@@ -1,0 +1,144 @@
+---
+# Source: sonarr/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-sonarr
+  labels:
+    helm.sh/chart: sonarr-1.4.0
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "release-4.0.5.1710"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: sonarr/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-sonarr
+  labels:
+    helm.sh/chart: sonarr-1.4.0
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "release-4.0.5.1710"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    volume.alpha.kubernetes.io/storage-class: default
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "800Mi"
+---
+# Source: sonarr/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-sonarr
+  labels:
+    helm.sh/chart: sonarr-1.4.0
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "release-4.0.5.1710"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: my-release
+---
+# Source: sonarr/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-sonarr
+  labels:
+    helm.sh/chart: sonarr-1.4.0
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "release-4.0.5.1710"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sonarr
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sonarr
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-sonarr
+      securityContext:
+        {}
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: my-release-sonarr
+      containers:
+        - name: sonarr
+          securityContext:
+            {}
+          image: "hotio/sonarr:release-4.0.5.1710"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /config
+              name: config
+          ports:
+            - name: http
+              containerPort: 8989
+              protocol: TCP
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Europe/London"
+            - name: UMASK
+              value: "002"
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            failureThreshold: 12
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /ping
+              port: http
+            failureThreshold: 30
+            periodSeconds: 10
+          resources:
+            {}
+---
+# Source: sonarr/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-sonarr-test-connection"
+  labels:
+    helm.sh/chart: sonarr-1.4.0
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "release-4.0.5.1710"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-sonarr:80']
+  restartPolicy: Never

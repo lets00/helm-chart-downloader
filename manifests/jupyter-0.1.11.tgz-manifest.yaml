@@ -1,0 +1,147 @@
+---
+# Source: jupyter/templates/configmap-git.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-jupyter-git
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: jupyter
+    helm.sh/chart: jupyter-0.1.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  git-notebooks.sh: |
+    #!/bin/sh
+    set -x
+    cd /home/jovyan
+    cp -r /tmp/.ssh /root/
+    chmod 600 /root/.ssh/*
+    echo "Loading notebooks from git repo"
+    if [ ! -d "/home/jovyan/gradiant" ]
+    then
+        echo "Cloning gradiant notebook repository"
+        git clone https://github.com/Gradiant/notebooks.git gradiant
+    else 
+        echo "gradiant notebook repository already cloned"
+    fi
+    if [ ! -d "/home/jovyan/grad-git" ]
+    then
+        echo "Cloning grad-git notebook repository"
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+        git clone git@github.com:Gradiant/notebooks.git grad-git
+    else 
+        echo "grad-git notebook repository already cloned"
+    fi
+    # exit code 0 to continue deployment even if git clone fails
+    exit 0
+---
+# Source: jupyter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jupyter
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: jupyter
+    helm.sh/chart: jupyter-0.1.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: jupyter
+    app.kubernetes.io/instance: my-release
+---
+# Source: jupyter/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-jupyter
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: jupyter
+    helm.sh/chart: jupyter-0.1.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: jupyter
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-jupyter
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jupyter
+        helm.sh/chart: jupyter-0.1.11
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: jupyter
+          image: docker.io/gradiant/jupyter:6.0.3
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: JUPYTER_ENABLE_LAB
+              value: "true"
+          args:
+            - start-notebook.sh
+            - --ip=0.0.0.0
+            
+          ports:
+            - name: http
+              containerPort: 8888
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 600
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+          resources:
+            limits: {}
+            requests: {}         
+          volumeMounts:
+            - name: jupyter
+              mountPath: /home/jovyan
+      volumes:
+        - name: git-notebooks
+          configMap:
+            name: my-release-jupyter-git
+        - name: git-secret
+          secret:
+            secretName: the name of the secret with ssh keys
+  volumeClaimTemplates:
+  - metadata:
+      name: jupyter
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: "50Gi"

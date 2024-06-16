@@ -1,0 +1,163 @@
+---
+# Source: evi-task-manager/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: smartedge-apps
+  name: sa-task-manager
+  labels:
+    account: task-manager
+---
+# Source: evi-task-manager/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: smartedge-apps
+  name: task-manager-cm
+data:
+  app.config: |
+    AI_SERVICE = "evi-ai-inference.smartedge-apps"
+    AI_PORT = "50052"
+    STORAGE_SERVICE = "evi-storage-rest.smartedge-apps"
+    STORAGE_PORT = "9900"
+    RTSP_SERVICE = "evi-rtsp-client.smartedge-apps"
+    RTSP_PORT = "9800"
+    RTSP_SERVICE_COUNT = "1"
+    CLUSTER_SERVICE =  "evi-clustering-archiving.smartedge-apps"
+    CLUSTER_PORT =   "8080"
+---
+# Source: evi-task-manager/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: smartedge-apps
+  name: evi-task-manager
+  labels:
+    app: task-manager
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9900
+    name: http
+    protocol: TCP
+    targetPort: 9900
+  selector:
+    app: task-manager
+---
+# Source: evi-task-manager/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: smartedge-apps
+  name: evi-task-manager
+  labels:
+    version: v1
+  annotations:
+    container.apparmor.security.beta.kubernetes.io/task-manager: runtime/default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-manager
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: task-manager
+        sidecar.istio.io/inject: "false"
+        version: v1
+    spec:
+      nodeSelector:
+        feature.node.kubernetes.io/cpu-cpuid.AVX512VNNI: 'true'
+        feature.node.kubernetes.io/cpu-cpuid.AVX2: 'true'
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: evi-task-manager
+        image: "evi-task-rest:0.4"
+        imagePullPolicy: IfNotPresent
+        #command: ["/bin/sh"]
+        args: ["-s", "60", "-c", "10"]
+        livenessProbe:
+          httpGet:
+            path: /api/check
+            port: 9900
+            httpHeaders:
+            - name: Custom-Header
+              value: Awesome
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: "20m"
+            memory: 150Mi
+          limits:
+            cpu: "1"
+            memory: 300Mi
+        ports:
+        - containerPort: 9900
+        volumeMounts:
+        - name: task-manager-cm-volume
+          mountPath: "/home/rest_api/configure/app.config"
+          subPath: "app.config"
+        securityContext:
+          allowPrivilegeEscalation: true
+      serviceAccountName: sa-task-manager
+      volumes:
+      - name: task-manager-cm-volume
+        configMap:
+          name: task-manager-cm
+---
+# Source: evi-task-manager/templates/configmap.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-task-manager/templates/deployment.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-task-manager/templates/service.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-task-manager/templates/serviceaccount.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.

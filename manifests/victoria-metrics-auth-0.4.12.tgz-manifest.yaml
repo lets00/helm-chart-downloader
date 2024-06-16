@@ -1,0 +1,119 @@
+---
+# Source: victoria-metrics-auth/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-victoria-metrics-auth
+  namespace: default
+  labels:
+    helm.sh/chart: victoria-metrics-auth-0.4.12
+    app.kubernetes.io/name: victoria-metrics-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.101.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: victoria-metrics-auth/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-victoria-metrics-auth
+  namespace: default
+  labels:
+    helm.sh/chart: victoria-metrics-auth-0.4.12
+    app.kubernetes.io/name: victoria-metrics-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.101.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  auth.yml: |
+    CiAgICBudWxs
+---
+# Source: victoria-metrics-auth/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: victoria-metrics-auth-0.4.12
+    app.kubernetes.io/name: victoria-metrics-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.101.0"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-victoria-metrics-auth
+  namespace: default
+spec:
+  ports:
+    - name: http
+      port: 8427
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: victoria-metrics-auth
+    app.kubernetes.io/instance: my-release
+  type: "ClusterIP"
+---
+# Source: victoria-metrics-auth/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-victoria-metrics-auth
+  namespace: default
+  labels:
+    helm.sh/chart: victoria-metrics-auth-0.4.12
+    app.kubernetes.io/name: victoria-metrics-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.101.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: victoria-metrics-auth
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: victoria-metrics-auth
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 02c5a2866ef5d4aed44e16477ab91ac8c275d103365919ce0452314c24afb045
+    spec:
+      serviceAccountName: my-release-victoria-metrics-auth
+      securityContext:
+        {}
+      containers:
+        - name: victoria-metrics-auth
+          securityContext:
+            {}
+          image: "victoriametrics/vmauth:v1.101.0"
+          workingDir: /
+          args:
+            - -auth.config=/config/auth.yml
+            - -envflag.enable=true
+            - -envflag.prefix=VM_
+            - -loggerFormat=json
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8427
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            
+          resources:
+            {}
+      volumes:
+        - name: config
+          secret:
+            secretName: my-release-victoria-metrics-auth

@@ -1,0 +1,74 @@
+---
+# Source: freshrss/charts/common/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  selector:
+    app: my-release
+  ports:
+  - targetPort: 80
+    port: 80
+---
+# Source: freshrss/charts/common/templates/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+    spec:
+      containers:
+        - name: my-release
+          imagePullPolicy: Always
+          image: "lscr.io/linuxserver/freshrss:1.21.0"
+          ports:
+          - containerPort: 80
+          resources:
+            requests:
+            limits:
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 2
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 60
+            failureThreshold: 1
+            timeoutSeconds: 3
+---
+# Source: freshrss/charts/common/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-connection-my-release
+  labels:
+    app: my-release
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release:80']
+  restartPolicy: Never

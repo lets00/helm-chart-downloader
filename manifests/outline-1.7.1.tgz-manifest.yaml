@@ -1,0 +1,1255 @@
+---
+# Source: outline/charts/minio/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-minio
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/version: 2023.11.1
+    helm.sh/chart: minio-12.9.0
+automountServiceAccountToken: true
+secrets:
+  - name: my-release-minio
+---
+# Source: outline/charts/redis/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: my-release-redis
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.3
+    helm.sh/chart: redis-18.2.1
+---
+# Source: outline/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-outline
+  labels:
+    helm.sh/chart: "outline-1.7.1"
+    app.kubernetes.io/name: "outline"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/part-of: "outline"
+    app.kubernetes.io/version: "0.77.1"
+---
+# Source: outline/templates/secret_keys.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "my-release-outline-enc-keys"
+type: Opaque
+data:
+  secret-key: "OGJhMTBjYzIwYWYyZGUxYWM2ZDVjNTdhNTI1YzQ5MzA3MzcyMjQ1NmU4NjA2ODZhYmU4ZDkxNDkyMjYwMWQ5MQ=="
+  utils-secret: "MzExMWM5MmM5M2NiNDgyOTVhNzhhYWJhNWZiMTUyYzYxNzAxZjkzMTI1YzAwZmZkZDVkZTEyMTQ5MzdhNjk5Mg=="
+---
+# Source: outline/templates/secret_minio_credentials.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "outline-minio-credentials"
+type: Opaque
+data:
+  root-user: "a3FWdTdvNTk4QWE1Sm5VSEZUa281aXZ3N2lKaFo5d0k="
+  root-password: "dVUxZGVHYlVsUzdkU3p1Tmh6UUhRbUZuS3p4OGdxSnNobkZWdkdoNGNzOTJsWlB2cmdORUdERkp2R1FzakROZA=="
+---
+# Source: outline/templates/secret_postgresql_credentials.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "outline-postgresql-credentials"
+type: Opaque
+data:
+  postgres-password: "S241UUpOVHJ5Um5MUzhBR3hhMlpnWEgzb3FDS1pQYW81ekdBWmh6bWVQRE1kTnVkWGpZN2d5NnMzN2lRNGlXOQ=="
+  password: "dE54SFJ0aHdvYXZyNHltZEhLQW5Vd2U3NmpNRVF5WHJLZTB1ZGJMT29wT2tUbjhPZ0drbmw5bEJjR1RWNGx1UQ=="
+---
+# Source: outline/templates/secret_redis_credentials.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "outline-redis-credentials"
+type: Opaque
+data:
+  password: "UThYcjR2b29nQkJUZmNsRjB3ZjRLcnFoTkc2YUdZTVA="
+  ioredis: "aW9yZWRpczovL2V5Sm9iM04wSWpvZ0ltMTVMWEpsYkdWaGMyVXRjbVZrYVhNdGJXRnpkR1Z5SWl3Z0luQnZjblFpT2lBMk16YzVMQ0FpY0dGemMzZHZjbVFpT2lBaVVUaFljalIyYjI5blFrSlVabU5zUmpCM1pqUkxjbkZvVGtjMllVZFpUVkFpZlE9PQ=="
+---
+# Source: outline/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-configuration
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.3
+    helm.sh/chart: redis-18.2.1
+data:
+  redis.conf: |-
+    # User-supplied common configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+    # End of common configuration
+  master.conf: |-
+    dir /data
+    # User-supplied master configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of master configuration
+  replica.conf: |-
+    dir /data
+    # User-supplied replica configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of replica configuration
+---
+# Source: outline/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-health
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.3
+    helm.sh/chart: redis-18.2.1
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ] && [ "$responseFirstWord" != "MASTERDOWN" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: outline/charts/redis/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-scripts
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.3
+    helm.sh/chart: redis-18.2.1
+data:
+  start-master.sh: |
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    if [[ -f /opt/bitnami/redis/mounted-etc/master.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+    fi
+    if [[ -f /opt/bitnami/redis/mounted-etc/redis.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+    fi
+    ARGS=("--port" "${REDIS_PORT}")
+    ARGS+=("--requirepass" "${REDIS_PASSWORD}")
+    ARGS+=("--masterauth" "${REDIS_PASSWORD}")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+    exec redis-server "${ARGS[@]}"
+---
+# Source: outline/charts/minio/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-minio
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/version: 2023.11.1
+    helm.sh/chart: minio-12.9.0
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "10Gi"
+---
+# Source: outline/charts/minio/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-minio
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/version: 2023.11.1
+    helm.sh/chart: minio-12.9.0
+spec:
+  type: ClusterIP
+  ports:
+    - name: minio-api
+      port: 9000
+      targetPort: minio-api
+      nodePort: null
+    - name: minio-console
+      port: 9001
+      targetPort: minio-console
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: minio
+---
+# Source: outline/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-hl
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.0.0
+    helm.sh/chart: postgresql-13.2.2
+    app.kubernetes.io/component: primary
+  annotations:
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary
+---
+# Source: outline/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.0.0
+    helm.sh/chart: postgresql-13.2.2
+    app.kubernetes.io/component: primary
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary
+---
+# Source: outline/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-headless
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.3
+    helm.sh/chart: redis-18.2.1
+  annotations:
+    
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: redis
+---
+# Source: outline/charts/redis/templates/master/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-master
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.3
+    helm.sh/chart: redis-18.2.1
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  internalTrafficPolicy: Cluster
+  sessionAffinity: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: master
+---
+# Source: outline/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-outline
+  labels:
+    helm.sh/chart: "outline-1.7.1"
+    app.kubernetes.io/name: "outline"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/part-of: "outline"
+    app.kubernetes.io/version: "0.77.1"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: "outline"
+    app.kubernetes.io/instance: "my-release"
+---
+# Source: outline/charts/minio/templates/standalone/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-minio
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/version: 2023.11.1
+    helm.sh/chart: minio-12.9.0
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: minio
+        app.kubernetes.io/version: 2023.11.1
+        helm.sh/chart: minio-12.9.0
+    spec:
+      
+      serviceAccountName: my-release-minio
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: minio
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: minio
+          image: docker.io/bitnami/minio:2023.11.1-debian-11-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MINIO_SCHEME
+              value: "http"
+            - name: MINIO_FORCE_NEW_KEYS
+              value: "yes"
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: outline-minio-credentials
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: outline-minio-credentials
+                  key: root-password
+            - name: MINIO_DEFAULT_BUCKETS
+              value: ol-data
+            - name: MINIO_BROWSER
+              value: "off"
+            - name: MINIO_PROMETHEUS_AUTH_TYPE
+              value: "public"
+            - name: MINIO_CONSOLE_PORT_NUMBER
+              value: "9001"
+            - name: MINIO_UPDATE
+              value: "off"
+          envFrom:
+          ports:
+            - name: minio-api
+              containerPort: 9000
+              protocol: TCP
+            - name: minio-console
+              containerPort: 9001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: minio-api
+              scheme: "HTTP"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            tcpSocket:
+              port: minio-api
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 25m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/minio/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-minio
+---
+# Source: outline/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-outline
+  labels:
+    helm.sh/chart: "outline-1.7.1"
+    app.kubernetes.io/name: "outline"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/part-of: "outline"
+    app.kubernetes.io/version: "0.77.1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "outline"
+      app.kubernetes.io/instance: "my-release"
+  template:
+    metadata:
+      annotations:
+        checksum/environment: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+        checksum/redis-generated-credentials: 751cdc731067f0921a12c8d776ed31bc0674db7599d9f611879971ea6a49b270
+        checksum/redis-auth: 821a272fb5a93d3171a2eb14c95485e15cbd5b345a6d2978be655ec5b559e868
+        checksum/postgresql-generated-credentials: 7f138e9d47469e743bc6e27dc9f0cf9a47fbbf04712882ce255af0f16600e9c7
+        checksum/postgresql-auth: b7225656e7860d1b785191f4980115a5fbcb836cec5037a206230c34e914551e
+      labels:
+        helm.sh/chart: "outline-1.7.1"
+        app.kubernetes.io/name: "outline"
+        app.kubernetes.io/instance: "my-release"
+        app.kubernetes.io/managed-by: "Helm"
+        app.kubernetes.io/part-of: "outline"
+        app.kubernetes.io/version: "0.77.1"
+    spec:
+      serviceAccountName: my-release-outline
+      securityContext:
+        {}
+      initContainers:
+        - name: wait-for-services
+          image: busybox:latest
+          imagePullPolicy: Always
+          command:
+            - "sh"
+            - "-c"
+            - |
+              until nc -w 5 -z my-release-postgresql 5432;do
+                echo "waiting for postgresql"
+                sleep 2
+              done
+              until nc -w 5 -z my-release-redis-master 6379;do
+                echo "waiting for redis"
+                sleep 2
+              done
+              until nc -w 5 -z s3.chart-example.local 443;do
+                echo "waiting for minio"
+                sleep 2
+              done
+
+              exit 0
+      containers:
+        - name: "outline"
+          securityContext:
+            {}
+          image: "outlinewiki/outline:0.77.1"
+          imagePullPolicy: IfNotPresent
+          
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "my-release-outline-enc-keys"
+                  key: secret-key
+            - name: UTILS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: "my-release-outline-enc-keys"
+                  key: utils-secret
+            - name: FORCE_HTTPS
+              value: "true"
+            - name: COLLABORATION_URL
+              value: ""
+            - name: ENABLE_UPDATES
+              value: "false"
+            - name: WEB_CONCURRENCY
+              value: "2"
+            - name: MAXIMUM_IMPORT_SIZE
+              value: "5120000"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: ALLOWED_DOMAINS
+              value: ""
+            - name: DEFAULT_LANGUAGE
+              value: "en_US"
+            - name: PGSSLMODE
+              value: "disable"
+            - name: DATABASE_CONNECTION_POOL_MIN
+              value: ""
+            - name: DATABASE_CONNECTION_POOL_MAX
+              value: ""
+            - name: FILE_STORAGE
+              value: "s3"
+            - name: FILE_STORAGE_UPLOAD_MAX_SIZE
+              value: "26214400"
+            - name: FILE_STORAGE_LOCAL_ROOT_DIR
+              value: "/var/lib/outline/data"
+            - name: RATE_LIMITER_ENABLED
+              value: "true"
+            - name: RATE_LIMITER_REQUESTS
+              value: "1000"
+            - name: RATE_LIMITER_DURATION_WINDOW
+              value: "60"
+            - name: URL
+              value: ""
+            - name: CDN_URL
+              value: ""
+            - name: PORT
+              value: "8081"
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: "outline-redis-credentials"
+                  key: "ioredis"
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "outline-postgresql-credentials"
+                  key: "password"
+            - name: DATABASE_URL
+              value: "postgresql://outline:$(DATABASE_PASSWORD)@my-release-postgresql:5432/outline"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: "outline-minio-credentials"
+                  key: "root-user"
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "outline-minio-credentials"
+                  key: "root-password"
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: AWS_S3_UPLOAD_BUCKET_URL
+              value: "https://s3.chart-example.local"
+            - name: AWS_S3_UPLOAD_BUCKET_NAME
+              value: "ol-data"
+            - name: AWS_S3_FORCE_PATH_STYLE
+              value: "true"
+            - name: AWS_S3_ACL
+              value: "private"
+            
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /_health
+              port: http
+            initialDelaySeconds: 5
+            failureThreshold: 24
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /_health
+              port: http
+            initialDelaySeconds: 5
+            failureThreshold: 2
+            periodSeconds: 10
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 1Gi
+---
+# Source: outline/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.0.0
+    helm.sh/chart: postgresql-13.2.2
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  serviceName: my-release-postgresql-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: postgresql
+        app.kubernetes.io/version: 16.0.0
+        helm.sh/chart: postgresql-13.2.2
+        app.kubernetes.io/component: primary
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      hostNetwork: false
+      hostIPC: false
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:16.0.0-debian-11-r15
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "outline"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: outline-postgresql-credentials
+                  key: password
+            - name: POSTGRES_DATABASE
+              value: "outline"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "outline" -d "dbname=outline" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "outline" -d "dbname=outline" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "2Gi"
+---
+# Source: outline/charts/redis/templates/master/application.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-redis-master
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.3
+    helm.sh/chart: redis-18.2.1
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: master
+  serviceName: my-release-redis-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/version: 7.2.3
+        helm.sh/chart: redis-18.2.1
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/configmap: 86bcc953bb473748a3d3dc60b7c11f34e60c93519234d4c37f42e22ada559d47
+        checksum/health: aff24913d801436ea469d8d374b2ddb3ec4c43ee7ab24663d5f8ff1a1b6991a9
+        checksum/scripts: 560c33ff34d845009b51830c332aa05fa211444d1877d3526d3599be7543aaa5
+        checksum/secret: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: my-release-redis
+      automountServiceAccountToken: true
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: redis
+                    app.kubernetes.io/component: master
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      enableServiceLinks: true
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:7.2.3-debian-11-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            runAsGroup: 0
+            runAsNonRoot: true
+            runAsUser: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /bin/bash
+          args:
+            - -c
+            - /opt/bitnami/scripts/start-scripts/start-master.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: REDIS_REPLICATION_MODE
+              value: master
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "no"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: outline-redis-credentials
+                  key: password
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            # One second longer than command timeout should prevent generation of zombie processes.
+            timeoutSeconds: 6
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_liveness_local.sh 5
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_readiness_local.sh 1
+          resources:
+            limits:
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 256Mi
+          volumeMounts:
+            - name: start-scripts
+              mountPath: /opt/bitnami/scripts/start-scripts
+            - name: health
+              mountPath: /health
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /opt/bitnami/redis/mounted-etc
+            - name: redis-tmp-conf
+              mountPath: /opt/bitnami/redis/etc/
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: start-scripts
+          configMap:
+            name: my-release-redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: my-release-redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: my-release-redis-configuration
+        - name: redis-tmp-conf
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-data
+        labels:
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: redis
+          app.kubernetes.io/component: master
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+---
+# Source: outline/templates/job_scheduler.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "my-release-outline-cron-daily"
+  labels:
+    helm.sh/chart: "outline-1.7.1"
+    app.kubernetes.io/name: "outline"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/part-of: "outline"
+    app.kubernetes.io/version: "0.77.1"
+spec:
+  schedule: "30 12 * * *"
+  concurrencyPolicy: "Forbid"
+  suspend: false
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: invoke-scheduler
+              image: busybox:latest
+              imagePullPolicy: Always
+              command:
+                - "sh"
+                - "-c"
+                - |
+                  STATUS_CODE=$(
+                    wget -S \
+                      -O /dev/null \
+                      --no-check-certificate \
+                      "/api/cron.daily?token=${UTILS_SECRET}" 2>&1 \
+                    | sed -rn 's:.*HTTP/.* ([0-9]+) .*:\1:p' | tail -1
+                  )
+
+                  echo "status code: ${STATUS_CODE}"
+
+                  if [ "$STATUS_CODE" != "200" ]; then
+                    echo "failed to invoke cron.daily"
+                    exit 1
+                  fi
+              env:
+                - name: NODE_ENV
+                  value: "production"
+                - name: SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: "my-release-outline-enc-keys"
+                      key: secret-key
+                - name: UTILS_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: "my-release-outline-enc-keys"
+                      key: utils-secret
+                - name: FORCE_HTTPS
+                  value: "true"
+                - name: COLLABORATION_URL
+                  value: ""
+                - name: ENABLE_UPDATES
+                  value: "false"
+                - name: WEB_CONCURRENCY
+                  value: "2"
+                - name: MAXIMUM_IMPORT_SIZE
+                  value: "5120000"
+                - name: LOG_LEVEL
+                  value: "info"
+                - name: ALLOWED_DOMAINS
+                  value: ""
+                - name: DEFAULT_LANGUAGE
+                  value: "en_US"
+                - name: PGSSLMODE
+                  value: "disable"
+                - name: DATABASE_CONNECTION_POOL_MIN
+                  value: ""
+                - name: DATABASE_CONNECTION_POOL_MAX
+                  value: ""
+                - name: FILE_STORAGE
+                  value: "s3"
+                - name: FILE_STORAGE_UPLOAD_MAX_SIZE
+                  value: "26214400"
+                - name: FILE_STORAGE_LOCAL_ROOT_DIR
+                  value: "/var/lib/outline/data"
+                - name: RATE_LIMITER_ENABLED
+                  value: "true"
+                - name: RATE_LIMITER_REQUESTS
+                  value: "1000"
+                - name: RATE_LIMITER_DURATION_WINDOW
+                  value: "60"
+                - name: URL
+                  value: ""
+                - name: CDN_URL
+                  value: ""
+                - name: PORT
+                  value: "8081"
+                - name: REDIS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: "outline-redis-credentials"
+                      key: "ioredis"
+                - name: DATABASE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: "outline-postgresql-credentials"
+                      key: "password"
+                - name: DATABASE_URL
+                  value: "postgresql://outline:$(DATABASE_PASSWORD)@my-release-postgresql:5432/outline"
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: "outline-minio-credentials"
+                      key: "root-user"
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: "outline-minio-credentials"
+                      key: "root-password"
+                - name: AWS_REGION
+                  value: "us-east-1"
+                - name: AWS_S3_UPLOAD_BUCKET_URL
+                  value: "https://s3.chart-example.local"
+                - name: AWS_S3_UPLOAD_BUCKET_NAME
+                  value: "ol-data"
+                - name: AWS_S3_FORCE_PATH_STYLE
+                  value: "true"
+                - name: AWS_S3_ACL
+                  value: "private"
+                
+          restartPolicy: OnFailure
+---
+# Source: outline/charts/minio/templates/api-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-minio-api
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/version: 2023.11.1
+    helm.sh/chart: minio-12.9.0
+  annotations:
+    {}
+spec:
+  rules:
+    - host: s3.chart-example.local
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-minio
+                port:
+                  name: minio-api
+---
+# Source: outline/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-outline
+  labels:
+    helm.sh/chart: "outline-1.7.1"
+    app.kubernetes.io/name: "outline"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/part-of: "outline"
+    app.kubernetes.io/version: "0.77.1"
+spec:
+  rules:

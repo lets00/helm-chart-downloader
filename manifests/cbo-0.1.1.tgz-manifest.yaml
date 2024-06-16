@@ -1,0 +1,362 @@
+---
+# Source: cbo/templates/service-backend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "backend"
+    app: cbo
+    release: my-release
+    chart: cbo-0.1.1
+    heritage: Helm
+    app: backend
+    monitor: "true"
+  name: cbo-backend
+  namespace: sqream
+spec:
+  selector:
+    component: "backend"
+    app: cbo
+    release: my-release
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+---
+# Source: cbo/templates/service-frontend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "frontend"
+    app: cbo
+    release: my-release
+    chart: cbo-0.1.1
+    heritage: Helm
+    app: frontend
+    monitor: "true"
+  name: cbo-frontend
+  namespace: sqream
+spec:
+  selector:
+    component: "frontend"
+    app: cbo
+    release: my-release
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 6666
+      protocol: TCP
+      targetPort: 6666
+---
+# Source: cbo/templates/service-metadata.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "metadata"
+    app: cbo
+    release: my-release
+    chart: cbo-0.1.1
+    heritage: Helm
+    app: metadata
+    monitor: "true"
+  name: cbo-metadata
+  namespace: sqream
+spec:
+  selector:
+    component: "metadata"
+    app: cbo
+    release: my-release
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 6668
+      protocol: TCP
+      targetPort: 6668
+---
+# Source: cbo/templates/service-statistics.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "statistics"
+    app: cbo
+    release: my-release
+    chart: cbo-0.1.1
+    heritage: Helm
+    app: statistics
+    monitor: "true"
+  name: cbo-statistics
+  namespace: sqream
+spec:
+  selector:
+    component: "statistics"
+    app: cbo
+    release: my-release
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 6672
+      protocol: TCP
+      targetPort: 6672
+---
+# Source: cbo/templates/deployment-backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "backend"
+    app: cbo
+    release: my-release
+    chart: cbo-0.1.1
+    heritage: Helm
+  name: cbo-backend
+  namespace: sqream
+spec:
+  selector:
+    matchLabels:
+      component: "backend"
+      app: cbo
+      release: my-release
+  template:
+    metadata:
+      labels:
+        component: "backend"
+        app: cbo
+        release: my-release
+        chart: cbo-0.1.1
+        heritage: Helm
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: cbo-backend
+          securityContext:
+            {}
+          image: "us-east1-docker.pkg.dev/blue-shared-resources/develop/compiler-backend:develop-dc2e44e6"
+          imagePullPolicy: Always
+          env:
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          
+          
+          
+          
+          
+          
+          resources:
+            {}
+---
+# Source: cbo/templates/deployment-frontend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "frontend"
+    app: cbo
+    release: my-release
+    chart: cbo-0.1.1
+    heritage: Helm
+  name: cbo-frontend
+  namespace: sqream
+spec:
+  selector:
+    matchLabels:
+      component: "frontend"
+      app: cbo
+      release: my-release
+  template:
+    metadata:
+      labels:
+        component: "frontend"
+        app: cbo
+        release: my-release
+        chart: cbo-0.1.1
+        heritage: Helm
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: cbo-frontend
+          securityContext:
+            {}
+          image: "us-east1-docker.pkg.dev/blue-shared-resources/develop/compiler-frontend:develop-a5549e0c"
+          imagePullPolicy: Always
+          env:
+            - name: BACKEND_HOST
+              value: "cbo-backend"
+            - name: BACKEND_PORT
+              value: "8080"
+            - name: MD_HOST
+              value: "cbo-metadata"
+            - name: MD_PORT
+              value: "6668"
+          ports:
+            - name: http
+              containerPort: 6666
+              protocol: TCP
+          
+          
+          
+          
+          
+          
+          resources:
+            limits:
+              cpu: 1
+              memory: 18Gi
+            requests:
+              cpu: 500m
+              memory: 8Gi
+---
+# Source: cbo/templates/deployment-metadata.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "metadata"
+    app: cbo
+    release: my-release
+    chart: cbo-0.1.1
+    heritage: Helm
+  name: cbo-metadata
+  namespace: sqream
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      component: "metadata"
+      app: cbo
+      release: my-release
+  template:
+    metadata:
+      labels:
+        component: "metadata"
+        app: cbo
+        release: my-release
+        chart: cbo-0.1.1
+        heritage: Helm
+    spec:
+      serviceAccountName: default
+      securityContext:
+        runAsGroup: 1000
+        runAsUser: 1000
+      containers:
+        - name: cbo-metadata
+          securityContext:
+            runAsGroup: 1000
+            runAsUser: 1000
+          image: "us.gcr.io/blue-devops-1-sandbox/sqream-db:sqream-develop_17-07-2023_41c84_centos_cuda_11_4"
+          imagePullPolicy: Always
+          args:
+            - bash
+            - -c
+            - metadata_service --md_server_port=3105 --md_server_address=sqream-metadata
+          env:
+          ports:
+            - name: http
+              containerPort: 6668
+              protocol: TCP
+          
+          livenessProbe:
+            initialDelaySeconds: 35
+            periodSeconds: 5
+            tcpSocket:
+              port: 6668
+          
+          
+          readinessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 3
+            tcpSocket:
+              port: 6668
+          
+          resources:
+            {}
+---
+# Source: cbo/templates/deployment-statistics.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "statistics"
+    app: cbo
+    release: my-release
+    chart: cbo-0.1.1
+    heritage: Helm
+  name: cbo-statistics
+  namespace: sqream
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: "statistics"
+      app: cbo
+      release: my-release
+  template:
+    metadata:
+      labels:
+        component: "statistics"
+        app: cbo
+        release: my-release
+        chart: cbo-0.1.1
+        heritage: Helm
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: cbo-statistics
+          securityContext:
+            {}
+          image: "us-east1-docker.pkg.dev/blue-shared-resources/stage/statistics-collector:develop"
+          imagePullPolicy: Always
+          env:
+            - name: SQREAM_DATABASE_HOSTNAME
+              value: "devops2-sqream.isqream.com"
+            - name: SQREAM_DATABASE_PORT
+              value: "443"
+          ports:
+            - name: http
+              containerPort: 6672
+              protocol: TCP
+          
+          
+          
+          
+          
+          
+          resources:
+            limits:
+              cpu: 1
+              memory: 8Gi
+            requests:
+              cpu: 500m
+              memory: 4Gi
+---
+# Source: cbo/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-cbo-test-connection"
+  labels:
+    chart: cbo-0.1.1
+    heritage: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-cbo:8080']
+  restartPolicy: Never

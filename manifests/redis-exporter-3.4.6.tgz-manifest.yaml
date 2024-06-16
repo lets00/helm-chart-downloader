@@ -1,0 +1,154 @@
+---
+# Source: redis-exporter/templates/podsecuritypolicy.yaml
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: my-release-redis-exporter
+  labels:
+    app: redis-exporter
+    chart: redis-exporter-3.4.6
+    heritage: Helm
+    release: my-release
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'docker/default'
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName:  'docker/default'
+    apparmor.security.beta.kubernetes.io/defaultProfileName:  'runtime/default'
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'RunAsAny'
+  seLinux:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: false
+---
+# Source: redis-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-redis-exporter
+  labels:
+    app: redis-exporter
+    chart: redis-exporter-3.4.6
+    release: "my-release"
+    heritage: "Helm"
+---
+# Source: redis-exporter/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-redis-exporter
+  labels:
+    app: redis-exporter
+    chart: redis-exporter-3.4.6
+    heritage: Helm
+    release: my-release
+rules:
+- apiGroups:      ['extensions']
+  resources:      ['podsecuritypolicies']
+  verbs:          ['use']
+  resourceNames:  [my-release-redis-exporter]
+---
+# Source: redis-exporter/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-redis-exporter
+  labels:
+    app: redis-exporter
+    chart: redis-exporter-3.4.6
+    heritage: Helm
+    release: my-release
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-redis-exporter
+subjects:
+- kind: ServiceAccount
+  name: my-release-redis-exporter
+---
+# Source: redis-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-exporter
+  labels:
+    app: redis-exporter
+    chart: redis-exporter-3.4.6
+    release: my-release
+    heritage: Helm
+  annotations:
+    {}
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis-exporter
+      port: 9121
+      targetPort: exporter-port
+      protocol: TCP
+  selector:
+    app: redis-exporter
+    release: my-release
+---
+# Source: redis-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-redis-exporter
+  labels:
+    app: redis-exporter
+    chart: redis-exporter-3.4.6
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-exporter
+      release: my-release
+  template:
+    metadata:
+      annotations:
+        {}
+      labels:
+        app: redis-exporter
+        release: my-release
+    spec:
+      serviceAccountName: my-release-redis-exporter
+      containers:
+        - name: redis-exporter
+          image: "oliver006/redis_exporter:v1.3.4"
+          imagePullPolicy: IfNotPresent
+          args:
+          ports:
+            - name: exporter-port
+              containerPort: 9121
+          env:
+            - name: REDIS_ADDR
+              value: redis://myredis:6379
+          livenessProbe:
+            httpGet:
+              path: /
+              port: exporter-port
+          readinessProbe:
+            httpGet:
+              path: /
+              port: exporter-port
+          resources:
+            {}

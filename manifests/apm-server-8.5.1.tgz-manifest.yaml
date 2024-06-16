@@ -1,0 +1,186 @@
+---
+# Source: apm-server/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-apm-server
+  annotations:
+  labels:
+    app: "my-release-apm-server"
+    chart: "apm-server-8.5.1"
+    heritage: "Helm"
+    release: "my-release"
+---
+# Source: apm-server/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-apm-server-config
+  labels:
+    app: "my-release-apm-server"
+    chart: "apm-server-8.5.1"
+    heritage: "Helm"
+    release: "my-release"
+data:
+  apm-server.yml: |
+    apm-server:
+      host: "0.0.0.0:8200"
+    
+    queue: {}
+    
+    output.elasticsearch:
+      hosts: ["http://elasticsearch-master:9200"]
+      username: "${ELASTICSEARCH_USERNAME}"
+      password: "${ELASTICSEARCH_PASSWORD}"
+      ## If SSL is enabled
+      # protocol: https
+      # ssl.certificate_authorities:
+      #  - /usr/share/apm-server/config/certs/elastic-ca.pem
+---
+# Source: apm-server/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-apm-server-cluster-role
+  labels:
+    app: "my-release-apm-server"
+    chart: "apm-server-8.5.1"
+    heritage: "Helm"
+    release: "my-release"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Source: apm-server/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-apm-server-cluster-role-binding
+  labels:
+    app: "my-release-apm-server"
+    chart: "apm-server-8.5.1"
+    heritage: "Helm"
+    release: "my-release"
+roleRef:
+  kind: ClusterRole
+  name: my-release-apm-server-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: my-release-apm-server
+  namespace: default
+---
+# Source: apm-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-apm-server
+  labels:
+    app: apm-server
+    release: "my-release"
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8200
+      protocol: TCP
+      name: http
+      targetPort: 8200
+  selector:
+    app: apm-server
+    release: "my-release"
+---
+# Source: apm-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-apm-server
+  labels:
+    app: apm-server
+    release: "my-release"
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: apm-server
+      release: "my-release"
+  template:
+    metadata:
+      labels:
+        app: apm-server
+        release: "my-release"
+      annotations:
+        
+        configChecksum: ac187d8884099a0d44dc9573008b69d05f6a4f71b0ffc8b0b3254358badb81e
+    spec:
+      securityContext:
+          fsGroup: 1000
+          runAsGroup: 0
+          runAsUser: 1000
+      serviceAccountName: my-release-apm-server
+      volumes:
+        - name: apm-server-config
+          configMap:
+            name: my-release-apm-server-config
+            defaultMode: 0600
+      containers:
+      - name: apm-server
+        image: "docker.elastic.co/apm/apm-server:8.5.1"
+        imagePullPolicy: "IfNotPresent"
+        env:
+          
+          - name: ELASTICSEARCH_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: username
+                name: elasticsearch-master-credentials
+          - name: ELASTICSEARCH_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: elasticsearch-master-credentials
+        securityContext:
+          privileged: false
+          runAsGroup: 0
+          runAsNonRoot: true
+          runAsUser: 1000
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        ports:
+          - containerPort: 8200
+            name: http
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+          - name: apm-server-config
+            mountPath: /usr/share/apm-server/apm-server.yml
+            subPath: apm-server.yml
+            readOnly: true

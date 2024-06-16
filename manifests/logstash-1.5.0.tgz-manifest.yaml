@@ -1,0 +1,109 @@
+---
+# Source: logstash/templates/configmap.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/managed-by: helm
+data:
+  logstash.yml: |-
+    http.host: "0.0.0.0"
+    path.config: /usr/share/logstash/pipeline
+  logstash.conf: |-
+    input {
+      beats {
+        port => 5044
+      }
+    }
+    output {
+    }
+---
+# Source: logstash/templates/service.yml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release
+  ports:
+    - protocol: TCP
+      port: 5044
+      targetPort: beats
+---
+# Source: logstash/templates/deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/managed-by: helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+        app.kubernetes.io/name: logstash
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "7.17.8"
+        app.kubernetes.io/component: logging
+        app.kubernetes.io/managed-by: helm
+    spec:
+      containers:
+        - name: my-release
+          image: "logstash:7.17.8"
+          imagePullPolicy: IfNotPresent
+          readinessProbe:
+            initialDelaySeconds: 120
+            timeoutSeconds: 30
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            initialDelaySeconds: 120
+            timeoutSeconds: 30
+            httpGet:
+              path: /
+              port: http
+          ports:
+            - name: beats
+              containerPort: 5044
+            - name: http
+              containerPort: 9600
+          resources:
+            requests:
+              memory: 1536Mi
+              cpu: 500m
+            limits:
+              memory: 1536Mi
+              cpu: 500m
+          volumeMounts:
+            - name: logstash
+              mountPath: /usr/share/logstash/config/logstash.yml
+              subPath: logstash.yml
+            - name: logstash
+              mountPath: /usr/share/logstash/pipeline/logstash.conf
+              subPath: logstash.conf
+      volumes:
+        - name: logstash
+          configMap:
+            name: my-release

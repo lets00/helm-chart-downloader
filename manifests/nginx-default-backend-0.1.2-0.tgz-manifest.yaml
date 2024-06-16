@@ -1,0 +1,130 @@
+---
+# Source: nginx-default-backend/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-nginx-default-backend
+  labels:
+    helm.sh/chart: nginx-default-backend-0.1.2-0
+    app.kubernetes.io/name: nginx-default-backend
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v20230215-helm-chart-4.5.2-3-g15ecd2531"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: nginx-default-backend/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-nginx-default-backend-config
+  labels:
+    helm.sh/chart: nginx-default-backend-0.1.2-0
+    app.kubernetes.io/name: nginx-default-backend
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v20230215-helm-chart-4.5.2-3-g15ecd2531"
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: nginx-default-backend/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-nginx-default-backend
+  labels: 
+    helm.sh/chart: nginx-default-backend-0.1.2-0
+    app.kubernetes.io/name: nginx-default-backend
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v20230215-helm-chart-4.5.2-3-g15ecd2531"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector: 
+    app.kubernetes.io/name: nginx-default-backend
+    app.kubernetes.io/instance: my-release
+---
+# Source: nginx-default-backend/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-nginx-default-backend
+  labels: 
+    helm.sh/chart: nginx-default-backend-0.1.2-0
+    app.kubernetes.io/name: nginx-default-backend
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v20230215-helm-chart-4.5.2-3-g15ecd2531"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: nginx-default-backend
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels: 
+        app.kubernetes.io/name: nginx-default-backend
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-nginx-default-backend
+      securityContext: 
+        {}
+      containers:
+        - name: nginx-default-backend
+          securityContext: 
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000
+          image: "gcr.io/k8s-staging-ingress-nginx/nginx-errors:v20230215-helm-chart-4.5.2-3-g15ecd2531"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            {}
+---
+# Source: nginx-default-backend/templates/tests/test-connection.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-nginx-default-backend-test-connection"
+  labels: 
+    helm.sh/chart: nginx-default-backend-0.1.2-0
+    app.kubernetes.io/name: nginx-default-backend
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v20230215-helm-chart-4.5.2-3-g15ecd2531"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+    kube-score/ignore: container-image-tag
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: wget
+        image: busybox
+        command: ['wget']
+        args: ['my-release-nginx-default-backend:8080/healthz']
+        securityContext: 
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000

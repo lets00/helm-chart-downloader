@@ -1,0 +1,904 @@
+---
+# Source: buildbarn/templates/browser/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-buildbarn-browser
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: browser
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+data:
+  browser.jsonnet: |-
+    local common = import 'common.libsonnet';
+    {
+      global: common.global,
+      blobstore: common.blobstore,
+      maximumMessageSizeBytes: common.maximumMessageSizeBytes,
+      listenAddress: common.httpListenAddress,
+      authorizer: common.allowAllauthorizerConfiguration,
+    }
+---
+# Source: buildbarn/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-buildbarn-common
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: common
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+data:
+  common.libsonnet: |-
+    {
+      global: {
+        diagnostics_http_server: {
+          listen_address: ':8080',
+          enable_prometheus: true,
+        },
+        setUmask: { umask: 0 },
+      },
+      allowAllauthorizerConfiguration: {
+        allow: {},
+      },
+      blobstore: {
+        contentAddressableStorage: {
+          sharding: {
+            hashInitialization: 11946695773637837490,
+            shards: [
+              {
+                backend: { grpc: { address: 'buildbarn-storage-0.buildbarn-storage:8981' } },
+                weight: 1,
+              },
+              {
+                backend: { grpc: { address: 'buildbarn-storage-1.buildbarn-storage:8981' } },
+                weight: 1,
+              },
+            ],
+          },
+        },
+        actionCache: {
+          completenessChecking: {
+            sharding: {
+              hashInitialization: 14897363947481274433,
+              shards: [
+                {
+                  backend: { grpc: { address: 'buildbarn-storage-0.buildbarn-storage:8981' } },
+                  weight: 1,
+                },
+                {
+                  backend: { grpc: { address: 'buildbarn-storage-1.buildbarn-storage:8981' } },
+                  weight: 1,
+                },
+              ],
+            },
+          },
+        },
+      },
+      # Remember to set your browserUrl to the ingress of the browser deployment
+      browserUrl: 'http://buildbarn-browser:80',
+      maximumMessageSizeBytes: 16 * 1024 * 1024,
+      httpListenAddress: ':80'
+    }
+---
+# Source: buildbarn/templates/frontend/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-buildbarn-frontend
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+data:
+  frontend.jsonnet: |-
+    local common = import 'common.libsonnet';
+    {
+      global: common.global,
+      blobstore: common.blobstore,
+      grpcServers: [{
+        listenAddresses: [':8980'],
+        authenticationPolicy: common.allowAllauthorizerConfiguration,
+      }],
+      schedulers: {
+        '': { endpoint: { address: 'buildbarn-scheduler:8982' } },
+      },
+      maximumMessageSizeBytes: common.maximumMessageSizeBytes,
+      contentAddressableStorageAuthorizers: {
+        get: common.allowAllauthorizerConfiguration,
+        put: common.allowAllauthorizerConfiguration,
+        findMissing: common.allowAllauthorizerConfiguration,
+      },
+      actionCacheAuthorizers: {
+        get: common.allowAllauthorizerConfiguration,
+        put: common.allowAllauthorizerConfiguration,
+      },
+      execute_authorizer: common.allowAllauthorizerConfiguration,
+    }
+---
+# Source: buildbarn/templates/scheduler/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-buildbarn-scheduler
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: scheduler
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+data:
+  scheduler.jsonnet: |-
+    local common = import 'common.libsonnet';
+    {
+      global: common.global,
+      admin_http_listen_address: ':80',
+      execute_authorizer: common.allowAllauthorizerConfiguration,
+      clientGrpcServers: [{
+        listenAddresses: [':8982'],
+        authenticationPolicy: { allow: {} },
+      }],
+      workerGrpcServers: [{
+        listenAddresses: [':8983'],
+        authenticationPolicy: { allow: {} },
+      }],
+      contentAddressableStorage: common.blobstore.contentAddressableStorage,
+      maximumMessageSizeBytes: common.maximumMessageSizeBytes,
+      browserUrl: common.browserUrl,
+      action_router: {
+        simple: {
+          platformKeyExtractor: { actionAndCommand: {} },
+          invocationKeyExtractors: [{ toolInvocationId: {} }],
+          initialSizeClassAnalyzer: {
+            defaultExecutionTimeout: '1800s',
+            maximumExecutionTimeout: '7200s',
+          },
+        },
+      },
+      platformQueueWithNoWorkersTimeout: '900s', 
+    }
+---
+# Source: buildbarn/templates/storage/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-buildbarn-storage
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+data:
+  storage.jsonnet: |-
+    local common = import 'common.libsonnet';
+    {
+      global: common.global,
+      blobstore: {
+        contentAddressableStorage: {
+          'local': {
+            keyLocationMapOnBlockDevice: {
+              file: {
+                path: '/cas/key_location_map',
+                sizeBytes: 16 * 1024 * 1024,
+              },
+            },
+            keyLocationMapMaximumGetAttempts: 8,
+            keyLocationMapMaximumPutAttempts: 32,
+            oldBlocks: 8,
+            currentBlocks: 24,
+            newBlocks: 3,
+            blocksOnBlockDevice: {
+              source: {
+                file: {
+                  path: '/cas/blocks',
+                  sizeBytes: 10 * 1024 * 1024 * 1024,
+                },
+              },
+              spareBlocks: 3,
+            },
+            persistent: {
+              stateDirectoryPath: '/cas',
+              minimumEpochInterval: '300s',
+            },
+          },
+        },
+        actionCache: {
+          completenessChecking: {
+            'local': {
+              keyLocationMapOnBlockDevice: {
+                file: {
+                  path: '/ac/key_location_map',
+                  sizeBytes: 1024 * 1024,
+                },
+              },
+              keyLocationMapMaximumGetAttempts: 8,
+              keyLocationMapMaximumPutAttempts: 32,
+              oldBlocks: 8,
+              currentBlocks: 24,
+              newBlocks: 1,
+              blocksOnBlockDevice: {
+                source: {
+                  file: {
+                    path: '/ac/blocks',
+                    sizeBytes: 100 * 1024 * 1024,
+                  },
+                },
+                spareBlocks: 3,
+              },
+              persistent: {
+                stateDirectoryPath: '/ac',
+                minimumEpochInterval: '300s',
+              },
+            },
+          },
+        },
+      },
+      grpcServers: [{
+        listenAddresses: [':8981'],
+        authenticationPolicy: common.allowAllauthorizerConfiguration,
+      }],
+      contentAddressableStorageAuthorizers: {
+        get: common.allowAllauthorizerConfiguration,
+        put: common.allowAllauthorizerConfiguration,
+        findMissing: common.allowAllauthorizerConfiguration,
+      },
+      actionCacheAuthorizers: {
+        get: common.allowAllauthorizerConfiguration,
+        put: common.allowAllauthorizerConfiguration,
+      },
+      executeAuthorizer: common.allowAllauthorizerConfiguration,
+      maximumMessageSizeBytes: common.maximumMessageSizeBytes,
+    }
+---
+# Source: buildbarn/templates/worker/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-buildbarn-worker
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+data:
+  worker.jsonnet: |-
+    local common = import 'common.libsonnet';
+    {
+      global: common.global,
+      blobstore: common.blobstore,
+      maximumMessageSizeBytes: common.maximumMessageSizeBytes,
+      scheduler: { address: 'buildbarn-scheduler:8983' },
+      maximumMemoryCachedDirectories: 1000,
+      browserUrl: common.browserUrl,
+      buildDirectories: [{
+        native: {
+          buildDirectoryPath: '/worker/build',
+          cacheDirectoryPath: '/worker/cache',
+          maximumCacheFileCount: 10000,
+          maximumCacheSizeBytes: 1024 * 1024 * 1024,
+          cacheReplacementPolicy: 'RANDOM_REPLACEMENT',
+        },
+        runners: [{
+          endpoint: { address: 'unix:///worker/runner' },
+          instanceNamePrefix: 'remote-execution',
+          concurrency: 8,
+          platform: {
+            properties: [
+              { name: 'OSFamily', value: 'Linux' },
+              { name: 'container-image', value: 'docker://marketplace.gcr.io/google/rbe-ubuntu18-04@sha256:48b67b41118dbcdfc265e7335f454fbefa62681ab8d47200971fc7a52fb32054' },
+            ],
+          },
+          workerId: {
+            'pod': std.extVar("POD_NAME"),
+            'node': std.extVar("NODE_NAME")
+          },
+        }],
+      }],
+    }
+  runner.jsonnet: |-
+    {
+      buildDirectoryPath: '/worker/build',
+      set_tmpdir_environment_variable: true,
+      grpcServers: [{
+        listenPaths: ['/worker/runner'],
+        authenticationPolicy: { allow: {} },
+      }],
+    }
+---
+# Source: buildbarn/templates/browser/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-buildbarn-browser
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: browser
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: browser
+---
+# Source: buildbarn/templates/frontend/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-buildbarn-frontend
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: 8980
+      targetPort: grpc
+  selector:
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: frontend
+---
+# Source: buildbarn/templates/scheduler/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-buildbarn-scheduler
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: scheduler
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: grpc-client
+      port: 8982
+      targetPort: grpc-client
+    - name: grpc-worker
+      port: 8983
+      targetPort: grpc-worker
+  selector:
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: scheduler
+---
+# Source: buildbarn/templates/storage/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-buildbarn-storage
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: 8981
+      targetPort: grpc
+  selector:
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: storage
+---
+# Source: buildbarn/templates/browser/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-buildbarn-browser
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: browser
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildbarn
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: browser
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: buildbarn
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: browser
+      annotations:
+        checksum/common-config: 6c43c195cfb5ce597d51870c6041d444878867bcf5623550a9920cbac7e5097e
+        checksum/browser-config: cb83f7bc5cb722582a15c2f35a1360b42aea02fb80d55d8ef253e4614051629e
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: buildbarn-browser
+          args:
+            - /config/browser.jsonnet
+          securityContext:
+            {}
+          image: "buildbarn/bb-browser:20211222T121123Z-547095c"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          resources:
+            {}
+          volumeMounts:
+            - name: my-release-buildbarn-browser
+              mountPath: /config/
+              readOnly: true
+      volumes:
+        - name: my-release-buildbarn-browser
+          projected:
+            sources:
+              - configMap:
+                  name: my-release-buildbarn-browser
+                  items:
+                    - key: browser.jsonnet
+                      path: browser.jsonnet
+              - configMap:
+                  name: my-release-buildbarn-common
+                  items:
+                    - key: common.libsonnet
+                      path: common.libsonnet
+---
+# Source: buildbarn/templates/frontend/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-buildbarn-frontend
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildbarn
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: buildbarn
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: frontend
+      annotations:
+        checksum/common-config: 6c43c195cfb5ce597d51870c6041d444878867bcf5623550a9920cbac7e5097e
+        checksum/frontend-config: 757ec2ba6b91b243a412e335cad73d69b7382aeca80f2f0f34ef634bb07350ef
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: buildbarn-frontend
+          args:
+            - /config/frontend.jsonnet
+          securityContext:
+            {}
+          image: "buildbarn/bb-storage:20220211T114844Z-e5ee29d"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 8980
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          resources:
+            {}
+          volumeMounts:
+            - name: my-release-buildbarn-frontend
+              mountPath: /config/
+              readOnly: true
+      volumes:
+        - name: my-release-buildbarn-frontend
+          projected:
+            sources:
+              - configMap:
+                  name: my-release-buildbarn-frontend
+                  items:
+                    - key: frontend.jsonnet
+                      path: frontend.jsonnet
+              - configMap:
+                  name: my-release-buildbarn-common
+                  items:
+                    - key: common.libsonnet
+                      path: common.libsonnet
+---
+# Source: buildbarn/templates/scheduler/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-buildbarn-scheduler
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: scheduler
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildbarn
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: scheduler
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: buildbarn
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: scheduler
+      annotations:
+        checksum/common-config: 6c43c195cfb5ce597d51870c6041d444878867bcf5623550a9920cbac7e5097e
+        checksum/scheduler-config: aaf98399605ad9cfc9b348cb3ea71264f21712bb9c52a05d131f8e4d52fb9c50
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: buildbarn-scheduler
+          args:
+            - /config/scheduler.jsonnet
+          securityContext:
+            {}
+          image: "buildbarn/bb-scheduler:20220211T141613Z-74b54e3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: grpc-client
+              containerPort: 8982
+              protocol: TCP
+            - name: grpc-worker
+              containerPort: 8983
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          resources:
+            {}
+          volumeMounts:
+            - name: my-release-buildbarn-scheduler
+              mountPath: /config/
+              readOnly: true
+      volumes:
+        - name: my-release-buildbarn-scheduler
+          projected:
+            sources:
+              - configMap:
+                  name: my-release-buildbarn-scheduler
+                  items:
+                    - key: scheduler.jsonnet
+                      path: scheduler.jsonnet
+              - configMap:
+                  name: my-release-buildbarn-common
+                  items:
+                    - key: common.libsonnet
+                      path: common.libsonnet
+---
+# Source: buildbarn/templates/worker/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-buildbarn-worker
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildbarn
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: buildbarn
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: worker
+      annotations:
+        checksum/common-config: 6c43c195cfb5ce597d51870c6041d444878867bcf5623550a9920cbac7e5097e
+        checksum/worker-config: e5d61fda78aa7f3ceb345521bfb9a305ed7304ca72e477aede6c71ec7915ff17
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      initContainers:
+        - name: buildbarn-worker-runner-installer
+          image: "buildbarn/bb-runner-installer:20220211T141613Z-74b54e3"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: my-release-buildbarn-worker-runner
+              mountPath: /bb/
+        - name: buildbarn-worker-volume-init
+          image: "busybox:1.31.1-uclibc"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - mkdir -pm 0777 /worker/build && mkdir -pm 0700 /worker/cache && chmod 0777 /worker
+          volumeMounts:
+            - name: my-release-buildbarn-worker-worker
+              mountPath: /worker
+      containers:
+        - name: buildbarn-worker
+          args:
+            - /config/worker.jsonnet
+          securityContext:
+            {}
+          image: "buildbarn/bb-worker:20220211T141613Z-74b54e3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http-metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          resources:
+            {}
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            - name: my-release-buildbarn-worker-config
+              mountPath: /config/
+              readOnly: true
+            - name: my-release-buildbarn-worker-worker
+              mountPath: /worker
+        - name: buildbarn-runner
+          command: [/bb/tini, -v, -g, --, /bb/bb_runner, /config/runner.jsonnet]
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 65534
+          image: "l.gcr.io/google/rbe-ubuntu18-04:latest@sha256:48b67b41118dbcdfc265e7335f454fbefa62681ab8d47200971fc7a52fb32054"
+          imagePullPolicy: IfNotPresent
+          resources:
+            {}
+          volumeMounts:
+            - name: my-release-buildbarn-worker-config
+              mountPath: /config/
+              readOnly: true
+            - name: my-release-buildbarn-worker-runner
+              mountPath: /bb
+              readOnly: true
+            - name: my-release-buildbarn-worker-worker
+              mountPath: /worker
+      volumes:
+        - name: my-release-buildbarn-worker-worker
+          emptyDir: {}
+        - name: my-release-buildbarn-worker-runner
+          emptyDir: {}
+        - name: my-release-buildbarn-worker-config
+          projected:
+            sources:
+              - configMap:
+                  name: my-release-buildbarn-worker
+                  items:
+                    - key: worker.jsonnet
+                      path: worker.jsonnet
+                    - key: runner.jsonnet
+                      path: runner.jsonnet
+              - configMap:
+                  name: my-release-buildbarn-common
+                  items:
+                    - key: common.libsonnet
+                      path: common.libsonnet
+---
+# Source: buildbarn/templates/storage/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-buildbarn-storage
+  namespace: default
+  labels:
+    helm.sh/chart: buildbarn-0.0.1
+    app.kubernetes.io/name: buildbarn
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/version: "2022-02-12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  serviceName: my-release-buildbarn-storage
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildbarn
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: storage
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: buildbarn
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: storage
+      annotations:
+        checksum/common-config: 6c43c195cfb5ce597d51870c6041d444878867bcf5623550a9920cbac7e5097e
+        checksum/storage-config: 4fe6fd0169f30df1ef37d3bc3129ddb7803bd30d116d15a96fc9eb73ee055810
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: buildbarn-storage
+          args:
+            - /config/storage.jsonnet
+          securityContext:
+            {}
+          image: "buildbarn/bb-storage:20220211T114844Z-e5ee29d"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http-metrics
+              containerPort: 8080
+              protocol: TCP
+            - name: grpc
+              containerPort: 8981
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http-metrics
+          resources:
+            {}
+          volumeMounts:
+            - name: my-release-buildbarn-storage
+              mountPath: /config/
+              readOnly: true
+            - name: my-release-buildbarn-storage-cas
+              mountPath: /cas
+            - name: my-release-buildbarn-storage-ac
+              mountPath: /ac
+      volumes:
+        - name: my-release-buildbarn-storage
+          projected:
+            sources:
+              - configMap:
+                  name: my-release-buildbarn-storage
+                  items:
+                    - key: storage.jsonnet
+                      path: storage.jsonnet
+              - configMap:
+                  name: my-release-buildbarn-common
+                  items:
+                    - key: common.libsonnet
+                      path: common.libsonnet
+  volumeClaimTemplates:
+    - metadata:
+        name: my-release-buildbarn-storage-cas
+        labels:
+          helm.sh/chart: buildbarn-0.0.1
+          app.kubernetes.io/name: buildbarn
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/component: storage
+          app.kubernetes.io/version: "2022-02-12"
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 12Gi
+    - metadata:
+        name: my-release-buildbarn-storage-ac
+        labels:
+          helm.sh/chart: buildbarn-0.0.1
+          app.kubernetes.io/name: buildbarn
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/component: storage
+          app.kubernetes.io/version: "2022-02-12"
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

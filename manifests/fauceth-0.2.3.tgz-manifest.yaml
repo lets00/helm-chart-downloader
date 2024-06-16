@@ -1,0 +1,202 @@
+---
+# Source: fauceth/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-fauceth
+  labels:
+    helm.sh/chart: fauceth-0.2.3
+    app.kubernetes.io/name: fauceth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  namespace: default
+---
+# Source: fauceth/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-fauceth-env
+  labels:
+    helm.sh/chart: fauceth-0.2.3
+    app.kubernetes.io/name: fauceth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  APP_AMOUNT: MTAwMDAwMDAwMDAwMDAwMDAwMA==
+  APP_CHAINS: NQ==
+  APP_ETHKEY: a2V5IGluIGhleCBmb3JtYXQ=
+  APP_TITLE: JUNIQUlOTkFNRSBGYXVjRVRI
+  HCAPTCHA_SECRET: eW91cl9oY2FwdGNoYV9zZWNyZXQ=
+  HCAPTCHA_SITEKEY: eW91cl9oY2FwdGNoYV9zaXRlX2tleQ==
+---
+# Source: fauceth/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-fauceth-headless
+  labels:
+    helm.sh/chart: fauceth-0.2.3
+    app.kubernetes.io/name: fauceth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: fauceth
+    app.kubernetes.io/instance: my-release
+---
+# Source: fauceth/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-fauceth
+  labels:
+    helm.sh/chart: fauceth-0.2.3
+    app.kubernetes.io/name: fauceth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: fauceth
+    app.kubernetes.io/instance: my-release
+---
+# Source: fauceth/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-fauceth
+  labels:
+    helm.sh/chart: fauceth-0.2.3
+    app.kubernetes.io/name: fauceth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fauceth
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-fauceth-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fauceth
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/secrets: b47ac34e1ecad19b5e5163f47aeea3ab8476e2249c671af05694743d23c71d58
+    spec:
+      serviceAccountName: my-release-fauceth
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+        - name: fauceth
+          image: "ghcr.io/komputing/fauceth:release"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            {}
+          volumeMounts:
+            - name: config
+              mountPath: "/config"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http
+          resources:
+            {}
+          env:
+            - name: APP_AMOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-fauceth-env
+                  key: APP_AMOUNT
+            - name: APP_CHAINS
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-fauceth-env
+                  key: APP_CHAINS
+            - name: APP_ETHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-fauceth-env
+                  key: APP_ETHKEY
+            - name: APP_TITLE
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-fauceth-env
+                  key: APP_TITLE
+            - name: HCAPTCHA_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-fauceth-env
+                  key: HCAPTCHA_SECRET
+            - name: HCAPTCHA_SITEKEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-fauceth-env
+                  key: HCAPTCHA_SITEKEY
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          emptyDir: {}
+---
+# Source: fauceth/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-fauceth-test-connection"
+  labels:
+    helm.sh/chart: fauceth-0.2.3
+    app.kubernetes.io/name: fauceth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl
+      command: ['curl']
+      args:
+       - --location
+       - --request
+       - GET
+       - 'my-release-fauceth:8080/'
+  restartPolicy: Never

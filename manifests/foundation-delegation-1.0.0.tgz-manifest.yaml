@@ -1,0 +1,57 @@
+---
+# Source: foundation-delegation/templates/loadbalancer.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-backend
+spec:
+  type: LoadBalancer
+  publishNotReadyAddresses: true
+  selector:
+    app: my-release-backend
+  ports:
+  - name: delegation-backend
+    port: 80
+    targetPort: backend
+    protocol: TCP
+---
+# Source: foundation-delegation/templates/backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-backend
+  labels:
+    app: my-release-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-backend
+  template:
+    metadata:
+      labels:
+        app: my-release-backend
+        role: backend
+        version: prod-v3
+    spec:
+      containers:
+      - name: backend
+        image: gcr.io/mina-mainnet-303900/foundation-delegation-backend:prod-v3-1557e6c
+        imagePullPolicy: Always
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /creds/creds.json
+        ports:
+        - name: backend
+          protocol: TCP
+          containerPort: 8080
+        volumeMounts:
+          - name: backend-creds
+            mountPath: /creds/
+      volumes:
+        - name: backend-creds
+          secret:
+            secretName: foundation-delegation-creds
+            items:
+            - key: creds
+              path: creds.json

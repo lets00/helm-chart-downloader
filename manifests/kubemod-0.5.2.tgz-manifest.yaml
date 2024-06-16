@@ -1,0 +1,526 @@
+---
+# Source: kubemod/templates/job-crt/serviceaccount-crt.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kubemod-crt
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kubemod/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kubemod
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kubemod/templates/job-crt/role-crt.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-kubemod-crt
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - admissionregistration.k8s.io
+  resourceNames:
+  - my-release-kubemod-mutating-webhook-configuration
+  - my-release-kubemod-validating-webhook-configuration
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+# Source: kubemod/templates/roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-kubemod-manager
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - api.kubemod.io
+  resources:
+  - modrules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - api.kubemod.io
+  resources:
+  - modrules/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - nodes
+  verbs:
+  - list
+  - get
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - get
+  - watch
+  - update
+---
+# Source: kubemod/templates/job-crt/role-crt.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-kubemod-crt
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kubemod-crt
+subjects:
+- kind: ServiceAccount
+  name: my-release-kubemod-crt
+  namespace: default
+---
+# Source: kubemod/templates/roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-kubemod-manager
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kubemod-manager
+subjects:
+- kind: ServiceAccount
+  name: my-release-kubemod
+  namespace: default
+---
+# Source: kubemod/templates/job-crt/role-crt.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-kubemod-crt
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+# Source: kubemod/templates/job-crt/role-crt.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-kubemod-crt
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-kubemod-crt
+subjects:
+- kind: ServiceAccount
+  name: my-release-kubemod-crt
+  namespace: default
+---
+# Source: kubemod/templates/service-webapp.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubemod-webapp-service
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: api
+      port: 8081
+      targetPort: api
+    - name: metrics
+      port: 8082
+      targetPort: metrics
+    - name: health
+      port: 8083
+      targetPort: health
+  selector:
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+---
+# Source: kubemod/templates/service-webhook.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubemod-webhook-service
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: 9443
+  selector:
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+---
+# Source: kubemod/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kubemod
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubemod
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubemod
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-kubemod
+      securityContext:
+        {}
+      containers:
+        - name: kubemod
+          securityContext:
+            {}
+          image: "kubemod/kubemod:v0.19.1"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /kubemod
+            - -operator
+            - -webapp
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8083
+          ports:
+            - containerPort: 8081
+              name: api
+              protocol: TCP
+            - containerPort: 8082
+              name: metrics
+              protocol: TCP
+            - containerPort: 8083
+              name: health
+              protocol: TCP
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8083
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: webhook-server-cert
+      topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: kubemod
+              app.kubernetes.io/instance: my-release
+          maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: kubemod
+              app.kubernetes.io/instance: my-release
+          maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+---
+# Source: kubemod/templates/job-crt/job-crt.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-kubemod-crt-job
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      containers:
+      - command:
+        - /bin/sh
+        - -c
+        - ./cert-renew.sh
+        image: "kubemod/kubemod-crt:v1.3.0"
+        name: kubemod-crt
+      restartPolicy: Never
+      serviceAccountName: my-release-kubemod-crt
+---
+# Source: kubemod/templates/job-crt/cronjob-crt.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-release-kubemod-crt-cron-job
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  jobTemplate:
+    spec:
+      backoffLimit: 4
+      template:
+        spec:
+          containers:
+          - command:
+            - /bin/sh
+            - -c
+            - ./cert-renew.sh
+            image: "kubemod/kubemod-crt:v1.3.0"
+            name: kubemod-crt
+          restartPolicy: Never
+          serviceAccountName: my-release-kubemod-crt
+  schedule: 0 0 1 * *
+---
+# Source: kubemod/templates/mutatingwebhookconfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: my-release-kubemod-mutating-webhook-configuration
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-kubemod-webhook-service
+      namespace: default
+      path: /mutate-api-kubemod-io-v1beta1-modrule
+  failurePolicy: Ignore
+  name: mmodrule.kubemod.io
+  rules:
+  - apiGroups:
+    - api.kubemod.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - modrules
+  sideEffects: None
+  timeoutSeconds: 5
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-kubemod-webhook-service
+      namespace: default
+      path: /dragnet-webhook
+  failurePolicy: Ignore
+  matchPolicy: Equivalent
+  name: dragnet.kubemod.io
+  namespaceSelector:
+    matchExpressions:
+    - key: admission.kubemod.io/ignore
+      operator: NotIn
+      values:
+      - "true"
+  reinvocationPolicy: IfNeeded
+  rules:
+  - apiGroups:
+    - '*'
+    apiVersions:
+    - '*'
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - namespaces
+    - nodes
+    - configmaps
+    - persistentvolumeclaims
+    - persistentvolumes
+    - secrets
+    - services
+    - daemonsets
+    - deployments
+    - replicasets
+    - statefulsets
+    - horizontalpodautoscalers
+    - ingresses
+    - pods
+    - cronjobs
+    - jobs
+    - serviceaccounts
+    - clusterrolebindings
+    - clusterroles
+    - rolebindings
+    - roles
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: kubemod-webhook-service
+      namespace: kubemod-system
+      path: /podbinding-webhook
+  failurePolicy: Ignore
+  name: podbinding.kubemod.io
+  namespaceSelector:
+    matchExpressions:
+    - key: admission.kubemod.io/ignore
+      operator: NotIn
+      values:
+      - "true"
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - pods/binding
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 10
+---
+# Source: kubemod/templates/validatingwebhookconfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: my-release-kubemod-validating-webhook-configuration
+  labels:
+    helm.sh/chart: kubemod-0.5.2
+    app.kubernetes.io/name: kubemod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.19.1"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    caBundle: Cg==
+    service:
+      name: my-release-kubemod-webhook-service
+      namespace: default
+      path: /validate-api-kubemod-io-v1beta1-modrule
+  failurePolicy: Ignore
+  name: vmodrule.kubemod.io
+  rules:
+  - apiGroups:
+    - api.kubemod.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - modrules
+  sideEffects: None
+  timeoutSeconds: 5

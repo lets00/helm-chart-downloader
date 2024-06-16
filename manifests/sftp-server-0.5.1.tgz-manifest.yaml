@@ -1,0 +1,111 @@
+---
+# Source: sftp-server/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-sftp-server
+  labels:
+    helm.sh/chart: sftp-server-0.5.1
+    app.kubernetes.io/name: sftp-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+---
+# Source: sftp-server/templates/config-users.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-sftp-server-users
+  labels:
+    helm.sh/chart: sftp-server-0.5.1
+    app.kubernetes.io/name: sftp-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  users.conf: |
+    demo:demo:::upload
+---
+# Source: sftp-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-sftp-server
+  labels:
+    helm.sh/chart: sftp-server-0.5.1
+    app.kubernetes.io/name: sftp-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 22
+      targetPort: ssh
+      protocol: TCP
+      name: ssh
+  selector:
+    app.kubernetes.io/name: sftp-server
+    app.kubernetes.io/instance: my-release
+---
+# Source: sftp-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-sftp-server
+  labels:
+    helm.sh/chart: sftp-server-0.5.1
+    app.kubernetes.io/name: sftp-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sftp-server
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config-users: 6fd66b9f13aa6832cfcde4f0f698a93eafa565418d871b02af0bdcc3479cf4e0
+        checksum/config-keys: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/host-keys: fa420e54574d62a36de0391a305aaabb0111e4226560013c2e4b5a7de2f616c9
+      labels:
+        app.kubernetes.io/name: sftp-server
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      initContainers:
+      containers:
+        - name: sftp-server
+          securityContext:
+            {}
+          image: "ghcr.io/atmoz/sftp/alpine:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: ssh
+              containerPort: 22
+              protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: ssh
+          livenessProbe:
+            tcpSocket:
+              port: ssh
+          readinessProbe:
+            tcpSocket:
+              port: ssh
+          resources:
+            {}
+          volumeMounts:
+            - name: config-users
+              mountPath: /etc/sftp/
+      volumes:
+      - name: config-users
+        configMap:
+          name: my-release-sftp-server-users
+      - name: host-keys
+        secret:
+          secretName: my-release-sftp-server
+          defaultMode: 0400

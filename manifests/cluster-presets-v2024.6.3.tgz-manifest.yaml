@@ -1,0 +1,186 @@
+---
+# Source: cluster-presets/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-cluster-presets
+  namespace: default
+  labels:
+    helm.sh/chart: cluster-presets-v2024.6.3
+    app.kubernetes.io/name: cluster-presets
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.1"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: cluster-presets/templates/cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-cluster-presets
+  labels:
+    helm.sh/chart: cluster-presets-v2024.6.3
+    app.kubernetes.io/name: cluster-presets
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+# Get cluster id
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs: ["get"]
+# chart presets
+- apiGroups:
+  - charts.x-helm.dev
+  resources:
+  - chartpresets
+  - clusterchartpresets
+  verbs: ["*"]
+# kubedb
+- apiGroups:
+  - kubedb.com
+  - ops.kubedb.com
+  - autoscaling.kubedb.com
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - archiver.kubedb.com
+  resources: ["*"]
+  verbs: ["*"]
+# petset
+- apiGroups:
+  - apps.k8s.appscode.com
+  resources:
+  - placementpolicies
+  verbs: ["*"]
+# node topologies
+- apiGroups:
+  - node.k8s.appscode.com
+  resources:
+  - nodetopologies
+  verbs: ["*"]
+# kubestash
+- apiGroups:
+  - storage.kubestash.com
+  resources:
+  - backupstorages
+  - repositories
+  verbs: ["get", "list", "watch"]
+# capi
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machinepools
+  verbs: ["*"]
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - azuremachinepools
+  - gcpmanagedmachinepools
+  verbs: ["*"]
+# karpenter aws
+- apiGroups:
+  - karpenter.sh
+  resources:
+  - nodepools
+  verbs: ["*"]
+- apiGroups:
+  - karpenter.k8s.aws
+  resources:
+  - ec2nodeclasses
+  verbs: ["*"]
+# storage class
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotclasses
+  verbs: ["get", "list", "watch"]
+---
+# Source: cluster-presets/templates/cluster-role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-cluster-presets
+  labels:
+    helm.sh/chart: cluster-presets-v2024.6.3
+    app.kubernetes.io/name: cluster-presets
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-cluster-presets
+subjects:
+- kind: ServiceAccount
+  name: my-release-cluster-presets
+  namespace: default
+---
+# Source: cluster-presets/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-cluster-presets
+  namespace: default
+  labels:
+    helm.sh/chart: cluster-presets-v2024.6.3
+    app.kubernetes.io/name: cluster-presets
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cluster-presets
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: cluster-presets-v2024.6.3
+        app.kubernetes.io/name: cluster-presets
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v0.0.1"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      
+      serviceAccountName: my-release-cluster-presets
+      securityContext:
+        {}
+      containers:
+        - name: cluster-presets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          image: "ghcr.io/appscode/cluster-presets:v0.0.1"
+          imagePullPolicy: IfNotPresent
+          args:
+            - generate
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            {}

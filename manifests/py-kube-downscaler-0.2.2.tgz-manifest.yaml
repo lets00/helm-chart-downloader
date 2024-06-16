@@ -1,0 +1,178 @@
+---
+# Source: py-kube-downscaler/templates/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-py-kube-downscaler
+---
+# Source: py-kube-downscaler/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: py-kube-downscaler
+data:
+  # downscale for non-work hours
+  EXCLUDE_NAMESPACES: 'py-kube-downscaler,kube-system'
+---
+# Source: py-kube-downscaler/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: py-kube-downscaler
+rules:
+- apiGroups:
+    - ""
+  resources:
+    - pods
+    - namespaces
+  verbs:
+    - get
+    - watch
+    - list
+- apiGroups:
+    - apps
+  resources:
+    - deployments
+    - statefulsets
+    - daemonsets
+  verbs:
+    - get
+    - watch
+    - list
+    - update
+    - patch
+- apiGroups:
+    - argoproj.io
+  resources:
+    - rollouts
+  verbs:
+    - get
+    - watch
+    - list
+    - update
+    - patch
+- apiGroups:
+    - autoscaling
+  resources:
+    - horizontalpodautoscalers
+  verbs:
+    - get
+    - watch
+    - list
+    - update
+    - patch
+- apiGroups:
+    - batch
+  resources:
+    - cronjobs
+  verbs:
+    - get
+    - watch
+    - list
+    - update
+    - patch
+- apiGroups:
+    - keda.sh
+  resources:
+    - scaledobjects
+  verbs:
+    - get
+    - watch
+    - list
+    - update
+    - patch
+- apiGroups:
+    - zalando.org
+  resources:
+    - stacks
+  verbs:
+    - get
+    - watch
+    - list
+    - update
+    - patch
+- apiGroups:
+    - ""
+  resources:
+    - events
+  verbs:
+    - get
+    - create
+    - watch
+    - list
+    - update
+    - patch
+- apiGroups:
+    - policy
+  resources:
+    - poddisruptionbudgets
+  verbs:
+    - get
+    - watch
+    - list
+    - update
+    - patch
+---
+# Source: py-kube-downscaler/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: py-kube-downscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: py-kube-downscaler
+subjects:
+  - kind: ServiceAccount
+    name: my-release-py-kube-downscaler
+    namespace: default
+---
+# Source: py-kube-downscaler/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    application: py-kube-downscaler
+  name: py-kube-downscaler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      application: py-kube-downscaler
+  template:
+    metadata:
+      labels:
+        application: py-kube-downscaler
+    spec:
+      serviceAccountName: my-release-py-kube-downscaler
+      containers:
+      - name: py-kube-downscaler
+        image: ghcr.io/caas-team/py-kube-downscaler:24.5.2
+        args:
+        - --interval=60
+        - --include-resources=deployments,statefulsets,horizontalpodautoscalers,scaledobjects
+        envFrom:
+        - configMapRef:
+            name: py-kube-downscaler
+            optional: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 900Mi
+          requests:
+            cpu: 200m
+            memory: 300Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        supplementalGroups:
+        - 1000

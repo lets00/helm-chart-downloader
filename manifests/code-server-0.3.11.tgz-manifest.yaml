@@ -1,0 +1,122 @@
+---
+# Source: code-server/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-code-server
+  labels:
+    helm.sh/chart: code-server-0.3.11
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.9.3-r1-ubuntu"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: code-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-code-server
+  labels:
+    helm.sh/chart: code-server-0.3.11
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.9.3-r1-ubuntu"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+---
+# Source: code-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-code-server
+  labels:
+    helm.sh/chart: code-server-0.3.11
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.9.3-r1-ubuntu"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: code-server
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: code-server
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-code-server
+      securityContext:
+        {}
+      containers:
+        - name: "code-server-sidecar"
+          image: "kodelib/code-server-sidecar:0.1.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: PROXY_URL
+              value: http://localhost:8080/
+            - name: BASE_PATH
+              value: /
+        - name: code-server
+          securityContext:
+            {}
+          image: "kodelib/code-server:3.9.3-r1-ubuntu"
+          args:
+            - --host=0.0.0.0
+            - --disable-telemetry
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+          env:
+          volumeMounts:
+            - name: data
+              mountPath: /home/kodelib
+          resources:
+            {}
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+# Source: code-server/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-code-server-test-connection"
+  labels:
+    helm.sh/chart: code-server-0.3.11
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.9.3-r1-ubuntu"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-code-server:80']
+  restartPolicy: Never

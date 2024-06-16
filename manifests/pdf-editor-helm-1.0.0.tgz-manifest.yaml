@@ -1,0 +1,304 @@
+---
+# Source: pdf-editor-helm/templates/namespace.yml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: helm-pdf-editor-ns
+---
+# Source: pdf-editor-helm/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-merge
+  namespace: helm-pdf-editor-ns
+  labels:
+    service: backend-merge
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: web
+  selector:
+    app: backend-merge
+---
+# Source: pdf-editor-helm/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-rotate
+  namespace: helm-pdf-editor-ns
+  labels:
+    service: backend-rotate
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: web
+  selector:
+    app: backend-rotate
+---
+# Source: pdf-editor-helm/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-lb
+  namespace: helm-pdf-editor-ns
+  labels:
+    name: pdf-editor-frontend
+spec:
+  selector:
+    app: frontend-pdf
+  type: ClusterIP
+  ports:
+  - port: 80
+    name: web
+    targetPort: web-port
+    protocol: TCP
+---
+# Source: pdf-editor-helm/templates/tracing.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: trace
+  namespace: helm-pdf-editor-ns
+spec:
+  selector:
+    app: jaeger
+  ports:
+  - port: 16686
+    targetPort: 16686
+    name: web
+  - port: 14268
+    targetPort: 14268
+    name: conn
+---
+# Source: pdf-editor-helm/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdf-editor-backend-merge
+  namespace: helm-pdf-editor-ns
+  labels:
+    app: backend-merge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-merge
+  template:
+    metadata:
+      labels:
+        app: backend-merge
+
+    spec:
+      volumes:
+      - name: backend
+        emptyDir: {}
+      initContainers:
+        - name: pdf-files
+          image: docker.io/dipugodocker/pdf-editor:1.0-backend-merge
+          volumeMounts:
+          - name: backend
+            mountPath: /mnt
+          command: ["cp", "-vR", ".", "/mnt"]
+
+      containers:
+        - name: pdf-editor
+          image: docker.io/dipugodocker/pdf-editor:1.0-backend-merge
+          volumeMounts:
+          - name: backend
+            mountPath: /go/src/
+          resources:
+            requests:
+                memory: "50Mi"
+                cpu: "10m"
+            limits:
+              memory: "500Mi"
+              cpu: "100m"
+          livenessProbe:
+            httpGet:
+              port: 8080
+              path: /greet
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              port: 8080
+              path: /greet
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          ports:
+            - containerPort: 8080
+          imagePullPolicy: Always
+---
+# Source: pdf-editor-helm/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdf-editor-backend-rotate
+  namespace: helm-pdf-editor-ns
+  labels:
+    app: backend-rotate
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-rotate
+  template:
+    metadata:
+      labels:
+        app: backend-rotate
+
+    spec:
+      volumes:
+      - name: backend
+        emptyDir: {}
+      initContainers:
+        - name: pdf-files
+          image: docker.io/dipugodocker/pdf-editor:1.0-backend-rotate
+          volumeMounts:
+          - name: backend
+            mountPath: /mnt
+          command: ["cp", "-vR", ".", "/mnt"]
+
+      containers:
+        - name: pdf-editor
+          image: docker.io/dipugodocker/pdf-editor:1.0-backend-rotate
+          volumeMounts:
+          - name: backend
+            mountPath: /go/src/
+          resources:
+            requests:
+                memory: "50Mi"
+                cpu: "10m"
+            limits:
+              memory: "500Mi"
+              cpu: "100m"
+          livenessProbe:
+            httpGet:
+              port: 8081
+              path: /greet
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              port: 8081
+              path: /greet
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          ports:
+            - containerPort: 8081
+          imagePullPolicy: Always
+---
+# Source: pdf-editor-helm/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdf-editor-frontend
+  namespace: helm-pdf-editor-ns
+  labels:
+    app: frontend-pdf
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: frontend-pdf
+  template:
+    metadata:
+      labels:
+        app: frontend-pdf
+    spec:
+      containers:
+        - name: pdf-editor
+          image: docker.io/dipugodocker/pdf-editor:1.0-frontend
+          resources:
+            requests:
+                memory: "50Mi"
+                cpu: "10m"
+            limits:
+              memory: "500Mi"
+              cpu: "100m"
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          ports:
+            - containerPort: 80
+              name: web-port
+          imagePullPolicy: Always
+...
+---
+# Source: pdf-editor-helm/templates/tracing.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: helm-pdf-editor-ns
+spec:
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+      - name: jaeger
+        image: jaegertracing/all-in-one:1.6
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "50Mi"
+            cpu: "10m"
+        livenessProbe:
+          tcpSocket:
+            port: 16686
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          tcpSocket:
+            port: 16686
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        ports:
+        - containerPort: 5775
+        - containerPort: 6831
+        - containerPort: 6832
+        - containerPort: 5778
+        - containerPort: 16686
+        - containerPort: 14268
+        - containerPort: 9411
+---
+# Source: pdf-editor-helm/templates/service.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pdf-editor-ig
+  labels:
+    name: pdf-editor-ig
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  namespace: helm-pdf-editor-ns
+spec:
+  rules:
+  - host: pdf-editor
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: frontend-lb
+            port:
+              number: 80

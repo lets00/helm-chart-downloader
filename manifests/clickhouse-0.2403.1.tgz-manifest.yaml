@@ -1,0 +1,141 @@
+---
+# Source: clickhouse/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-clickhouse
+  labels:
+    helm.sh/chart: clickhouse-0.2403.1
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: clickhouse/templates/secret-config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-clickhouse-configd
+  labels:
+    helm.sh/chart: clickhouse-0.2403.1
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  "docker_related_config.xml": PGNsaWNraG91c2U+CiAgPGxpc3Rlbl9ob3N0Pjo6PC9saXN0ZW5faG9zdD4KICA8bGlzdGVuX2hvc3Q+MC4wLjAuMDwvbGlzdGVuX2hvc3Q+CiAgPGxpc3Rlbl90cnk+MTwvbGlzdGVuX3RyeT4KCiAgPGxvZ2dlcj4KICAgIDxjb25zb2xlPjE8L2NvbnNvbGU+CiAgPC9sb2dnZXI+CjwvY2xpY2tob3VzZT4K
+---
+# Source: clickhouse/templates/secret-env.yaml
+# TODO: look at moving some of this into XML or YAML. See link below.
+#       https://github.com/ClickHouse/ClickHouse/blob/master/programs/server/config.yaml.example
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-clickhouse-env
+  labels:
+    helm.sh/chart: clickhouse-0.2403.1
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  CLICKHOUSE_DB: "ZGVmYXVsdA=="
+  CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "MQ=="
+  CLICKHOUSE_USER: "Y2xpY2tob3VzZQ=="
+  CLICKHOUSE_PASSWORD: "Y2xpY2tob3VzZQ=="
+---
+# Source: clickhouse/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clickhouse
+  labels:
+    helm.sh/chart: clickhouse-0.2403.1
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8123
+      protocol: TCP
+      targetPort: http
+    - name: clickhouse
+      protocol: TCP
+      port: 9000
+      targetPort: clickhouse
+  selector:
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+---
+# Source: clickhouse/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-clickhouse
+  labels:
+    helm.sh/chart: clickhouse-0.2403.1
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clickhouse
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clickhouse
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-clickhouse
+      securityContext:
+        {}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data
+        - name: configd
+          secret:
+            secretName: my-release-clickhouse-configd
+      containers:
+        - name: clickhouse
+          securityContext:
+            {}
+          image: "clickhouse/clickhouse-server:24.2"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: my-release-clickhouse-env
+          ports:
+            - name: http
+              containerPort: 8123
+              protocol: TCP
+            - name: clickhouse
+              containerPort: 9000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /var/lib/clickhouse
+              name: data
+            - mountPath: /etc/clickhouse-server/config.d
+              name: configd
+              readOnly: true

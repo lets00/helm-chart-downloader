@@ -1,0 +1,37 @@
+---
+# Source: intel-device-plugins-iaa/templates/iaa.yaml
+apiVersion: deviceplugin.intel.com/v1
+kind: IaaDevicePlugin
+metadata:
+  name: iaadeviceplugin-sample
+  annotations: 
+    null
+spec:
+  image: "intel/intel-iaa-plugin:0.30.0"
+  initImage: "intel/intel-idxd-config-initcontainer:0.30.0"
+  sharedDevNum: 10
+  logLevel: 4
+  nodeSelector:
+    intel.feature.node.kubernetes.io/iaa: "true"
+  tolerations:
+    null
+---
+# Source: intel-device-plugins-iaa/templates/iaa.yaml
+apiVersion: nfd.k8s-sigs.io/v1alpha1
+kind: NodeFeatureRule
+metadata:
+  name: intel-dp-iaa-device
+spec:
+  rules:
+    - name: "intel.iaa"
+      labels:
+        "intel.feature.node.kubernetes.io/iaa": "true"
+      matchFeatures:
+        - feature: pci.device
+          matchExpressions:
+            vendor: {op: In, value: ["8086"]}
+            device: {op: In, value: ["0cfe"]}
+            class: {op: In, value: ["0880"]}
+        - feature: kernel.loadedmodule
+          matchExpressions:
+            idxd: {op: Exists}

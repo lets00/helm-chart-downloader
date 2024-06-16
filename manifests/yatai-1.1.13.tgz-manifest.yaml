@@ -1,0 +1,197 @@
+---
+# Source: yatai/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-yatai
+  namespace: default
+  labels:
+    helm.sh/chart: yatai-1.1.13
+    app.kubernetes.io/name: yatai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.13"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: yatai/templates/secret-configfile.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-yatai
+  labels:
+    helm.sh/chart: yatai-1.1.13
+    app.kubernetes.io/name: yatai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.13"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  config.yaml: |
+    in_cluster: true
+
+    server:  # the server config section
+      enable_https: false  # if the yatai is deployed as an https server, set it to true
+      port: 7777  # the server port
+      migration_dir: /app/db/migrations  # the migrations sql files directory
+---
+# Source: yatai/templates/secret-env.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-yatai-env
+  labels:
+    helm.sh/chart: yatai-1.1.13
+    app.kubernetes.io/name: yatai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.13"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  YATAI_INITIALIZATION_TOKEN: "XMPQJ0ycbCu69Y5K"
+  SESSION_SECRET_KEY: "Lqi7lXgmLo0UoFNg"
+
+  PG_HOST: "localhost"
+  PG_DATABASE: "yatai"
+  PG_PORT: "5432"
+  PG_SSLMODE: "disable"
+  PG_USER: "yatai"
+  PG_PASSWORD: ""
+  PG_MAX_OPEN_CONNS: "10"
+  PG_MAX_IDLE_CONNS: "10"
+  PG_CONN_MAX_LIFETIME: "15m"
+
+  S3_ENDPOINT: ""
+  S3_REGION: ""
+  S3_BUCKET_NAME: ""
+  S3_SECURE: "true"
+  S3_ACCESS_KEY: ""
+  S3_SECRET_KEY: ""
+
+  TRANSMISSION_STRATEGY: "proxy"
+
+  INTERNAL_IMAGES_DEBUGGER: "quay.io/bentoml/bento-debugger:0.0.7"
+---
+# Source: yatai/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-yatai
+  labels:
+    helm.sh/chart: yatai-1.1.13
+    app.kubernetes.io/name: yatai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.13"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      nodePort: 
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: yatai
+    app.kubernetes.io/instance: my-release
+---
+# Source: yatai/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-yatai
+  labels:
+    helm.sh/chart: yatai-1.1.13
+    app.kubernetes.io/name: yatai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.13"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: yatai
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: yatai
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-yatai
+      securityContext:
+        {}
+      containers:
+        - name: yatai
+          securityContext:
+            {}
+          image: "quay.io/bentoml/yatai:1.1.13"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+          args:
+            - exec /app/api-server serve -c /conf/config.yaml
+          ports:
+            - name: http
+              containerPort: 7777
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: my-release-yatai-env
+          env:
+            - name: YATAI_SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: YATAI_DONOT_TRACK
+              value: "false"
+          livenessProbe:
+            failureThreshold: 15
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 10
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            failureThreshold: 60
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 10
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+          stdin: true
+          tty: true
+          volumeMounts:
+            - mountPath: /conf
+              name: config
+              readOnly: true
+      volumes:
+        - name: config
+          secret:
+            secretName: my-release-yatai
+---
+# Source: yatai/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-yatai-test-connection"
+  labels:
+    helm.sh/chart: yatai-1.1.13
+    app.kubernetes.io/name: yatai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.1.13"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-yatai:80']
+  restartPolicy: Never

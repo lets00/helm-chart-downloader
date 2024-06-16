@@ -1,0 +1,1661 @@
+---
+# Source: drogue-cloud-twin/templates/infrastructure/postgres/secret.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: postgres-secret
+  labels:
+    app.kubernetes.io/name: postgres-secret
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+type: Opaque
+data:
+  admin.username: "YWRtaW4="
+  admin.password: "YWRtaW4xMjM0NTY="
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/clients.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: keycloak-client-secret-api
+  labels:
+    app.kubernetes.io/name: keycloak-client-secret-api
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+data:
+  CLIENT_ID: "YXBp"
+  CLIENT_SECRET: ""
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/clients.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: keycloak-client-secret-services
+  labels:
+    app.kubernetes.io/name: keycloak-client-secret-services
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+data:
+  CLIENT_ID: "c2VydmljZXM="
+  CLIENT_SECRET: "a1JoTXBtQ3hmWkpENGhFUzZDb1VkVTFZRUlWdXpEaUQ="
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/database.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-db-secret
+  labels:
+    app.kubernetes.io/name: keycloak-db-secret
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+
+data:
+
+  database: "c3RvcmFnZQ=="
+  username: "YWRtaW4="
+  password: "YWRtaW4xMjM0NTY="
+  
+  host: "cG9zdGdyZXMuZGVmYXVsdC5zdmMuY2x1c3Rlci5sb2NhbA=="
+  port: "NTQzMg=="
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/initial-admin.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sso-initial-admin # sso- is from the name of the instance metadata name
+  labels:
+    app.kubernetes.io/name: sso-initial-admin
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+type: kubernetes.io/basic-auth
+data:
+  username: YWRtaW4= # admin
+  password: YWRtaW4xMjM0NTY=
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/sso-service-credentials.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sso-service-credentials
+  labels:
+    app.kubernetes.io/name: sso-service-credentials
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+type: kubernetes.io/basic-auth
+data:
+  username: YWRtaW4= # admin
+  password: YWRtaW4xMjM0NTY=
+---
+# Source: drogue-cloud-twin/templates/configuration.yaml
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: drogue-doppelgaenger-configuration
+  labels:
+    app.kubernetes.io/name: drogue-doppelgaenger-configuration
+    app.kubernetes.io/component: global
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+
+data:
+  command.mqtt.clientId: "Ieo02AwI1sJjMin4"
+---
+# Source: drogue-cloud-twin/templates/endpoints.yaml
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: drogue-doppelgaenger-endpoints
+  labels:
+    app.kubernetes.io/name: drogue-doppelgaenger-endpoints
+    app.kubernetes.io/component: global
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+
+data:
+  api-url: https://api.my-cluster.dns
+  sso-url: https://sso.my-cluster.dns
+  debugger-url: https://debugger.my-cluster.dns
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/post-install-job.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: post-install-keycloak-config
+  labels:
+    app.kubernetes.io/name: post-install-keycloak
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+data:
+  client.json: |
+    {
+      "clientId": "api",
+      "clientAuthenticatorType": "client-secret",
+      "enabled": true,
+      "publicClient": true,
+      "implicitFlowEnabled": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "webOrigins": [
+        "*"
+      ],
+      "defaultClientScopes": [
+        "email",
+        "profile",
+        "roles",
+        "web-origins"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "microprofile-jwt",
+        "offline_access",
+        "phone"
+      ],
+      "defaultRoles": [
+        "doppelgaenger-user"
+      ],
+      "protocolMappers": [
+        {
+          "name": "add-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  client-services.json: |
+    {
+      "clientId": "services",
+      "clientAuthenticatorType": "client-secret",
+      "enabled": true,
+      "publicClient": false,
+      "implicitFlowEnabled": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "email",
+        "profile",
+        "roles",
+        "web-origins"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "microprofile-jwt",
+        "offline_access",
+        "phone"
+      ],
+      "defaultRoles": [
+        "doppelgaenger-user",
+        "doppelgaenger-admin"
+      ],
+      "protocolMappers": [
+        {
+          "name": "add-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "services",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+---
+# Source: drogue-cloud-twin/templates/services/swaggerui/tls.yaml
+kind: ConfigMap
+apiVersion: v1
+
+metadata:
+  name: doppelgaenger-swaggerui-entrypoint-tls
+  labels:
+    app.kubernetes.io/name: doppelgaenger-swaggerui
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+    drogue.io/metrics: "true"
+
+data:
+  50-tls.sh: |
+    #! /bin/sh
+    set -e
+
+    NGINX_CONF=/etc/nginx/nginx.conf
+
+    # switch to TLS
+    if [[ -n "${TLS_KEY_FILE}" ]]; then
+      sed -i "s|${PORT};|${PORT} ssl;|g" $NGINX_CONF
+      sed -i "/ ssl;/a ssl_certificate $TLS_CERT_BUNDLE_FILE; ssl_certificate_key $TLS_KEY_FILE;" $NGINX_CONF
+    fi
+---
+# Source: drogue-cloud-twin/templates/infrastructure/postgres/persistent-volume-claim.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: postgres-pvc
+  labels:
+    app.kubernetes.io/name: postgres-pvc
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "1G"
+---
+# Source: drogue-cloud-twin/templates/infrastructure/postgres/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: postgres
+  annotations:
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+
+  type: ClusterIP
+
+  ports:
+    - name: postgres
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+---
+# Source: drogue-cloud-twin/templates/services/backend/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: doppelgaenger-backend
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: doppelgaenger-backend
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+
+spec:
+
+  selector:
+    app.kubernetes.io/name: doppelgaenger-backend
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+
+  type: ClusterIP
+
+  ports:
+    - name: service
+      port: 443
+      protocol: TCP
+      targetPort: service
+---
+# Source: drogue-cloud-twin/templates/services/debugger/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: doppelgaenger-debugger
+  labels:
+    app.kubernetes.io/name: doppelgaenger-debugger
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+
+spec:
+
+  selector:
+    app.kubernetes.io/name: doppelgaenger-debugger
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+
+  type: ClusterIP
+
+  ports:
+    - name: service
+      port: 8080
+      protocol: TCP
+      targetPort: service
+---
+# Source: drogue-cloud-twin/templates/services/swaggerui/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: doppelgaenger-swaggerui
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: doppelgaenger-swaggerui
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+
+spec:
+
+  selector:
+    app.kubernetes.io/name: doppelgaenger-swaggerui
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+
+  type: ClusterIP
+
+  ports:
+    - name: service
+      port: 443
+      protocol: TCP
+      targetPort: service
+---
+# Source: drogue-cloud-twin/templates/infrastructure/postgres/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/component: digital-twin
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/component: digital-twin
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.11.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: drogue-doppelgaenger
+    spec:
+      containers:
+        - name: postgres
+          image: docker.io/bitnami/postgresql:14
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              value: "storage"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.password
+            - name: PGPASSWORD # used in combination with psql
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.password
+
+          readinessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            tcpSocket:
+              port: 5432
+            timeoutSeconds: 1
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            tcpSocket:
+              port: 5432
+            timeoutSeconds: 1
+          ports:
+            - containerPort: 5432
+              name: postgres
+              protocol: TCP
+          resources:
+            limits:
+              memory: 512Mi
+
+          volumeMounts:
+            - mountPath: /bitnami/postgresql
+              name: storage
+
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+---
+# Source: drogue-cloud-twin/templates/services/backend/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: doppelgaenger-backend
+  annotations:
+    app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"postgres"}]'
+    
+  labels:
+    app.kubernetes.io/name: doppelgaenger-backend
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+    drogue.io/metrics: "true"
+
+spec:
+
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: doppelgaenger-backend
+      app.kubernetes.io/component: digital-twin
+      app.kubernetes.io/instance: my-release
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: doppelgaenger-backend
+        app.kubernetes.io/component: digital-twin
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.11.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: drogue-doppelgaenger
+        drogue.io/metrics: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9090"
+        checksum/clients: 2d3beaf9d6e7b36ef8835c521af7e693aecfa43e9880c3908cd4506f0e5c4997
+
+    spec:
+      containers:
+        - name: service
+          image: "ghcr.io/drogue-iot/drogue-doppelgaenger-backend:0.11.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            
+            
+            
+            
+            
+            - name: RUST_LOG
+              value: info
+            
+            
+            
+            - name: HTTP__BIND_ADDR
+              value: "0.0.0.0:8443"
+            - name: HTTP__CERT_BUNDLE_FILE
+              value: /etc/tls/service/tls.crt
+            - name: HTTP__KEY_FILE
+              value: /etc/tls/service/tls.key
+            - name: RUNTIME__HEALTH__ENABLED
+              value: "true"
+            - name: RUNTIME__HEALTH__BIND_ADDR
+              value: "0.0.0.0:9090"
+            
+            
+            - name: APPLICATION
+              value: "default"
+            
+            - name: SERVICE__STORAGE__APPLICATION
+              value: "default"
+            - name: SERVICE__STORAGE__DB__HOST
+              value: postgres.default.svc
+            - name: SERVICE__STORAGE__DB__PORT
+              value: "5432" 
+            
+            - name: SERVICE__STORAGE__DB__DBNAME
+              value: "storage"
+            - name: SERVICE__STORAGE__DB__USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.username
+            - name: SERVICE__STORAGE__DB__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.password
+            
+             
+            - name: SERVICE__NOTIFIER__TOPIC
+              value: "notifications"
+            - name: SERVICE__NOTIFIER__QUEUE_TIMEOUT
+              value: 15s
+            - name: SERVICE__NOTIFIER__PROPERTIES__BOOTSTRAP_SERVERS
+              value: "drogue-doppelgaenger-kafka-bootstrap.default.svc.cluster.local.:9092"
+            
+            - name: SERVICE__NOTIFIER__PROPERTIES__SECURITY_PROTOCOL
+              value: sasl_plaintext
+            - name: SERVICE__NOTIFIER__PROPERTIES__SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: SERVICE__NOTIFIER__PROPERTIES__SASL_USERNAME
+              value: drogue-doppelgaenger
+            - name: SERVICE__NOTIFIER__PROPERTIES__SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: drogue-doppelgaenger
+                  key: password
+            - name: SERVICE__SINK__TOPIC
+              value: "events"
+            - name: SERVICE__SINK__QUEUE_TIMEOUT
+              value: 15s
+            - name: SERVICE__SINK__PROPERTIES__BOOTSTRAP_SERVERS
+              value: "drogue-doppelgaenger-kafka-bootstrap.default.svc.cluster.local.:9092"
+            
+            - name: SERVICE__SINK__PROPERTIES__SECURITY_PROTOCOL
+              value: sasl_plaintext
+            - name: SERVICE__SINK__PROPERTIES__SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: SERVICE__SINK__PROPERTIES__SASL_USERNAME
+              value: drogue-doppelgaenger
+            - name: SERVICE__SINK__PROPERTIES__SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: drogue-doppelgaenger
+                  key: password
+            - name: SERVICE__COMMAND_SINK__MODE
+              value: drogue
+            
+            - name: SERVICE__COMMAND_SINK__HOST
+              value: "mqtt-integration.sandbox.drogue.cloud"
+            - name: SERVICE__COMMAND_SINK__PORT
+              value: "443"
+            - name: SERVICE__COMMAND_SINK__CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: drogue-doppelgaenger-configuration
+                  key: command.mqtt.clientId
+            
+            - name: SERVICE__COMMAND_SINK__CLEAN_SESSION
+              value: "true"
+            - name: SERVICE__COMMAND_SINK__DISABLE_TLS
+              value: "false"
+            
+            - name: LISTENER__TOPIC
+              value: "notifications"
+            - name: LISTENER__PROPERTIES__BOOTSTRAP_SERVERS
+              value: "drogue-doppelgaenger-kafka-bootstrap.default.svc.cluster.local.:9092"
+            - name: LISTENER__PROPERTIES__GROUP_ID
+              value: doppelgaenger
+            
+            - name: LISTENER__PROPERTIES__SECURITY_PROTOCOL
+              value: sasl_plaintext
+            - name: LISTENER__PROPERTIES__SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: LISTENER__PROPERTIES__SASL_USERNAME
+              value: drogue-doppelgaenger
+            - name: LISTENER__PROPERTIES__SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: drogue-doppelgaenger
+                  key: password
+            - name: OPENAPI_OAUTH_CLIENT
+              value: api
+            
+            
+             
+            - name: OAUTH__ISSUER_URL
+              value: https://sso-service.default.svc:8443/realms/doppelgaenger
+            
+            - name: OAUTH__TLS_INSECURE
+              value: "false"
+            - name: OAUTH__CLIENTS__API__CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-client-secret-api
+                  key: CLIENT_ID
+            - name: OAUTH__CLIENTS__API__CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-client-secret-api
+                  key: CLIENT_SECRET
+            - name: OAUTH__CLIENTS__SERVICES__CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-client-secret-services
+                  key: CLIENT_ID
+            - name: OAUTH__CLIENTS__SERVICES__CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-client-secret-services
+                  key: CLIENT_SECRET
+          readinessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              port: 9090
+              path: /readiness
+          livenessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              port: 9090
+              path: /liveness
+
+          ports:
+            
+            - containerPort: 8443
+              name: service
+              protocol: TCP
+            - containerPort: 9090
+              name: health
+              protocol: TCP
+          
+
+          volumeMounts:
+            
+
+      volumes:
+---
+# Source: drogue-cloud-twin/templates/services/debugger/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: doppelgaenger-debugger
+  labels:
+    app.kubernetes.io/name: doppelgaenger-debugger
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+
+spec:
+
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: doppelgaenger-debugger
+      app.kubernetes.io/component: digital-twin
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: doppelgaenger-debugger
+        app.kubernetes.io/component: digital-twin
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.11.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: drogue-doppelgaenger
+
+    spec:
+      containers:
+        - name: service
+          image: "ghcr.io/drogue-iot/drogue-doppelgaenger-debugger:0.11.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: API_URL
+              value: https://api.my-cluster.dns
+            - name: KEYCLOAK_URL
+              value: https://sso.my-cluster.dns
+            - name: REALM
+              value: doppelgaenger
+            - name: CLIENT_ID
+              value: api
+
+          ports:
+            - containerPort: 8080
+              name: service
+              protocol: TCP
+          
+
+          readinessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              port: 8080
+              path: /
+
+          volumeMounts:
+            - mountPath: /run
+              name: run
+            - mountPath: /endpoints
+              name: endpoints
+
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: endpoints
+          emptyDir: {}
+---
+# Source: drogue-cloud-twin/templates/services/processor/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: doppelgaenger-processor
+  annotations:
+    app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"postgres"}]'
+    
+  labels:
+    app.kubernetes.io/name: doppelgaenger-processor
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+    drogue.io/metrics: "true"
+
+spec:
+
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: doppelgaenger-processor
+      app.kubernetes.io/component: digital-twin
+      app.kubernetes.io/instance: my-release
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: doppelgaenger-processor
+        app.kubernetes.io/component: digital-twin
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.11.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: drogue-doppelgaenger
+        drogue.io/metrics: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9090"
+
+    spec:
+      containers:
+        - name: service
+          image: "ghcr.io/drogue-iot/drogue-doppelgaenger-processor:0.11.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            
+            
+            
+            
+            
+            - name: RUST_LOG
+              value: info
+            
+            - name: RUNTIME__HEALTH__ENABLED
+              value: "true"
+            - name: RUNTIME__HEALTH__BIND_ADDR
+              value: "0.0.0.0:9090"
+            
+            
+            - name: PROCESSOR__SERVICE__STORAGE__APPLICATION
+              value: "default"
+            - name: PROCESSOR__SERVICE__STORAGE__DB__HOST
+              value: postgres.default.svc
+            - name: PROCESSOR__SERVICE__STORAGE__DB__PORT
+              value: "5432" 
+            
+            - name: PROCESSOR__SERVICE__STORAGE__DB__DBNAME
+              value: "storage"
+            - name: PROCESSOR__SERVICE__STORAGE__DB__USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.username
+            - name: PROCESSOR__SERVICE__STORAGE__DB__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.password
+            
+             
+            - name: PROCESSOR__SERVICE__NOTIFIER__TOPIC
+              value: "notifications"
+            - name: PROCESSOR__SERVICE__NOTIFIER__QUEUE_TIMEOUT
+              value: 15s
+            - name: PROCESSOR__SERVICE__NOTIFIER__PROPERTIES__BOOTSTRAP_SERVERS
+              value: "drogue-doppelgaenger-kafka-bootstrap.default.svc.cluster.local.:9092"
+            
+            - name: PROCESSOR__SERVICE__NOTIFIER__PROPERTIES__SECURITY_PROTOCOL
+              value: sasl_plaintext
+            - name: PROCESSOR__SERVICE__NOTIFIER__PROPERTIES__SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: PROCESSOR__SERVICE__NOTIFIER__PROPERTIES__SASL_USERNAME
+              value: drogue-doppelgaenger
+            - name: PROCESSOR__SERVICE__NOTIFIER__PROPERTIES__SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: drogue-doppelgaenger
+                  key: password
+            - name: PROCESSOR__SERVICE__SINK__TOPIC
+              value: "events"
+            - name: PROCESSOR__SERVICE__SINK__QUEUE_TIMEOUT
+              value: 15s
+            - name: PROCESSOR__SERVICE__SINK__PROPERTIES__BOOTSTRAP_SERVERS
+              value: "drogue-doppelgaenger-kafka-bootstrap.default.svc.cluster.local.:9092"
+            
+            - name: PROCESSOR__SERVICE__SINK__PROPERTIES__SECURITY_PROTOCOL
+              value: sasl_plaintext
+            - name: PROCESSOR__SERVICE__SINK__PROPERTIES__SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: PROCESSOR__SERVICE__SINK__PROPERTIES__SASL_USERNAME
+              value: drogue-doppelgaenger
+            - name: PROCESSOR__SERVICE__SINK__PROPERTIES__SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: drogue-doppelgaenger
+                  key: password
+            - name: PROCESSOR__SERVICE__COMMAND_SINK__MODE
+              value: drogue
+            
+            - name: PROCESSOR__SERVICE__COMMAND_SINK__HOST
+              value: "mqtt-integration.sandbox.drogue.cloud"
+            - name: PROCESSOR__SERVICE__COMMAND_SINK__PORT
+              value: "443"
+            - name: PROCESSOR__SERVICE__COMMAND_SINK__CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: drogue-doppelgaenger-configuration
+                  key: command.mqtt.clientId
+            
+            - name: PROCESSOR__SERVICE__COMMAND_SINK__CLEAN_SESSION
+              value: "true"
+            - name: PROCESSOR__SERVICE__COMMAND_SINK__DISABLE_TLS
+              value: "false"
+            
+            - name: PROCESSOR__SOURCE__TOPIC
+              value: "events"
+            - name: PROCESSOR__SOURCE__PROPERTIES__BOOTSTRAP_SERVERS
+              value: "drogue-doppelgaenger-kafka-bootstrap.default.svc.cluster.local.:9092"
+            - name: PROCESSOR__SOURCE__PROPERTIES__GROUP_ID
+              value: doppelgaenger
+            
+            - name: PROCESSOR__SOURCE__PROPERTIES__SECURITY_PROTOCOL
+              value: sasl_plaintext
+            - name: PROCESSOR__SOURCE__PROPERTIES__SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: PROCESSOR__SOURCE__PROPERTIES__SASL_USERNAME
+              value: drogue-doppelgaenger
+            - name: PROCESSOR__SOURCE__PROPERTIES__SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: drogue-doppelgaenger
+                  key: password
+          readinessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              port: 9090
+              path: /readiness
+          livenessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              port: 9090
+              path: /liveness
+
+          ports:
+            - containerPort: 9090
+              name: health
+              protocol: TCP
+---
+# Source: drogue-cloud-twin/templates/services/swaggerui/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: doppelgaenger-swaggerui
+  annotations:
+    io.drogue/tls-entrypoint-hash: b02630ebc7e4260b58e4503794f7fdbd377638b59e33c15064eb23b9afd33d93
+  labels:
+    app.kubernetes.io/name: doppelgaenger-swaggerui
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+    drogue.io/metrics: "true"
+
+spec:
+
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: doppelgaenger-swaggerui
+      app.kubernetes.io/component: digital-twin
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: doppelgaenger-swaggerui
+        app.kubernetes.io/component: digital-twin
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.11.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: drogue-doppelgaenger
+        drogue.io/metrics: "true"
+
+    spec:
+      containers:
+        - name: endpoint
+          image: docker.io/swaggerapi/swagger-ui:v4.15.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: BASE_URL
+              value: /
+            - name: OAUTH2_REDIRECT_URL
+              value: https://api.my-cluster.dns/oauth2-redirect.html
+            - name: VALIDATOR_URL
+              value: none
+            - name: URL
+              value: https://api.my-cluster.dns/api
+            - name: OAUTH_CLIENT_ID
+              value: api
+            - name: OAUTH_SCOPES
+              value: openid
+            - name: OAUTH_ADDITIONAL_PARAMS
+              value: '{nonce: "1"}'
+            - name: PORT
+              value: "8443"
+            - name: TLS_CERT_BUNDLE_FILE
+              value: /etc/tls/service/tls.crt
+            - name: TLS_KEY_FILE
+              value: /etc/tls/service/tls.key
+
+          ports:
+            - containerPort: 8443
+              name: service
+              protocol: TCP
+          
+
+          readinessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              port: 8443
+              path: /
+              scheme: HTTPS
+
+          volumeMounts:
+            
+            - name: tls-entrypoint
+              mountPath: /docker-entrypoint.d/50-tls.sh
+              subPath: 50-tls.sh
+              readOnly: true
+
+      volumes:
+        
+        - name: tls-entrypoint
+          configMap:
+            name: doppelgaenger-swaggerui-entrypoint-tls
+            defaultMode: 0555
+---
+# Source: drogue-cloud-twin/templates/services/waker/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: doppelgaenger-waker
+  annotations:
+    app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"postgres"}]'
+    
+  labels:
+    app.kubernetes.io/name: doppelgaenger-waker
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+    drogue.io/metrics: "true"
+
+spec:
+
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: doppelgaenger-waker
+      app.kubernetes.io/component: digital-twin
+      app.kubernetes.io/instance: my-release
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: doppelgaenger-waker
+        app.kubernetes.io/component: digital-twin
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.11.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: drogue-doppelgaenger
+        drogue.io/metrics: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9090"
+
+    spec:
+      containers:
+        - name: service
+          image: "ghcr.io/drogue-iot/drogue-doppelgaenger-waker:0.11.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            
+            
+            
+            
+            
+            - name: RUST_LOG
+              value: info
+            
+            - name: RUNTIME__HEALTH__ENABLED
+              value: "true"
+            - name: RUNTIME__HEALTH__BIND_ADDR
+              value: "0.0.0.0:9090"
+            
+            
+            - name: APPLICATION
+              value: "default"
+            - name: WAKER__CHECK_PERIOD
+              value: "250ms"
+            
+            - name: WAKER__POSTGRES__DB__HOST
+              value: postgres.default.svc
+            - name: WAKER__POSTGRES__DB__PORT
+              value: "5432" 
+            
+            - name: WAKER__POSTGRES__DB__DBNAME
+              value: "storage"
+            - name: WAKER__POSTGRES__DB__USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.username
+            - name: WAKER__POSTGRES__DB__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.password
+            
+             
+            
+            - name: SINK__TOPIC
+              value: "events"
+            - name: SINK__QUEUE_TIMEOUT
+              value: 15s
+            - name: SINK__PROPERTIES__BOOTSTRAP_SERVERS
+              value: "drogue-doppelgaenger-kafka-bootstrap.default.svc.cluster.local.:9092"
+            
+            - name: SINK__PROPERTIES__SECURITY_PROTOCOL
+              value: sasl_plaintext
+            - name: SINK__PROPERTIES__SASL_MECHANISM
+              value: SCRAM-SHA-512
+            - name: SINK__PROPERTIES__SASL_USERNAME
+              value: drogue-doppelgaenger
+            - name: SINK__PROPERTIES__SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: drogue-doppelgaenger
+                  key: password
+          readinessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              port: 9090
+              path: /readiness
+          livenessProbe:
+            initialDelaySeconds: 2
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              port: 9090
+              path: /liveness
+
+          ports:
+            - containerPort: 9090
+              name: health
+              protocol: TCP
+---
+# Source: drogue-cloud-twin/templates/api/ingress.yaml
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: api
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  
+  rules:
+    - host: api.my-cluster.dns
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: doppelgaenger-swaggerui
+                port:
+                  name: service
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: doppelgaenger-backend
+                port:
+                  name: service
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/ingress.yaml
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: sso 
+  annotations:
+  
+  
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+  
+  labels:
+    app.kubernetes.io/name: sso-ingress
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  
+  rules:
+    - host: sso.my-cluster.dns
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: sso-service
+                port:
+                  number: 8443
+---
+# Source: drogue-cloud-twin/templates/services/debugger/ingress.yaml
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: debugger
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: debugger
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  
+  rules:
+    - host: debugger.my-cluster.dns
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: doppelgaenger-debugger
+                port:
+                  name: service
+---
+# Source: drogue-cloud-twin/templates/infrastructure/kafka/kafka.yaml
+kind: Kafka
+apiVersion: kafka.strimzi.io/v1beta2
+metadata:
+  name: drogue-doppelgaenger
+  labels:
+    app.kubernetes.io/name: drogue-doppelgaenger
+    app.kubernetes.io/component: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+
+  kafka:
+
+    authorization:
+      type: simple
+      superUsers:
+        - drogue-doppelgaenger
+    config:
+      auto.create.topics.enable: false
+      
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      offsets.topic.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      transaction.state.log.replication.factor: 1
+
+    listeners:
+      - name: plain
+        tls: false
+        port: 9092
+        type: internal
+        authentication:
+          type: scram-sha-512
+      - name: tls
+        tls: true
+        port: 9093
+        type: internal
+        authentication:
+          type: scram-sha-512
+      - name: external
+        port: 9094
+        type: nodeport
+        authentication:
+          type: scram-sha-512
+        tls: true
+
+    replicas: 1
+    storage:
+      deleteClaim: true
+      size: 10Gi
+      type: persistent-claim
+    version: 3.1.0
+    template:
+      pod:
+        {}
+
+  zookeeper:
+    replicas: 1
+    storage:
+      deleteClaim: true
+      size: 1Gi
+      type: persistent-claim
+    template:
+      pod:
+        {}
+
+  entityOperator:
+
+    topicOperator:
+      watchedNamespace: default
+
+    userOperator:
+      watchedNamespace: default
+
+    tlsSidecar:
+---
+# Source: drogue-cloud-twin/templates/infrastructure/kafka/topics.yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: events
+  labels:
+    strimzi.io/cluster: drogue-doppelgaenger
+    app.kubernetes.io/name: events
+    app.kubernetes.io/component: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  config: {}
+  partitions: 3
+  replicas: 1
+  topicName: events
+---
+# Source: drogue-cloud-twin/templates/infrastructure/kafka/topics.yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: notifications
+  labels:
+    strimzi.io/cluster: drogue-doppelgaenger
+    app.kubernetes.io/name: notifications
+    app.kubernetes.io/component: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  config: {}
+  partitions: 3
+  replicas: 1
+  topicName: notifications
+---
+# Source: drogue-cloud-twin/templates/infrastructure/kafka/kafka-user.yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: drogue-doppelgaenger
+  labels:
+    strimzi.io/cluster: drogue-doppelgaenger
+    app.kubernetes.io/name: drogue-doppelgaenger
+    app.kubernetes.io/component: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls: []
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/instance.yaml
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: sso
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  instances: 1
+
+  additionalOptions:
+    - name: db
+      value: postgres
+    - name: db-url-database
+      secret:
+        name: keycloak-db-secret
+        key: database
+    - name: db-url-host
+      secret:
+        name: keycloak-db-secret
+        key: host
+    - name: db-url-port
+      secret:
+        name: keycloak-db-secret
+        key: port
+    - name: db-username
+      secret:
+        name: keycloak-db-secret
+        key: username
+    - name: db-password
+      secret:
+        name: keycloak-db-secret
+        key: password
+    - name: proxy
+      value: passthrough
+
+  hostname:
+    hostname: sso.my-cluster.dns
+  ingress:
+    enabled: false
+
+  http:
+    tlsSecret:
+---
+# Source: drogue-cloud-twin/templates/infrastructure/postgres/migrate.yaml
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: migrate-database
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+  labels:
+    app.kubernetes.io/name: doppelgaenger-database-migration
+    app.kubernetes.io/component: digital-twin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  backoffLimit: 1000
+  completions: 1
+  parallelism: 1
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: diesel-migrate
+          image: "ghcr.io/drogue-iot/drogue-doppelgaenger-database-migration:0.11.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            
+            - name: PG__DB__HOST
+              value: postgres.default.svc
+            - name: PG__DB__PORT
+              value: "5432" 
+            
+            - name: PG__DB__DBNAME
+              value: "storage"
+            - name: PG__DB__USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.username
+            - name: PG__DB__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: admin.password
+            
+             
+            # now we map that from our deadpool based configuration to diesel
+            - name: DATABASE_URL
+              value: postgres://$(PG__DB__USER):$(PG__DB__PASSWORD)@$(PG__DB__HOST):$(PG__DB__PORT)/$(PG__DB__DBNAME)
+---
+# Source: drogue-cloud-twin/templates/infrastructure/sso/post-install-job.yaml
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: post-install-keycloak
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "0"
+    helm.sh/hook-weight: "5"
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+  labels:
+    app.kubernetes.io/name: post-install-keycloak
+    app.kubernetes.io/component: sso
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.11.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: drogue-doppelgaenger
+spec:
+  backoffLimit: 1000
+  completions: 1
+  parallelism: 1
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+
+      volumes:
+        - name: init-data
+          configMap:
+            name: post-install-keycloak-config
+
+      containers:
+        - name: post-install
+          image: quay.io/keycloak/keycloak:20.0
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: sso-initial-admin
+                  key: username
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sso-initial-admin
+                  key: password
+
+            - name: KEYCLOAK_URL
+              value: "https://sso-service.default.svc:8443"
+
+            - name: KCADM_PATH
+              value: /opt/keycloak/bin/kcadm.sh
+
+            - name: REALM
+              value: doppelgaenger
+
+          volumeMounts:
+            - mountPath: /etc/init-data
+              name: init-data
+
+          command:
+            - bash
+            - -exc
+            - |
+
+              kcadm() { local cmd="$1" ; shift ; "$KCADM_PATH" "$cmd" --config /tmp/kcadm.config "$@" ; }
+
+              # set up trust store
+              if [[ -n "${CUSTOM_TRUSTSTORE}" ]]; then
+                keytool -importcert -noprompt -trustcacerts -file "${CUSTOM_TRUSTSTORE}" -keystore /tmp/truststore.jks -storepass temp1234 -storetype JKS
+                kcadm config truststore /tmp/truststore.jks --trustpass temp1234
+              fi
+
+              # log in to keycloak
+              kcadm config credentials config --server "$KEYCLOAK_URL" --realm master --user "$ADMIN_USERNAME" --password "$ADMIN_PASSWORD"
+
+              # create realm
+              REALM_OPTS=()
+              REALM_OPTS+=(-s enabled=true)
+              REALM_OPTS+=(-s "displayName=Drogue IoT Doppelgänger")
+              REALM_OPTS+=(-s registrationAllowed=true)
+              REALM_OPTS+=(-s resetPasswordAllowed=true)
+              REALM_OPTS+=(-s loginWithEmailAllowed=false)
+              REALM_OPTS+=(-s identityProviders='[]')
+              if kcadm get "realms/${REALM}" &> /dev/null ; then
+                # exists -> update
+                kcadm update "realms/${REALM}" "${REALM_OPTS[@]}"
+              else
+                # need to create
+                kcadm create realms -s "realm=${REALM}" "${REALM_OPTS[@]}"
+              fi
+
+              # create realm roles
+              kcadm create roles -r "${REALM}" -s name=doppelgaenger-user || true
+              kcadm create roles -r "${REALM}" -s name=doppelgaenger-admin || true
+              # add doppelgaenger-user as default role
+              kcadm add-roles -r "${REALM}" --rname "default-roles-${REALM}" --rolename doppelgaenger-user
+
+              # create clients - api
+              ID=$(kcadm get clients -r "${REALM}" --query "clientId=api" --fields id --format csv --noquotes)
+              CLIENT_OPTS=()
+              CLIENT_OPTS+=(-s 'redirectUris=["https://api.my-cluster.dns/oauth2-redirect.html","http://localhost:*","https://debugger.my-cluster.dns","https://debugger.my-cluster.dns/"]')
+              if [[ -n "$ID" ]]; then
+                # TODO: replace with update once https://github.com/keycloak/keycloak/issues/12484 is fixed
+                # kcadm update "clients/${ID}" -r "${REALM}" -f /etc/init-data/client.json "${CLIENT_OPTS[@]}"
+                kcadm delete "clients/${ID}" -r "${REALM}"
+                kcadm create clients -r "${REALM}" -f /etc/init-data/client.json "${CLIENT_OPTS[@]}"
+              else
+                kcadm create clients -r "${REALM}" -f /etc/init-data/client.json "${CLIENT_OPTS[@]}"
+              fi
+
+              # client clients - services
+              ID=$(kcadm get clients -r "${REALM}" --query "clientId=services" --fields id --format csv --noquotes)
+              CLIENT_OPTS=()
+              CLIENT_OPTS+=(-s 'secret="kRhMpmCxfZJD4hES6CoUdU1YEIVuzDiD"')
+              if [[ -n "$ID" ]]; then
+                # TODO: replace with update once https://github.com/keycloak/keycloak/issues/12484 is fixed
+                # kcadm update "clients/${ID}" -r "${REALM}" -f /etc/init-data/client-services.json "${CLIENT_OPTS[@]}"
+                kcadm delete "clients/${ID}" -r "${REALM}"
+                kcadm create clients -r "${REALM}" -f /etc/init-data/client-services.json "${CLIENT_OPTS[@]}"
+              else
+                kcadm create clients -r "${REALM}" -f /etc/init-data/client-services.json "${CLIENT_OPTS[@]}"
+              fi
+
+              # default role for service account of services
+              kcadm add-roles -r "${REALM}" --uusername service-account-services --rolename doppelgaenger-admin
+
+              
+              # create user
+              ID=$(kcadm get users -r "${REALM}" --query "username=admin" --fields id --format csv --noquotes)
+              if [[ -n "$ID" ]]; then
+                kcadm update "users/$ID" -r "${REALM}" -s enabled=true
+              else
+                kcadm create users -r "${REALM}" -s "username=admin" -s enabled=true
+              fi
+
+              # set role
+              kcadm add-roles -r "${REALM}" --uusername "admin" --rolename doppelgaenger-admin
+
+              # set password
+              ID=$(kcadm get users -r "${REALM}" --query "username=admin" --fields id --format csv --noquotes)
+              kcadm update "users/${ID}/reset-password" -r "${REALM}" -s type=password -s "value=admin123456" -s temporary=false -n

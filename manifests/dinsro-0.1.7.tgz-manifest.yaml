@@ -1,0 +1,384 @@
+---
+# Source: dinsro/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-dinsro
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: dinsro/templates/dinsro-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config
+data:
+  config.edn: |-
+  
+    {:com.fulcrologic.rad.pathom/config {:trace? false :log-requests? false :log-responses? false}
+     :dinsro.components.config/secret-path "/mnt/certs/secret"
+     :dinsro.components.notebooks/config {:enabled false}
+     :dinsro.components.seed/enabled false
+     :dinsro.core/modules []
+     :taoensso.timbre/logging-config
+     {:min-level [[#{"_rad.resolvers" "roterski.fulcro.rad.database-adapters.xtdb.generate-resolvers"} :trace]
+                  [#{"dinsro.components.xtdb"} :debug ]
+                  [#{"dinsro.*"} :info ]
+                  [#{"*"}        :info ]]
+      :level :info }}
+---
+# Source: dinsro/templates/certs-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: certs
+  labels:
+    app: certs
+    type: local
+    chart: "dinsro-0.1.7"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: "1G"
+  storageClassName: "local-path"
+---
+# Source: dinsro/templates/devcards-devtools-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devcards-devtools
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9630
+    targetPort: devtools
+    protocol: TCP
+    name: devtools
+  selector:
+    app.kubernetes.io/name: dinsro-devcards
+    app.kubernetes.io/instance: my-release
+---
+# Source: dinsro/templates/devcards-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devcards
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 7778
+    targetPort: devcards
+    protocol: TCP
+    name: devcards
+  selector:
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+---
+# Source: dinsro/templates/dinsro-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-dinsro
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+---
+# Source: dinsro/templates/workspaces-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspaces
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3693
+    targetPort: workspaces
+    protocol: TCP
+    name: workspaces
+  selector:
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+---
+# Source: dinsro/templates/devcards-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devcards
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dinsro-devcards
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dinsro-devcards
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-dinsro
+      securityContext:
+        {}
+      containers:
+      - name: "devcards"
+        securityContext:
+            {}
+        image: "duck1123/dinsro:devcards-latest"
+        imagePullPolicy: Always
+        env:
+        - name: DEVTOOLS_URL
+          value: "https://devtools.devcards.dinsro.localtest.me"
+        ports:
+        - name: devcards
+          containerPort: 7778
+          protocol: TCP
+        - name: devtools
+          containerPort: 9630
+          protocol: TCP
+        resources:
+            {}
+---
+# Source: dinsro/templates/dinsro-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-dinsro
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dinsro
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dinsro
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-dinsro
+      securityContext:
+        {}
+      containers:
+      - name: dinsro
+        securityContext:
+            {}
+        image: "duck1123/dinsro:latest"
+        imagePullPolicy: Always
+        env:
+        - name: DEVTOOLS_URL
+          value: "https://devtools.dinsro.localtest.me"
+        - name: DINSRO_USE_NOTEBOOKS
+          value: "false"
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        - name: nrepl
+          containerPort: 3333
+          protocol: TCP
+        - name: devcards
+          containerPort: 7778
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          failureThreshold: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          failureThreshold: 20
+        resources:
+            {}
+        volumeMounts:
+        - name: certs
+          mountPath: /mnt/certs
+        - name: config
+          mountPath: /etc/dinsro
+          # subPath: config.edn
+      volumes:
+      - name: certs
+        persistentVolumeClaim:
+          claimName: certs
+      - name: config
+        configMap:
+          name: config
+---
+# Source: dinsro/templates/devcards-devtools-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devcards-devtools
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+  - host: "devtools.devcards.dinsro.localtest.me"
+    http:
+      paths:
+      - path: /
+        pathType: "ImplementationSpecific"
+        backend:
+          service:
+            name: devcards-devtools
+            port:
+              name: devtools
+---
+# Source: dinsro/templates/devcards-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devcards
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+  - host: "cards.dinsro.localtest.me"
+    http:
+      paths:
+      - path: /
+        pathType: "ImplementationSpecific"
+        backend:
+          service:
+            name: devcards
+            port:
+              name: devcards
+---
+# Source: dinsro/templates/dinsro-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-dinsro
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+  - host: "dinsro.localtest.me"
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: my-release-dinsro
+            port:
+              name: http
+---
+# Source: dinsro/templates/workspaces-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: workspaces
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+  - host: "workspaces.dinsro.localtest.me"
+    http:
+      paths:
+      - path: /
+        pathType: "ImplementationSpecific"
+        backend:
+          service:
+            name: workspaces
+            port:
+              name: workspaces
+---
+# Source: dinsro/templates/middleware.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+# Source: dinsro/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-dinsro-test-connection"
+  labels:
+    helm.sh/chart: dinsro-0.1.7
+    app.kubernetes.io/name: dinsro
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-dinsro:3000']
+  restartPolicy: Never

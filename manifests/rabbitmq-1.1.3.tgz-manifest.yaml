@@ -1,0 +1,385 @@
+---
+# Source: rabbitmq/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-rabbitmq
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+secrets:
+  - name: my-release-rabbitmq
+---
+# Source: rabbitmq/templates/plugins-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-rabbitmq-plugins
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  enabled_plugins: |
+    [rabbitmq_management].
+---
+# Source: rabbitmq/templates/rabbit-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-rabbitmq-config
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  rabbitmq.conf: |+
+    ## Initial login user
+    loopback_users.guest = false
+    ## RabbitMQ options
+    listeners.tcp.default = 5672
+    ## Memory options
+    
+    ## Management UI plugin options
+    management.tcp.port = 15672
+---
+# Source: rabbitmq/templates/scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-rabbitmq-scripts
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  init.sh: |
+    #!/bin/sh
+    echo "Initializing RabbitMQ instance..."
+    echo "Copy configuration"
+    cp /temp/rabbitmq/* /etc/rabbitmq
+    if [ -d /extraconfigs ]; then
+      echo "Add extra configs to rabbitmq config"
+      cat /extraconfigs/* >>/etc/rabbitmq/rabbitmq.conf
+    fi
+    if [ -d /extraadvancedconfigs ]; then
+      echo "Add extra advanced configs to rabbitmq advanced config"
+      cat /extraadvancedconfigs/* >>/etc/rabbitmq/advanced.conf
+    fi
+    if [ -d /temp/plugins ]; then
+      echo "Copy plugin configuration"
+      cp /temp/plugins/* /etc/rabbitmq
+    else
+      echo "No plugins configured."
+    fi
+    mkdir -p /etc/rabbitmq/conf.d
+    if [ ! -f /var/lib/rabbitmq/.erlang.cookie ]; then
+      echo "Copy erlang cookie"
+      echo $ERLANG_COOKIE >/var/lib/rabbitmq/.erlang.cookie
+    else
+      echo "Erlang cookie already exists."
+    fi
+    chmod 600 /var/lib/rabbitmq/.erlang.cookie
+    echo "Finished."
+  startup.sh: |
+  shutdown.sh: |
+    if rabbitmqctl cluster_status; then
+        echo "PreStop: Will wait up to 50 seconds for node to make sure cluster is healthy after node shutdown" >/proc/1/fd/1
+        timeout 50 /scripts/safeshutdown.sh
+    fi
+    echo "PreStop: Stopping RabbitMQ" >/proc/1/fd/1
+    rabbitmqctl stop_app
+    echo "PreStop: RabbitMQ stopped" >/proc/1/fd/1
+    sleep 5
+  safeshutdown.sh: |
+    while true; do
+        waiting="false"
+        if ! rabbitmq-diagnostics -q check_if_node_is_mirror_sync_critical >/proc/1/fd/1; then
+            echo "PreStop: check_if_node_is_mirror_sync_critical returns error. Continuing to wait" >/proc/1/fd/1
+            waiting="true"
+        else
+            echo "PreStop: check_if_node_is_mirror_sync_critical returns o.k." >/proc/1/fd/1
+        fi
+        if ! rabbitmq-diagnostics -q check_if_node_is_quorum_critical >/proc/1/fd/1; then
+            echo "PreStop: check_if_node_is_quorum_critical returns error. Continuing to wait" >/proc/1/fd/1
+            waiting="true"
+        else
+            echo "PreStop: check_if_node_is_quorum_critical returns o.k." >/proc/1/fd/1
+        fi
+        if [ $waiting = "true" ]; then
+            sleep 1
+        else
+            break
+        fi
+    done
+---
+# Source: rabbitmq/templates/role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-rabbitmq-endpoint-reader
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get"]
+#  - apiGroups: [""]
+#    resources: ["events"]
+#    verbs: ["create"]
+---
+# Source: rabbitmq/templates/rolebinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-rabbitmq-endpoint-reader
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: my-release-rabbitmq
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-rabbitmq-endpoint-reader
+---
+# Source: rabbitmq/templates/service-internal.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-rabbitmq-internal
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: 5672
+      targetPort: amqp
+      name: amqp
+    - port: 15672
+      targetPort: mgmt
+      name: mgmt
+    - port: 4369
+      targetPort: epmd
+      name: epmd
+    - port: 25672
+      targetPort: dist
+      name: dist
+  selector:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+---
+# Source: rabbitmq/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-rabbitmq
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - port: 5672
+      targetPort: amqp
+      name: amqp
+    - port: 15672
+      targetPort: mgmt
+      name: mgmt
+  selector:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+  type: ClusterIP
+---
+# Source: rabbitmq/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-rabbitmq
+  labels:
+    helm.sh/chart: rabbitmq-1.1.3
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.13.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-rabbitmq-internal
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/rabbit-config: cf14b70887ad65861eaaedc344269a3a40909fafec8df0e2c9a4beaad3db0a65
+        checksum/plugins-config: b70b51765204f1cdf01603785ad6ae54b21e59aa2d7d2081fafca9caa249447a
+        checksum/scripts: de07eb0784c46246c2ae4d99832717fb9e6e63cc9ca2ff61637bfa5595b6e22d
+      labels:
+        app.kubernetes.io/name: rabbitmq
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-rabbitmq
+      securityContext:
+        fsGroup: 999
+        supplementalGroups:
+        - 999
+      initContainers:
+        - name: rabbitmq-init
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "docker.io/busybox:latest"
+          imagePullPolicy: IfNotPresent
+          env:
+          envFrom:
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rabbitmq
+            - name: rabbitconfig
+              mountPath: /temp/rabbitmq
+            - name: rabbitmq-volume
+              mountPath: /var/lib/rabbitmq
+            - name: scripts
+              mountPath: /scripts
+            - name: plugins
+              mountPath: /temp/plugins
+          command: [ "/scripts/init.sh" ]
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: rabbitmq
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "docker.io/rabbitmq:3.13.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: mgmt
+              containerPort: 15672
+            - name: epmd
+              containerPort: 4369
+            - name: dist
+              containerPort: 25672
+          startupProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - rabbitmq-diagnostics -q check_running
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - rabbitmq-diagnostics -q check_running
+            initialDelaySeconds: 60
+            timeoutSeconds: 20
+            periodSeconds: 30
+            failureThreshold: 5
+            successThreshold: 1
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - rabbitmq-diagnostics -q check_running
+            initialDelaySeconds: 60
+            timeoutSeconds: 20
+            periodSeconds: 30
+            failureThreshold: 5
+            successThreshold: 1
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - bash
+                  - -ec
+                  - /scripts/shutdown.sh
+          env:
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: RABBITMQ_NODENAME
+              value: rabbit@$(NODE_NAME).my-release-rabbitmq-internal.default.svc.cluster.local
+          envFrom:
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/rabbitmq
+            - name: tmp
+              mountPath: /tmp
+            - name: rabbitmq-volume
+              mountPath: /var/lib/rabbitmq
+            - name: config
+              mountPath: /etc/rabbitmq
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: config
+          emptyDir: {}
+        - name: rabbitconfig
+          configMap:
+            name: my-release-rabbitmq-config
+        - name: scripts
+          configMap:
+            name: my-release-rabbitmq-scripts
+            defaultMode: 0555
+        - name: plugins
+          configMap:
+            name: my-release-rabbitmq-plugins
+        - name: rabbitmq-volume
+          emptyDir: {}

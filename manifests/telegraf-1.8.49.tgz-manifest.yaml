@@ -1,0 +1,181 @@
+---
+# Source: telegraf/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.49
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: my-release
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telegraf
+      app.kubernetes.io/instance: my-release
+---
+# Source: telegraf/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.49
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: my-release
+---
+# Source: telegraf/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.49
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: my-release
+data:
+  telegraf.conf: |+
+    
+    [agent]
+      collection_jitter = "0s"
+      debug = false
+      flush_interval = "10s"
+      flush_jitter = "0s"
+      hostname = "$HOSTNAME"
+      interval = "10s"
+      logfile = ""
+      metric_batch_size = 1000
+      metric_buffer_limit = 10000
+      omit_hostname = false
+      precision = ""
+      quiet = false
+      round_interval = true
+    [[processors.enum]]
+       [[processors.enum.mapping]]
+        dest = "status_code"
+        field = "status"
+        [processors.enum.mapping.value_mappings]
+            critical = 3
+            healthy = 1
+            problem = 2
+    
+    
+    [[outputs.influxdb]]
+      database = "telegraf"
+      urls = [
+        "http://influxdb.monitoring.svc:8086"
+      ]
+    
+    [[inputs.statsd]]
+      allowed_pending_messages = 10000
+      metric_separator = "_"
+      percentile_limit = 1000
+      percentiles = [
+        50.0,
+        95.0,
+        99.0
+      ]
+      service_address = ":8125"
+    
+    [[inputs.internal]]
+      collect_memstats = false
+---
+# Source: telegraf/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-telegraf
+  namespace: default
+  labels:
+    helm.sh/chart: telegraf-1.8.49
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: my-release
+rules:
+  []
+---
+# Source: telegraf/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.49
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: my-release
+subjects:
+  - kind: ServiceAccount
+    name: my-release-telegraf
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-telegraf
+---
+# Source: telegraf/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.49
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: my-release
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8125
+    targetPort: 8125
+    protocol: "UDP"
+    name: "statsd"
+  selector:
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: my-release
+---
+# Source: telegraf/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-telegraf
+  labels:
+    helm.sh/chart: telegraf-1.8.49
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: telegraf
+    app.kubernetes.io/instance: my-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telegraf
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: telegraf
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 8545e9a8c11ddfa23a3a92f447edda39d00de8d13191bb251c135f33bea1cf74
+    spec:
+      serviceAccountName: my-release-telegraf
+      containers:
+      - name: telegraf
+        image: "docker.io/library/telegraf:1.31-alpine"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          {}
+        env:
+        - name: HOSTNAME
+          value: telegraf-polling-service
+        volumeMounts:
+        - name: config
+          mountPath: /etc/telegraf
+      volumes:
+      - name: config
+        configMap:
+          name: my-release-telegraf

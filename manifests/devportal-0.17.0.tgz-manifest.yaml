@@ -1,0 +1,187 @@
+---
+# Source: devportal/templates/devportal_secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-devportal-credentials
+type: Opaque
+stringData:
+  BACKEND_AUTH_SECRET_KEY: ef606dc6-d4e3-41ff-b6ad-c64d6ba858e2
+  AUTH_USER_SESSION_SECRET: ef606dc6-d4e3-41ff-b6ad-c64d6ba858e2
+---
+# Source: devportal/templates/devportal_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "my-release-devportal-app-env"
+data:
+  GRAFANA_DOMAIN: ""
+  app-config: |
+    app:
+      title: Devportal Platform
+      baseUrl: "http://localhost:3000"
+      support:
+        url: https://github.com/veecode-platform/support/discussions 
+        items: 
+          - title: Issues
+            icon: github
+            links:
+              - url: https://github.com/veecode-platform/support/discussions
+                title: GitHub Issues
+    permission:
+      enabled: true
+
+    backend:
+      auth:
+        keys:
+          - secret: ${BACKEND_AUTH_SECRET_KEY}
+      baseUrl: http://localhost:7007
+      listen:
+        port: 7007
+      database:
+        client: better-sqlite3
+        connection: ':memory:'
+      cache:
+        store: memory
+      cors:
+        origin: http://localhost:3000
+        methods: [GET, POST, PUT, DELETE, PATCH]
+        credentials: true
+      csp:
+        upgrade-insecure-requests: false
+        connect-src: ["'self'","http:","https:"]
+        img-src: ["'self'","data:","https://raw.githubusercontent.com/","https://avatars.githubusercontent.com/","https://platform.vee.codes"]
+        script-src: ["'self'","'unsafe-eval'","https://www.google-analytics.com","https://www.googletagmanager.com"]
+      reading:
+        allow:
+          - host: example.com
+          - host: "*.mozilla.org"
+    organization:
+      name: Veecode Platform Devportal
+
+    techdocs:
+      builder: "local"
+      generator:
+        runIn: "local"
+      publisher:
+        type: "local"
+    
+    scaffolder:
+      defaultAuthor:
+        name: "Scaffolder"
+        email: "scaffolder@vee.codes"  
+      defaultCommitMessage: "initial project commit"
+
+    catalog:
+      orphanStrategy: "delete"
+      rules:
+        - allow: ["Component","API","Location","Cluster","Template","Environment","Database"]
+    search:
+      pg:
+        highlightOptions:
+          useHighlight: true
+          maxWord: 35
+          minWord: 15
+          shortWord: 3
+          highlightAll: false
+          maxFragments: 0
+          fragmentDelimiter:   ... 
+        schedule:        
+          frequency: 
+            minutes: 3
+          timeout: 
+            minutes: 5
+    auth:
+      environment: "development"
+      session:
+        secret: ${AUTH_USER_SESSION_SECRET}
+    enabledPlugins:
+      vault: false
+      grafana: false
+      kubernetes: false
+      argocd: false
+      gitlabPlugin: false
+      keycloak: false
+      azureDevops: false
+    platform:
+      guest:
+        enabled: true
+      apiManagement:
+        enabled: false
+        readOnlyMode: false
+      defaultGroup:
+        enabled: false
+      group:
+        admin: platform-admin
+        user: platform-user
+      behaviour: 
+        mode: "product"
+      support:
+        licenseKey: "018f7d81-2a20-77aa-a55d-98ee54798372"
+      logo:
+        icon: https://platform.vee.codes/apple-touch-icon.png
+        full: https://platform.vee.codes/assets/logo/logo.png      
+    grafana:
+      domain: ${GRAFANA_DOMAIN} 
+      unifiedAlerting: true
+---
+# Source: devportal/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-devportal"
+spec:
+  ports:
+    - port: 7007
+      targetPort: 7007
+  selector:
+    app: my-release-devportal
+  type: ClusterIP
+---
+# Source: devportal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-devportal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-devportal
+  template:
+    metadata:
+      labels:
+        app: my-release-devportal
+      annotations:
+        checksum/config: 9bb7279c24b50762b1da1363d23e8a56dafeaa00b81f9c442c302e025d83460c
+        checksum/secret: 5d9a7e671888c9cdd480c8346ed07be776782f18797df5df6fe38a6fd298ee50        
+    spec:
+      containers:
+        - name: devportal
+          image: veecode/devportal-bundle:0.19.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7007
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          envFrom:
+            - secretRef:
+                name: my-release-devportal-credentials
+            - configMapRef:
+                name: my-release-devportal-app-env
+          env:
+            - name: NODE_ENV
+              value: development
+          volumeMounts:
+          - name: app-config
+            mountPath: /app/app-config.yaml
+            subPath: app-config
+      volumes:
+        - name: app-config
+          configMap:
+            name: "my-release-devportal-app-env"

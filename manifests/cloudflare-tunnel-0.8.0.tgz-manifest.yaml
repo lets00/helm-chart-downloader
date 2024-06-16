@@ -1,0 +1,148 @@
+---
+# Source: cloudflare-tunnel/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-cloudflare-tunnel
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.8.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2023.10.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: cloudflare-tunnel/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-cloudflare-tunnel
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.8.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2023.10.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    # Name of the tunnel you want to run
+    tunnel: 
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    # Serves the metrics server under /metrics and the readiness server under /ready
+    metrics: 0.0.0.0:2000
+    # Autoupdates applied in a k8s pod will be lost when the pod is removed or restarted, so
+    # autoupdate doesn't make sense in Kubernetes. However, outside of Kubernetes, we strongly
+    # recommend using autoupdate.
+    no-autoupdate: true
+    ingress:
+    # Ingress rules
+      - hostname: hello.example.com
+        service: hello_world
+      - service: http_status:404
+---
+# Source: cloudflare-tunnel/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-cloudflare-tunnel
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.8.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2023.10.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 2000
+      targetPort: 2000
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+---
+# Source: cloudflare-tunnel/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-cloudflare-tunnel
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.8.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2023.10.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflare-tunnel
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 202f5750ade2404927a48146a6a83b7a71ded8f2a2fe9228a3ce74acb46a3562
+      labels:
+        app.kubernetes.io/name: cloudflare-tunnel
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-cloudflare-tunnel
+      securityContext:
+        {}
+      containers:
+        - name: cloudflare-tunnel
+          securityContext:
+            {}
+          image: "cloudflare/cloudflared:2023.10.0"
+          imagePullPolicy: IfNotPresent
+          env:
+          ports:
+            - name: metrics
+              containerPort: 2000
+              protocol: TCP
+          args:
+            
+              - tunnel
+            
+              - --config
+            
+              - /etc/cloudflared/config/config.yaml
+            
+              - run
+            
+          livenessProbe:
+            httpGet:
+              # Cloudflared has a /ready endpoint which returns 200 if and only if
+              # it has an active connection to the edge.
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared/config
+              readOnly: true
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+          resources:
+            {}
+      volumes:
+        - name: creds
+          secret:
+            secretName: tunnel-credentials
+        # Create a config.yaml file from the ConfigMap below.
+        - name: config
+          configMap:
+            name: my-release-cloudflare-tunnel
+            items:
+            - key: config.yaml
+              path: config.yaml

@@ -1,0 +1,770 @@
+---
+# Source: apisix/charts/etcd/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-etcd
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.10
+    helm.sh/chart: etcd-9.7.3
+    app.kubernetes.io/component: etcd
+spec:
+  minAvailable: 51%
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/component: etcd
+---
+# Source: apisix/charts/etcd/templates/token-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-etcd-jwt-token
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.10
+    helm.sh/chart: etcd-9.7.3
+type: Opaque
+data:
+  jwt-token.pem: "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS1FJQkFBS0NBZ0VBc1RuaDdyck5EYXZ3L2lwOEJ6cW9PRnM1VGxCRjJJU24yYng1TWUzczdDMkFyT2tOCnByRWdQZkdEYXZLWDMrSmxlaXVBaEEwRkE3Zmt4c0x2ZjE1N04rNEROamFhRXE1Q0VPWlk2cDlwZ0l1bTlGU0YKbnkvQ1hqSC9WYTZZM1dDeEZjSHI1UVdUOTljTU9PR3Nzejh4cG1sSTJtM1FSTytQQ2JZaUVYcktCNlJ5emtEZwpleGJEcFRNVGhMRUlldkMzK1hKb0dEWTZwOTBtaHNJVXFETUNNakliT1htUjlibDhuZUdsNEdPZytWWlJZZmZ0Ck1VZ3ZPYmFkV1A2anNDOVovNWk4Z2FRaGtKVzZHMGJiS2k4Z0Uvd1BOUEJiZ2g5ek9DcnYrZGg0QUI3QWVCOWwKR3JVQloxU1R1dk5XdlBTTFYyS1FXcE5wU2NGYmJqRnJoblMxVUNxZUJRTlhFZk1TdmwyYndxd2w5R0ZWNVR1bwpyL2YzcnZESEJ0bysyQUNkNVNOUytvcmsrL0Z3YkxmM1hxS2UrV1hQcE11RjgzM0hUVWNPM2FjMHdSbHF6eXVlCmdlSXZSRjBYb3dRNm5LN3JnMUNidks2NjdqK1V4cUJ4ZmxtcEdKSGFqT1ZTbUJBU1h4OFg0NUIycWhKWWVrL2QKSWFiTUhMeVdDeXdKQjd3bmtmTC9CWHB6L3BFVzFxWms2a3gwaGN3UmRCbzZqbzNXY3pBZkdlSlp4V0tFUzgrQgp6RXpVczlzYm5TQlJOdWdiaXVydHEwQUhITGNUcXBmRWJoSFBBR0NyRFE0NHhpTlZqNnp6dEpUZWdqME94M0RGCjJwSFJBa3FQVWMzbEFPQldEYmpkbWdMMk5YdWV4UXdacm5zWXBNVzRWSVRGeTRlWlp4SmJpdWQyMVVNQ0F3RUEKQVFLQ0FnRUFtTXB6UzNNRzE3T1YrRG8rWmFrZllEN2RmL1BhMDVsQ2NJaDU0QjdrdEpWaUt6QmRVWW5CWjBYeAphK0dzS0J1eUt3cVlLTUJrdzFqbVJxbkcrd05FcmVwb0lIUWdqdHhuSHRUSWNiWnZxYUE4bHNiTDBIckhVcGcrCkx1dHc1T0s0cVM1ZnBqb1I0SWtwQTEwa25BQnVXSzdLWFc1eE1RMXJQdzhqL2ZmamQ0VkNhU2tybjFMMzUxUEsKandwbGFrQmdEQkdqUnNSeCswakJMMHJocmtVVHJwemVOY1htblhlRnhVUEYwMWR4YjZVSVVyTUJiZ3h5a29vcQp5NC8xSlM4ZG95dFYwVnJraVJkY3RLbDR4N3lMSmsrWCtLY0Q3WUladnFIZDlJTzRxVG5aNjNYOW4zSFB2UHNBCnhodUdleTlGZGxnR1plQlMxSUI3eDl1WmZQamZXc1hEL0FGcUpKK2htNStmTW42TFhyTTkvc1hyQzdBK3hJZDkKMkY4VVVvUG4xWUg4ajc5SHQraElEV3Z5T01LK3Z2TTBMMm5TSDNJWUZFTFJtZFo3Y283eGsxVyszaHAva0laSgpxT1VnNS9xMEhCbEhvd3JLL0dDOVA4WjlZekg2MVdNSU0rQ2VRVzZwSm5yTUU1Vml3WlNnZC9pclhKVGFtZmh1CjZqVFJXajJTK0NJMDIzY2RTU3NnWmt2Z1FqL3o0MExueXVKSGo5SEVjRHoyaW5GRTB0KzJDRnZSNWgzWjRHZW0KcTR4c01ZTzNvV3R0R1ZQYkwrVVh5d1J1RmEzdzZDbzh6cjZHbnBGR0hsNGNQR05MRnZNOC93emtsWWxONUhyawpHVVpTdkxFZngrRWZoMDVHY2VYNUFoY2g5SlI2Q2hGM05jYWRtRnZPalF0TURMZzBodEVDZ2dFQkFNQmJRUGFJCjRnRlluY0NGd3lpT05QTWNKaldmTXhWTEsvK05ndUZGNlRaU2N5RG1BbFdlY2NSdzA2Y3o3Z01ad1lvTSs3UmYKRzdZTGhLdk1JV1llaG9NbHAxL2hmZTVTYWNlV011SWplanZqVEFLd2ZnQzB1ZjhqVklIZkQ4bHdiaE5LbXpaZgpPb2JuN2FQWDU5S0swM0lxZVF3cmJ3UjZFNHZadHowS1pEM0JIanZaaVFteGh3em5tVG1NY2N6d2NWMVBlU2pUCmU0eVcySmRFUHhKNDhhbFBLV3p1NFpTSVNFUmwycWlBT3ZwZVZNcFpnM1QzbnZwYi92cjdTNTlKc090Y1J0SFYKODMrODZsaW1pbzZYUDdqZnh5QjJhVlduaHFVTEhHaEQ0djNrQitBQTRlTWlYdGV2S2MyN20xenhwK3pxSkdLawphaE1ySnA1REs1VythQ2tDZ2dFQkFPdmRFMU5Ed1RYU0lGcTBZazZLaU5wcVpocnVDWFNBelpDZXF4ZTJHOFJ4Cm1SNzNKMmxqUlBCdkpUT1VsNEhsSmN4c05ub1lUbnZ0NXhxNWNrS0Zsc1o2YmEzTUdwK2ZEcEFtTmxIbXVMTTMKWVFYbjlvaE14YUdYZXZTeVhmY013bzNWVC8xL1kwdUJ1dldNd01yNUpDZ1h1bldrSlE1bmNmWnNiNjZWNDM5YQo4d3ZiSmpNWFBSUmRNZU5sLzBKdk1RRmh1TzF6SGUxb0VKTkFUZHRYRmxXUWgvdGdpY1RjMnR4TGpORTY2OU9HCitMT2hqTVRXVnZBWVBKNCtnY0VyZkNWUngwYkhPMFJVeFNjOEF6RS9SNktBQXlWaHUwbld2L2JlMjM5a1dBTVQKSXdrYTlDSGl1ZVltbnNnWHcvMEJpWkhTdkdiSkMrZTZqWDBKN0ZubTc0c0NnZ0VBRmlScS9mWVR6Z1BkWk9RQQo2eEl6bGlpUFhXek4vSTJDcXhBbkdMZHJlUTFVbzF6V3QvUmRORGVvcFg2Y3owNlBzTXg5ek8yRnl4YllWczVRCnFlaXBvejhhWFRjZnYrZE10ZVRjUnB1KzNsWHowZnR2QmJYSUUwNkYwODFSaSthZFJTczVZckRqazlQdXp3VnoKY2hENDloTmRpOEVVTG5lKytFSS9qWTg4cXI4b004dCtzdGIwck0rY0c3dkcvY2hQeEdYNWxIR0RyMU5ONjF1Mwp4dkNWSU9BejdJNHkrVjRXczRqbCtxK0lHbm54V0xtbElEbkEyeURyNFFnOFZFR3ZVK2h6WG9RNlcySHJ0L2l6CnltWXV0NkZLMHJuT3RrVnFnbVVkQ0FPSWhhRlNKcjd6UWFvYk1NakJEeVdoWkxtTWt3RUEzem45MitjRHN3UVkKYUV4YXdRS0NBUUJHYWNoMEtoMExJVUR4Y3pxSjhnZXJGT3FJalptYkF6emJPTk1oRUFlNEhLVzJ2ZGd4T1NhQwpsTnZKUzBuenlHSUJaaWpaU0ZwZDJ3Y01UbUtUQTJpZ3RqbjZFWjI5RzNId2pNZllxWVZvVTFjT3VWSTdISmcvCmhvWjVlS3BlcjV1QlZqWThHb1NkTFF5UWM4VzJrcXc5bjkvVmNQeHpFV1RQU1U0S0U4dEg0UElBRHh1WFV3K3oKL2FLQUhab1h6alFXRW9OdnQ5Y3VZY3ZZK2ZDRVU3cGlMdlM1a2Zkdkl2UGZvbHBXdUQxZzk4RlZkeHdjUTFUTwo5cDFhTEpUMkF6SmJ2Yzg5RFF0ZmVlTWx0Ri9MbXZXYXlKYW4yVVpkWTlRSk1qemJDaXpRTmkxV2NZcUNkenBDClFETlV6dXQrbzYvYkxjdDY3L2d5NU5tS2c2VGdyZlhEQW9JQkFRQzQxMTZwSTV3MGxmbzhUVWphWmlZaVdqWUcKRFB2TVlIMlJRN0hpR1RIcHZybEd3OFFLNVFDNmFHamRacWRieW9ERUpXTVV0Tjl4Yi8ydEFRSzlVK3A1Y0RJdwpJQ1N3a2ljVnRvTkpZR0kxcnl6MjRJZjlwVkFIeFM4aVJVRnJ3aENDRUYyaytEbHFsUnlSMG5YT0d0SWt0clJNCkFVYTY3SWFBL2M1ajQzdkx3cEtKblBtTGNFdjZyZWtIM3JjK0FIblFnVko0a0kzU3g2NElpbS84Y3hMR2hDU04KdjUyendsVVBjd0padFErMzVCQTdFQ285UytYTWp2cVNDVEZCWlFTTENYS0ZsRnNzWlVlQjhrMEVMSlB6SjZ3NwoxZUl4ajdJM280YWpJdVoyRG9XWHpNZzVENXVodW1haTNXeWd1akhPbit6c0RWTGpkNVNiOVdUdUJDcjIKLS0tLS1FTkQgUlNBIFBSSVZBVEUgS0VZLS0tLS0K"
+---
+# Source: apisix/templates/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-apisix
+  namespace: default
+data:
+  config.yaml: |-
+    #
+    # Licensed to the Apache Software Foundation (ASF) under one or more
+    # contributor license agreements.  See the NOTICE file distributed with
+    # this work for additional information regarding copyright ownership.
+    # The ASF licenses this file to You under the Apache License, Version 2.0
+    # (the "License"); you may not use this file except in compliance with
+    # the License.  You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    #
+    apisix:    # universal configurations
+      node_listen:    # APISIX listening port
+        - 9080
+      enable_heartbeat: true
+      enable_admin: true
+      enable_admin_cors: true
+      enable_debug: false
+
+      enable_dev_mode: false                       # Sets nginx worker_processes to 1 if set to true
+      enable_reuseport: true                       # Enable nginx SO_REUSEPORT switch if set to true.
+      enable_ipv6: true # Enable nginx IPv6 resolver
+      enable_http2: true
+      enable_server_tokens: true # Whether the APISIX version number should be shown in Server header
+
+      # proxy_protocol:                   # Proxy Protocol configuration
+      #   listen_http_port: 9181          # The port with proxy protocol for http, it differs from node_listen and admin_listen.
+      #                                   # This port can only receive http request with proxy protocol, but node_listen & admin_listen
+      #                                   # can only receive http request. If you enable proxy protocol, you must use this port to
+      #                                   # receive http request with proxy protocol
+      #   listen_https_port: 9182         # The port with proxy protocol for https
+      #   enable_tcp_pp: true             # Enable the proxy protocol for tcp proxy, it works for stream_proxy.tcp option
+      #   enable_tcp_pp_to_upstream: true # Enables the proxy protocol to the upstream server
+
+      proxy_cache:                         # Proxy Caching configuration
+        cache_ttl: 10s                     # The default caching time if the upstream does not specify the cache time
+        zones:                             # The parameters of a cache
+        - name: disk_cache_one             # The name of the cache, administrator can be specify
+                                           # which cache to use by name in the admin api
+          memory_size: 50m                 # The size of shared memory, it's used to store the cache index
+          disk_size: 1G                    # The size of disk, it's used to store the cache data
+          disk_path: "/tmp/disk_cache_one" # The path to store the cache data
+          cache_levels: "1:2"              # The hierarchy levels of a cache
+      #  - name: disk_cache_two
+      #    memory_size: 50m
+      #    disk_size: 1G
+      #    disk_path: "/tmp/disk_cache_two"
+      #    cache_levels: "1:2"
+
+      router:
+        http: radixtree_host_uri  # radixtree_uri: match route by uri(base on radixtree)
+                                    # radixtree_host_uri: match route by host + uri(base on radixtree)
+                                    # radixtree_uri_with_parameter: match route by uri with parameters
+        ssl: 'radixtree_sni'        # radixtree_sni: match route by SNI(base on radixtree)
+
+      proxy_mode: http
+      # dns_resolver:
+      #
+      #   - 127.0.0.1
+      #
+      #   - 172.20.0.10
+      #
+      #   - 114.114.114.114
+      #
+      #   - 223.5.5.5
+      #
+      #   - 1.1.1.1
+      #
+      #   - 8.8.8.8
+      #
+      dns_resolver_valid: 30
+      resolver_timeout: 5
+      ssl:
+        enable: false
+        listen:
+          - port: 9443
+            enable_http3: false
+        ssl_protocols: "TLSv1.2 TLSv1.3"
+        ssl_ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA"
+
+    nginx_config:    # config for render the template to genarate nginx.conf
+      error_log: "/dev/stderr"
+      error_log_level: "warn"    # warn,error
+      worker_processes: "auto"
+      enable_cpu_affinity: true
+      worker_rlimit_nofile: 20480  # the number of files a worker process can open, should be larger than worker_connections
+      event:
+        worker_connections: 10620
+      http:
+        enable_access_log: true
+        access_log: "/dev/stdout"
+        access_log_format: '$remote_addr - $remote_user [$time_local] $http_host \"$request\" $status $body_bytes_sent $request_time \"$http_referer\" \"$http_user_agent\" $upstream_addr $upstream_status $upstream_response_time \"$upstream_scheme://$upstream_host$upstream_uri\"'
+        access_log_format_escape: default
+        keepalive_timeout: "60s"
+        client_header_timeout: 60s     # timeout for reading client request header, then 408 (Request Time-out) error is returned to the client
+        client_body_timeout: 60s       # timeout for reading client request body, then 408 (Request Time-out) error is returned to the client
+        send_timeout: 10s              # timeout for transmitting a response to the client.then the connection is closed
+        underscores_in_headers: "on"   # default enables the use of underscores in client request header fields
+        real_ip_header: "X-Real-IP"    # http://nginx.org/en/docs/http/ngx_http_realip_module.html#real_ip_header
+        real_ip_from:                  # http://nginx.org/en/docs/http/ngx_http_realip_module.html#set_real_ip_from
+          - 127.0.0.1
+          - 'unix:'
+
+    deployment:
+      role: traditional
+      role_traditional:
+        config_provider: etcd
+      admin:
+        allow_admin:    # http://nginx.org/en/docs/http/ngx_http_access_module.html#allow
+          - 127.0.0.1/24
+        #   - "::/64"
+        admin_listen:
+          ip: 0.0.0.0
+          port: 9180
+        # Default token when use API to call for Admin API.
+        # *NOTE*: Highly recommended to modify this value to protect APISIX's Admin API.
+        # Disabling this configuration item means that the Admin API does not
+        # require any authentication.
+        admin_key:
+          # admin: can everything for configuration data
+          - name: "admin"
+            key: edd1c9f034335f136f87ad84b625c8f1
+            role: admin
+          # viewer: only can view configuration data
+          - name: "viewer"
+            key: 4054f7cf07e344346cd3f287985e76a2
+            role: viewer
+      etcd:
+        host:                          # it's possible to define multiple etcd hosts addresses of the same etcd cluster.
+          - "http://my-release-etcd.default.svc.cluster.local:2379"
+        prefix: "/apisix"    # configuration prefix in etcd
+        timeout: 30    # 30 seconds
+---
+# Source: apisix/charts/etcd/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-etcd-headless
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.10
+    helm.sh/chart: etcd-9.7.3
+    app.kubernetes.io/component: etcd
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: client
+      port: 2379
+      targetPort: client
+    - name: peer
+      port: 2380
+      targetPort: peer
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/component: etcd
+---
+# Source: apisix/charts/etcd/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-etcd
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.10
+    helm.sh/chart: etcd-9.7.3
+    app.kubernetes.io/component: etcd
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: "client"
+      port: 2379
+      targetPort: client
+      nodePort: null
+    - name: "peer"
+      port: 2380
+      targetPort: peer
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/component: etcd
+---
+# Source: apisix/templates/service-admin.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-apisix-admin
+  namespace: default
+  annotations:
+  labels:
+    helm.sh/chart: apisix-2.8.0
+    
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.9.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/service: apisix-admin
+spec:
+  type: ClusterIP
+  ports:
+  - name: apisix-admin
+    port: 9180
+    targetPort: 9180
+    protocol: TCP
+  selector:
+    
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: my-release
+---
+# Source: apisix/templates/service-gateway.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-apisix-gateway
+  namespace: default
+  annotations:
+  labels:
+    helm.sh/chart: apisix-2.8.0
+    
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.9.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/service: apisix-gateway
+spec:
+  type: NodePort
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: apisix-gateway
+    port: 80
+    targetPort: 9080
+    protocol: TCP
+  selector:
+    
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: my-release
+---
+# Source: apisix/templates/deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-apisix
+  namespace: default
+  labels:
+    helm.sh/chart: apisix-2.8.0
+    
+    app.kubernetes.io/name: apisix
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.9.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: apisix
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: a98b58783eb8ed7338c579c44e73ae3db350356ad20134ac8d52d06110fece9c
+      labels:
+        
+        app.kubernetes.io/name: apisix
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: apisix
+          image: "apache/apisix:3.9.1-debian"
+          imagePullPolicy: IfNotPresent
+          env:
+
+          ports:
+            - name: http
+              containerPort: 9080
+              protocol: TCP     
+            - name: tls
+              containerPort: 9443
+              protocol: TCP
+            - name: admin
+              containerPort: 9180
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 9080
+            timeoutSeconds: 1
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "sleep 30"
+          volumeMounts:
+            - mountPath: /usr/local/apisix/conf/config.yaml
+              name: apisix-config
+              subPath: config.yaml
+          resources:
+            {}
+      hostNetwork: false
+      initContainers:
+        - name: wait-etcd
+          image: busybox:1.28
+          command: ['sh', '-c', "until nc -z my-release-etcd.default.svc.cluster.local 2379; do echo waiting for etcd `date`; sleep 2; done;"]
+      volumes:
+        - configMap:
+            name: my-release-apisix
+          name: apisix-config
+---
+# Source: apisix/charts/etcd/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-etcd
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/version: 3.5.10
+    helm.sh/chart: etcd-9.7.3
+    app.kubernetes.io/component: etcd
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/component: etcd
+  serviceName: my-release-etcd-headless
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: etcd
+        app.kubernetes.io/version: 3.5.10
+        helm.sh/chart: etcd-9.7.3
+        app.kubernetes.io/component: etcd
+      annotations:
+        checksum/token-secret: 549ff81931873793e63d3a213bb658981caee28843b05cbb5a12b1be8fdd34ca
+    spec:
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: etcd
+                    app.kubernetes.io/component: etcd
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: "default"
+      containers:
+        - name: etcd
+          image: docker.io/bitnami/etcd:3.5.10-debian-11-r2
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_STS_NAME
+              value: "my-release-etcd"
+            - name: ETCDCTL_API
+              value: "3"
+            - name: ETCD_ON_K8S
+              value: "yes"
+            - name: ETCD_START_FROM_SNAPSHOT
+              value: "no"
+            - name: ETCD_DISASTER_RECOVERY
+              value: "no"
+            - name: ETCD_NAME
+              value: "$(MY_POD_NAME)"
+            - name: ETCD_DATA_DIR
+              value: "/bitnami/etcd/data"
+            - name: ETCD_LOG_LEVEL
+              value: "info"
+            - name: ALLOW_NONE_AUTHENTICATION
+              value: "yes"
+            - name: ETCD_AUTH_TOKEN
+              value: "jwt,priv-key=/opt/bitnami/etcd/certs/token/jwt-token.pem,sign-method=RS256,ttl=10m"
+            - name: ETCD_ADVERTISE_CLIENT_URLS
+              value: "http://$(MY_POD_NAME).my-release-etcd-headless.default.svc.cluster.local:2379,http://my-release-etcd.default.svc.cluster.local:2379"
+            - name: ETCD_LISTEN_CLIENT_URLS
+              value: "http://0.0.0.0:2379"
+            - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+              value: "http://$(MY_POD_NAME).my-release-etcd-headless.default.svc.cluster.local:2380"
+            - name: ETCD_LISTEN_PEER_URLS
+              value: "http://0.0.0.0:2380"
+            - name: ETCD_INITIAL_CLUSTER_TOKEN
+              value: "etcd-cluster-k8s"
+            - name: ETCD_INITIAL_CLUSTER_STATE
+              value: "new"
+            - name: ETCD_INITIAL_CLUSTER
+              value: "my-release-etcd-0=http://my-release-etcd-0.my-release-etcd-headless.default.svc.cluster.local:2380,my-release-etcd-1=http://my-release-etcd-1.my-release-etcd-headless.default.svc.cluster.local:2380,my-release-etcd-2=http://my-release-etcd-2.my-release-etcd-headless.default.svc.cluster.local:2380"
+            - name: ETCD_CLUSTER_DOMAIN
+              value: "my-release-etcd-headless.default.svc.cluster.local"
+          envFrom:
+          ports:
+            - name: client
+              containerPort: 2379
+              protocol: TCP
+            - name: peer
+              containerPort: 2380
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - /opt/bitnami/scripts/etcd/healthcheck.sh
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - /opt/bitnami/scripts/etcd/healthcheck.sh
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /opt/bitnami/scripts/etcd/prestop.sh
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/etcd
+            - name: etcd-jwt-token
+              mountPath: /opt/bitnami/etcd/certs/token/
+              readOnly: true
+      volumes:
+        - name: etcd-jwt-token
+          secret:
+            secretName: my-release-etcd-jwt-token
+            defaultMode: 256
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: apisix/templates/apisix-config-cm.yml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/clusterrole.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/clusterrolebinding.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/hpa.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/ingress-admin.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/ingress.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/pdb.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/service-metrics.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/service-monitor.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: apisix/templates/serviceaccount.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.

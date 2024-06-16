@@ -1,0 +1,98 @@
+---
+# Source: grocy/templates/common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-grocy
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: grocy
+    app.kubernetes.io/version: version-v3.1.3
+    helm.sh/chart: grocy-8.5.2
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: grocy
+    app.kubernetes.io/instance: my-release
+---
+# Source: grocy/templates/common.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-grocy
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: grocy
+    app.kubernetes.io/version: version-v3.1.3
+    helm.sh/chart: grocy-8.5.2
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grocy
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grocy
+        app.kubernetes.io/instance: my-release
+    spec:
+      
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      containers:
+        - name: my-release-grocy
+          image: "linuxserver/grocy:version-v3.1.3"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: UTC
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: viewcache
+              mountPath: /config/data/viewcache
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          startupProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 0
+            failureThreshold: 30
+            timeoutSeconds: 1
+            periodSeconds: 5
+      volumes:
+        - name: viewcache
+          emptyDir:
+            {}

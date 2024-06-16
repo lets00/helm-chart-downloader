@@ -1,0 +1,81 @@
+---
+# Source: hello-app/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hello-app
+---
+# Source: hello-app/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hello-app-service-account
+  namespace: hello-app
+---
+# Source: hello-app/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: hello-app
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+# Source: hello-app/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-reader-binding
+  namespace: hello-app
+subjects:
+- kind: ServiceAccount
+  name: hello-app-service-account
+  namespace: hello-app
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: hello-app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-app
+  namespace: hello-app
+spec:
+  type: NodePort
+  selector:
+    app: hello-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+      nodePort: 30000
+---
+# Source: hello-app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-app
+  namespace: hello-app   # Set the namespace to hello-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-app
+  template:
+    metadata:
+      name: hello-app # Specify the desired pod name
+      labels:
+        app: hello-app
+    spec:
+      serviceAccountName: hello-app-service-account
+      containers:
+        - name: hello-app
+          image: "sysintelligent/hello-app:2.0.1"
+          resources:
+            limits:
+              cpu: 50m
+              memory: 20Mi

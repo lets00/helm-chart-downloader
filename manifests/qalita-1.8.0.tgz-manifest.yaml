@@ -1,0 +1,1777 @@
+---
+# Source: qalita/charts/redis/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-redis
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.4
+    helm.sh/chart: redis-18.16.1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redis
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # Allow inbound connections
+    - ports:
+        - port: 6379
+---
+# Source: qalita/charts/redis/templates/master/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: false
+metadata:
+  name: my-release-redis-master
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.4
+    helm.sh/chart: redis-18.16.1
+---
+# Source: qalita/charts/seaweedfs/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: seaweedfs-rw-sa
+  namespace: default
+---
+# Source: qalita/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 15.4.0
+    helm.sh/chart: postgresql-12.12.10
+type: Opaque
+data:
+  postgres-password: "VFFqSDUxeXRQZg=="
+  password: "MVhUenhiN0hDaA=="
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: qalita/templates/qalita-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "my-release-qalita-secret"
+data:
+  adminPassword: YjA5WFVISkpVR28wWkdsemQzSTFhRTFJUTBWWFFXeFJZZz09
+  secretKey: ZERCSFJUUnpWVE5yZG1aNk1IWjNURlJoUTFWTVVXaHJORXBoU21zMVQyaEtVSFJ3TlZVMWJVZGtaSE5UZWsxTmRFTTRWMWx1TVhGMmRFeEdSVFJsYnpBNVZUa3dOV2RXVVV0U1NESjZibG81UmpZMVUwMWxSWE52YzJFMk4xZFBVVkZIVTBSUk4zQXdOVE5CYm5SMVlqUnpiVkkxWkZwbmIyaEdhM1l4VVdsS2VuRlhTR1JuVFdSYWVVcEZiM1JxUkcxVFRUbHphRGxIU2poNlJHSjJVMWhpWW1sSWVFOUdiV1ZzUjBoS2NtcE5jVEZIVjJKTWJHdHNUMGQ2ZUd4cGNHVk5PVE0yT0hCVmQyeG1ZbEJCUjFsdVdtSkVTelY2WjB0NmNtdHRTMGhvUkRSbWEyRnZiRXRDWjFCT1ZURllUWG8wZWtjNWVEUkVha3AxTWpreWVIYzJlRXhsVVROMWFtTTRXblp4V1ZCa2NteDJkMjV2Wm10M2VXeHJZbFpEVEVKNVMxZEVNRzFYZUdSMVpsRlBjR0ZDZDBkSFlrcFVUMDlSVFZOM2FYcHJUa2RLUlRnMlJFVmpOR1JVZVcxeGFWVnRZVVJ6YTBSVVVXOUtkWHBvZVd3M09ISnZNa05CVUdsSVRERm1jRXhDVjNjMlJESkJUV0ZYWWtsRVJGbEhWVk5sWm00eE1rbFZXV1pxU0hWUVVscHNja1pvVWtwNlJuVmxXRGRWT0VwU2RHSlpaM3BXY1ZWMVNXTmxNR0ZyYUhwVmJ6TnpURzFEWWxjMVdURlJRWFpIZGpNemFsVkhSblp0WjJNelRuTkRNa3BPVUVSM2RsbFJNRmRMUldReFRGWlVUVUpETVU1eVFqaHdZVXcyYzJSTVNGUTVRazVIVDJOU1ZWVTVUMnM9
+---
+# Source: qalita/templates/redis-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "qalita-rediscreds"
+data:
+  redis-password: ZG0xVk9WRmxSRGhFZDIxaGJFaEJja1p3ZDB0NVdVUTRWZz09
+---
+# Source: qalita/templates/registry-secret.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: "my-release-dockerregistry"
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyI8cmVnaXN0cnktdXJsPiI6eyJwYXNzd29yZCI6IjxwYXNzd29yZD4iLCJ1c2VybmFtZSI6Ijx1c2VybmFtZT4ifX19
+---
+# Source: qalita/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-configuration
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.4
+    helm.sh/chart: redis-18.16.1
+data:
+  redis.conf: |-
+    # User-supplied common configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+    # End of common configuration
+  master.conf: |-
+    dir /data
+    # User-supplied master configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of master configuration
+  replica.conf: |-
+    dir /data
+    # User-supplied replica configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of replica configuration
+---
+# Source: qalita/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-health
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.4
+    helm.sh/chart: redis-18.16.1
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ] && [ "$responseFirstWord" != "MASTERDOWN" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: qalita/charts/redis/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-scripts
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.4
+    helm.sh/chart: redis-18.16.1
+data:
+  start-master.sh: |
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    if [[ -f /opt/bitnami/redis/mounted-etc/master.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+    fi
+    if [[ -f /opt/bitnami/redis/mounted-etc/redis.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+    fi
+    ARGS=("--port" "${REDIS_PORT}")
+    ARGS+=("--requirepass" "${REDIS_PASSWORD}")
+    ARGS+=("--masterauth" "${REDIS_PASSWORD}")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+    exec redis-server "${ARGS[@]}"
+---
+# Source: qalita/charts/seaweedfs/templates/service-account.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: seaweedfs-rw-cr
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+# Source: qalita/charts/seaweedfs/templates/service-account.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: system:serviceaccount:seaweedfs-rw-sa:default
+subjects:
+- kind: ServiceAccount
+  name: seaweedfs-rw-sa
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: seaweedfs-rw-cr
+---
+# Source: qalita/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-hl
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 15.4.0
+    helm.sh/chart: postgresql-12.12.10
+    app.kubernetes.io/component: primary
+  annotations:
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary
+---
+# Source: qalita/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 15.4.0
+    helm.sh/chart: postgresql-12.12.10
+    app.kubernetes.io/component: primary
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary
+---
+# Source: qalita/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-headless
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.4
+    helm.sh/chart: redis-18.16.1
+  annotations:
+    
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: redis
+---
+# Source: qalita/charts/redis/templates/master/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-master
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.4
+    helm.sh/chart: redis-18.16.1
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  internalTrafficPolicy: Cluster
+  sessionAffinity: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: master
+---
+# Source: qalita/charts/seaweedfs/templates/filer-service-client.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs-filer-client
+  namespace: default
+  labels:
+    app: seaweedfs
+    component: filer
+    monitoring: "true"
+spec:
+  clusterIP: None
+  ports:
+  - name: "swfs-filer"
+    port: 8888
+    targetPort: 8888
+    protocol: TCP
+  - name: "swfs-filer-grpc"
+    port: 18888
+    targetPort: 18888
+    protocol: TCP
+  - name: "metrics"
+    port: 9327
+    targetPort: 9327
+    protocol: TCP
+  selector:
+    app: seaweedfs
+    component: filer
+---
+# Source: qalita/charts/seaweedfs/templates/filer-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: seaweedfs-filer
+  namespace: default
+  labels:
+    app: seaweedfs
+    component: filer
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+  - name: "swfs-filer"
+    port: 8888
+    targetPort: 8888
+    protocol: TCP
+  - name: "swfs-filer-grpc"
+    port: 18888
+    targetPort: 18888
+    protocol: TCP
+  - name: "swfs-s3"
+    port: 8333
+    targetPort: 8333
+    protocol: TCP
+  - name: "metrics"
+    port: 9327
+    targetPort: 9327
+    protocol: TCP
+  selector:
+    app: seaweedfs
+    component: filer
+---
+# Source: qalita/charts/seaweedfs/templates/master-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs-master
+  namespace: default
+  labels:
+    app: seaweedfs
+    component: master
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"    
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+  - name: "swfs-master"
+    port: 9333
+    targetPort: 9333
+    protocol: TCP
+  - name: "swfs-master-grpc"
+    port: 19333
+    targetPort: 19333
+    protocol: TCP
+  - name: "metrics"
+    port: 9327
+    targetPort: 9327
+    protocol: TCP
+  selector:
+    app: seaweedfs
+    component: master
+---
+# Source: qalita/charts/seaweedfs/templates/s3-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs-s3
+  namespace: default
+  labels:
+    app: seaweedfs
+    component: s3
+spec:
+  ports:
+  - name: "swfs-s3"
+    port: 8333
+    targetPort: 8333
+    protocol: TCP
+  selector:
+    app: seaweedfs
+    component: filer
+---
+# Source: qalita/charts/seaweedfs/templates/volume-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs-volume
+  namespace: default
+  labels:
+    app: seaweedfs
+    component: volume
+spec:
+  clusterIP: None
+  ports:
+  - name: "swfs-volume"
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: "swfs-volume-18080"
+    port: 18080
+    targetPort: 18080
+    protocol: TCP
+  - name: "metrics"
+    port: 9327
+    targetPort: 9327
+    protocol: TCP
+  selector:
+    app: seaweedfs
+    component: volume
+---
+# Source: qalita/templates/backend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-backend-service"
+spec:
+  type: ClusterIP
+  ports:
+    - name: 3080tcp
+      port: 3080
+      protocol: TCP
+      targetPort: 3080tcp
+  selector:
+    app: "my-release-backend"
+    release: my-release
+---
+# Source: qalita/templates/doc-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-doc-service"
+spec:
+  type: ClusterIP
+  ports:
+    - name: 80tcp
+      port: 80
+      protocol: TCP
+      targetPort: 80tcp
+  selector:
+    app: "my-release-doc"
+    release: my-release
+---
+# Source: qalita/templates/frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-frontend-service"
+spec:
+  type: ClusterIP
+  ports:
+    - name: 3000tcp
+      port: 3000
+      protocol: TCP
+      targetPort: 3000tcp
+  selector:
+    app: "my-release-frontend"
+    release: my-release
+---
+# Source: qalita/templates/backend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-backend"
+  labels:
+    app: "my-release-backend"
+    chart: "qalita-1.8.0"
+    heritage: Helm
+    release: my-release
+    app.kubernetes.io/name: qalita
+    helm.sh/chart: qalita-1.8.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.8.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "my-release-backend"
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: "my-release-backend"
+        release: my-release
+      annotations:
+        rollme: "kmCUp"
+    spec:
+      containers:
+      - name: "backend"
+        image: "qalita.azurecr.io/qalita/backend:1.8.0"
+        imagePullPolicy: IfNotPresent
+        startupProbe:
+          exec:
+            command:
+            - /app/liveness_check.sh
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - /app/liveness_check.sh
+          initialDelaySeconds: 10
+          periodSeconds: 60
+          failureThreshold: 3
+          timeoutSeconds: 5
+        env:
+          - name: POSTGRESQL_SERVER
+            value: "my-release-postgresql"
+          - name: POSTGRESQL_PORT
+            value: "5432"
+          - name: POSTGRESQL_DATABASE
+            value: "qalitadb"
+          - name: POSTGRESQL_USERNAME
+            value: "qalita"
+          - name: POSTGRESQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: "my-release-postgresql"
+                optional: false
+          - name: REDIS_SERVER
+            value: "my-release-redis-master"
+          - name: REDIS_PORT
+            value: "6379"
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: redis-password
+                name: "qalita-rediscreds"
+                optional: false
+          - name: QALITA_ENV
+            value: "PROD"
+          - name: QALITA_ACCESS_TOKEN_EXPIRE_MINUTES
+            value: "240"
+          - name: QALITA_API_TOKEN_EXPIRE_MINUTES
+            value: "525600"
+          - name: QALITA_ORGANIZATION_NAME
+            value: "local"
+          - name: QALITA_API_PORT
+            value: "3080"
+          - name: QALITA_API_HOST
+            value: "0.0.0.0"
+          - name: QALITA_API_WORKER
+            value: "4"
+          - name: QALITA_ADMIN_USERNAME
+            value: "admin"
+          - name: QALITA_ALGORITHM
+            value: "HS256"
+          - name: QALITA_INIT_SLEEP
+            value: "3"
+          - name: QALITA_FRONTEND_URL
+            value: "https://example.com"
+          - name: QALITA_S3_URL
+            value: "http://seaweedfs-s3:8333"
+          - name: QALITA_AUTH_MODE
+            value: "table"
+          - name: QALITA_S3_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                key: admin_access_key_id
+                name: seaweedfs-s3-secret
+                optional: false
+          - name: QALITA_S3_KEY_SECRET
+            valueFrom:
+              secretKeyRef:
+                key: admin_secret_access_key
+                name: seaweedfs-s3-secret
+                optional: false
+          - name: QALITA_S3_READER_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                key: read_access_key_id
+                name: seaweedfs-s3-secret
+                optional: false
+          - name: QALITA_S3_READER_KEY_SECRET
+            valueFrom:
+              secretKeyRef:
+                key: read_secret_access_key
+                name: seaweedfs-s3-secret
+                optional: false
+          - name: QALITA_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: adminPassword
+                name: "my-release-qalita-secret"
+                optional: false
+          - name: QALITA_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                key: secretKey
+                name: "my-release-qalita-secret"
+                optional: false
+        ports:
+          - containerPort: 3080
+            name: 3080tcp
+            protocol: TCP
+        resources:
+          requests:
+            cpu: 200m
+            memory: 1024Mi
+      imagePullSecrets:
+      - name: "my-release-dockerregistry"
+---
+# Source: qalita/templates/doc-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-doc"
+  labels:
+    app: "my-release-doc"
+    chart: "qalita-1.8.0"
+    heritage: Helm
+    release: my-release
+    app.kubernetes.io/name: qalita
+    helm.sh/chart: qalita-1.8.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.8.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "my-release-doc"
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: "my-release-doc"
+        release: my-release
+      annotations:
+        rollme: "SOxAx"
+    spec:
+      containers:
+      - name: "doc"
+        image: "qalita.azurecr.io/qalita/doc:1.8.0"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+          name: 80tcp
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 50m
+            memory: 50Mi
+      imagePullSecrets:
+      - name: "my-release-dockerregistry"
+---
+# Source: qalita/templates/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-frontend"
+  labels:
+    app: "my-release-frontend"
+    chart: "qalita-1.8.0"
+    heritage: Helm
+    release: my-release
+    app.kubernetes.io/name: qalita
+    helm.sh/chart: qalita-1.8.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.8.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "my-release-frontend"
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: "my-release-frontend"
+        release: my-release
+      annotations:
+        rollme: "73j4V"
+    spec:
+      containers:
+      - name: "frontend"
+        image: "qalita.azurecr.io/qalita/frontend:1.8.0"
+        imagePullPolicy: IfNotPresent
+        startupProbe:
+          httpGet:
+            path: /api/cfg
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 5
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /api/cfg
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 60
+          failureThreshold: 2
+          timeoutSeconds: 5
+        env:
+          - name: NODE_ENV
+            value: "production"
+          - name: QALITA_API_URL
+            value: "http://my-release-backend-service:3080/api/v1"
+          - name: QALITA_PUBLIC_API_URL
+            value: "https://api.example.com"
+          - name: QALITA_PUBLIC_DOC_URL
+            value: "https://doc.example.com"
+          - name: NEXT_TELEMETRY_DISABLED
+            value: "1"
+          - name: NEXT_WEBPACK_USEPOLLING
+            value: "false"
+        ports:
+        - containerPort: 3000
+          name: 3000tcp
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+      imagePullSecrets:
+      - name: "my-release-dockerregistry"
+---
+# Source: qalita/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 15.4.0
+    helm.sh/chart: postgresql-12.12.10
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  serviceName: my-release-postgresql-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: postgresql
+        app.kubernetes.io/version: 15.4.0
+        helm.sh/chart: postgresql-12.12.10
+        app.kubernetes.io/component: primary
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      hostNetwork: false
+      hostIPC: false
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:15.4.0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            runAsGroup: 0
+            runAsNonRoot: true
+            runAsUser: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "qalita"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: password
+            - name: POSTGRES_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgres-password
+            - name: POSTGRES_DATABASE
+              value: "qalitadb"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "qalita" -d "dbname=qalitadb" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "qalita" -d "dbname=qalitadb" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits: {}
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: qalita/charts/redis/templates/master/application.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-redis-master
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.4
+    helm.sh/chart: redis-18.16.1
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: master
+  serviceName: my-release-redis-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/version: 7.2.4
+        helm.sh/chart: redis-18.16.1
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/configmap: 86bcc953bb473748a3d3dc60b7c11f34e60c93519234d4c37f42e22ada559d47
+        checksum/health: aff24913d801436ea469d8d374b2ddb3ec4c43ee7ab24663d5f8ff1a1b6991a9
+        checksum/scripts: 560c33ff34d845009b51830c332aa05fa211444d1877d3526d3599be7543aaa5
+        checksum/secret: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      serviceAccountName: my-release-redis-master
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: redis
+                    app.kubernetes.io/component: master
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      enableServiceLinks: true
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:7.2.4-debian-12-r9
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: false
+            runAsGroup: 0
+            runAsNonRoot: true
+            runAsUser: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /bin/bash
+          args:
+            - -c
+            - /opt/bitnami/scripts/start-scripts/start-master.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: REDIS_REPLICATION_MODE
+              value: master
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "no"
+            - name: REDIS_PASSWORD_FILE
+              value: "/opt/bitnami/redis/secrets/redis-password"
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            # One second longer than command timeout should prevent generation of zombie processes.
+            timeoutSeconds: 6
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_liveness_local.sh 5
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_readiness_local.sh 1
+          volumeMounts:
+            - name: start-scripts
+              mountPath: /opt/bitnami/scripts/start-scripts
+            - name: health
+              mountPath: /health
+            - name: redis-password
+              mountPath: /opt/bitnami/redis/secrets/
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /opt/bitnami/redis/mounted-etc
+            - name: empty-dir
+              mountPath: /opt/bitnami/redis/etc/
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+      volumes:
+        - name: start-scripts
+          configMap:
+            name: my-release-redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: my-release-redis-health
+            defaultMode: 0755
+        - name: redis-password
+          secret:
+            secretName: qalita-rediscreds
+            items:
+            - key: redis-password
+              path: redis-password
+        - name: config
+          configMap:
+            name: my-release-redis-configuration
+        - name: empty-dir
+          emptyDir: {}
+        - name: redis-data
+          emptyDir: {}
+---
+# Source: qalita/charts/seaweedfs/templates/filer-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: seaweedfs-filer
+  namespace: default
+  labels:
+    app: seaweedfs
+    chart: seaweedfs-helm
+    heritage: Helm
+    release: my-release
+spec:
+  serviceName: seaweedfs-filer
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seaweedfs
+      chart: seaweedfs-helm
+      release: my-release
+      component: filer
+  template:
+    metadata:
+      labels:
+        app: seaweedfs
+        chart: seaweedfs-helm
+        release: my-release
+        component: filer
+    spec:
+      restartPolicy: Always
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: seaweedfs
+                  release: "my-release"
+                  component: filer
+              topologyKey: kubernetes.io/hostname
+      serviceAccountName: seaweedfs-rw-sa #hack for delete pod master after migration
+      terminationGracePeriodSeconds: 60
+      enableServiceLinks: false
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:3.55
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: WEED_MYSQL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: secret-seaweedfs-db
+                  key: user
+            - name: WEED_MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: secret-seaweedfs-db
+                  key: password
+            - name: SEAWEEDFS_FULLNAME
+              value: "seaweedfs"
+            - name: WEED_FILER_BUCKETS_FOLDER
+              value: "/buckets"
+            - name: WEED_FILER_OPTIONS_RECURSIVE_DELETE
+              value: "false"
+            - name: WEED_LEVELDB2_ENABLED
+              value: "true"
+            - name: WEED_MYSQL_CONNECTION_MAX_IDLE
+              value: "5"
+            - name: WEED_MYSQL_CONNECTION_MAX_LIFETIME_SECONDS
+              value: "600"
+            - name: WEED_MYSQL_CONNECTION_MAX_OPEN
+              value: "75"
+            - name: WEED_MYSQL_DATABASE
+              value: "sw_database"
+            - name: WEED_MYSQL_ENABLED
+              value: "false"
+            - name: WEED_MYSQL_HOSTNAME
+              value: "mysql-db-host"
+            - name: WEED_MYSQL_INTERPOLATEPARAMS
+              value: "true"
+            - name: WEED_MYSQL_PORT
+              value: "3306"
+            - name: WEED_CLUSTER_DEFAULT
+              value: "sw"
+            - name: WEED_CLUSTER_SW_FILER
+              value: "seaweedfs-filer-client.seaweedfs:8888"
+            - name: WEED_CLUSTER_SW_MASTER
+              value: "seaweedfs-master.seaweedfs:9333"             
+          command:
+            - "/bin/sh"
+            - "-ec"
+            - | 
+              exec /usr/bin/weed \
+              -logdir=/logs \
+              -v=1 \
+              filer \
+              -port=8888 \
+              -metricsPort=9327 \
+              -dirListLimit=100000 \
+              -defaultReplicaPlacement=000 \
+              -ip=${POD_IP} \
+              -s3 \
+              -s3.port=8333 \
+              -master=${SEAWEEDFS_FULLNAME}-master-0.${SEAWEEDFS_FULLNAME}-master.default:9333
+          volumeMounts:
+            - name: seaweedfs-filer-log-volume
+              mountPath: "/logs/"
+            - mountPath: /etc/sw
+              name: config-users
+              readOnly: true
+            - name: data-filer
+              mountPath: /data
+            
+          ports:
+            - containerPort: 8888
+              name: swfs-filer
+            - containerPort: 9327
+              name: metrics
+            - containerPort: 18888
+              #name: swfs-filer-grpc
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8888
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            successThreshold: 1
+            failureThreshold: 100
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8888
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 5
+            timeoutSeconds: 10
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "50m"
+      volumes:
+        - name: seaweedfs-filer-log-volume
+          hostPath:
+            path: /storage/logs/seaweedfs/filer
+            type: DirectoryOrCreate
+        - name: data-filer
+          hostPath:
+            path: /storage/filer_store
+            type: DirectoryOrCreate
+        - name: db-schema-config-volume
+          configMap:
+            name: seaweedfs-db-init-config
+        - name: config-users
+          secret:
+            defaultMode: 420
+            secretName: seaweedfs-s3-secret
+        
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+  volumeClaimTemplates:
+---
+# Source: qalita/charts/seaweedfs/templates/master-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: seaweedfs-master
+  namespace: default
+  labels:
+    app: seaweedfs
+    chart: seaweedfs-helm
+    heritage: Helm
+    release: my-release
+spec:
+  serviceName: seaweedfs-master
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seaweedfs
+      chart: seaweedfs-helm
+      release: my-release
+      component: master
+  template:
+    metadata:
+      labels:
+        app: seaweedfs
+        chart: seaweedfs-helm
+        release: my-release
+        component: master
+    spec:
+      restartPolicy: Always
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: seaweedfs
+                  release: "my-release"
+                  component: master
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 60
+      enableServiceLinks: false
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:3.55
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: SEAWEEDFS_FULLNAME
+              value: "seaweedfs"
+            - name: WEED_MASTER_VOLUME_GROWTH_COPY_1
+              value: "7"
+            - name: WEED_MASTER_VOLUME_GROWTH_COPY_2
+              value: "6"
+            - name: WEED_MASTER_VOLUME_GROWTH_COPY_3
+              value: "3"
+            - name: WEED_MASTER_VOLUME_GROWTH_COPY_OTHER
+              value: "1"
+            - name: WEED_CLUSTER_DEFAULT
+              value: "sw"
+            - name: WEED_CLUSTER_SW_FILER
+              value: "seaweedfs-filer-client.seaweedfs:8888"
+            - name: WEED_CLUSTER_SW_MASTER
+              value: "seaweedfs-master.seaweedfs:9333"
+          command:
+            - "/bin/sh"
+            - "-ec"
+            - | 
+              exec /usr/bin/weed \
+              -logdir=/logs \
+              -v=1 \
+              master \
+              -port=9333 \
+              -mdir=/data \
+              -ip.bind=0.0.0.0 \
+              -defaultReplication=000 \
+              -volumeSizeLimitMB=1000 \
+              -ip=${POD_NAME}.${SEAWEEDFS_FULLNAME}-master.default \
+              -peers=${SEAWEEDFS_FULLNAME}-master-0.${SEAWEEDFS_FULLNAME}-master.default:9333
+          volumeMounts:
+            - name : data-default
+              mountPath: /data
+            - name: seaweedfs-master-log-volume
+              mountPath: "/logs/"
+            
+          ports:
+            - containerPort: 9333
+              name: swfs-master
+            - containerPort: 19333
+              #name: swfs-master-grpc
+          readinessProbe:
+            httpGet:
+              path: /cluster/status
+              port: 9333
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 45
+            successThreshold: 2
+            failureThreshold: 100
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /cluster/status
+              port: 9333
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 4
+            timeoutSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+      volumes:
+        - name: seaweedfs-master-log-volume
+          hostPath:
+            path: /storage/logs/seaweedfs/master
+            type: DirectoryOrCreate
+        - name: data-default
+          hostPath:
+            path: /ssd/seaweed-master/
+            type: DirectoryOrCreate
+        
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+  volumeClaimTemplates:
+---
+# Source: qalita/charts/seaweedfs/templates/volume-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: seaweedfs-volume
+  namespace: default
+  labels:
+    app: seaweedfs
+    chart: seaweedfs-helm
+    heritage: Helm
+    release: my-release
+spec:
+  serviceName: seaweedfs-volume
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: seaweedfs
+      chart: seaweedfs-helm
+      release: my-release
+      component: volume
+  template:
+    metadata:
+      labels:
+        app: seaweedfs
+        chart: seaweedfs-helm
+        release: my-release
+        component: volume
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: seaweedfs
+                  release: "my-release"
+                  component: volume
+              topologyKey: kubernetes.io/hostname
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 150
+      enableServiceLinks: false
+      initContainers:
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:3.55
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: SEAWEEDFS_FULLNAME
+              value: "seaweedfs"
+            - name: WEED_CLUSTER_DEFAULT
+              value: "sw"
+            - name: WEED_CLUSTER_SW_FILER
+              value: "seaweedfs-filer-client.seaweedfs:8888"
+            - name: WEED_CLUSTER_SW_MASTER
+              value: "seaweedfs-master.seaweedfs:9333"
+          command:
+            - "/bin/sh"
+            - "-ec"
+            - |
+              exec /usr/bin/weed \
+                -logdir=/logs \
+                -v=1 \
+                volume \
+                -port=8080 \
+                -metricsPort=9327 \
+                -dir=/data \
+                -max=0 \
+                -ip.bind=0.0.0.0 \
+                -readMode=proxy \
+                -minFreeSpacePercent=7 \
+                -ip=${POD_NAME}.${SEAWEEDFS_FULLNAME}-volume.default \
+                -compactionMBps=50 \
+                -mserver=${SEAWEEDFS_FULLNAME}-master-0.${SEAWEEDFS_FULLNAME}-master.default:9333
+          volumeMounts:
+            - name: data
+              mountPath: "/data/"
+            - name: logs
+              mountPath: "/logs/"
+            
+          ports:
+            - containerPort: 8080
+              name: swfs-vol
+            - containerPort: 9327
+              name: metrics
+            - containerPort: 18080
+              name: swfs-vol-grpc
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            successThreshold: 1
+            failureThreshold: 100
+            timeoutSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 90
+            successThreshold: 1
+            failureThreshold: 4
+            timeoutSeconds: 30
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "50m"
+      volumes:
+        - name: logs
+          hostPath:
+            path: /storage/logs/seaweedfs/volume
+            type: DirectoryOrCreate
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: 
+        resources:
+          requests:
+            storage: 21Gi
+---
+# Source: qalita/templates/backend-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "my-release-backend-ingress"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    ingress.kubernetes.io/ssl-redirect: "true"
+    kubernetes.io/ingress.allow-http: "false"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"  
+  labels:
+    app: "my-release-backend"
+    chart: "qalita-1.8.0"
+    heritage: Helm
+    release: my-release
+spec:
+  tls:
+  - hosts:
+    - api.example.com
+    secretName: api-cert
+  rules:
+  - host: api.example.com
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: my-release-backend-service
+            port:
+              name: 3080tcp
+---
+# Source: qalita/templates/doc-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "my-release-doc-ingress"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    ingress.kubernetes.io/ssl-redirect: "true"
+    kubernetes.io/ingress.allow-http: "false"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  labels:
+    app: "my-release-doc"
+    chart: "qalita-1.8.0"
+    heritage: Helm
+    release: my-release
+spec:
+  tls:
+  - hosts:
+    - doc.example.com
+    secretName: doc-cert
+  rules:
+  - host: doc.example.com
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: my-release-doc-service
+            port:
+              name: 80tcp
+---
+# Source: qalita/templates/frontend-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "my-release-frontend-ingress"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    ingress.kubernetes.io/ssl-redirect: "true"
+    kubernetes.io/ingress.allow-http: "false"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  labels:
+    app: "my-release-frontend"
+    chart: "qalita-1.8.0"
+    heritage: Helm
+    release: my-release
+spec:
+  tls:
+  - hosts:
+    - example.com
+    secretName: app-cert
+  rules:
+  - host: example.com
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: my-release-frontend-service
+            port:
+              name: 3000tcp
+---
+# Source: qalita/charts/seaweedfs/templates/service-account.yaml
+#hack for delete pod master after migration
+---
+# Source: qalita/charts/seaweedfs/templates/seaweedfs-s3-secret.yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: seaweedfs-s3-secret
+  namespace: default
+  annotations:
+    "helm.sh/resource-policy": keep
+    "helm.sh/hook": "pre-install"
+stringData:
+  admin_access_key_id: sHL6UCgzAoBKgj0i
+  admin_secret_access_key: yFeTNS32nlJBgZlNyOVNH5OjocrnemXi
+  read_access_key_id: ce4lzckqKTBVcze0
+  read_secret_access_key: aXfaFFMceuSoyn5h3q0eRuDybQTrwCK6
+  seaweedfs_s3_config: '{"identities":[{"name":"anvAdmin","credentials":[{"accessKey":"sHL6UCgzAoBKgj0i","secretKey":"yFeTNS32nlJBgZlNyOVNH5OjocrnemXi"}],"actions":["Admin","Read","Write"]},{"name":"anvReadOnly","credentials":[{"accessKey":"ce4lzckqKTBVcze0","secretKey":"aXfaFFMceuSoyn5h3q0eRuDybQTrwCK6"}],"actions":["Read"]}]}'
+---
+# Source: qalita/charts/seaweedfs/templates/secret-seaweedfs-db.yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: secret-seaweedfs-db
+  namespace: default
+  annotations:
+    "helm.sh/resource-policy": keep
+    "helm.sh/hook": "pre-install"
+stringData:
+  user: "YourSWUser"
+  password: "HardCodedPassword"
+  # better to random generate and create in DB
+  # password: OGM5MzNmOTA2OWI3YWFlZDlkOWQ2YmRi

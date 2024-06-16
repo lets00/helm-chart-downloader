@@ -1,0 +1,292 @@
+---
+# Source: evi-rtsp-client/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: evi-rtsp-client
+  namespace: smartedge-apps
+  labels:
+    account: rtsp-client
+---
+# Source: evi-rtsp-client/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ip-camera
+type: Opaque
+data:
+  cameraSecrets.json: |
+    ewogICAgImNhbWVyYXMiOiBbCiAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiODEiLAogICAgICAgICAgICAicGFzc3dvcmQiOiAicGFzcyIKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICAgImlkIjogIjgyIiwKICAgICAgICAgICAgInBhc3N3b3JkIjogInBhc3MiCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAgICJpZCI6ICI4MyIsCiAgICAgICAgICAgICJwYXNzd29yZCI6ICJwYXNzIgogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiODQiLAogICAgICAgICAgICAicGFzc3dvcmQiOiAicGFzcyIKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICAgImlkIjogIjg1IiwKICAgICAgICAgICAgInBhc3N3b3JkIjogInBhc3MiCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAgICJpZCI6ICI4NiIsCiAgICAgICAgICAgICJwYXNzd29yZCI6ICJwYXNzIgogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiODciLAogICAgICAgICAgICAicGFzc3dvcmQiOiAicGFzcyIKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICAgImlkIjogIjg4IiwKICAgICAgICAgICAgInBhc3N3b3JkIjogInBhc3MiCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAgICJpZCI6ICI4OSIsCiAgICAgICAgICAgICJwYXNzd29yZCI6ICJwYXNzIgogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiOTAiLAogICAgICAgICAgICAicGFzc3dvcmQiOiAicGFzcyIKICAgICAgICB9CiAgICBdCn0K
+---
+# Source: evi-rtsp-client/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: smartedge-apps
+  name: rtsp-client-pipline
+data:
+
+  pipeline_rtsp.json: |+
+    {
+        "Nodes": [
+            {
+                "Node Class Name": "RtspClientNode",
+                "Node Name": "Input",
+                "Thread Number": "1",
+                "Is Source Node": "true",
+                "Configure String": "IPCInfo_placeholder"
+            },
+            {
+                "Node Class Name": "WrapperNode",
+                "Node Name": "Wrapper",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "3"
+            },
+            {
+                "Node Class Name": "MediaStorageNode",
+                "Node Name": "Storage",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "/opt/rtsp_client/3rdParty/media_storage/media_storage_configmap.json"
+            }
+        ],
+        "Links": [
+            {
+                "Previous Node": "Input",
+                "Previous Node Port": "0",
+                "Next Node": "Wrapper",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Wrapper",
+                "Previous Node Port": "0",
+                "Next Node": "Storage",
+                "Next Node Port": "0"
+            }
+        ]
+    }
+---
+# Source: evi-rtsp-client/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: smartedge-apps
+  name: rtsp-media-storage
+data:
+
+  media_storage_configmap.json: |+
+    {
+        "version": 1,
+        "name": "row data source",
+        "video_image": {
+            "address": "minio-service.minio",
+            "port": "9000",
+            "rootUser": "/opt/rtsp_client/credentials/minio/rootUser",
+            "rootPassword": "/opt/rtsp_client/credentials/minio/rootPassword"
+        },
+        "video_image_attributes": {
+            "flask_server_address": "storage-rest.storage-rest",
+            "flask_server_port": "9900",
+            "prefix": "v1",
+            "media": "/media",
+            "stream": "/insert/stream"
+        },
+        "mediatype": [
+            "image",
+            "video"
+        ],
+        "datasource": [
+            "person",
+            "vehicle"
+        ]
+    }
+---
+# Source: evi-rtsp-client/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: evi-rtsp-client
+  namespace: smartedge-apps
+  labels: 
+    app: rtsp-client
+spec:
+  ports:
+  - name: restful
+    port: 9800
+    protocol: TCP
+    targetPort: 9800
+  type: ClusterIP
+  selector:
+    app: rtsp-client
+    version: v1
+---
+# Source: evi-rtsp-client/templates/deployment.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evi-rtsp-client
+  namespace: smartedge-apps
+  annotations:
+    container.apparmor.security.beta.kubernetes.io/rtsp-client: runtime/default
+spec:
+  selector:
+    matchLabels:
+      app: rtsp-client
+      version: v1
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rtsp-client
+        sidecar.istio.io/inject: "false"
+        version: v1
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: evi-rtsp-client
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - rtsp-client
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: evi-rtsp-client
+        image: "evi-rtsp-client:latest"
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          # readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        resources:
+          requests:
+            cpu: 100m
+            memory: 500Mi
+          limits:
+            cpu: 10
+            memory: 16Gi
+        env:
+        - name: HVA_NODE_DIR
+          value: "/opt/rtsp_client/libs"
+        livenessProbe:
+          httpGet:
+            path: /api/
+            port:  9800
+          initialDelaySeconds: 120
+          periodSeconds: 60
+        startupProbe:
+          httpGet:
+            path: /api/
+            port:  9800
+          failureThreshold: 5
+          periodSeconds: 10
+        securityContext:
+          privileged: true
+        ports:
+        - containerPort: 9800
+          name: restful
+        volumeMounts:
+        - name: rtsp-client-cm
+          mountPath: /opt/rtsp_client/configuration/pipeline_rtsp.json
+          subPath: pipeline_rtsp.json
+        - name: media-storage-cm
+          mountPath: /opt/rtsp_client/3rdParty/media_storage/media_storage_configmap.json
+          subPath: media_storage_configmap.json
+        - name: media-storage-secret
+          mountPath: /opt/rtsp_client/credentials/minio
+          readOnly: true
+        - name: camera-secret
+          mountPath: /opt/rtsp_client/credentials/camera
+          readOnly: true
+      volumes:
+      - name: rtsp-client-cm
+        configMap:
+          name: rtsp-client-pipline
+      - name: media-storage-cm
+        configMap:
+          name: rtsp-media-storage
+      - name: media-storage-secret
+        secret:
+          secretName: evi-minio
+          optional: true
+          items:
+          - key: rootUser
+            path: rootUser
+          - key: rootPassword
+            path: rootPassword
+      - name: camera-secret
+        secret:
+          secretName: ip-camera
+---
+# Source: evi-rtsp-client/templates/configmap.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2024 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-rtsp-client/templates/deployment.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2024 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-rtsp-client/templates/secret.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2024 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-rtsp-client/templates/service.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2024 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-rtsp-client/templates/serviceaccount.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2024 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.

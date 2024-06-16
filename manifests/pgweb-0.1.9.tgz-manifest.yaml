@@ -1,0 +1,102 @@
+---
+# Source: pgweb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pgweb
+  labels:
+    helm.sh/chart: pgweb-0.1.9
+    app.kubernetes.io/name: pgweb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: pgweb/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pgweb
+  labels:
+    helm.sh/chart: pgweb-0.1.9
+    app.kubernetes.io/name: pgweb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: pgweb
+    app.kubernetes.io/instance: my-release
+---
+# Source: pgweb/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pgweb
+  labels:
+    helm.sh/chart: pgweb-0.1.9
+    app.kubernetes.io/name: pgweb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pgweb
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pgweb
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-pgweb
+      securityContext:
+        {}
+      containers:
+        - name: pgweb
+          securityContext:
+            {}
+          image: "sosedoff/pgweb:0.14.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: pgweb/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-pgweb-test-connection"
+  labels:
+    helm.sh/chart: pgweb-0.1.9
+    app.kubernetes.io/name: pgweb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-pgweb:80']
+  restartPolicy: Never

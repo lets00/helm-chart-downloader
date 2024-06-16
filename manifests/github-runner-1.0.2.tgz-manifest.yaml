@@ -1,0 +1,37 @@
+---
+# Source: github-runner/templates/horizontalrunnerautoscaler.yaml
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: HorizontalRunnerAutoscaler
+metadata:
+  name: my-release-github-runner-runner
+  labels:
+    helm.sh/chart: github-runner-1.0.2
+    app.kubernetes.io/name: github-runner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    name: my-release-github-runner-runner
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: TotalNumberOfQueuedAndInProgressWorkflowRuns
+      repositoryNames:
+        - user/repo
+---
+# Source: github-runner/templates/runnerdeployment.yaml
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: my-release-github-runner-runner
+  labels:
+    helm.sh/chart: github-runner-1.0.2
+    app.kubernetes.io/name: github-runner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  template:
+    spec:
+      repository: user/repo

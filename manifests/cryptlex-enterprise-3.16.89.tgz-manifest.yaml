@@ -1,0 +1,672 @@
+---
+# Source: cryptlex-enterprise/templates/secrets/dashboard-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-dashboard-secret
+type: Opaque
+stringData:
+---
+# Source: cryptlex-enterprise/templates/secrets/database-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-database-secret
+type: Opaque
+stringData:
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+---
+# Source: cryptlex-enterprise/templates/secrets/docker-secret.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: my-release-docker-secret
+data:
+  .dockerconfigjson: eyJhdXRocyI6IHsiaHR0cHM6Ly9pbmRleC5kb2NrZXIuaW8vdjEvIjogeyJhdXRoIjogIkpTRnpLRHh1YVd3K0tUb2xJWE1vUEc1cGJENHAifX19
+---
+# Source: cryptlex-enterprise/templates/secrets/filestore-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-filestore-secret
+type: Opaque
+stringData:
+  FILE_STORE_ACCESS_KEY: minio
+  FILE_STORE_SECRET_KEY: minio_secret
+---
+# Source: cryptlex-enterprise/templates/secrets/web-api-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-web-api-secret
+type: Opaque
+stringData:
+  
+  DATABASE_URL: postgres://postgres:postgres@my-release-database-service:5432/cryptlex
+  
+  
+  
+  REDIS_URL: redis://my-release-cache-service:6379
+  
+  RSA_PASSPHRASE: PASTE_RSA_SECRET
+  
+  
+  
+  RABBITMQ_URL: amqps://my-release-rabbitmq:5672
+  RABBITMQ_USERNAME: "rabbitmq-admin"
+  RABBITMQ_PASSWORD: "rabbitmq"
+  
+  HANGFIREDASHBOARD_USERNAME: ""
+  HANGFIREDASHBOARD_PASSWORD: ""
+  SMTP_USERNAME: ""
+  SMTP_PASSWORD: ""
+  MAILGUN_APIKEY: ""
+  POSTMARK_ACCOUNTTOKEN: ""
+  SENDGRID_APIKEY: ""
+  GOOGLE_RECAPTCHA_SECRETKEY: ""
+  BUGSNAG_APIKEY: ""
+  
+  
+  
+  
+  NEW_RELIC_LICENSE_KEY: ""
+  OTEL_EXPORTER_OTLP_HEADERS: api-key=
+---
+# Source: cryptlex-enterprise/templates/secrets/web-portals-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-web-portals-secret
+type: Opaque
+stringData:
+---
+# Source: cryptlex-enterprise/templates/config-maps/cache-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-cache-config
+data:
+  redis-config: |
+    maxmemory 1gb
+    maxmemory-policy volatile-lru
+---
+# Source: cryptlex-enterprise/templates/config-maps/dashboard-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-dashboard-config
+data:
+  
+  COMPANY_NAME: My Company
+  COMPANY_WEBSITE: https://mycompany.com
+  COMPANY_LOGO_URL: https://mycompany.com/logo.png
+  COMPANY_FAVICON_URL: https://mycompany.com/favicon.ico
+  GOOGLE_ANALYTICS_KEY: "UA-XXXXXXXX-X"
+  
+  WEB_API_BASE_URL: https://cryptlex-api.mycompany.com
+  RELEASE_SERVER_BASE_URL: https://cryptlex-releases.mycompany.com
+  
+  GOOGLE_CLIENT_ID: ""
+---
+# Source: cryptlex-enterprise/templates/config-maps/release-server-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-release-server-config
+data:
+  FILE_STORE_ENDPOINT: my-release-filestore-service
+  FILE_STORE_PORT: "9000"
+  FILE_STORE_BUCKET: releases.mycompany.com
+  FILE_STORE_REGION: us-east-1
+  FILE_STORE_USE_SSL: "false"
+  
+  WEB_API_BASE_URL: https://cryptlex-api.mycompany.com
+  RELEASE_SERVER_BASE_URL: https://cryptlex-releases.mycompany.com
+---
+# Source: cryptlex-enterprise/templates/config-maps/web-api-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-web-api-config
+data:
+  APPLICATION_NAME: MyCompany
+  APPLICATION_LICENSE_KEY: PASTE_LICENSE_KEY
+  MAINTENANCEMODEENABLED: "false"
+  
+  
+  
+  FORCEHTTPS: "false"
+  PORT: "5000"
+  DATABASE_MAXIMUMPOOLSIZE: "300"
+  
+  JWT_AUDIENCE: https://cryptlex-api.mycompany.com
+  
+  REDIS_ENABLESSL: "false"
+  REDIS_ENABLEDATABASECACHING: "false"
+  RABBITMQ_ENABLED: "false"
+  RABBITMQ_PREFETCHCOUNT: "16"
+  RABBITMQ_DELAYEDMESSAGEPLUGINENABLED: "false"
+  GOOGLE_CLIENT_ID: ""
+  
+  
+  IPRATELIMITOPTIONS_GENERALRULES_0_LIMIT: "50"
+  
+  GEOIPSERVER_URL: http://my-release-geoip-service:8080/json
+  
+  
+  # Mail settings
+  EMAIL_FROMADDRESS: support@mycompany.com
+  EMAIL_FROMNAME: MyCompany Support
+  EMAIL_SIGNATURE: <p>Thanks,<br>The MyCompany Team</p>
+  SMTP_HOST: ""
+  SMTP_PORT: "587"
+  SMTP_ENABLESSL: "true"
+  MAILGUN_DOMAIN: ""
+  # App metrics
+  NEW_RELIC_APP_NAME: "Cryptlex Web API"
+---
+# Source: cryptlex-enterprise/templates/config-maps/web-portals-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-web-portals-config
+data:
+  
+  COMPANY_NAME: My Company
+  COMPANY_WEBSITE: https://mycompany.com
+  COMPANY_LOGO_URL: https://mycompany.com/logo.png
+  COMPANY_FAVICON_URL: https://mycompany.com/favicon.ico
+  GOOGLE_ANALYTICS_KEY: "UA-XXXXXXXX-X"
+  
+  WEB_API_BASE_URL: https://cryptlex-api.mycompany.com
+  RELEASE_SERVER_BASE_URL: https://cryptlex-releases.mycompany.com
+  
+  GOOGLE_CLIENT_ID: ""
+---
+# Source: cryptlex-enterprise/templates/persistent-volume-claims/database-pv-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-database-pv-claim
+spec:
+  
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: cryptlex-enterprise/templates/persistent-volume-claims/filestore-pv-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-filestore-pv-claim
+spec:
+  
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: cryptlex-enterprise/templates/services/cache-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-cache-service
+  labels:
+    app: my-release-cache-service
+spec:
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: my-release-cache
+---
+# Source: cryptlex-enterprise/templates/services/dashboard-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-dashboard-service
+  labels:
+    app: my-release-dashboard-service
+spec:
+  
+  ports:
+    - protocol: TCP
+      port: 4200
+      targetPort: 4200
+  selector:
+    app: my-release-dashboard
+---
+# Source: cryptlex-enterprise/templates/services/database-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-database-service
+  labels:
+    app: my-release-database-service
+spec:
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  selector:
+    app: my-release-database
+---
+# Source: cryptlex-enterprise/templates/services/filestore-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-filestore-service
+  labels:
+    app: my-release-filestore-service
+spec:
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+  selector:
+    app: my-release-filestore
+---
+# Source: cryptlex-enterprise/templates/services/geoip-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-geoip-service
+  labels:
+    app: my-release-geoip-service
+spec:
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: my-release-geoip
+---
+# Source: cryptlex-enterprise/templates/services/release-server-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-release-server-service
+  labels:
+    app: my-release-release-server-service
+spec:
+  
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  selector:
+    app: my-release-release-server
+---
+# Source: cryptlex-enterprise/templates/services/web-api-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-web-api-service
+  labels:
+    app: my-release-web-api-service
+spec:
+  
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  selector:
+    app: my-release-web-api
+---
+# Source: cryptlex-enterprise/templates/deployments/cache-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-cache
+  labels:
+    app: my-release-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-cache
+  template:
+    metadata:
+      labels:
+        app: my-release-cache
+    spec:
+      containers:
+        - name: cache
+          image: "redis:7-alpine"
+          imagePullPolicy: IfNotPresent
+          command: ["redis-server", "/config/redis.conf"]
+          volumeMounts:
+            - name: cache-volume
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1024Mi
+          ports:
+            - containerPort: 6379
+      restartPolicy: Always
+      volumes:
+        - name: cache-volume
+          configMap:
+            name: my-release-cache-config
+            items:
+              - key: redis-config
+                path: redis.conf
+---
+# Source: cryptlex-enterprise/templates/deployments/dashboard-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-dashboard
+  labels:
+    app: my-release-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-dashboard
+  template:
+    metadata:
+      labels:
+        app: my-release-dashboard
+      annotations:
+        checksum/config: 208ad9305af8d908ee16a9ef54c629ad1c65ff10b79f161d24b3f918170e9c45
+    spec:
+      containers:
+        - name: dashboard
+          image: "cryptlex/cryptlex-web-dashboard:3.44.2"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4200
+          envFrom:
+            - configMapRef:
+                name: my-release-dashboard-config
+            - secretRef:
+                name: my-release-dashboard-secret
+          readinessProbe:
+            httpGet:
+               path: /status
+               port: 4200
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: my-release-docker-secret
+---
+# Source: cryptlex-enterprise/templates/deployments/database-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-database
+  labels:
+    app: my-release-database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-database
+  template:
+    metadata:
+      labels:
+        app: my-release-database
+      annotations:
+        checksum/secret: 270699f4983ffc351ac17eae1c219b9e4e4d7b463f02426168a9c8f924b9ed50
+    spec:
+      containers:
+        - name: database
+          image: "postgres:12.3-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: my-release-database-secret
+          env:
+            - name: POSTGRES_DB
+              value: 
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: database-volume
+      volumes:
+        - name: database-volume
+          persistentVolumeClaim:
+            claimName: my-release-database-pv-claim
+---
+# Source: cryptlex-enterprise/templates/deployments/filestore-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-filestore
+  labels:
+    app: my-release-filestore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-filestore
+  template:
+    metadata:
+      labels:
+        app: my-release-filestore
+      annotations:
+        checksum/secret: 4d0f62ca64d3eb05cb8cea7085b0a52e812650e10593d2469b281d2da1901663
+    spec:
+      volumes:
+        - name: filestore-volume
+          persistentVolumeClaim:
+            claimName: my-release-filestore-pv-claim
+      containers:
+        - name: filestore
+          image: "minio/minio:RELEASE.2020-07-14T19-14-30Z"
+          imagePullPolicy: IfNotPresent
+          args:
+            - server
+            - /var/minio/data
+          ports:
+            - containerPort: 9000
+          env:
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: FILE_STORE_SECRET_KEY
+                  name: my-release-filestore-secret
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: FILE_STORE_ACCESS_KEY
+                  name: my-release-filestore-secret
+          volumeMounts:
+            - mountPath:  /var/minio/data
+              name: filestore-volume
+---
+# Source: cryptlex-enterprise/templates/deployments/geoip-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-geoip
+  labels:
+    app: my-release-geoip
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-geoip
+  template:
+    metadata:
+      labels:
+        app: my-release-geoip
+    spec:
+      containers:
+        - name: geoip
+          image: "cryptlex/freegeoip:3.7.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+      restartPolicy: Always
+---
+# Source: cryptlex-enterprise/templates/deployments/release-server-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-release-server
+  labels:
+    app: my-release-release-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-release-server
+  template:
+    metadata:
+      labels:
+        app: my-release-release-server
+      annotations:
+        checksum/config: d1db5f702705f4be8f4598aef1e30767e1be4bd6a8e0a9cb84d79ff8b391ca99
+        checksum/secret: 4d0f62ca64d3eb05cb8cea7085b0a52e812650e10593d2469b281d2da1901663
+    spec:
+      containers:
+        - name: release-server
+          image: "cryptlex/cryptlex-release-server:3.2.6"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: my-release-release-server-config
+            - secretRef:
+                name: my-release-filestore-secret
+          readinessProbe:
+            httpGet:
+               path: /v3/status
+               port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: my-release-docker-secret
+---
+# Source: cryptlex-enterprise/templates/deployments/web-api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-web-api
+  labels:
+    app: my-release-web-api
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: my-release-web-api
+  template:
+    metadata:
+      labels:
+        app: my-release-web-api
+      annotations:
+        checksum/config: fdd9bc21837b0b12bae03e7bc4ef45dc273aacefb78a47f25d50fcd6bdc5e9f8
+        checksum/secret: 7b61247d7c846a0ef87932bf98eb364e7861f93bd6d30f0c5cce19b631ade5a7
+    spec:
+      containers:
+        - name: web-api
+          image: "cryptlex/cryptlex-web-api-enterprise:3.72.11"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: my-release-web-api-config
+            - secretRef:
+                name: my-release-web-api-secret
+          resources:
+            requests:
+              cpu: 200m
+              memory: "500Mi"
+            limits:
+              memory: "1.5Gi"
+          readinessProbe:
+            httpGet:
+               path: /healthz
+               port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: my-release-docker-secret
+---
+# Source: cryptlex-enterprise/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ingress
+  annotations:
+    
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+    
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    
+    
+spec:
+  ingressClassName: nginx
+  
+  rules:
+    - host: "cryptlex-api.mycompany.com"
+      http:
+        paths:
+          - backend:
+              service:
+                name: my-release-web-api-service
+                port: 
+                  number: 5000
+            pathType: ImplementationSpecific 
+    - host: "cryptlex-app-legacy.mycompany.com"
+      http:
+        paths:
+          - backend:
+              service:
+                name: my-release-dashboard-service
+                port: 
+                  number: 4200
+            pathType: ImplementationSpecific 
+    
+    
+    
+    
+    - host: "cryptlex-releases.mycompany.com"
+      http:
+        paths:
+          - backend:
+              service:
+                name: my-release-release-server-service
+                port: 
+                  number: 3000
+            pathType: ImplementationSpecific 
+    
+    
+    - http:
+        paths:
+          - path: /v3/status
+            backend:
+              service:
+                name: my-release-web-api-service
+                port: 
+                  number: 5000
+            pathType: ImplementationSpecific

@@ -1,0 +1,124 @@
+---
+# Source: homebox/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-config
+  namespace: homebox
+data:
+  HBOX_LOG_FORMAT: text
+  HBOX_LOG_LEVEL: info
+  HBOX_MAILER_PORT: "587"
+  HBOX_MODE: production
+  HBOX_OPTIONS_ALLOW_REGISTRATION: "true"
+  HBOX_OPTIONS_AUTO_INCREMENT_ASSET_ID: "true"
+  HBOX_STORAGE_DATA: /data/
+  HBOX_STORAGE_SQLITE_URL: /data/homebox.db?_fk=1
+  HBOX_SWAGGER_HOST: "7745"
+  HBOX_SWAGGER_SCHEMA: http
+  HBOX_WEB_MAX_UPLOAD_SIZE: "10"
+  HBOX_WEB_PORT: "7745"
+---
+# Source: homebox/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: homebox
+  name: my-release-homebox-pvc
+spec:
+  accessModes:
+  - "ReadWriteOnce"  
+  resources:
+    requests:
+      storage: "10Gi"
+---
+# Source: homebox/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  namespace: homebox
+  labels:
+    helm.sh/chart: homebox-0.1.6
+    app.kubernetes.io/name: homebox
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.9.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - port: 7745
+  selector:
+    app.kubernetes.io/name: homebox
+    app.kubernetes.io/instance: my-release
+---
+# Source: homebox/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-homebox
+  namespace: homebox
+  labels:
+    helm.sh/chart: homebox-0.1.6
+    app.kubernetes.io/name: homebox
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.9.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: homebox
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: homebox
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        null
+      containers:
+        - name: homebox
+          securityContext:
+            null
+          image: "ghcr.io/hay-kot/homebox:v0.9.2"
+          imagePullPolicy: Always
+          envFrom:
+          - configMapRef:
+              name: my-release-config
+          ports:
+            - name: http
+              containerPort: 7745 
+              protocol: TCP
+          resources:
+            null
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-homebox-pvc
+---
+# Source: homebox/templates/ingress.yaml
+apiVersion:  networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - "homebox.example.com"
+      secretName: homebox-domain-tls
+  rules:
+    - host: "homebox.example.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release
+                port:
+                  number: 7745

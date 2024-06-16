@@ -1,0 +1,105 @@
+---
+# Source: elasticsearch-cluster/templates/cluster-multi-node.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: Cluster
+metadata:
+  name: my-release
+  namespace: default
+  labels: 
+    helm.sh/chart: elasticsearch-cluster-0.8.0
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/instance: my-release
+spec:
+  terminationPolicy: Delete  
+  affinity:
+    podAntiAffinity: Required
+    topologyKeys:
+      - kubernetes.io/hostname
+    tenancy: SharedNode
+  clusterDefinitionRef: elasticsearch
+  clusterVersionRef: elasticsearch-8.8.2
+  componentSpecs:
+    - name: es-master # user-defined
+      componentDef: es-master # ref clusterdefinition componentDefs.name
+      serviceAccountName:       
+      monitor: false
+      replicas: 1      
+      resources:
+        limits:
+          cpu: "1"
+          memory: "1Gi"
+        requests:
+          cpu: "1"
+          memory: "1Gi"      
+      volumeClaimTemplates:
+        - name: data # ref clusterDefinition components.containers.volumeMounts.name
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi      
+      services:
+    - name: es-data # user-defined
+      componentDef: es-data # ref clusterdefinition componentDefs.name
+      serviceAccountName:       
+      monitor: false
+      replicas: 1      
+      resources:
+        limits:
+          cpu: "1"
+          memory: "1Gi"
+        requests:
+          cpu: "1"
+          memory: "1Gi"      
+      volumeClaimTemplates:
+        - name: data # ref clusterDefinition components.containers.volumeMounts.name
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi      
+      services:
+    - name: es-ingest # user-defined
+      componentDef: es-ingest # ref clusterdefinition componentDefs.name
+      serviceAccountName:       
+      monitor: false
+      replicas: 1      
+      resources:
+        limits:
+          cpu: "1"
+          memory: "1Gi"
+        requests:
+          cpu: "1"
+          memory: "1Gi"      
+      volumeClaimTemplates:
+        - name: data # ref clusterDefinition components.containers.volumeMounts.name
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi      
+      services:
+    - name: es-transform # user-defined
+      componentDef: es-transform # ref clusterdefinition componentDefs.name
+      serviceAccountName:       
+      monitor: false
+      replicas: 1      
+      resources:
+        limits:
+          cpu: "1"
+          memory: "1Gi"
+        requests:
+          cpu: "1"
+          memory: "1Gi"      
+      volumeClaimTemplates:
+        - name: data # ref clusterDefinition components.containers.volumeMounts.name
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi      
+      services:

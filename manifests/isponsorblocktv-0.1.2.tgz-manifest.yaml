@@ -1,0 +1,72 @@
+---
+# Source: isponsorblocktv/templates/configuration-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: isponsorblocktv-config
+data:
+  config.json: |
+    {
+      "apikey": "",
+      "channel_whitelist": [],
+      "devices": [],
+      "mute_ads": true,
+      "skip_ads": true,
+      "skip_categories": [
+        "sponsor",
+        "selfpromo",
+        "intro",
+        "outro",
+        "music_offtopic",
+        "interaction",
+        "exclusive_access",
+        "poi_highlight",
+        "preview",
+        "filler"
+      ],
+      "skip_count_tracking": true
+    }
+---
+# Source: isponsorblocktv/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-isponsorblocktv
+  labels:
+    helm.sh/chart: isponsorblocktv-0.1.2
+    app.kubernetes.io/name: isponsorblocktv
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.0.8"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: isponsorblocktv
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: isponsorblocktv
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: isponsorblocktv
+          securityContext:
+            null
+          image: "ghcr.io/dmunozv04/isponsorblocktv:v2.0.8"
+          imagePullPolicy: IfNotPresent
+          resources:
+            {}
+          volumeMounts:
+            - name: isponsorblocktv-config
+              mountPath: /app/data/
+              readOnly: true
+      volumes:
+        - name: isponsorblocktv-config
+          configMap:
+            name: isponsorblocktv-config
+            items:
+              - key: config.json
+                path: config.json

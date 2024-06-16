@@ -1,0 +1,194 @@
+---
+# Source: jupyterhub-outpost/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-jupyterhub-outpost
+  labels:
+    helm.sh/chart: jupyterhub-outpost-1.0.3
+    app.kubernetes.io/name: jupyterhub-outpost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: jupyterhub-outpost/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-jupyterhub-outpost-config
+  labels:
+    helm.sh/chart: jupyterhub-outpost-1.0.3
+    app.kubernetes.io/name: jupyterhub-outpost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  logging_config.yaml: |
+    file:
+      enabled: false
+      level: 20
+      formatter: simple
+      filename: /tmp/logs.log
+      when: h
+      interval: 1
+      backupCount: 0
+      encoding: 
+      delay: false
+      utc: false
+      atTime: 
+      errors: 
+    stream:
+      enabled: true
+      level: 20
+      formatter: simple
+      stream: 
+    syslog:
+      enabled: false
+      level: 20
+      formatter: json
+      address: !!python/tuple [134.94.199.3, 5141]
+      socktype: ext://socket.SOCK_DGRAM
+    smtp:
+      enabled: false
+      level: 50
+      formatter: simple
+      mailhost: mail.fz-juelich.de
+      fromaddr: smtphandler@fz-juelich.de
+      toaddrs: []
+      subject: SMTPHandler - Log
+      secure: 
+      timeout: 1
+---
+# Source: jupyterhub-outpost/templates/rbac.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-jupyterhub-outpost
+  labels:
+    helm.sh/chart: jupyterhub-outpost-1.0.3
+    app.kubernetes.io/name: jupyterhub-outpost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""]       # "" indicates the core API group
+    resources: ["pods", "persistentvolumeclaims", "secrets", "services"]
+    verbs: ["get", "watch", "list", "create", "delete"]
+  - apiGroups: [""]       # "" indicates the core API group
+    resources: ["events"]
+    verbs: ["get", "watch", "list"]
+---
+# Source: jupyterhub-outpost/templates/rbac.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-jupyterhub-outpost
+  labels:
+    helm.sh/chart: jupyterhub-outpost-1.0.3
+    app.kubernetes.io/name: jupyterhub-outpost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: my-release-jupyterhub-outpost
+    namespace: "default"
+roleRef:
+  kind: Role
+  name: my-release-jupyterhub-outpost
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: jupyterhub-outpost/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jupyterhub-outpost
+  labels:
+    helm.sh/chart: jupyterhub-outpost-1.0.3
+    app.kubernetes.io/name: jupyterhub-outpost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: jupyterhub-outpost
+    app.kubernetes.io/instance: my-release
+  ports:
+    - port: 8080
+      targetPort: http
+      name: http
+---
+# Source: jupyterhub-outpost/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-jupyterhub-outpost
+  labels:
+    helm.sh/chart: jupyterhub-outpost-1.0.3
+    app.kubernetes.io/name: jupyterhub-outpost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jupyterhub-outpost
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jupyterhub-outpost
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-jupyterhub-outpost
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: jupyterhub-outpost
+          securityContext:
+            {}
+          image: "jupyterjsc/jupyterhub-outpost:1.0.3"
+          command: ["sh", "-c", "--"]
+          args:
+            - "/src/entrypoint.sh --no-access-log"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: ssh
+              containerPort: 22
+              protocol: TCP
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: OUTPOST_CONFIG_FILE
+              value: "/home/jhuboutpost/app/minimal_config.py"
+            - name: LOGGING_CONFIG_PATH
+              value: "/mnt/outpost_config/logging_config.yaml"
+            - name: OUTPOST_CRYPT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: 
+                  key: secret_key
+          volumeMounts:
+            - mountPath: /mnt/outpost_config
+              name: outpost-config
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          resources:
+            {}
+      volumes:
+        - name: outpost-config
+          configMap:
+            name: my-release-jupyterhub-outpost-config

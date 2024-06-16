@@ -1,0 +1,305 @@
+---
+# Source: etcd/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-etcd
+  labels:
+    helm.sh/chart: etcd-0.1.3
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.4.16"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: etcd/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-etcd
+  labels:
+    helm.sh/chart: etcd-0.1.3
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.4.16"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  publishNotReadyAddresses: true
+  clusterIP: None
+  ports:
+  - port: 2380
+    name: etcd-server
+  - port: 2379
+    name: etcd-client
+  selector:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+---
+# Source: etcd/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-etcd-client
+  labels:
+    helm.sh/chart: etcd-0.1.3
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.4.16"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 2379
+    name: etcd-client
+  selector:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+---
+# Source: etcd/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-etcd
+  labels:
+    helm.sh/chart: etcd-0.1.3
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.4.16"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: server
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-etcd
+  template:
+    metadata:
+      name: my-release-etcd
+      labels:
+        app.kubernetes.io/component: server
+        app.kubernetes.io/name: etcd
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-etcd
+      securityContext:
+        fsGroup: 1001
+      containers:
+      - name: my-release-etcd
+        image: "quay.io/coreos/etcd:v3.4.16"
+        imagePullPolicy: "IfNotPresent"
+        securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+        ports:
+        - containerPort: 2380
+          name: peer
+        - containerPort: 2379
+          name: client
+        resources:
+            {}
+        env:
+        - name: ETCDCTL_API
+          value: "3"
+        - name: ETCD_LOGGER
+          value: "zap"
+        - name: INITIAL_CLUSTER_SIZE
+          value: "3"
+        - name: SET_NAME
+          value: my-release-etcd
+        - name: HELM_INSTALL
+          value: "true"
+        volumeMounts:
+        - name: datadir
+          mountPath: /var/run/etcd
+        lifecycle:
+          preStop:
+            exec:
+              command:
+                - "/bin/sh"
+                - "-ec"
+                - |
+                  EPS=""
+                  for i in $(seq 0 $((${INITIAL_CLUSTER_SIZE} - 1))); do
+                      EPS="${EPS}${EPS:+,}http://${SET_NAME}-${i}.${SET_NAME}:2379"
+                  done
+
+                  HOSTNAME=$(hostname)
+                  AUTH_OPTIONS=""                  
+
+                  member_hash() {
+                      etcdctl $AUTH_OPTIONS member list | grep http://${HOSTNAME}.${SET_NAME}:2380 | cut -d ',' -f1
+                  }
+
+                  # store member id into PVC for later member replacement
+                  store_member_id() {
+                      while ! etcdctl $AUTH_OPTIONS member list > /dev/null 2>&1; do sleep 1; done
+                      etcdctl $AUTH_OPTIONS member list | grep http://${HOSTNAME}.${SET_NAME}:2380 | cut -d ',' -f1 > /var/run/etcd/member_id
+                      exit 0
+                  }
+
+                  if [ ! -e /var/run/etcd/member_id ]; then
+                    store_member_id &
+                  fi
+
+                  SET_ID=${HOSTNAME##*[^0-9]}
+
+                  if [ "${SET_ID}" -ge ${INITIAL_CLUSTER_SIZE} ]; then
+                      echo "Removing ${HOSTNAME} from etcd cluster"
+                      ETCDCTL_ENDPOINTS=${EPS} etcdctl $AUTH_OPTIONS member remove $(member_hash)
+                      if [ $? -eq 0 ]; then
+                          # Remove everything otherwise the cluster will no longer scale-up
+                          rm -rf /var/run/etcd/*
+                      fi
+                  fi
+        command:
+          - "/bin/sh"
+          - "-ec"
+          - |
+            HOSTNAME=$(hostname)
+            AUTH_OPTIONS=""
+            SET_ID=${HOSTNAME##*[^0-9]}
+
+            # store member id into PVC for later member replacement
+            store_member_id() {
+                while ! etcdctl $AUTH_OPTIONS member list > /dev/null 2>&1; do sleep 1; done
+                etcdctl $AUTH_OPTIONS member list | grep http://${HOSTNAME}.${SET_NAME}:2380 | cut -d ',' -f1 > /var/run/etcd/member_id
+                exit 0
+            }
+
+            endpoints() {
+                EPS=""
+                for i in $(seq 0 $((${INITIAL_CLUSTER_SIZE} - 1))); do
+                    EPS="${EPS}${EPS:+,}http://${SET_NAME}-${i}.${SET_NAME}:2379"
+                done
+                echo ${EPS}
+            }
+
+            peers() {
+                PEERS=""
+                for i in $(seq 0 $((${INITIAL_CLUSTER_SIZE} - 1))); do
+                    PEERS="${PEERS}${PEERS:+,}${SET_NAME}-${i}=http://${SET_NAME}-${i}.${SET_NAME}:2380"
+                done
+                echo ${PEERS}
+            }
+
+            export ETCDCTL_ENDPOINTS=$(endpoints)
+
+            member_hash() {
+                etcdctl $AUTH_OPTIONS member list | grep http://${HOSTNAME}.${SET_NAME}:2380 | cut -d ',' -f1
+            }
+
+            #############################################
+            # Data exists, crash / restart, re-join as-is
+            #############################################
+            if [ -e /var/run/etcd/default.etcd ] && [ -e /var/run/etcd/member_id ]; then
+                MEMBER_ID=$(cat /var/run/etcd/member_id)
+                echo "Re-joining etcd member: $MEMBER_ID"
+                # Update member configuration and start back up
+                etcdctl $AUTH_OPTIONS member update ${MEMBER_ID} --peer-urls=http://${HOSTNAME}.${SET_NAME}:2380 | true
+                exec etcd --name ${HOSTNAME} \
+                    --listen-peer-urls http://0.0.0.0:2380 \
+                    --listen-client-urls http://0.0.0.0:2379\
+                    --advertise-client-urls http://${HOSTNAME}.${SET_NAME}:2379 \
+                    --data-dir /var/run/etcd/default.etcd
+                    
+            fi
+
+            ###########################################
+            # Data does NOT exist, need to create stuff
+            ###########################################
+            if [ $HELM_INSTALL = "false" ]; then
+                #######################
+                # Join existing cluster
+                #######################
+
+                # Wait pod to resolve dns
+                sleep 10s
+
+                # Remove old member if already added
+                MEMBER_HASH=$(member_hash)
+                echo "Member hash: $MEMBER_HASH"
+                if [ -n "${MEMBER_HASH}" ]; then
+                    # the member hash exists but for some reason etcd failed
+                    # as the datadir has not be created, we can remove the member
+                    # and retrieve new hash
+                    etcdctl $AUTH_OPTIONS member remove ${MEMBER_HASH}
+                fi
+
+                # Add new member to existing cluster
+                echo "Adding new member: $HOSTNAME"
+                etcdctl $AUTH_OPTIONS member add ${HOSTNAME} --peer-urls=http://${HOSTNAME}.${SET_NAME}:2380 | grep "^ETCD_" > /var/run/etcd/new_member_envs
+
+                if [ $? -ne 0 ]; then
+                    echo "ERROR: Adding new member: exiting..."
+                    rm -f /var/run/etcd/new_member_envs
+                    exit 1
+                fi
+
+                cat /var/run/etcd/new_member_envs
+                . /var/run/etcd/new_member_envs
+
+                # Persist member_id to pvc
+                store_member_id &
+
+                # Start etcd and join existing cluster
+                echo "Starting new member: $HOSTNAME"
+                exec etcd --name ${HOSTNAME} \
+                    --listen-peer-urls http://0.0.0.0:2380 \
+                    --listen-client-urls http://0.0.0.0:2379 \
+                    --advertise-client-urls http://${HOSTNAME}.${SET_NAME}:2379 \
+                    --data-dir /var/run/etcd/default.etcd \
+                    --initial-advertise-peer-urls http://${HOSTNAME}.${SET_NAME}:2380 \
+                    --initial-cluster ${ETCD_INITIAL_CLUSTER} \
+                    --initial-cluster-state ${ETCD_INITIAL_CLUSTER_STATE}
+                    
+            else
+                ##################
+                # Join new cluster
+                ##################
+
+                # Wait for other pods to ping before creating cluster
+                for i in $(seq 0 $((${INITIAL_CLUSTER_SIZE} - 1))); do
+                    while true; do
+                        echo "Waiting for ${SET_NAME}-${i}.${SET_NAME} to come up"
+                        ping -W 1 -c 1 ${SET_NAME}-${i}.${SET_NAME} > /dev/null && break
+                        sleep 1s
+                    done
+                done
+
+                if [ ! -z $SNAPSHOT_PATH ] && [ -e $SNAPSHOT_PATH ]; then
+                    # Restore from a snapshot
+                    echo "Restoring snapshot: $SNAPSHOT_PATH"
+                    etcdctl snapshot restore $SNAPSHOT_PATH --name ${HOSTNAME} \
+                        --data-dir /var/run/etcd/default.etcd \
+                        --initial-advertise-peer-urls http://${HOSTNAME}.${SET_NAME}:2380 \
+                        --initial-cluster $(peers) \
+                        --initial-cluster-token my-release
+                    echo "Starting restored cluster: $HOSTNAME"
+                    exec etcd --name ${HOSTNAME} \
+                        --listen-peer-urls http://0.0.0.0:2380 \
+                        --listen-client-urls http://0.0.0.0:2379 \
+                        --advertise-client-urls http://${HOSTNAME}.${SET_NAME}:2379 \
+                        --data-dir /var/run/etcd/default.etcd
+                else
+                    # Create a new empty cluster
+                    echo "Creating new cluster: $HOSTNAME"
+                    exec etcd --name ${HOSTNAME} \
+                        --listen-peer-urls http://0.0.0.0:2380 \
+                        --listen-client-urls http://0.0.0.0:2379 \
+                        --advertise-client-urls http://${HOSTNAME}.${SET_NAME}:2379 \
+                        --data-dir /var/run/etcd/default.etcd \
+                        --initial-advertise-peer-urls http://${HOSTNAME}.${SET_NAME}:2380 \
+                        --initial-cluster $(peers) \
+                        --initial-cluster-state new \
+                        --initial-cluster-token my-release
+                fi
+            fi
+            if [ ! -e /var/run/etcd/member_id ]; then
+                # Persist member_id to pvc
+                store_member_id
+            fi
+      volumes:
+      - name: datadir
+        emptyDir: {}

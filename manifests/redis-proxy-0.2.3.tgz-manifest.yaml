@@ -1,0 +1,77 @@
+---
+# Source: redis-proxy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-proxy
+  labels:
+    app.kubernetes.io/name: redis-proxy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: redis-proxy-0.2.3
+spec:
+  sessionAffinity: None
+  ports:
+    - port: 6379
+      targetPort: redis-port
+      protocol: TCP
+      name: redis-port
+  selector:
+    app.kubernetes.io/name: redis-proxy
+    app.kubernetes.io/instance: my-release
+---
+# Source: redis-proxy/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-redis-proxy
+  labels:
+    app.kubernetes.io/name: redis-proxy
+    helm.sh/chart: redis-proxy-0.2.3
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: redis-proxy
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis-proxy
+      app.kubernetes.io/instance: my-release
+  template:
+    
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis-proxy
+        app.kubernetes.io/instance: my-release
+      annotations:
+    spec:
+      containers:
+        - name: redis-proxy
+          image: "aigis/socat:1.7.4.4-r0"
+          imagePullPolicy: IfNotPresent
+          command:
+            - socat
+          args:
+            - "$(ADDRESS_TYPE_SRC):$(ADDRESS_PORT_SRC),$(ADDRESS_OPTIONS_SRC)"
+            - "$(ADDRESS_TYPE_DEST):$(ADDRESS_HOST_DEST):$(ADDRESS_PORT_DEST),$(ADDRESS_OPTIONS_DEST)"
+          env:
+            - name: ADDRESS_TYPE_SRC
+              value: "TCP-LISTEN"
+            - name: ADDRESS_PORT_SRC
+              value: "6379"
+            - name: ADDRESS_OPTIONS_SRC
+              value: fork,reuseaddr
+            - name: ADDRESS_TYPE_DEST
+              value: "OPENSSL"
+            - name: ADDRESS_HOST_DEST
+              value: "myhost"
+            - name: ADDRESS_PORT_DEST
+              value: "6379"
+            - name: ADDRESS_OPTIONS_DEST
+              value: 
+          ports:
+            - name: redis-port
+              containerPort: 6379
+              protocol: TCP
+          resources:

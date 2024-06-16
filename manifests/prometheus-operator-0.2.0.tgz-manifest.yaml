@@ -1,0 +1,103 @@
+---
+# Source: prometheus-operator/templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus-operator
+    chart: prometheus-operator-0.2.0
+    heritage: Helm
+    operator: prometheus
+    release: my-release
+  name: my-release-prometheus-operator
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus-operator
+        operator: prometheus
+        release: my-release
+    spec:
+      containers:
+        - name: prometheus-operator
+          image: "quay.io/coreos/prometheus-operator:v0.7.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --analytics=true
+          resources:
+            {}
+---
+# Source: prometheus-operator/templates/cleanup-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    helm.sh/hook: post-delete
+  labels:
+    app: prometheus-operator
+    chart: prometheus-operator-0.2.0
+    heritage: Helm
+    release: my-release
+  name: my-release-prometheus-operator-cleanup
+spec:
+  template:
+    metadata:
+      labels:
+        app: prometheus-operator
+        release: my-release
+      name: my-release-prometheus-operator-cleanup
+    spec:
+      containers:
+        - name: delete-services
+          image: "quay.io/coreos/hyperkube:v1.5.3_coreos.0"
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - /bin/bash
+            - -c
+            - for n in $(/kubectl get namespaces -o jsonpath={..metadata.name}); do /kubectl delete --ignore-not-found --namespace $n services prometheus-operated alertmanager-operated; done
+        - name: delete-tprs
+          image: "quay.io/coreos/hyperkube:v1.5.3_coreos.0"
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - /kubectl
+            - delete
+            - --ignore-not-found
+            - thirdpartyresource
+            - alertmanager.monitoring.coreos.com
+            - prometheus.monitoring.coreos.com
+            - service-monitor.monitoring.coreos.com
+      restartPolicy: OnFailure
+---
+# Source: prometheus-operator/templates/get-tprs-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    helm.sh/hook: post-install
+  labels:
+    app: prometheus-operator
+    chart: prometheus-operator-0.2.0
+    heritage: Helm
+    release: my-release
+  name: my-release-prometheus-operator-get-tpr-8ruhq44uua
+spec:
+  template:
+    metadata:
+      labels:
+        app: prometheus-operator
+        release: my-release
+      name: my-release-prometheus-operator-get-tprs
+    spec:
+      containers:
+        - name: hyperkube
+          image: "quay.io/coreos/hyperkube:v1.5.3_coreos.0"
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - ./kubectl
+            - get
+            - thirdpartyresource
+            - alertmanager.monitoring.coreos.com
+            - prometheus.monitoring.coreos.com
+            - service-monitor.monitoring.coreos.com
+      restartPolicy: OnFailure

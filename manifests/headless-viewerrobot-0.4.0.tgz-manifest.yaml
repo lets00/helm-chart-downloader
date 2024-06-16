@@ -1,0 +1,187 @@
+---
+# Source: headless-viewerrobot/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-headless-viewerrobot
+  labels:
+    helm.sh/chart: headless-viewerrobot-0.4.0
+    app.kubernetes.io/name: headless-viewerrobot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: headless-viewerrobot/templates/configmap_proxies.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-headless-viewerrobot-proxies-config
+  labels:
+        app.kubernetes.io/name: headless-viewerrobot
+        app.kubernetes.io/instance: my-release    
+data:
+  proxies.txt: |-
+    127.0.0.1:9050
+---
+# Source: headless-viewerrobot/templates/configmap_twitch-usernames.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-headless-viewerrobot-twitch-usernames-config
+  labels:
+        app.kubernetes.io/name: headless-viewerrobot
+        app.kubernetes.io/instance: my-release    
+data:
+  twitch.usernames.txt: |-
+---
+# Source: headless-viewerrobot/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-headless-viewerrobot
+  labels:
+    helm.sh/chart: headless-viewerrobot-0.4.0
+    app.kubernetes.io/name: headless-viewerrobot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: headless-viewerrobot
+    app.kubernetes.io/instance: my-release
+---
+# Source: headless-viewerrobot/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-headless-viewerrobot
+  labels:
+    helm.sh/chart: headless-viewerrobot-0.4.0
+    app.kubernetes.io/name: headless-viewerrobot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headless-viewerrobot
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: headless-viewerrobot
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-headless-viewerrobot
+      securityContext:
+        {}
+      volumes:
+        - name: proxies-config
+          configMap:
+            name: my-release-headless-viewerrobot-proxies-config
+            items:
+            - key: proxies.txt
+              path: proxies.txt
+        - name: twitch-usernames-config
+          configMap:
+            name: my-release-headless-viewerrobot-twitch-usernames-config
+            items:
+            - key: twitch.usernames.txt
+              path: twitch.usernames.txt
+      containers:
+        - name: alpine-tor-proxy
+          image: jfwenisch/alpine-tor
+          imagePullPolicy: Always
+          env:
+          - name: mode
+            value: proxy
+          - name: SOCKSPort
+            value: "9050"
+          - name: ExitNodes
+            value: "{DE}"
+          ports:
+          - containerPort: 9050
+        - name: headless-viewerrobot
+          securityContext:
+            {}
+          image: "jfwenisch/headless-viewerrobot:0.4.0"
+          volumeMounts:
+            - name: proxies-config
+              mountPath: /proxies.txt
+              subPath: proxies.txt
+            - name: twitch-usernames-config
+              mountPath: /twitch.usernames.txt
+              subPath: twitch.usernames.txt
+          env:
+          - name: WDM_GITHUBTOKENNAME
+            value: "headless-viewerrobot"
+          - name: WDM_GITHUBTOKENSECRET
+            value: 
+          - name: UI_URL
+            value: 
+          - name: MOZ_HEADLESS
+            value: "1"
+          - name: TWITCHURL
+            value: 
+          - name: MAIL
+            value: 
+          - name: PASSWORD
+            value: 
+          - name: PORT
+            value: "993"
+          - name: SERVER
+            value: 
+          - name: VIEWERS
+            value: "1"
+          - name: ANONYMOUS
+            value: "false"
+          - name: PROXYMODE
+            value: "LOCAL"
+          - name: MODE
+            value: "VIEWER"
+          - name: DRIP_MIN
+            value: "10"
+          - name: DRIP_MAX
+            value: "20"
+          - name: TWITCHUSERNAME
+            value: ""
+          - name: TWITCHUSERPASSWORD
+            value: ""
+          - name: TWITCHUSERMAIL
+            value: ""
+          - name: API_DEPLOYMENTIDENT
+            value: 
+          - name: API_URL
+            value: 
+          - name: PLATFORM
+            value: "twitch"
+          resources:
+            {}
+---
+# Source: headless-viewerrobot/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-headless-viewerrobot-test-connection"
+  labels:
+    helm.sh/chart: headless-viewerrobot-0.4.0
+    app.kubernetes.io/name: headless-viewerrobot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-headless-viewerrobot:80']
+  restartPolicy: Never

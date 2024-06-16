@@ -1,0 +1,168 @@
+---
+# Source: spring-boot/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-spring-boot-jmx-exporter
+  labels:
+    app: my-release-spring-boot
+    chart: "spring-boot-0.0.5"
+    release: "my-release"
+    heritage: "Helm"
+data:
+  config.yaml: |
+    lowercaseOutputLabelNames: true
+    lowercaseOutputName: true
+    rules:
+    - pattern: 'Catalina<type=GlobalRequestProcessor, name=\"(\w+-\w+)-(\d+)\"><>(\w+):'
+      name: tomcat_$3_total
+      labels:
+        port: "$2"
+        protocol: "$1"
+      help: Tomcat global $3
+      type: COUNTER
+    - pattern: 'Catalina<j2eeType=Servlet, WebModule=//([-a-zA-Z0-9+&@#/%?=~_|!:.,;]*[-a-zA-Z0-9+&@#/%=~_|]), name=([-a-zA-Z0-9+/$%~_-|!.]*), J2EEApplication=none, J2EEServer=none><>(requestCount|maxTime|processingTime|errorCount):'
+      name: tomcat_servlet_$3_total
+      labels:
+        module: "$1"
+        servlet: "$2"
+      help: Tomcat servlet $3 total
+      type: COUNTER
+    - pattern: 'Catalina<type=ThreadPool, name="(\w+-\w+)-(\d+)"><>(currentThreadCount|currentThreadsBusy|keepAliveCount|pollerThreadCount|connectionCount):'
+      name: tomcat_threadpool_$3
+      labels:
+        port: "$2"
+        protocol: "$1"
+      help: Tomcat threadpool $3
+      type: GAUGE
+    - pattern: 'Catalina<type=Manager, host=([-a-zA-Z0-9+&@#/%?=~_|!:.,;]*[-a-zA-Z0-9+&@#/%=~_|]), context=([-a-zA-Z0-9+/$%~_-|!.]*)><>(processingTime|sessionCounter|rejectedSessions|expiredSessions):'
+      name: tomcat_session_$3_total
+      labels:
+        context: "$2"
+        host: "$1"
+      help: Tomcat session $3 total
+      type: COUNTER
+---
+# Source: spring-boot/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-spring-boot
+  labels:
+    app: my-release-spring-boot
+    chart: "spring-boot-0.0.5"
+    release: "my-release"
+    heritage: "Helm"
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: tomcat
+  selector:
+    app: my-release-spring-boot
+---
+# Source: spring-boot/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-spring-boot
+  labels:
+    app: spring-boot
+    chart: "spring-boot-0.0.5"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: my-release-spring-boot
+        release: "my-release"
+      annotations:
+        prometheus.io/path: /
+        prometheus.io/port: "9030"
+        prometheus.io/scrape: "true"
+    spec:
+      initContainers:
+      - name: download-artifact
+        image: busybox
+        command: ["wget", "", "-O", "/opt/"]
+        volumeMounts:
+        - mountPath: /opt/
+          name: artifact-volume
+          readOnly: false
+      - name: jmx-export
+        image: banzaicloud/jmx_exporter:latest
+        command: ['cp', '/usr/share/jmx_exporter/jmx_prometheus_javaagent-0.3.1-SNAPSHOT.jar', '/opt/jmx-exporter/']
+        volumeMounts:
+        - name: jmx-jar-data
+          mountPath: /opt/jmx-exporter/
+      containers:
+      - name: my-release-spring-boot
+        image: "openjdk:8-jdk-alpine"
+        command:
+          - sh
+          - -c
+          - |
+            java $JAVAAGENT_OPTS $JAVA_OPTS -jar /opt/ $ARGS
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: JAVAAGENT_OPTS
+            value: "-javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent-0.3.1-SNAPSHOT.jar=9030:/etc/jmx-exporter/config.yaml"
+        volumeMounts:
+        - mountPath: /opt/
+          name: artifact-volume
+          readOnly: false
+        - name: jmx-jar-data
+          mountPath: /opt/jmx-exporter/
+          readOnly: true
+        - name: jmx-config
+          mountPath: /etc/jmx-exporter/
+          readOnly: true
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+        resources:
+          limits:
+            cpu: 1
+            memory: 2Gi
+          requests:
+            cpu: 40m
+            memory: 250Mi
+      volumes:
+      - name: jmx-jar-data
+        emptyDir: {}
+      - name: jmx-config
+        configMap:
+          name: "my-release-spring-boot-jmx-exporter"
+      - name: artifact-volume
+        emptyDir: {}
+---
+# Source: spring-boot/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: my-release-tomcat
+  namespace: default
+  labels:
+    release: my-release
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: my-release-spring-boot
+            servicePort: 8080

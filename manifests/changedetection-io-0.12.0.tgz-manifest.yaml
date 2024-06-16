@@ -1,0 +1,103 @@
+---
+# Source: changedetection-io/templates/common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-changedetection-io
+  labels:
+    app.kubernetes.io/service: my-release-changedetection-io
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: changedetection-io
+    app.kubernetes.io/version: latest
+    helm.sh/chart: changedetection-io-0.12.0
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: changedetection-io
+---
+# Source: changedetection-io/templates/common.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-changedetection-io
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: changedetection-io
+    app.kubernetes.io/version: latest
+    helm.sh/chart: changedetection-io-0.12.0
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: changedetection-io
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: changedetection-io
+        app.kubernetes.io/instance: my-release
+    spec:
+      
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: my-release-changedetection-io
+          image: ghcr.io/dgtlmoon/changedetection.io:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PLAYWRIGHT_DRIVER_URL
+              value: ws://localhost:3000
+            - name: TZ
+              value: UTC
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            tcpSocket:
+              port: 5000
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            tcpSocket:
+              port: 5000
+            timeoutSeconds: 1
+          startupProbe:
+            failureThreshold: 30
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            tcpSocket:
+              port: 5000
+            timeoutSeconds: 1
+        - env:
+          - name: DEFAULT_BLOCK_ADS
+            value: "true"
+          - name: DEFAULT_STEALTH
+            value: "true"
+          - name: ENABLE_DEBUGGER
+            value: "false"
+          image: browserless/chrome:latest
+          name: browserless
+          ports:
+          - containerPort: 3000
+            name: browserless

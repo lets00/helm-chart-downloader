@@ -1,0 +1,262 @@
+---
+# Source: validator/templates/serviceaccount-test.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ghost-test
+---
+# Source: validator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ghost
+  labels:
+    helm.sh/chart: validator-0.3.4
+    app.kubernetes.io/name: ghost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: validator/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ghost-test
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list"]
+---
+# Source: validator/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ghost-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ghost-test
+subjects:
+- kind: ServiceAccount
+  name: ghost-test
+---
+# Source: validator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost
+  annotations:
+  labels:
+    helm.sh/chart: validator-0.3.4
+    app.kubernetes.io/name: ghost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: libp2p
+    - port: 9100
+      targetPort: 9100
+      protocol: TCP
+      name: metrics
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: webapi
+  selector:
+    app.kubernetes.io/name: ghost
+    app.kubernetes.io/instance: my-release
+---
+# Source: validator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghost
+  labels:
+    helm.sh/chart: validator-0.3.4
+    app.kubernetes.io/name: ghost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ghost
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ghost
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: ghost
+      securityContext:
+        {}
+      containers:
+        - name: ghost
+          securityContext:
+            {}
+          image: "ghcr.io/chronicleprotocol/ghost:0.37.2@sha256:d3d2cd9aff6ed80ff89132ba06d0563ffa85d176c8d354bda0bb718fe51e799d"
+          args:
+            - "run"
+            - "-v"
+            - "info"
+            - "--log.format"
+            - "text"
+          imagePullPolicy: Always
+          ports:
+            - name: libp2p
+              containerPort: 8000
+              protocol: TCP
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+            - name: webapi
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 9100
+            initialDelaySeconds: 30
+            periodSeconds: 60
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 9100
+            initialDelaySeconds: 30
+            periodSeconds: 60
+
+          env:
+            ### -- LIBP2P
+            - name: CFG_LIBP2P_SUBSCRIPTION_BUFFER_SIZE
+              value: "4096"
+            - name: CFG_LIBP2P_VALIDATE_QUEUE_SIZE
+              value: "4096"
+            - name: CFG_LIBP2P_LISTEN_ADDRS
+              value: "/ip4/0.0.0.0/tcp/8000"
+            - name: CFG_LIBP2P_EXTERNAL_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            ### -- WEB API
+            - name: CFG_WEBAPI_ENABLE
+              value: "true"
+            - name: CFG_WEBAPI_LISTEN_ADDR
+              value: ":8080"
+            - name: CFG_WEBAPI_SOCKS5_PROXY_ADDR
+              value: "ghost-tor-svc:8888"
+            - name: CFG_WEB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ghost-tor-secret
+                  key: onionAddress
+              ### -- CHAIN and RPC (target or main chain)
+            - name: CFG_CHAIN_NAME
+              value: "eth"
+            - name: CFG_CHAIN_ID
+              value: "1"
+              ### -- CHAIN and RPC (source chain)
+              ### -- WATCHDOG
+            - name: WATCHDOG_CONFIG_REGISTRY
+              value: "0x94Fea534aef6df5cF66C2DAE5CE0A05d10C068F3"
+            - name: WATCHDOG_INTERVAL
+              value: "900s"
+          ### -- ETH KEYSTORE FROM EXISTING SECRET
+          ### -- ADDITIONAL ENV VARS FROM `.Values.ghost.env.normal`
+          resources:
+            {}
+---
+# Source: validator/templates/onion-service.yaml
+apiVersion: tor.k8s.torproject.org/v1alpha2
+kind: OnionService
+metadata:
+  name: ghost
+  labels:
+    helm.sh/chart: validator-0.3.4
+    app.kubernetes.io/name: ghost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  version: 3
+  rules:
+    - port:
+        number: 8888
+      backend:
+        service:
+          name: ghost
+          port:
+            number: 8080
+---
+# Source: validator/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "ghost-test-connection"
+  labels:
+    helm.sh/chart: validator-0.3.4
+    app.kubernetes.io/name: ghost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: nc-libp2p
+      image: busybox
+      command: ['nc']
+      args:
+        - '-zv'
+        - '-v'
+        - 'ghost'
+        - '8000'
+    - name: nc-metrics
+      image: busybox
+      command: ['nc']
+      args:
+        - '-zv'
+        - '-v'
+        - 'ghost'
+        - '9100'
+    - name: nc-webapi
+      image: busybox
+      command: ['nc']
+      args:
+        - '-zv'
+        - '-v'
+        - 'ghost'
+        - '8080'
+  restartPolicy: Never
+---
+# Source: validator/templates/tests/test-logs.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "ghost-test-logs"
+  labels:
+    helm.sh/chart: validator-0.3.4
+    app.kubernetes.io/name: ghost
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  serviceAccountName: ghost-test
+  containers:
+    - name: test-ghost-logs
+      image: bitnami/kubectl:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo 'Running tests';
+          kubectl logs --namespace default $(kubectl get pods --namespace default -l 'app.kubernetes.io/instance=my-release,app.kubernetes.io/name=ghost' -o jsonpath='{.items[0].metadata.name}') | grep 'Starting tag=MUSIG'
+  restartPolicy: Never

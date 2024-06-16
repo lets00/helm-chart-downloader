@@ -1,0 +1,192 @@
+---
+# Source: baseapp/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-baseapp
+  labels:
+    helm.sh/chart: baseapp-0.1.0
+    app.kubernetes.io/name: baseapp
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: baseapp/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-baseapp
+  labels:
+    helm.sh/chart: baseapp-0.1.0
+    app.kubernetes.io/name: baseapp
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+---
+# Source: baseapp/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-baseapp
+  labels:
+    helm.sh/chart: baseapp-0.1.0
+    app.kubernetes.io/name: baseapp
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  null
+---
+# Source: baseapp/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-baseapp
+  labels:
+    helm.sh/chart: baseapp-0.1.0
+    app.kubernetes.io/name: baseapp
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: baseapp
+    app.kubernetes.io/instance: my-release
+---
+# Source: baseapp/templates/consumer.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-baseapp-test-aaa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-baseapp-test-aaa
+  template:
+    metadata:
+      labels:
+        app: my-release-baseapp-test-aaa
+      annotations:
+        checksum/config: 0e65d25b9339b5d56f85143b09fbc82ce1eae8e8136e5dc842ffffa6e1deb782
+        checksum/secret: 126d4336db84376035dc1cd2da3cc08d1ae592f6a389671fc6d539186fd99ea1
+    spec:
+      imagePullSecrets:
+        - name: aliyuncs
+        - name: aliyuncs-vpc
+      containers:
+        - name: my-release-baseapp-test-aaa
+          image: "helloword:latest"
+          command:
+            - "sh"
+            - "-c"
+            - "sleep 100"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: my-release-baseapp
+            - secretRef:
+                name: my-release-baseapp
+          resources:
+            {}
+---
+# Source: baseapp/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-baseapp
+  labels:
+    helm.sh/chart: baseapp-0.1.0
+    app.kubernetes.io/name: baseapp
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: baseapp
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 0e65d25b9339b5d56f85143b09fbc82ce1eae8e8136e5dc842ffffa6e1deb782
+        checksum/secret: 126d4336db84376035dc1cd2da3cc08d1ae592f6a389671fc6d539186fd99ea1
+      labels:
+        app.kubernetes.io/name: baseapp
+        app.kubernetes.io/instance: my-release
+    spec:
+      imagePullSecrets:
+        - name: aliyuncs
+        - name: aliyuncs-vpc
+      serviceAccountName: my-release-baseapp
+      securityContext:
+        {}
+      containers:
+        - name: baseapp
+          securityContext:
+            {}
+          image: "helloword:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: my-release-baseapp
+            - secretRef:
+                name: my-release-baseapp
+          resources:
+            {}
+---
+# Source: baseapp/templates/consumer.yaml
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: my-release-baseapp-test-aaa-kafka-scaledobject
+  labels:
+    deploymentName: my-release-baseapp-test-aaa
+spec:
+  scaleTargetRef:
+    name: my-release-baseapp-test-aaa
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 1
+  maxReplicaCount: 100
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: infra-kafka-kafka-bootstrap.svc:9092
+        consumerGroup: ""
+        lagThreshold: "50"
+        offsetResetPolicy: latest
+        topic: test
+---
+# Source: baseapp/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-baseapp-test-connection"
+  labels:
+    helm.sh/chart: baseapp-0.1.0
+    app.kubernetes.io/name: baseapp
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-baseapp:80']
+  restartPolicy: Never

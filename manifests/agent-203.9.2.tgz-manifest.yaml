@@ -1,0 +1,106 @@
+---
+# Source: agent/templates/service_account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logdna-agent
+  namespace: default
+  labels:
+    app.kubernetes.io/name: logdna-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: agent-203.9.2
+---
+# Source: agent/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: logdna-agent
+  namespace: default
+  labels:
+    app.kubernetes.io/name: logdna-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: agent-203.9.2
+type: Opaque
+data:
+  logdna-agent-key: ""
+---
+# Source: agent/templates/cluster_role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: logdna-agent
+  labels:
+    app.kubernetes.io/name: logdna-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: agent-203.9.2
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get","list","create","watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get","list","watch"]
+---
+# Source: agent/templates/cluster_role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logdna-agent
+  labels:
+    app.kubernetes.io/name: logdna-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: agent-203.9.2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: logdna-agent
+subjects:
+  - kind: ServiceAccount
+    name: logdna-agent
+    namespace: default
+---
+# Source: agent/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: logdna-agent
+  namespace: default
+  labels:
+    app.kubernetes.io/name: logdna-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: agent-203.9.2
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get","list","create","watch"]
+---
+# Source: agent/templates/role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: logdna-agent
+  namespace: default
+  labels:
+    app.kubernetes.io/name: logdna-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: agent-203.9.2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: logdna-agent
+subjects:
+  - kind: ServiceAccount
+    name: logdna-agent
+    namespace: default

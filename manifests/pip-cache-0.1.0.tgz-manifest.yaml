@@ -1,0 +1,118 @@
+---
+# Source: pip-cache/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-pip-cache
+  namespace: default
+  labels:
+    helm.sh/chart: pip-cache-0.1.0
+    app.kubernetes.io/name: pip-cache
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - "ReadWriteMany"
+  resources:
+    requests:
+      storage: "100Gi"
+  storageClassName: "azurefile"
+  selector:
+---
+# Source: pip-cache/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pip-cache
+  labels:
+    helm.sh/chart: pip-cache-0.1.0
+    app.kubernetes.io/name: pip-cache
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: pip-cache
+    app.kubernetes.io/instance: my-release
+---
+# Source: pip-cache/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pip-cache
+  labels:
+    helm.sh/chart: pip-cache-0.1.0
+    app.kubernetes.io/name: pip-cache
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pip-cache
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pip-cache
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: pip-cache
+          securityContext:
+            {}
+          image: "joseenrique/pip-cache:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /var/cache/nginx/pypi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-release-pip-cache
+---
+# Source: pip-cache/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-pip-cache-test-connection"
+  labels:
+    helm.sh/chart: pip-cache-0.1.0
+    app.kubernetes.io/name: pip-cache
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-pip-cache:80']
+  restartPolicy: Never

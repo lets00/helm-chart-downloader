@@ -1,0 +1,166 @@
+---
+# Source: relay/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-relay
+  labels:
+    helm.sh/chart: relay
+    app.kubernetes.io/name: relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: relay/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-relay
+  labels:
+    helm.sh/chart: relay
+    app.kubernetes.io/name: relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.json: |
+    {
+      "chain": {
+        "id": 42161
+      },
+      "conf": {
+        "env-prefix": "NITRO"
+      },
+      "log-type": "json",
+      "metrics": false,
+      "metrics-server": {
+        "addr": "0.0.0.0",
+        "port": 6070
+      },
+      "node": {
+        "feed": {
+          "input": {
+            "reconnect-initial-backoff": "50ms",
+            "reconnect-maximum-backoff": "800ms",
+            "timeout": "10s",
+            "url": ""
+          },
+          "output": {
+            "addr": "0.0.0.0",
+            "port": 9642
+          }
+        }
+      }
+    }
+---
+# Source: relay/templates/headlesssvc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-relay-headless
+  labels:
+    helm.sh/chart: relay
+    app.kubernetes.io/name: relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  clusterIPs:
+  - None
+  selector:
+    app.kubernetes.io/name: relay
+    app.kubernetes.io/instance: my-release
+  publishNotReadyAddresses: true
+---
+# Source: relay/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-relay
+  labels:
+    helm.sh/chart: relay
+    app.kubernetes.io/name: relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9642
+      targetPort: feed
+      protocol: TCP
+      name: feed  
+  selector:
+    app.kubernetes.io/name: relay
+    app.kubernetes.io/instance: my-release
+  publishNotReadyAddresses:
+---
+# Source: relay/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-relay
+  labels:
+    helm.sh/chart: relay
+    app.kubernetes.io/name: relay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: relay
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: 2b59deacbad2b8b028a30cd3bd379ee1f31ea0c3eeae4b1af41828a692b0a068
+      labels:
+        app.kubernetes.io/name: relay
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-relay
+      securityContext:
+        
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: relay
+          securityContext:
+            {}
+          image: "offchainlabs/nitro-node:v3.0.0-e6f81cb"
+          imagePullPolicy: Always
+          command: [/usr/local/bin/relay]
+          args:
+            - --conf.file=/config/config.json
+          ports:
+            - name: feed
+              containerPort: 9642
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /livenessprobe
+              port: feed
+            initialDelaySeconds: 10
+            periodSeconds: 1
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 1
+            tcpSocket:
+              port: feed
+          env:
+          volumeMounts:
+          - name: config
+            mountPath: /config/
+          resources:
+            {}
+      volumes:
+      - name: config
+        configMap:
+          name: my-release-relay

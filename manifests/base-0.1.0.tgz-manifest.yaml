@@ -1,0 +1,177 @@
+---
+# Source: base/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  namespace: default
+  labels:
+    app: my-release
+    version: env-name
+    repo-name: none
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: base-0.1.0
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: my-release
+    version: env-name
+---
+# Source: base/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  namespace: default
+  annotations:
+    gitUrl: https://github.com/urbanindo/99-charts.git
+    kubernetes.io/change-cause: CHANGE_CAUSE_MESSAGE
+    sidecar.istio.io/inject: "true"
+  labels:
+    app: my-release
+    version: env-name
+    repo-name: none
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: base-0.1.0
+spec:
+  selector:
+    matchLabels:
+      app: my-release
+      version: env-name
+  template:
+    metadata:
+      annotations:
+        gitUrl: https://github.com/urbanindo/99-charts.git
+        kubernetes.io/change-cause: CHANGE_CAUSE_MESSAGE
+        sidecar.istio.io/inject: "true"
+      labels:
+        app: my-release
+        version: env-name
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: my-release
+          securityContext:
+            {}
+          image: "nginx:latest"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /targetPath
+              name: configName
+              subPath: fileName          
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            limits:
+              memory: 1024M
+            requests:
+              cpu: 40m
+              memory: 363Mi
+      volumes:
+        - configMap:
+            items:
+            - key: fileName
+              path: fileName
+            name: configName
+          name: configName
+---
+# Source: base/templates/hpa.yaml
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-release
+  namespace: default
+  annotations:
+    metric-config.external.prometheus-query.prometheus/prometheus-server: http://prometheus-server.monitoring.svc
+    metric-config.external.prometheus-query.prometheus/istio-requests-total: |
+      sum(rate(istio_requests_total{reporter="destination", destination_workload=my-release, destination_service_namespace=default}[2m]))
+  labels:
+    app: my-release
+    version: env-name
+    repo-name: none
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: base-0.1.0
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-release
+  minReplicas: 1
+  maxReplicas: 2
+  metrics:
+  - type: External
+    external:
+      metric:
+        name: prometheus-query
+        selector:
+          matchLabels:
+            query-name: istio-requests-total
+      target:
+        type: AverageValue
+        averageValue: "7"
+    #
+    #
+---
+# Source: base/templates/destinationrules.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: my-release
+  namespace: default
+spec:
+  host: my-release.default.svc.cluster.local
+  subsets:
+  - labels:
+      version: env-name
+    name: v1
+    trafficPolicy:
+      portLevelSettings:
+      - port:
+          number: 80
+        loadBalancer:
+          simple: LEAST_CONN
+---
+# Source: base/templates/virtualservice.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: my-release
+  namespace: default
+spec:
+  hosts:
+  - my-release.default.svc.cluster.local
+  http:
+  - route:
+    - destination:
+        host: my-release.default.svc.cluster.local
+        subset: v1
+---
+# Source: base/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-base-test-connection"
+  labels:
+    app: my-release
+    version: env-name
+    repo-name: none
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: base-0.1.0
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-base:']
+  restartPolicy: Never

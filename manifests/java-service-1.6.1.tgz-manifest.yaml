@@ -1,0 +1,101 @@
+---
+# Source: java-service/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: java-service
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release
+  ports:
+    - name: java-service
+      protocol: TCP
+      port: 8080
+      targetPort: java-service
+---
+# Source: java-service/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: java-service
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/managed-by: helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/manage/prometheus"
+        prometheus.io/port: "8080"
+      labels:
+        app: my-release
+        app.kubernetes.io/name: java-service
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.0"
+        app.kubernetes.io/component: application
+        app.kubernetes.io/managed-by: helm
+    spec:
+      containers:
+        - name: my-release
+          image: ":"
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "1024Mi"
+              cpu: "500m"
+            limits:
+              memory: "1024Mi"
+              cpu: "500m"
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "k8s"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75.0 "
+            - name: DATABASE_HOST
+              value: "postgres"
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_USER
+              value: "program"
+            - name: DATABASE_PASSWORD
+              value: "test"
+            - name: CIRCUIT_BREAKER_ENABLED
+              value: "false"
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 10
+            httpGet:
+              path: /manage/health/readiness
+              port: 8080
+          readinessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 10
+            httpGet:
+              path: /manage/health/readiness
+              port: 8080
+          ports:
+            - name: java-service
+              containerPort: 8080
+          volumeMounts:
+      volumes:
+        - name: java-service-logs-volume
+        - name: java-service-config-volume
+          configMap:
+            name: my-release
+            defaultMode: 420

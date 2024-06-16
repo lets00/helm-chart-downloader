@@ -1,0 +1,151 @@
+---
+# Source: beacon-metrics-gazer/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-beacon-metrics-gazer
+  labels:
+    helm.sh/chart: beacon-metrics-gazer-0.1.3
+    app.kubernetes.io/name: beacon-metrics-gazer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  namespace: default
+---
+# Source: beacon-metrics-gazer/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-beacon-metrics-gazer
+  labels:
+    helm.sh/chart: beacon-metrics-gazer-0.1.3
+    app.kubernetes.io/name: beacon-metrics-gazer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  ranges.yaml: |
+    0-1: test
+---
+# Source: beacon-metrics-gazer/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-beacon-metrics-gazer
+  labels:
+    helm.sh/chart: beacon-metrics-gazer-0.1.3
+    app.kubernetes.io/name: beacon-metrics-gazer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: beacon-metrics-gazer
+    app.kubernetes.io/instance: my-release
+---
+# Source: beacon-metrics-gazer/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-beacon-metrics-gazer
+  labels:
+    helm.sh/chart: beacon-metrics-gazer-0.1.3
+    app.kubernetes.io/name: beacon-metrics-gazer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: beacon-metrics-gazer
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: beacon-metrics-gazer
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 2784126f8f254f84242e340618c77d9d79d96619e06e3c7402f87d2d2acfcea3
+    spec:
+      serviceAccountName: my-release-beacon-metrics-gazer
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+        - name: beacon-metrics-gazer
+          image: "dapplion/beacon-metrics-gazer:latest"
+          imagePullPolicy: IfNotPresent
+          command:
+              - /beacon-metrics-gazer
+              - http://beacon-node:5052
+              - --ranges-file
+              - /data/ranges.yaml
+              - --port
+              - "8080"
+              - --address
+              - "0.0.0.0"
+          securityContext:
+            {}
+          volumeMounts:
+            - name: ranges
+              mountPath: "/data/ranges.yaml"
+              subPath: ranges.yaml
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http
+          resources:
+            {}
+          env:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: ranges
+          configMap:
+            name: my-release-beacon-metrics-gazer
+---
+# Source: beacon-metrics-gazer/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-beacon-metrics-gazer-test-connection"
+  labels:
+    helm.sh/chart: beacon-metrics-gazer-0.1.3
+    app.kubernetes.io/name: beacon-metrics-gazer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-beacon-metrics-gazer:8080']
+  restartPolicy: Never

@@ -1,0 +1,246 @@
+---
+# Source: mlflow-controller/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mlflow-controller
+  labels:
+    helm.sh/chart: mlflow-controller-0.1.8
+    app.kubernetes.io/name: mlflow-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.8"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: mlflow-controller/templates/gitops-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mlflow-controller-gitops-cm
+  labels:
+    helm.sh/chart: mlflow-controller-0.1.8
+    app.kubernetes.io/name: mlflow-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.8"
+    app.kubernetes.io/managed-by: Helm
+data:
+  GIT_USER: raghulkrishna
+  MANIFEST_LOCATION: staging/
+  GIT_REPO: github.com/rocket9-code/model-deployments
+  BRANCH: main
+  GITOPS_ENABLED: "True"
+  GIT_PROTOCOL: https
+---
+# Source: mlflow-controller/templates/mlflow-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mlflow-controller-mlflow-cm
+  labels:
+    helm.sh/chart: mlflow-controller-0.1.8
+    app.kubernetes.io/name: mlflow-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.8"
+    app.kubernetes.io/managed-by: Helm
+data:
+  MLFLOW_TRACKING_URI: http://mlflow-service:5000
+  stage: Staging
+  namespace: staging
+  backend: blob
+  MLFLOW_ENABLED: "True"
+---
+# Source: mlflow-controller/templates/serviceaccount.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-mlflow-controller
+rules:
+- apiGroups:
+  - machinelearning.seldon.io
+  resources:
+  - seldondeployments
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+- apiGroups:
+  - "apps"
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - serving.kserve.io
+  resources:
+  - inferenceservices
+  - inferenceservices/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+- apiGroups:
+  - serving.knative.dev
+  resources:
+  - services
+  - services/status
+  - routes
+  - routes/status
+  - configurations
+  - configurations/status
+  - revisions
+  - revisions/status
+  verbs:
+  - get
+  - list
+---
+# Source: mlflow-controller/templates/serviceaccount.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-mlflow-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-mlflow-controller
+subjects:
+- kind: ServiceAccount
+  name: my-release-mlflow-controller
+  namespace: "default"
+---
+# Source: mlflow-controller/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mlflow-controller-ui
+  labels:
+    app: mlflow-controller-ui
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: mlflow-controller-ui
+---
+# Source: mlflow-controller/templates/deployment-ui.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mlflow-controller-ui
+  labels:
+    app: mlflow-controller-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow-controller-ui
+  template:
+    metadata:
+      labels:
+        app: mlflow-controller-ui
+    spec:
+      serviceAccountName: my-release-mlflow-controller
+      securityContext:
+        {}
+      containers:
+        - name: mlflow-controller
+          securityContext:
+            {}
+          image: "tachyongroup/mlflow-deployment-controller-ui:mlflow-controller-0.1.8"
+          imagePullPolicy: Always
+          env:
+          - name: seldon_url
+            value: https://seldon.mlops.wianai.com
+          - name: namespace
+            value:  staging
+          ports:
+            - containerPort: 8000
+              name: http
+          resources:
+            {}
+---
+# Source: mlflow-controller/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mlflow-controller
+  labels:
+    helm.sh/chart: mlflow-controller-0.1.8
+    app.kubernetes.io/name: mlflow-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.8"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow-controller
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mlflow-controller
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-mlflow-controller
+      securityContext:
+        {}
+      containers:
+        - name: mlflow-controller
+          securityContext:
+            {}
+          image: "tachyongroup/mlflow-deployment-controller:mlflow-controller-0.1.8"
+          imagePullPolicy: Always
+          resources:
+            {}
+          env:
+          - name: ML_SERVER
+            value: seldon
+          - name: GIT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: github-secret
+                key: githubtoken
+                optional: false
+          envFrom:
+          - configMapRef:
+              name: my-release-mlflow-controller-mlflow-cm
+          - configMapRef:
+              name: my-release-mlflow-controller-gitops-cm
+---
+# Source: mlflow-controller/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-mlflow-controller
+  labels:
+    app: mlflow-controller-ui
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - "aui-secret"
+      secretName: mdcv2.mlops.wianai.com
+  rules:
+    - host: "mdcv2.mlops.wianai.com"
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mlflow-controller-ui
+                port:
+                  number: 8000

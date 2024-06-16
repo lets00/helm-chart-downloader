@@ -1,0 +1,115 @@
+---
+# Source: bazel-remote/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-bazel-remote
+  namespace: default
+  labels:
+    helm.sh/chart: bazel-remote-0.0.6
+    app.kubernetes.io/name: bazel-remote
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  bazel-remote.yaml: |-
+    
+    # https://github.com/buchgr/bazel-remote#example-configuration-file
+    dir: /data
+    max_size: 50
+    experimental_remote_asset_api: true
+    access_log_level: none
+    port: 8080
+    grpc_port: 9092
+---
+# Source: bazel-remote/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-bazel-remote
+  namespace: default
+  labels:
+    helm.sh/chart: bazel-remote-0.0.6
+    app.kubernetes.io/name: bazel-remote
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: grpc
+      port: 9092
+      targetPort: grpc
+  selector:
+    app.kubernetes.io/name: bazel-remote
+    app.kubernetes.io/instance: my-release
+---
+# Source: bazel-remote/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-bazel-remote
+  namespace: default
+  labels:
+    helm.sh/chart: bazel-remote-0.0.6
+    app.kubernetes.io/name: bazel-remote
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bazel-remote
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bazel-remote
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 3d5c00bdba5da89cba6b4cfe0855640406ff144f83795b9a40b7a01cbaaef713
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: bazel-remote
+          securityContext:
+            {}
+          image: "buchgr/bazel-remote-cache:v2.4.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9092
+              name: grpc
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+          startupProbe:
+            httpGet:
+              path: /status
+              port: http
+          resources:
+            {}
+          env:
+            - name: BAZEL_REMOTE_CONFIG_FILE
+              value: /bazel-remote.yaml
+          volumeMounts:
+            - name: my-release-bazel-remote
+              mountPath: /bazel-remote.yaml
+              subPath: bazel-remote.yaml
+      volumes:
+        - name: my-release-bazel-remote
+          configMap:
+            name: my-release-bazel-remote
+            defaultMode: 0644

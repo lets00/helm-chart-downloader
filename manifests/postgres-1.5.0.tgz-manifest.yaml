@@ -1,0 +1,147 @@
+---
+# Source: postgres/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-init-scripts
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: my-release-init-scripts
+    app.kubernetes.io/version: "15"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+data:
+  10-create-user-and-dbs.sql: |
+    CREATE USER program WITH PASSWORD 'test';
+    CREATE DATABASE services;
+    GRANT ALL PRIVILEGES ON DATABASE services TO program;
+  20-grant-privileges-to-public.sh: |
+    export PGPASSWORD=postgres
+    psql -U postgres -d services << EOF
+    GRANT ALL PRIVILEGES ON SCHEMA public TO program;
+    EOF
+---
+# Source: postgres/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-config
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: my-release-config
+    app.kubernetes.io/version: "15"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+data:
+  postgres.conf: |
+    checkpoint_completion_target = 0.9
+    default_statistics_target = 100
+    effective_cache_size = 384MB
+    effective_io_concurrency = 200
+    listen_addresses = '*'
+    maintenance_work_mem = 32MB
+    max_connections = 100
+    max_wal_size = 4GB
+    min_wal_size = 1GB
+    random_page_cost = 1.1
+    shared_buffers = 128MB
+    wal_buffers = 3932kB
+    work_mem = 655kB
+---
+# Source: postgres/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: 5432
+      targetPort: postgres
+---
+# Source: postgres/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "15"
+        app.kubernetes.io/component: database
+        app.kubernetes.io/managed-by: helm
+    spec:
+      containers:
+        - name: my-release
+          image: "postgres:15"
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-c"
+            - "config_file=/etc/postgresql/postgres.conf"
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: postgres
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "100m"
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            initialDelaySeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 2
+            exec:
+              command: ["psql", "-w", "-U", "postgres", "-d", "postgres", "-c", "SELECT 1"]
+          livenessProbe:
+            initialDelaySeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 2
+            exec:
+              command: ["psql", "-w", "-U", "postgres", "-d", "postgres", "-c", "SELECT 1"]
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data/
+            - name: postgres-init-scripts-volume
+              mountPath: /docker-entrypoint-initdb.d/
+            - name: postgres-config-volume
+              mountPath: /etc/postgresql/
+      volumes:
+        - name: db-data
+        - name: postgres-init-scripts-volume
+          configMap:
+            name: my-release-init-scripts
+        - name: postgres-config-volume
+          configMap:
+            name: my-release-config

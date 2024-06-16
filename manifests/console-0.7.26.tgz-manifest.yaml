@@ -1,0 +1,208 @@
+---
+# Source: console/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: my-release-console
+  labels:
+    helm.sh/chart: console-0.7.26
+    app.kubernetes.io/name: console
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.6"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: console/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-console
+  labels:
+    helm.sh/chart: console-0.7.26
+    app.kubernetes.io/name: console
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.6"
+    app.kubernetes.io/managed-by: Helm
+    
+type: Opaque
+data:
+  # Set empty defaults, so that we can always mount them as env variable even if they are not used.
+  # For this reason we can't use `with` to change the scope.
+  # Kafka
+  kafka-sasl-password: ""
+  kafka-protobuf-git-basicauth-password: ""
+  kafka-sasl-aws-msk-iam-secret-key: ""
+  kafka-tls-ca: ""
+  kafka-tls-cert: ""
+  kafka-tls-key: ""
+  kafka-schema-registry-password: ""
+  kafka-schemaregistry-tls-ca: ""
+  kafka-schemaregistry-tls-cert: ""
+  kafka-schemaregistry-tls-key: ""
+
+  # Login
+  login-jwt-secret: "WTVLbGs5a1JYaWhXaDFTdk0zYWJheGNNSVRmanlZeFg="
+  login-google-oauth-client-secret: ""
+  login-google-groups-service-account.json: ""
+  login-github-oauth-client-secret: ""
+  login-github-personal-access-token: ""
+  login-okta-client-secret: ""
+  login-okta-directory-api-token: ""
+  login-oidc-client-secret: ""
+
+  # Enterprise
+  enterprise-license: ""
+
+  # Redpanda
+  redpanda-admin-api-password: ""
+  redpanda-admin-api-tls-ca: ""
+  redpanda-admin-api-tls-cert: ""
+  redpanda-admin-api-tls-key: ""
+---
+# Source: console/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-console
+  labels:
+    helm.sh/chart: console-0.7.26
+    app.kubernetes.io/name: console
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.6"
+    app.kubernetes.io/managed-by: Helm
+    
+data:
+  config.yaml: |
+    # from .Values.console.config
+    {}
+---
+# Source: console/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-console
+  labels:
+    helm.sh/chart: console-0.7.26
+    app.kubernetes.io/name: console
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.6"
+    app.kubernetes.io/managed-by: Helm
+    
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: console
+    app.kubernetes.io/instance: my-release
+---
+# Source: console/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-console
+  labels:
+    helm.sh/chart: console-0.7.26
+    app.kubernetes.io/name: console
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.6"
+    app.kubernetes.io/managed-by: Helm
+    
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: console
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 0586c49d4a05f976d623573de5d39d9ec46c892c7dac4f00bdad69e03dffc831
+      labels:
+        app.kubernetes.io/name: console
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-console
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 99
+        runAsUser: 99
+      volumes:
+        - name: configs
+          configMap:
+            name: my-release-console
+        - name: secrets
+          secret:
+            secretName: my-release-console
+      containers:
+        - name: console
+          args:
+            - "--config.filepath=/etc/console/configs/config.yaml"
+          securityContext:
+            runAsNonRoot: true
+          image: docker.redpanda.com/redpandadata/console:v2.4.6
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: configs
+              mountPath: /etc/console/configs
+              readOnly: true
+            - name: secrets
+              mountPath: /etc/console/secrets
+              readOnly: true
+          livenessProbe:
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+            httpGet:
+              path: /admin/health
+              port: http
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+            httpGet:
+              path: /admin/health
+              port: http
+          resources:
+            {}
+          env:
+            - name: LOGIN_JWTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-console
+                  key: login-jwt-secret
+      priorityClassName:
+---
+# Source: console/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-console-test-connection"
+  labels:
+    helm.sh/chart: console-0.7.26
+    app.kubernetes.io/name: console
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.4.6"
+    app.kubernetes.io/managed-by: Helm
+    
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-console:8080']
+  restartPolicy: Never
+  priorityClassName:

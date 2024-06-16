@@ -1,0 +1,112 @@
+---
+# Source: gpts/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gpts
+  labels:
+    helm.sh/chart: gpts-0.7.7
+    app.kubernetes.io/name: gpts
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.7"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: gpts
+    app.kubernetes.io/instance: my-release
+---
+# Source: gpts/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-gpts
+  labels:
+    helm.sh/chart: gpts-0.7.7
+    app.kubernetes.io/name: gpts
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.7"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gpts
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gpts
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: gpts
+          securityContext:
+            {}
+          image: "ghcr.io/icikowski/gpts:0.7.7"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GPTS_SERVICE_PORT
+              value: "8080"
+            - name: GPTS_HEALTHCHECKS_PORT
+              value: "8081"
+            - name: GPTS_CONFIG_ENDPOINT
+              value: "/config"
+            - name: GPTS_DEFAULT_CONFIG_ON_STARTUP
+              value: "false"
+            - name: GPTS_LOG_LEVEL
+              value: "info"
+            - name: GPTS_PRETTY_LOG
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /live
+              port: 8081
+            failureThreshold: 6
+            periodSeconds: 5
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8081
+            failureThreshold: 3
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            failureThreshold: 3
+            periodSeconds: 5
+          resources:
+            {}
+---
+# Source: gpts/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-gpts-test-connection"
+  labels:
+    helm.sh/chart: gpts-0.7.7
+    app.kubernetes.io/name: gpts
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.7"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-gpts:8080']
+  restartPolicy: Never

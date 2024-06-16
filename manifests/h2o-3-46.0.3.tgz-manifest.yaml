@@ -1,0 +1,166 @@
+---
+# Source: h2o-3/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-h2o-3
+  namespace: default
+  labels:
+    helm.sh/chart: h2o-3-46.0.3
+    app.kubernetes.io/name: h2o-3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "46.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: h2o-3
+    app.kubernetes.io/instance: my-release
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 54321
+---
+# Source: h2o-3/templates/tests/test-connection.yaml
+# A test-only service with internal Cluster IP assigned (not a headless service) to enable the check from within the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-h2o-3-test-service
+  labels:
+    helm.sh/chart: h2o-3-46.0.3
+    app.kubernetes.io/name: h2o-3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "46.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: h2o-3
+    app.kubernetes.io/instance: my-release
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 54321
+---
+# Source: h2o-3/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-h2o-3
+  namespace: default
+  labels:
+    helm.sh/chart: h2o-3-46.0.3
+    app.kubernetes.io/name: h2o-3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "46.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: my-release-h2o-3
+  podManagementPolicy: "Parallel"
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: h2o-3
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: h2o-3
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: h2o-3
+          image: "h2oai/h2o-open-source-k8s:3.46.0.3"
+          command: ["/bin/bash", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=50 -jar /opt/h2oai/h2o-3/h2o.jar"]
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 54321
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /kubernetes/isLeaderNode
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 1
+          resources:
+            limits:
+              cpu: 1
+              memory: 256Mi
+            requests:
+              cpu: 1
+              memory: 256Mi
+          env:
+            - name: H2O_KUBERNETES_SERVICE_DNS
+              value: my-release-h2o-3.default.svc.cluster.local
+            - name: H2O_NODE_LOOKUP_TIMEOUT
+              value: '180'
+            - name: H2O_NODE_EXPECTED_COUNT
+              value: '1'
+            - name: H2O_KUBERNETES_API_PORT
+              value: '8080'
+---
+# Source: h2o-3/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-h2o-3-test-connection"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: everpeace/curl-jq
+      command:
+        - sh
+        - '-c'
+        - |
+          /bin/bash <<'EOF'
+      
+          clouded=false
+          cloud_size=0
+          while [ "$clouded" != true ]
+          do
+              sleep 1
+              response_code=$( curl 'my-release-h2o-3-test-service:80/3/Cloud' -w "%{http_code}" -o cloud.info )
+              cat cloud.info
+              if [ "$response_code" -eq 403 ]; then
+                echo "Warning: We reached a non-leader node - this can happen if the readiness probe has not yet marked this node as 'not ready' but H2O is already clustered"
+              else
+                cloud_size=$( jq '.cloud_size' cloud.info )
+              fi
+            if [ "$cloud_size" == 1 ]
+            then
+                echo "H2O Cluster size is ${cloud_size}"
+              clouded=true
+            fi
+          done
+          forbidden_codes=0
+          nodes=$(jq ".nodes[].ip_port" cloud.info | cut -d '"' -f 2)
+          echo "Nodes:\n$nodes"
+          for node_address in $nodes
+          do
+              echo "---> Testing node ${node_address} (http://${node_address}/3/Cloud)"
+              response_code=$( curl -w "%{http_code}" -o /dev/null "http://${node_address}/3/Cloud" )
+              echo "$response_code"
+              if [ "$response_code" -eq 403 ]; then
+                forbidden_codes=$((forbidden_codes + 1))
+              fi
+          done
+
+          expected_forbidden_count=$((cloud_size - 1))
+          if [ "$clouded" = true ]  && [ "$forbidden_codes" -eq "$expected_forbidden_count" ]
+          then
+              echo "CLOUDING-RESULT: OK"
+              exit 0
+          else
+              echo "CLOUDING-RESULT: FAILED (clouded=$clouded, forbidden_codes=$forbidden_codes)"
+              exit 1
+          fi
+      
+          EOF
+  restartPolicy: Never

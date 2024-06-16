@@ -1,0 +1,106 @@
+---
+# Source: blobscan/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-blobscan-env
+  labels:
+    helm.sh/chart: blobscan-0.1.1
+    app.kubernetes.io/name: blobscan
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: blobscan/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-blobscan
+  labels:
+    helm.sh/chart: blobscan-0.1.1
+    app.kubernetes.io/name: blobscan
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: blobscan
+    app.kubernetes.io/instance: my-release
+---
+# Source: blobscan/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-blobscan
+  labels:
+    helm.sh/chart: blobscan-0.1.1
+    app.kubernetes.io/name: blobscan
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: blobscan
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: blobscan
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/secrets: bbc226739671c18799b10ace6b2f54b5650cda5f0f8696958e2ef67eb9892c97
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+      - name: blobscan
+        image: "ethpandaops/blobscan:latest"
+        imagePullPolicy: IfNotPresent
+        command:
+        securityContext:
+            {}
+        volumeMounts:
+        ports:
+          - name: http
+            containerPort: 3000
+            protocol: TCP
+        livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http
+        readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http
+        resources:
+            {}
+        env:
+            - name: MONGODB_URI
+              value: mongodb://mongodb:27017
+            - name: MONGODB_DB
+              value: blobscan
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:

@@ -1,0 +1,83 @@
+---
+# Source: karma/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: karma
+    helm.sh/chart: karma-1.9.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-karma
+---
+# Source: karma/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-karma
+  labels:
+    app.kubernetes.io/name: karma
+    helm.sh/chart: karma-1.9.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: karma
+    app.kubernetes.io/instance: my-release
+---
+# Source: karma/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-karma
+  labels:
+    app.kubernetes.io/name: karma
+    helm.sh/chart: karma-1.9.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: karma
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: karma
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-karma
+      containers:
+        - name: karma
+          image: "ghcr.io/prymitive/karma:v0.85"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {}
+          volumeMounts:
+      volumes:

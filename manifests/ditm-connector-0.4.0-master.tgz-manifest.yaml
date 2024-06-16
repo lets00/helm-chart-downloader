@@ -1,0 +1,418 @@
+---
+# Source: ditm-connector/templates/dashboard-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-ditm-connector-secret
+type: Opaque
+data:
+  app.config.json: "eyJhcGlLZXkiOiJZYU81VU1rWWcydzU4NkNnMDE3aXk2UTdBNi1FeXVPdCIsImJyYW5kIjoidG5vIiwiZGF0YU1hbmFnZW1lbnRBcGlVcmwiOiJodHRwczovL21hbmFnZW1lbnQuc2VydmljZXByb3ZpZGVyLmVkYy5kaXRtLm5sL2FwaS9tYW5hZ2VtZW50IiwiZG9tYWluIjoic2VydmljZXByb3ZpZGVyLmVkYy5kaXRtLm5sIiwibmFtZSI6InNlcnZpY2Vwcm92aWRlciIsInJlZ2lvbiI6ImV1Iiwic3RvcmFnZUFjY291bnQiOiJkaXRtY29tcGFueTFpbmJveCIsInN0b3JhZ2VFeHBsb3JlckxpbmtUZW1wbGF0ZSI6Ii0tIiwidGhlbWUiOiJ0aGVtZS0zIn0="
+---
+# Source: ditm-connector/templates/connector-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-ditm-connector-vault-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: default
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: ditm-connector/templates/connector-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: my-release-ditm-connector
+  name: my-release-ditm-connector-service
+spec:
+  # identity {alias='identity', port=7171, path='/api/v1/identity'},
+  # api {alias='default', port=8181, path='/api'},
+  # ids {alias='ids', port=8282, path='/api/v1/ids'}
+  # data {alias='management', port=9191, path='/api/v1/data'},
+  ports:
+    - name: "http-identity"
+      port: 7171
+      targetPort: 7171
+    - name: "http-api"
+      port: 8181
+      targetPort: 8181
+    - name: "http-dsp"
+      port: 8282
+      targetPort: 8282
+    - name: "http-control"
+      port: 8383
+      targetPort: 8383
+    - name: "http-dp-public"
+      port: 8484
+      targetPort: 8484
+    - name: "http-management"
+      port: 9191
+      targetPort: 9191
+  selector:
+    app: my-release-ditm-connector
+status:
+  loadBalancer: {}
+---
+# Source: ditm-connector/templates/dashboard-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: my-release-ditm-connector
+  name: my-release-ditm-connector-dashboard-service
+spec:
+  ports:
+    - name: "http"
+      port: 80
+      targetPort: 80
+  selector:
+    app: my-release-ditm-connector-dashboard
+status:
+  loadBalancer: {}
+---
+# Source: ditm-connector/templates/connector-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-release-ditm-connector
+  name: my-release-ditm-connector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-ditm-connector
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: my-release-ditm-connector
+    spec:
+      # Use an init container to take contents of vault properties configmap and store in actual vault file.
+      initContainers:
+        - name: my-release-ditm-connector-init-config
+          image: busybox
+          command: ["/bin/sh", "-c"]
+          args:
+            - cp /config/vault.properties /resources/vault/vault.properties && cp /config/keystore.jks /resources/vault/keystore.jks
+          volumeMounts:
+          - name: my-release-ditm-connector-vault-config
+            readOnly: true
+            mountPath: /config
+          - name: my-release-ditm-connector-pvc-volume
+            mountPath: /resources/vault
+      containers:
+        - image: docker.nexus.dataspac.es/ditm/edc/components/ditm-connector:http-data-plane
+          name: my-release-ditm-connector
+          env:
+            - name: EDC_API_AUTH_KEY
+              value: "YaO5UMkYg2w586Cg017iy6Q7A6-EyuOt"
+            - name: EDC_CATALOG_CACHE_EXECUTION_DELAY_SECONDS
+              value: "30"
+            - name: EDC_CATALOG_CACHE_EXECUTION_PERIOD_SECONDS
+              value: "120"
+            - name: EDC_CONNECTOR_NAME
+              value: "serviceprovider-connector"
+            - name: EDC_PARTICIPANT_ID
+              value: "did:web:serviceprovider.edc.ditm.nl"
+            - name: EDC_IDENTITY_DID_URL
+              value: "did:web:serviceprovider.edc.ditm.nl"
+            - name: EDC_VAULT
+              value: /resources/vault/vault.properties
+            - name: EDC_KEYSTORE
+              value: /resources/vault/keystore.jks
+            - name: EDC_KEYSTORE_PASSWORD
+              value: test123
+            - name: EDC_WEB_REST_CORS_ENABLED
+              value: "true"
+            - name: EDC_WEB_REST_CORS_HEADERS
+              value: "origin,content-type,accept,authorization,x-api-key"
+            - name: EDC_IAM_DID_WEB_USE_HTTPS
+              value: "true"
+            - name: EDC_DSP_CALLBACK_ADDRESS
+              value: "https://dsp.serviceprovider.edc.ditm.nl/api/dsp"
+            - name: REGISTRATION_SERVICE_API_URL
+              value: "https://registration.edc.ditm.nl/api/authority"
+            - name: EDC_DATAPLANE_TOKEN_VALIDATION_ENDPOINT
+              value: 'http://my-release-ditm-connector-service:8383/api/control/token'
+            - name: EDC_DATASOURCE_IDENTITYHUB_URL
+              value: "jdbc:postgresql://postgres.postgres.svc.cluster.local:5432/ditm-serviceprovider"
+            - name: EDC_DATASOURCE_IDENTITYHUB_USER
+              value: "ditm"
+            - name: EDC_DATASOURCE_IDENTITYHUB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: password 
+            - name: JVM_ARGS
+              value: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+            - name: EDC_RECEIVER_HTTP_ENDPOINT
+              value: serviceprovider.edc.ditm.nl
+            - name: EDC_DATASOURCE_IDENTITYHUB_USER
+              value: "ditm"
+            - name: EDC_VOCABULARY_HUB_ID
+              value: "did:web:semantic-treehouse.dataspacesplayground.nl"
+            - name: EDC_VOCABULARY_HUB_URL
+              value: "https://dsp.semantic-treehouse.dataspacesplayground.nl/api/dsp"
+            - name: EDC_VOCABULARY_HUB_ASSETID
+              value: "semanticValidator"
+          ports:
+            - containerPort: 7171
+            - containerPort: 8181
+            - containerPort: 8282
+            - containerPort: 8383
+            - containerPort: 8484
+            - containerPort: 9191
+          volumeMounts:
+            - name: my-release-ditm-connector-pvc-volume
+              mountPath: /resources/vault
+          imagePullPolicy: Always
+      restartPolicy: Always
+      volumes:
+      - name: my-release-ditm-connector-pvc-volume
+        persistentVolumeClaim:
+          claimName: my-release-ditm-connector-vault-pvc
+      - name: my-release-ditm-connector-vault-config
+        secret:
+          secretName: serviceprovider-secret
+---
+# Source: ditm-connector/templates/dashboard-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-release-ditm-connector-dashboard
+  name: my-release-ditm-connector-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-ditm-connector-dashboard
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: my-release-ditm-connector-dashboard
+    spec:
+      containers:
+        - image: docker.nexus.dataspac.es/edc/playground/data-dashboard:v0.3.0-tno
+          name: my-release-ditm-connector-dashboard
+          ports:
+            - containerPort: 80
+          imagePullPolicy: Always
+          resources: {}
+          volumeMounts:
+          - name: my-release-ditm-connector-assets-volume
+            mountPath: "/usr/share/nginx/html/assets/config"
+            readOnly: true
+          - name: my-release-ditm-connector-did-volume
+            mountPath: "/usr/share/nginx/html/.well-known"
+            readOnly: true
+      restartPolicy: Always
+      volumes:
+      - name: my-release-ditm-connector-assets-volume
+        secret:
+          secretName: my-release-ditm-connector-secret
+          optional: false
+      - name: my-release-ditm-connector-did-volume
+        configMap:
+          name: serviceprovider-configmap
+          optional: false
+
+status: {}
+---
+# Source: ditm-connector/templates/connector-ingress-api.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ditm-connector-ingress-api
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-ditm-connector
+    meta.helm.sh/release-namespace: default
+    nginx.ingress.kubernetes.io/whitelist-source-range: "134.203.0.0/16,134.221.0.0/16,139.63.0.0/16"
+spec:
+  tls:
+    - hosts:
+        - api.serviceprovider.edc.ditm.nl
+      secretName: api.serviceprovider.edc.ditm.nl-tls
+  rules:
+    - host: api.serviceprovider.edc.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-ditm-connector-service
+                port:
+                  name: "http-api"
+---
+# Source: ditm-connector/templates/connector-ingress-control.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ditm-connector-ingress-control
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-ditm-connector
+    meta.helm.sh/release-namespace: default
+    nginx.ingress.kubernetes.io/whitelist-source-range: "134.203.0.0/16,134.221.0.0/16,139.63.0.0/16"
+spec:
+  tls:
+    - hosts:
+        - control.serviceprovider.edc.ditm.nl
+      secretName: control.serviceprovider.edc.ditm.nl-tls
+  rules:
+    - host: control.serviceprovider.edc.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-ditm-connector-service
+                port:
+                  name: "http-control"
+---
+# Source: ditm-connector/templates/connector-ingress-dataplane-public-api.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ditm-connector-ingress-public-dp-api
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-ditm-connector
+    meta.helm.sh/release-namespace: default
+spec:
+  tls:
+    - hosts:
+        - public-api.serviceprovider.edc.ditm.nl
+      secretName: public-api.serviceprovider.edc.ditm.nl-tls
+  rules:
+    - host: public-api.serviceprovider.edc.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-ditm-connector-service
+                port:
+                  name: "http-dp-public"
+---
+# Source: ditm-connector/templates/connector-ingress-dsp.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ditm-connector-ingress-dsp
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-ditm-connector
+    meta.helm.sh/release-namespace: default
+spec:
+  tls:
+    - hosts:
+        - dsp.serviceprovider.edc.ditm.nl
+      secretName: dsp.serviceprovider.edc.ditm.nl-tls
+  rules:
+    - host: dsp.serviceprovider.edc.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-ditm-connector-service
+                port:
+                  name: "http-dsp"
+---
+# Source: ditm-connector/templates/connector-ingress-identity.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ditm-connector-ingress-identity
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-ditm-connector
+    meta.helm.sh/release-namespace: default
+spec:
+  tls:
+    - hosts:
+        - identity.serviceprovider.edc.ditm.nl
+      secretName: identity.serviceprovider.edc.ditm.nl-tls
+  rules:
+    - host: identity.serviceprovider.edc.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-ditm-connector-service
+                port:
+                  name: "http-identity"
+---
+# Source: ditm-connector/templates/connector-ingress-management.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ditm-connector-ingress-management
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-ditm-connector
+    meta.helm.sh/release-namespace: default
+    nginx.ingress.kubernetes.io/whitelist-source-range: "134.203.0.0/16,134.221.0.0/16,139.63.0.0/16"
+spec:
+  tls:
+    - hosts:
+        - management.serviceprovider.edc.ditm.nl
+      secretName: management.serviceprovider.edc.ditm.nl-tls
+  rules:
+    - host: management.serviceprovider.edc.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-ditm-connector-service
+                port:
+                  name: "http-management"
+---
+# Source: ditm-connector/templates/dashboard-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ditm-connector-dashboard-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-ditm-connector-dashboard
+    meta.helm.sh/release-namespace: default
+spec:
+  tls:
+    - hosts:
+        - serviceprovider.edc.ditm.nl
+      secretName: serviceprovider.edc.ditm.nl-tls
+  rules:
+    - host: serviceprovider.edc.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-ditm-connector-dashboard-service
+                port:
+                  number: 80

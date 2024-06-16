@@ -1,0 +1,45 @@
+---
+# Source: cluster-warmer/templates/priorityclass.yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: my-release
+value: -1
+globalDefault: false
+---
+# Source: cluster-warmer/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+spec:
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+    spec:
+      priorityClassName: my-release
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: "my-release"
+        image: "registry.k8s.io/pause:3.9"
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+---
+# Source: cluster-warmer/templates/hpa.yaml
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-release
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-release
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 95

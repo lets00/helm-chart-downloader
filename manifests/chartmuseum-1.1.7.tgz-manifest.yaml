@@ -1,0 +1,135 @@
+---
+# Source: chartmuseum/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-chartmuseum
+  annotations:
+    jenkins.io/credentials-keybinding-password: BASIC_AUTH_PASS
+    jenkins.io/credentials-keybinding-username: BASIC_AUTH_USER
+  labels:
+    jenkins.io/credentials-type: usernamePassword
+    app: chartmuseum
+    chart: chartmuseum-1.1.7
+    heritage: "Helm"
+    release: "my-release"
+type: Opaque
+data:
+---
+# Source: chartmuseum/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-chartmuseum
+  labels:
+    app: my-release-chartmuseum
+    release: "my-release"
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: chartmuseum/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-chartmuseum
+  annotations:
+    {}
+  labels:
+    app: chartmuseum
+    chart: chartmuseum-1.1.7
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: chartmuseum
+    release: "my-release"
+---
+# Source: chartmuseum/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-chartmuseum
+  annotations:
+    {}
+  labels:
+    app: chartmuseum
+    chart: chartmuseum-1.1.7
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+    type: RollingUpdate
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: chartmuseum
+  template:
+    metadata:
+      name: my-release-chartmuseum
+      annotations:
+        {}
+      labels:
+        app: chartmuseum
+        release: "my-release"
+    spec:
+      containers:
+      - name: chartmuseum
+        image: chartmuseum/chartmuseum:v0.7.1
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: "CHART_POST_FORM_FIELD_NAME"
+          value: "chart"
+        - name: "DISABLE_API"
+          value: "true"
+        - name: "DISABLE_METRICS"
+          value: "true"
+        - name: "LOG_JSON"
+          value: "true"
+        - name: "PROV_POST_FORM_FIELD_NAME"
+          value: "prov"
+        - name: "STORAGE"
+          value: "local"
+        args:
+        - --port=8080
+        - --storage-local-rootdir=/storage
+        ports:
+        - name: http
+          containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        volumeMounts:
+        - mountPath: /storage
+          name: storage-volume
+      volumes:
+      - name: storage-volume
+        persistentVolumeClaim:
+          claimName: my-release-chartmuseum

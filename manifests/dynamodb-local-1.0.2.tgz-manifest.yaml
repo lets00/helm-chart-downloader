@@ -1,0 +1,107 @@
+---
+# Source: dynamodb-local/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-dynamodb-local
+  labels:
+    app.kubernetes.io/name: dynamodb-local
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.2"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: dynamodb-local-1.0.2
+---
+# Source: dynamodb-local/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-dynamodb-local
+  labels:
+    app.kubernetes.io/name: dynamodb-local
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.2"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: dynamodb-local-1.0.2
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    
+    app.kubernetes.io/name: dynamodb-local
+    app.kubernetes.io/instance: my-release
+---
+# Source: dynamodb-local/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-dynamodb-local
+  labels:
+    app.kubernetes.io/name: dynamodb-local
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.2"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: dynamodb-local-1.0.2
+spec:
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  serviceName: "dynamodb"
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dynamodb-local
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dynamodb-local
+        app.kubernetes.io/instance: my-release
+    spec:
+      terminationGracePeriodSeconds: 60
+      serviceAccountName: my-release-dynamodb-local
+      securityContext:
+        {}
+      containers:
+        - name: dynamodb-local
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "amazon/dynamodb-local:latest"
+          imagePullPolicy: IfNotPresent
+          args: [ "-jar", "/home/dynamodblocal/DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/data" ]
+          env:
+          ports:
+            - protocol: TCP
+              containerPort: 8000
+              name: dynamodb
+          resources:
+            limits:
+              cpu: 200m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+          volumeMounts:
+            - name:      temp
+              mountPath: /tmp
+              subPath:   temp
+              readOnly:  false
+            - name:      storage
+              mountPath: /data
+              subPath:   data
+              readOnly:  false
+      volumes:
+        - name: temp
+          emptyDir:
+            sizeLimit: 5Gi
+        - name: storage
+          emptyDir:
+            sizeLimit: 10Gi

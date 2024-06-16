@@ -1,0 +1,97 @@
+---
+# Source: cert-manager/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-cert-manager
+  namespace: "default"
+  labels:
+    app: cert-manager
+    chart: cert-manager-0.4.1
+    release: my-release
+    heritage: Helm
+---
+# Source: cert-manager/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: my-release-cert-manager
+  labels:
+    app: cert-manager
+    chart: cert-manager-0.4.1
+    release: my-release
+    heritage: Helm
+rules:
+  - apiGroups: ["certmanager.k8s.io"]
+    resources: ["certificates", "issuers", "clusterissuers"]
+    verbs: ["*"]
+  - apiGroups: [""]
+    # TODO: remove endpoints once 0.4 is released. We include it here in case
+    # users use the 'master' version of the Helm chart with a 0.2.x release of
+    # cert-manager that still performs leader election with Endpoint resources.
+    # We advise users don't do this, but some will anyway and this will reduce
+    # friction.
+    resources: ["endpoints", "configmaps", "secrets", "events", "services", "pods"]
+    verbs: ["*"]
+  - apiGroups: ["extensions"]
+    resources: ["ingresses"]
+    verbs: ["*"]
+---
+# Source: cert-manager/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-cert-manager
+  labels:
+    app: cert-manager
+    chart: cert-manager-0.4.1
+    release: my-release
+    heritage: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-cert-manager
+subjects:
+  - name: my-release-cert-manager
+    namespace: "default"
+    kind: ServiceAccount
+---
+# Source: cert-manager/templates/deployment.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: my-release-cert-manager
+  namespace: "default"
+  labels:
+    app: cert-manager
+    chart: cert-manager-0.4.1
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cert-manager
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: cert-manager
+        release: my-release
+      annotations:
+    spec:
+      serviceAccountName: my-release-cert-manager
+      containers:
+        - name: cert-manager
+          image: "quay.io/jetstack/cert-manager-controller:v0.4.1"
+          imagePullPolicy: IfNotPresent
+          args:
+          - --cluster-resource-namespace=$(POD_NAMESPACE)
+          - --leader-election-namespace=$(POD_NAMESPACE)
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          resources:
+            {}

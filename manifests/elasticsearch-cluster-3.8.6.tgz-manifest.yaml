@@ -1,0 +1,717 @@
+---
+# Source: elasticsearch-cluster/charts/es-data-hot/templates/poddisruptionbudget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: "my-elasticsearch-cluster-data-hot-pdb"
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: "my-elasticsearch-cluster-data-hot"
+---
+# Source: elasticsearch-cluster/charts/es-master/templates/poddisruptionbudget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: "my-elasticsearch-cluster-master-pdb"
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: "my-elasticsearch-cluster-master"
+---
+# Source: elasticsearch-cluster/charts/es-data-hot/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-elasticsearch-cluster-data-hot
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "es-data-hot"
+    app: "my-elasticsearch-cluster-data-hot"
+  annotations:
+    {}
+spec:
+  type: ClusterIP
+  selector:
+    release: "my-release"
+    chart: "es-data-hot"
+    app: "my-elasticsearch-cluster-data-hot"
+  publishNotReadyAddresses: false
+  ports:
+  - name: http
+    protocol: TCP
+    port: 9200
+  - name: transport
+    protocol: TCP
+    port: 9300
+---
+# Source: elasticsearch-cluster/charts/es-data-hot/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-elasticsearch-cluster-data-hot-headless
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "es-data-hot"
+    app: "my-elasticsearch-cluster-data-hot"
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None # This is needed for statefulset hostnames like elasticsearch-0 to resolve
+  # Create endpoints also if the related pod isn't ready
+  publishNotReadyAddresses: true
+  selector:
+    app: "my-elasticsearch-cluster-data-hot"
+  ports:
+  - name: http
+    port: 9200
+  - name: transport
+    port: 9300
+---
+# Source: elasticsearch-cluster/charts/es-master/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-elasticsearch-cluster-master
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "es-master"
+    app: "my-elasticsearch-cluster-master"
+  annotations:
+    {}
+spec:
+  type: ClusterIP
+  selector:
+    release: "my-release"
+    chart: "es-master"
+    app: "my-elasticsearch-cluster-master"
+  publishNotReadyAddresses: false
+  ports:
+  - name: http
+    protocol: TCP
+    port: 9200
+  - name: transport
+    protocol: TCP
+    port: 9300
+---
+# Source: elasticsearch-cluster/charts/es-master/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-elasticsearch-cluster-master-headless
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "es-master"
+    app: "my-elasticsearch-cluster-master"
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None # This is needed for statefulset hostnames like elasticsearch-0 to resolve
+  # Create endpoints also if the related pod isn't ready
+  publishNotReadyAddresses: true
+  selector:
+    app: "my-elasticsearch-cluster-master"
+  ports:
+  - name: http
+    port: 9200
+  - name: transport
+    port: 9300
+---
+# Source: elasticsearch-cluster/charts/prometheus-elasticsearch-exporter/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release-prometheus-elasticsearch-exporter
+  labels:
+    chart: prometheus-elasticsearch-exporter-5.0.0
+    app: prometheus-elasticsearch-exporter
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9108
+      protocol: TCP
+  selector:
+    app: prometheus-elasticsearch-exporter
+    release: "my-release"
+---
+# Source: elasticsearch-cluster/charts/prometheus-elasticsearch-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-prometheus-elasticsearch-exporter
+  labels:
+    chart: prometheus-elasticsearch-exporter-5.0.0
+    app: prometheus-elasticsearch-exporter
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-elasticsearch-exporter
+      release: "my-release"
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: prometheus-elasticsearch-exporter
+        release: "my-release"
+    spec:
+      serviceAccountName: default
+      
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          env:
+          image: "quay.io/prometheuscommunity/elasticsearch-exporter:v1.5.0"
+          imagePullPolicy: IfNotPresent
+          command: ["elasticsearch_exporter",
+                    "--log.format=logfmt",
+                    "--log.level=info",
+                    "--es.uri=http://my-elasticsearch-master-url:9200",
+                    "--es.all",
+                    "--es.indices",
+                    "--es.indices_settings",
+                    "--es.indices_mappings",
+                    "--es.shards",
+                    "--es.snapshots",
+                    "--es.timeout=30s",
+                    "--web.listen-address=:9108",
+                    "--web.telemetry-path=/metrics"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          ports:
+            - containerPort: 9108
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 1
+            timeoutSeconds: 5
+            periodSeconds: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/ash", "-c", "sleep 20"]
+          volumeMounts:
+      volumes:
+---
+# Source: elasticsearch-cluster/charts/es-data-hot/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-elasticsearch-cluster-data-hot
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "es-data-hot"
+    app: "my-elasticsearch-cluster-data-hot"
+  annotations:
+    esMajorVersion: "7"
+spec:
+  serviceName: my-elasticsearch-cluster-data-hot-headless
+  selector:
+    matchLabels:
+      app: "my-elasticsearch-cluster-data-hot"
+  replicas: 1
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: my-elasticsearch-cluster-data-hot
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+  template:
+    metadata:
+      name: "my-elasticsearch-cluster-data-hot"
+      labels:
+        release: "my-release"
+        chart: "es-data-hot"
+        app: "my-elasticsearch-cluster-data-hot"
+      annotations:
+        
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      automountServiceAccountToken: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - "my-elasticsearch-cluster-data-hot"
+            topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 120
+      volumes:
+      # Currently some extra blocks accept strings
+      # to continue with backwards compatibility this is being kept
+      # whilst also allowing for yaml to be specified too.
+        - name: plugindir
+          emptyDir: {}
+        
+      enableServiceLinks: true
+      initContainers:
+      - name: configure-sysctl
+        securityContext:
+          runAsUser: 0
+          privileged: true
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.18"
+        imagePullPolicy: "IfNotPresent"
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        resources:
+          {}
+
+      # Currently some extra blocks accept strings
+      # to continue with backwards compatibility this is being kept
+      # whilst also allowing for yaml to be specified too.
+      - name: elasticsearch-plugin-install-repository-s3
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.18
+        command:
+          - sh
+        args:
+          - -c
+          - |
+            set -e; set -x;
+            PLUGIN_NAME="repository-s3"
+            echo "Installing $PLUGIN_NAME..."
+            PLUGIN_LIST=$(bin/elasticsearch-plugin list)
+            echo $PLUGIN_LIST
+            if echo $PLUGIN_LIST | grep "$PLUGIN_NAME"; then
+              echo "Plugin $PLUGIN_NAME already exists, skipping."
+            else
+              echo "$PLUGIN_NAME does not exist yet, installing..."
+              bin/elasticsearch-plugin install --batch $PLUGIN_NAME
+            fi
+        volumeMounts:
+          - mountPath: /usr/share/elasticsearch/plugins/
+            name: plugindir
+      
+      containers:
+      - name: "es-data-hot"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.18"
+        imagePullPolicy: "IfNotPresent"
+        readinessProbe:
+          exec:
+            command:
+              - bash
+              - -c
+              - |
+                set -e
+                # If the node is starting up wait for the cluster to be ready (request params: "wait_for_status=green&timeout=1s" )
+                # Once it has started only check that the node itself is responding
+                START_FILE=/tmp/.es_start_file
+
+                # Disable nss cache to avoid filling dentry cache when calling curl
+                # This is required with Elasticsearch Docker using nss < 3.52
+                export NSS_SDB_USE_CACHE=no
+
+                http () {
+                  local path="${1}"
+                  local args="${2}"
+                  set -- -XGET -s
+
+                  if [ "$args" != "" ]; then
+                    set -- "$@" $args
+                  fi
+
+                  if [ -n "${ELASTIC_PASSWORD}" ]; then
+                    set -- "$@" -u "elastic:${ELASTIC_PASSWORD}"
+                  fi
+
+                  curl --output /dev/null -k "$@" "http://127.0.0.1:9200${path}"
+                }
+
+                if [ -f "${START_FILE}" ]; then
+                  echo 'Elasticsearch is already running, lets check the node is healthy'
+                  HTTP_CODE=$(http "/" "-w %{http_code}")
+                  RC=$?
+                  if [[ ${RC} -ne 0 ]]; then
+                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} http://127.0.0.1:9200/ failed with RC ${RC}"
+                    exit ${RC}
+                  fi
+                  # ready if HTTP code 200, 503 is tolerable if ES version is 6.x
+                  if [[ ${HTTP_CODE} == "200" ]]; then
+                    exit 0
+                  elif [[ ${HTTP_CODE} == "503" && "7" == "6" ]]; then
+                    exit 0
+                  else
+                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} http://127.0.0.1:9200/ failed with HTTP code ${HTTP_CODE}"
+                    exit 1
+                  fi
+
+                else
+                  echo 'Waiting for elasticsearch cluster to become ready (request params: "wait_for_status=green&timeout=1s" )'
+                  if http "/_cluster/health?wait_for_status=green&timeout=1s" "--fail" ; then
+                    touch ${START_FILE}
+                    exit 0
+                  else
+                    echo 'Cluster is not yet ready (request params: "wait_for_status=green&timeout=1s" )'
+                    exit 1
+                  fi
+                fi
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 3
+          timeoutSeconds: 5
+        ports:
+        - name: http
+          containerPort: 9200
+        - name: transport
+          containerPort: 9300
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+        env:
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: discovery.seed_hosts
+            value: "my-elasticsearch-cluster-master-headless"
+          - name: cluster.name
+            value: "my-elasticsearch-cluster"
+          - name: network.host
+            value: "0.0.0.0"
+          - name: cluster.deprecation_indexing.enabled
+            value: "false"
+          - name: node.data
+            value: "true"
+          - name: node.ingest
+            value: "true"
+          - name: node.master
+            value: "false"
+          - name: node.ml
+            value: "true"
+          - name: node.remote_cluster_client
+            value: "true"
+        volumeMounts:
+          - name: "my-elasticsearch-cluster-data-hot"
+            mountPath: /usr/share/elasticsearch/data
+
+        # Currently some extra blocks accept strings
+        # to continue with backwards compatibility this is being kept
+        # whilst also allowing for yaml to be specified too.
+          - mountPath: /usr/share/elasticsearch/plugins/
+            name: plugindir
+---
+# Source: elasticsearch-cluster/charts/es-master/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-elasticsearch-cluster-master
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "es-master"
+    app: "my-elasticsearch-cluster-master"
+  annotations:
+    esMajorVersion: "7"
+spec:
+  serviceName: my-elasticsearch-cluster-master-headless
+  selector:
+    matchLabels:
+      app: "my-elasticsearch-cluster-master"
+  replicas: 1
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: my-elasticsearch-cluster-master
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+  template:
+    metadata:
+      name: "my-elasticsearch-cluster-master"
+      labels:
+        release: "my-release"
+        chart: "es-master"
+        app: "my-elasticsearch-cluster-master"
+      annotations:
+        
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      automountServiceAccountToken: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - "my-elasticsearch-cluster-master"
+            topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 120
+      volumes:
+      # Currently some extra blocks accept strings
+      # to continue with backwards compatibility this is being kept
+      # whilst also allowing for yaml to be specified too.
+        - name: plugindir
+          emptyDir: {}
+        
+      enableServiceLinks: true
+      initContainers:
+      - name: configure-sysctl
+        securityContext:
+          runAsUser: 0
+          privileged: true
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.18"
+        imagePullPolicy: "IfNotPresent"
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        resources:
+          {}
+
+      # Currently some extra blocks accept strings
+      # to continue with backwards compatibility this is being kept
+      # whilst also allowing for yaml to be specified too.
+      - name: elasticsearch-plugin-install-repository-s3
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.18
+        command:
+          - sh
+        args:
+          - -c
+          - |
+            set -e; set -x;
+            PLUGIN_NAME="repository-s3"
+            echo "Installing $PLUGIN_NAME..."
+            PLUGIN_LIST=$(bin/elasticsearch-plugin list)
+            echo $PLUGIN_LIST
+            if echo $PLUGIN_LIST | grep "$PLUGIN_NAME"; then
+              echo "Plugin $PLUGIN_NAME already exists, skipping."
+            else
+              echo "$PLUGIN_NAME does not exist yet, installing..."
+              bin/elasticsearch-plugin install --batch $PLUGIN_NAME
+            fi
+        volumeMounts:
+          - mountPath: /usr/share/elasticsearch/plugins/
+            name: plugindir
+      
+      containers:
+      - name: "es-master"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.18"
+        imagePullPolicy: "IfNotPresent"
+        readinessProbe:
+          exec:
+            command:
+              - bash
+              - -c
+              - |
+                set -e
+                # If the node is starting up wait for the cluster to be ready (request params: "wait_for_status=green&timeout=1s" )
+                # Once it has started only check that the node itself is responding
+                START_FILE=/tmp/.es_start_file
+
+                # Disable nss cache to avoid filling dentry cache when calling curl
+                # This is required with Elasticsearch Docker using nss < 3.52
+                export NSS_SDB_USE_CACHE=no
+
+                http () {
+                  local path="${1}"
+                  local args="${2}"
+                  set -- -XGET -s
+
+                  if [ "$args" != "" ]; then
+                    set -- "$@" $args
+                  fi
+
+                  if [ -n "${ELASTIC_PASSWORD}" ]; then
+                    set -- "$@" -u "elastic:${ELASTIC_PASSWORD}"
+                  fi
+
+                  curl --output /dev/null -k "$@" "http://127.0.0.1:9200${path}"
+                }
+
+                if [ -f "${START_FILE}" ]; then
+                  echo 'Elasticsearch is already running, lets check the node is healthy'
+                  HTTP_CODE=$(http "/" "-w %{http_code}")
+                  RC=$?
+                  if [[ ${RC} -ne 0 ]]; then
+                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} http://127.0.0.1:9200/ failed with RC ${RC}"
+                    exit ${RC}
+                  fi
+                  # ready if HTTP code 200, 503 is tolerable if ES version is 6.x
+                  if [[ ${HTTP_CODE} == "200" ]]; then
+                    exit 0
+                  elif [[ ${HTTP_CODE} == "503" && "7" == "6" ]]; then
+                    exit 0
+                  else
+                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} http://127.0.0.1:9200/ failed with HTTP code ${HTTP_CODE}"
+                    exit 1
+                  fi
+
+                else
+                  echo 'Waiting for elasticsearch cluster to become ready (request params: "wait_for_status=green&timeout=1s" )'
+                  if http "/_cluster/health?wait_for_status=green&timeout=1s" "--fail" ; then
+                    touch ${START_FILE}
+                    exit 0
+                  else
+                    echo 'Cluster is not yet ready (request params: "wait_for_status=green&timeout=1s" )'
+                    exit 1
+                  fi
+                fi
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 3
+          timeoutSeconds: 5
+        ports:
+        - name: http
+          containerPort: 9200
+        - name: transport
+          containerPort: 9300
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+        env:
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: cluster.initial_master_nodes
+            value: "my-elasticsearch-cluster-master-0,"
+          - name: discovery.seed_hosts
+            value: "my-elasticsearch-cluster-master-headless"
+          - name: cluster.name
+            value: "my-elasticsearch-cluster"
+          - name: network.host
+            value: "0.0.0.0"
+          - name: cluster.deprecation_indexing.enabled
+            value: "false"
+          - name: node.data
+            value: "false"
+          - name: node.ingest
+            value: "false"
+          - name: node.master
+            value: "true"
+          - name: node.ml
+            value: "true"
+          - name: node.remote_cluster_client
+            value: "true"
+        volumeMounts:
+          - name: "my-elasticsearch-cluster-master"
+            mountPath: /usr/share/elasticsearch/data
+
+        # Currently some extra blocks accept strings
+        # to continue with backwards compatibility this is being kept
+        # whilst also allowing for yaml to be specified too.
+          - mountPath: /usr/share/elasticsearch/plugins/
+            name: plugindir
+---
+# Source: elasticsearch-cluster/charts/es-data-hot/templates/test/test-elasticsearch-health.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-fyiip-test"
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+  containers:
+  - name: "my-release-ratdo-test"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.18"
+    imagePullPolicy: "IfNotPresent"
+    command:
+      - "sh"
+      - "-c"
+      - |
+        #!/usr/bin/env bash -e
+        curl -XGET --fail 'my-elasticsearch-cluster-data-hot:9200/_cluster/health?wait_for_status=green&timeout=1s'
+  restartPolicy: Never
+---
+# Source: elasticsearch-cluster/charts/es-master/templates/test/test-elasticsearch-health.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-horma-test"
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+  containers:
+  - name: "my-release-hqomo-test"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.18"
+    imagePullPolicy: "IfNotPresent"
+    command:
+      - "sh"
+      - "-c"
+      - |
+        #!/usr/bin/env bash -e
+        curl -XGET --fail 'my-elasticsearch-cluster-master:9200/_cluster/health?wait_for_status=green&timeout=1s'
+  restartPolicy: Never

@@ -1,0 +1,110 @@
+---
+# Source: istio/templates/istio.yaml
+# https://github.com/istio/istio/tree/master/manifests/charts/istio-operator
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: kubegems-istio
+  namespace: default
+  annotations:
+    bundle.kubegems.io/ignore-options: OnUpdate
+spec:
+  components:
+    pilot:
+      k8s:
+        env:
+          - name: PILOT_FILTER_GATEWAY_CLUSTER_CONFIG
+            value: "true"
+    cni:
+      enabled: true
+  
+  tag: 1.11.7
+  meshConfig:
+    defaultConfig:
+      proxyMetadata:
+        ISTIO_META_DNS_AUTO_ALLOCATE: "true"
+        ISTIO_META_DNS_CAPTURE: "true"
+      tracing:
+        sampling: 50
+        zipkin:
+          address: 
+    enableTracing: true
+  values:
+    gateways:
+      istio-ingressgateway:
+        injectionTemplate: gateway
+    global:
+      meshID: mesh-default
+      multiCluster:
+        clusterName: 
+      network: 
+      proxy_init:
+        resources:
+          limits:
+            cpu: 50m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+      proxy:
+        autoInject: disabled
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+      tracer:
+        zipkin:
+          address: 
+    istio_cni:
+      enabled: true
+---
+# Source: istio/templates/istio.yaml
+# https://kiali.io/docs/installation/installation-guide/install-with-helm/
+apiVersion: plugins.kubegems.io/v1beta1
+kind: Plugin
+metadata:
+  name: kiali-server
+  namespace: default
+spec:
+  kind: helm
+  url: https://kiali.org/helm-charts
+  version: 1.38.1  # update to related version when istio version changed
+  # see: https://github.com/istio/istio/blob/master/manifests/addons/values-kiali.yaml
+  values:
+    server:
+      web_history_mode: hash
+      web_fqdn: kiali..kubegems.io
+    auth:
+      strategy: anonymous
+    deployment:
+      pod_annotations:
+        sidecar.istio.io/inject: "false"
+      # image_name: quay.io/kiali/kiali
+      
+    external_services:
+      grafana:
+        url: 
+      prometheus:
+        url: 
+      tracing:
+        url:
+---
+# Source: istio/templates/istio.yaml
+# https://github.com/istio/istio/tree/master/manifests/charts/istio-operator
+apiVersion: plugins.kubegems.io/v1beta1
+kind: Plugin
+metadata:
+  name: istio-operator
+  namespace: default
+spec:
+  kind: helm
+  url: https://github.com/istio/istio/archive/refs/tags/1.12.6.tar.gz
+  path: istio-1.12.6/manifests/charts/istio-operator
+  version: 1.12.6
+  values:
+    # hub: gcr.io/istio-testing  # in chart default hub just for testing
+    
+    tag:  1.11.7

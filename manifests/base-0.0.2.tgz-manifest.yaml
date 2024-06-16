@@ -1,0 +1,258 @@
+---
+# Source: base/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-base
+  labels:
+    helm.sh/chart: base-0.0.2
+    app.kubernetes.io/name: base
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.8.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: base/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-base
+  annotations:
+  labels:
+    helm.sh/chart: base-0.0.2
+    app.kubernetes.io/name: base
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.8.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7060
+      targetPort: 7060
+      protocol: TCP
+      name: metrics
+    - port: 8545
+      targetPort: 8545
+      protocol: TCP
+      name: rpc
+    - port: 8546
+      targetPort: 8546
+      protocol: TCP
+      name: ws
+  selector:
+    app.kubernetes.io/name: base
+    app.kubernetes.io/instance: my-release
+---
+# Source: base/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-base-op-node
+  annotations:
+  labels:
+    helm.sh/chart: base-0.0.2
+    app.kubernetes.io/name: base
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.8.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7300
+      targetPort: 7300
+      protocol: TCP
+      name: metrics
+    - port: 6060
+      targetPort: 6060
+      protocol: TCP
+      name: pprof
+    - port: 9545
+      targetPort: 9545
+      protocol: TCP
+      name: rpc
+  selector:
+    app.kubernetes.io/name: base
+    app.kubernetes.io/instance: my-release
+---
+# Source: base/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-base
+  labels:
+    helm.sh/chart: base-0.0.2
+    app.kubernetes.io/name: base
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.8.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: base
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-base
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: base
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-base
+      securityContext:
+        {}
+      containers:
+        - name: base-geth
+          securityContext:
+            {}
+          image: "ghcr.io/base-org/node:v0.8.1"
+          resources:
+            {}
+          command: ["bash", "./geth-entrypoint"]
+          args:
+          ports:
+            - name: metrics
+              containerPort: 7060
+              protocol: TCP
+            - name: rpc
+              containerPort: 8545
+              protocol: TCP
+            - name: ws
+              containerPort: 8546
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: rpc
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: rpc
+          volumeMounts:
+            - name: storage
+              mountPath: /data
+          env:
+            - name: OP_GETH_GENESIS_FILE_PATH
+              value: mainnet/genesis-l2.json
+            - name: OP_GETH_SEQUENCER_HTTP
+              value: https://mainnet-sequencer.base.org
+            - name: OP_GETH_BOOTNODES
+              value: enode://87a32fd13bd596b2ffca97020e31aef4ddcc1bbd4b95bb633d16c1329f654f34049ed240a36b449fda5e5225d70fe40bc667f53c304b71f8e68fc9d448690b51@3.231.138.188:30301,enode://ca21ea8f176adb2e229ce2d700830c844af0ea941a1d8152a9513b966fe525e809c3a6c73a2c18a12b74ed6ec4380edf91662778fe0b79f6a591236e49e176f9@184.72.129.189:30301,enode://acf4507a211ba7c1e52cdf4eef62cdc3c32e7c9c47998954f7ba024026f9a6b2150cd3f0b734d9c78e507ab70d59ba61dfe5c45e1078c7ad0775fb251d7735a2@3.220.145.177:30301,enode://8a5a5006159bf079d06a04e5eceab2a1ce6e0f721875b2a9c96905336219dbe14203d38f70f3754686a6324f786c2f9852d8c0dd3adac2d080f4db35efc678c5@3.231.11.52:30301,enode://cdadbe835308ad3557f9a1de8db411da1a260a98f8421d62da90e71da66e55e98aaa8e90aa7ce01b408a54e4bd2253d701218081ded3dbe5efbbc7b41d7cef79@54.198.153.150:30301
+            - name: OP_NODE_L2_ENGINE_AUTH_RAW
+              value: 688f5d737bad920bdfb2fc2f488d6b6209eebda1dae949a8de91398d932c517a
+            - name: OP_NODE_L2_ENGINE_AUTH
+              value: /tmp/engine-auth-jwt
+            - name: METRICS_PORT
+              value: "7060"
+            - name: OP_NODE_NETWORK
+              value: base-mainnet
+        - name: base-op-node
+          securityContext:
+            {}
+          image: "ghcr.io/base-org/node:v0.8.1"
+          resources:
+            {}
+          command: ["bash", "./op-node-entrypoint"]
+          args:
+          ports:
+            - name: metrics
+              containerPort: 7300
+              protocol: TCP
+            - name: pprof
+              containerPort: 6060
+              protocol: TCP
+            - name: rpc
+              containerPort: 9545
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: rpc
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: rpc
+          env:
+            - name: OP_NODE_L2_ENGINE_AUTH_RAW
+              value: 688f5d737bad920bdfb2fc2f488d6b6209eebda1dae949a8de91398d932c517a
+            - name: OP_NODE_L2_ENGINE_AUTH
+              value: /tmp/engine-auth-jwt
+            - name: OP_NODE_L2_ENGINE_RPC
+              value: ws://localhost:8551
+            - name: OP_NODE_LOG_LEVEL
+              value: info
+            - name: OP_NODE_METRICS_ADDR
+              value: "0.0.0.0"
+            - name: OP_NODE_METRICS_ENABLED
+              value: "true"
+            - name: OP_NODE_METRICS_PORT
+              value: "7300"
+            - name: OP_NODE_P2P_AGENT
+              value: base
+            - name: OP_NODE_P2P_LISTEN_IP
+              value: "0.0.0.0"
+            - name: OP_NODE_P2P_LISTEN_TCP_PORT
+              value: "9222"
+            - name: OP_NODE_P2P_LISTEN_UDP_PORT
+              value: "9222"
+            - name: OP_NODE_RPC_ADDR
+              value: "0.0.0.0"
+            - name: OP_NODE_RPC_PORT
+              value: "9545"
+            - name: OP_NODE_NETWORK
+              value: base-mainnet
+            - name: OP_NODE_SNAPSHOT_LOG
+              value: /tmp/op-node-snapshot-log
+            - name: OP_NODE_VERIFIER_L1_CONFS
+              value: "4"
+            - name: OP_NODE_ROLLUP_LOAD_PROTOCOL_VERSIONS
+              value: "true"
+            - name: OP_NODE_SYNCMODE
+              value: execution-layer
+            - name: OP_NODE_L1_BEACON
+              value: https://ethereum-beacon-api.publicnode.com
+            - name: OP_NODE_L1_ETH_RPC
+              value: https://ethereum-rpc.publicnode.com
+            - name: OP_NODE_L1_TRUST_RPC
+              value: "true"
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      volumes:
+        - name: storage
+          emptyDir: {}
+---
+# Source: base/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-base-test-connection"
+  labels:
+    helm.sh/chart: base-0.0.2
+    app.kubernetes.io/name: base
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.8.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl
+      command: ['curl']
+      args:
+        - --location
+        - --request
+        - POST
+        - 'my-release-base:8545/'
+        - --header
+        - 'Content-Type: application/json'
+        - --data-raw
+        - '{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":67}'
+  restartPolicy: Never

@@ -1,0 +1,603 @@
+---
+# Source: smarter-demo/charts/smarter-fluent-bit/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-smarter-fluent-bit
+  labels:
+    helm.sh/chart: smarter-fluent-bit-0.20.9
+    app.kubernetes.io/name: smarter-fluent-bit
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.9.9"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: smarter-demo/charts/smarter-fluent-bit/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-smarter-fluent-bit
+  labels:
+    helm.sh/chart: smarter-fluent-bit-0.20.9
+    app.kubernetes.io/name: smarter-fluent-bit
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.9.9"
+    app.kubernetes.io/managed-by: Helm
+data:
+  custom_parsers.conf: |
+    [PARSER]
+        Name   json
+        Format json
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+    
+    [PARSER]
+        Name        docker
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On
+        # Command      |  Decoder | Field | Optional Action
+        # =============|==================|=================
+        Decode_Field_As   escaped    log
+    
+    [PARSER]
+        Name        syslog
+        Format      regex
+        Regex       ^\<(?<pri>[0-9]+)\>(?<time>[^ ]* {1,2}[^ ]* [^ ]*) (?<host>[^ ]*) (?<ident>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?(?:[^\:]*\:)? *(?<message>.*)$
+        Time_Key    time
+        Time_Format %b %d %H:%M:%S
+    
+  fluent-bit.conf: |
+    [SERVICE]
+        Daemon Off
+        Flush 1
+        Log_Level info
+        Parsers_File parsers.conf
+        Parsers_File custom_parsers.conf
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+        Health_Check On
+        Streams_File mqtt-split.conf
+    
+    [INPUT]
+        name          cpu
+        Tag           cpu
+        Interval_Sec  30
+    [INPUT]
+        Name        tcp
+        Tag         netdata
+        Listen      0.0.0.0
+        Port        5170
+        Chunk_Size  64
+        Buffer_Size 128
+        Format      json
+    [INPUT]
+        Name   mqtt
+        alias  mqttdata
+        Tag    mqttdata
+        Listen 0.0.0.0
+        Port   1883
+    
+    [FILTER]          
+        Name          record_modifier
+        Match         ${HOSTNAME}
+        Record        hostname ${HOSTNAME}
+    
+    [FILTER]
+        Name          record_modifier
+        Match         car_count
+        Record        hostname ${HOSTNAME}
+    
+    [FILTER]
+        Name          record_modifier
+        Match         person_count
+        Record        hostname ${HOSTNAME}
+    
+    [FILTER]
+        Name          record_modifier
+        Match         bus_count
+        Record        hostname ${HOSTNAME}
+    
+    [FILTER]
+        Name          record_modifier
+        Match         bicycle_count
+        Record        hostname ${HOSTNAME}
+    
+    [FILTER]
+        Name          record_modifier
+        Match         motorcycle_count
+        Record        hostname ${HOSTNAME}
+    
+    [FILTER]
+        Name          record_modifier
+        Match         sound_class
+        Record        hostname ${HOSTNAME}
+    
+    [FILTER]
+        Name          record_modifier
+        Match         pms7003_count
+        Record        hostname ${HOSTNAME}
+    
+    [FILTER]
+        Name          record_modifier
+        Match         weatherbit_count
+        Record        hostname ${HOSTNAME}
+    
+    [OUTPUT]
+        Name            stdout
+        Match           *
+    [OUTPUT]
+        Name            forward
+        Match           cpu
+        Host            fluentbit.example.com
+        Port            30224
+        Self_Hostname   ${HOSTNAME}
+    [OUTPUT]
+        Name            forward
+        Match           *_count
+        Host            fluentbit.example.com
+        Port            30224
+        Self_Hostname   ${HOSTNAME}
+    [OUTPUT]
+        Name            forward
+        Match           *_class
+        Host            fluentbit.example.com
+        Port            30224
+        Self_Hostname   ${HOSTNAME}
+    [OUTPUT]
+        Name            forward
+        Match           netdata
+        Host            fluentbit.example.com
+        Port            30224
+        Self_Hostname   ${HOSTNAME}
+    
+  mqtt-split.conf: |
+    [STREAM_TASK]
+        Name  car_count
+        Exec  CREATE STREAM car_count AS SELECT * FROM STREAM:mqttdata WHERE topic = '/demo/car_count';
+    
+    [STREAM_TASK]
+        Name  person_count
+        Exec  CREATE STREAM person_count AS SELECT * FROM STREAM:mqttdata WHERE topic = '/demo/person_count';
+    
+    [STREAM_TASK]
+        Name  bus_count
+        Exec  CREATE STREAM bus_count AS SELECT * FROM STREAM:mqttdata WHERE topic = '/demo/bus_count';
+    
+    [STREAM_TASK]
+        Name  bicycle_count
+        Exec  CREATE STREAM bicycle_count AS SELECT * FROM STREAM:mqttdata WHERE topic = '/demo/bicycle_count';
+    
+    [STREAM_TASK]
+        Name  motorcycle_count
+        Exec  CREATE STREAM motorcycle_count AS SELECT * FROM STREAM:mqttdata WHERE topic = '/demo/motorcycle_count';
+    
+    [STREAM_TASK]
+        Name  sound_class
+        Exec  CREATE STREAM sound_class AS SELECT * FROM STREAM:mqttdata WHERE topic = '/demo/sound_class';
+    
+    [STREAM_TASK]
+        Name  pms7003_count
+        Exec  CREATE STREAM pms7003_count AS SELECT * FROM STREAM:mqttdata WHERE topic = '/demo/pms7003';
+    
+    [STREAM_TASK]
+        Name  weatherbit_count
+        Exec  CREATE STREAM weatherbit_count AS SELECT * FROM STREAM:mqttdata WHERE topic = '/demo/weatherbit';
+---
+# Source: smarter-demo/charts/smarter-fluent-bit/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-smarter-fluent-bit
+  labels:
+    helm.sh/chart: smarter-fluent-bit-0.20.9
+    app.kubernetes.io/name: smarter-fluent-bit
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.9.9"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: smarter-demo/charts/smarter-fluent-bit/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-smarter-fluent-bit
+  labels:
+    helm.sh/chart: smarter-fluent-bit-0.20.9
+    app.kubernetes.io/name: smarter-fluent-bit
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.9.9"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-smarter-fluent-bit
+subjects:
+  - kind: ServiceAccount
+    name: my-release-smarter-fluent-bit
+    namespace: default
+---
+# Source: smarter-demo/charts/smarter-fluent-bit/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-smarter-fluent-bit
+  labels:
+    helm.sh/chart: smarter-fluent-bit-0.20.9
+    app.kubernetes.io/name: smarter-fluent-bit
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.9.9"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 2020
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: smarter-fluent-bit
+    app.kubernetes.io/instance: my-release
+---
+# Source: smarter-demo/charts/smarter-audio-client/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: smarter-audio-client
+  namespace: smarter
+  labels:
+    name: smarter-audio-client
+spec:
+  selector:
+    matchLabels:
+      name: smarter-audio-client
+  template:
+    metadata:
+      labels:
+        name: smarter-audio-client
+    spec:
+      nodeSelector:
+        smarter-audio-client: enabled
+      tolerations:
+      - key: "smarter.type"
+        operator: "Equal"
+        value: "edge"
+        effect: "NoSchedule"
+      hostname: smarter-audio-client
+      initContainers:
+      - name: init-pulse
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup smarter-pulseaudio; do echo waiting for pulseaudio; sleep 2; done;']
+      - name: init-smarter-inference
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup smarter-inference; do echo waiting for smarter-inference; sleep 2; done;']
+      containers:
+      - name: smarter-audio-client
+        image: ghcr.io/smarter-project/audio-client:v3.1.2
+        imagePullPolicy: IfNotPresent
+        command: ["python3"]
+        args: ["main.py", "-c", "5"]
+        env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: PROTOCOL
+          value: HTTP
+        - name: CLASSIFY_SERVICE_POLL_FREQUENCY
+          value: "20"
+        - name: PULSE_SOURCE
+          value: alsa_input.hw_1_0
+        - name: PULSE_SERVER
+          value: tcp:smarter-pulseaudio:4713
+        - name: MQTT_BROKER_HOST
+          value: smarter-fluent-bit
+        - name: SMARTER_INFERENCE_URL
+          value: smarter-inference:2520
+        - name: LOG_LEVEL
+          value: INFO
+      terminationGracePeriodSeconds: 30
+---
+# Source: smarter-demo/charts/smarter-fluent-bit/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-release-smarter-fluent-bit
+  labels:
+    helm.sh/chart: smarter-fluent-bit-0.20.9
+    app.kubernetes.io/name: smarter-fluent-bit
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.9.9"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: smarter-fluent-bit
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: bb62ced2a06933423bb984300beb1c30e78680b7fac1d15d5a0ad478d78bcabf
+        checksum/luascripts: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: smarter-fluent-bit
+        app.kubernetes.io/instance: my-release
+    spec:
+      hostname: smarter-fluent-bit
+      serviceAccountName: my-release-smarter-fluent-bit
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: smarter-fluent-bit
+          image: "cr.fluentbit.io/fluent/fluent-bit:1.9.9"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 2020
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+          volumeMounts:
+            - mountPath: /fluent-bit/etc/fluent-bit.conf
+              name: config
+              subPath: fluent-bit.conf
+            - mountPath: /fluent-bit/etc/custom_parsers.conf
+              name: config
+              subPath: custom_parsers.conf
+            - name: config
+              mountPath: /fluent-bit/etc/mqtt-split.conf
+              subPath: mqtt-split.conf
+            - mountPath: /var/log
+              name: varlog
+            - mountPath: /var/lib/docker/containers
+              name: varlibdockercontainers
+              readOnly: true
+            - mountPath: /etc/machine-id
+              name: etcmachineid
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-smarter-fluent-bit
+        - hostPath:
+            path: /var/log
+          name: varlog
+        - hostPath:
+            path: /var/lib/docker/containers
+          name: varlibdockercontainers
+        - hostPath:
+            path: /etc/machine-id
+            type: File
+          name: etcmachineid
+      nodeSelector:
+        smarter-fluent-bit: enabled
+      tolerations:
+        - effect: NoSchedule
+          key: smarter.type
+          operator: Equal
+          value: edge
+---
+# Source: smarter-demo/charts/smarter-gstreamer/templates/common.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: smarter-gstreamer
+  namespace: smarter
+  labels:
+    name: smarter-gstreamer
+spec:
+  selector:
+    matchLabels:
+      name: smarter-gstreamer
+  template:
+    metadata:
+      labels:
+        name: smarter-gstreamer
+    spec:
+      nodeSelector:
+        smarter-gstreamer: enabled
+      tolerations:
+      - key: "smarter.type"
+        operator: "Equal"
+        value: "edge"
+        effect: "NoSchedule"
+      hostname: smarter-gstreamer
+      containers:
+      - name: smarter-gstreamer-rtsp-server
+        ports:
+          - containerPort: 8554
+            hostPort: 8554
+        image: ghcr.io/smarter-project/gstreamer:v1.0.2
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: GST_DEBUG
+          value: "3"
+        - name: VIDEO_ID
+          value: "0"
+        resources:
+          limits:
+            smarter-devices/video0: 1
+          requests:
+            smarter-devices/video0: 1
+      terminationGracePeriodSeconds: 15
+---
+# Source: smarter-demo/charts/smarter-image-detector/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: smarter-image-detector
+  namespace: smarter
+  labels:
+    name: smarter-image-detector
+spec:
+  selector:
+    matchLabels:
+      name: smarter-image-detector
+  template:
+    metadata:
+      labels:
+        name: smarter-image-detector
+    spec:
+      nodeSelector:
+        smarter-image-detector: enabled
+      tolerations:
+      - key: "smarter.type"
+        operator: "Equal"
+        value: "edge"
+        effect: "NoSchedule"
+      hostname: smarter-image-detector
+      initContainers:
+      - name: init-gstreamer
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup smarter-gstreamer; do echo waiting for gstreamer; sleep 2; done;']
+      - name: init-smarter-inference
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup smarter-inference; do echo waiting for smarter-inference; sleep 2; done;']
+      containers:
+      - name: smarter-image-detector
+        image: ghcr.io/smarter-project/image-detector:v2.5.3
+        imagePullPolicy: IfNotPresent
+        command: ["python3"]
+        args: ["demo.py", "-f", "-s", "1", "-p", "--detect-car", "--detect-person"]
+        env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: MQTT_BROKER_HOST
+          value: smarter-fluent-bit
+        - name: LOG_LEVEL
+          value: "DEBUG"
+        - name: CAPTURE_STRING
+          value: "rtspsrc location=rtsp://smarter-gstreamer:8554/video.h264.1 ! decodebin ! videoconvert ! appsink max-buffers=1 drop=true"
+        - name: MODEL_NAME
+          value: "ssd_mobilenet_coco"
+        - name: SMARTER_INFERENCE_URL
+          value: smarter-inference:2520
+        - name: PROTOCOL
+          value: "HTTP"
+        ports:
+        - containerPort: 8080
+          hostPort: 2520
+        resources:
+          limits:
+            memory: 200M
+          requests:
+            memory: 200M
+      terminationGracePeriodSeconds: 30
+---
+# Source: smarter-demo/charts/smarter-inference/templates/common.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: smarter-inference
+  namespace: smarter
+  labels:
+    name: smarter-inference
+spec:
+  selector:
+    matchLabels:
+      name: smarter-inference
+  template:
+    metadata:
+      labels:
+        name: smarter-inference
+    spec:
+      nodeSelector:
+        smarter-inference: enabled
+      tolerations:
+      - key: "smarter.type"
+        operator: "Equal"
+        value: "edge"
+        effect: "NoSchedule"
+      hostname: smarter-inference
+      containers:
+      - name: smarter-inference
+        image: ghcr.io/smarter-project/smarter-inference:v0.0.2
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 2520
+          - containerPort: 2521
+          - containerPort: 2522
+        env:
+        - name: NO_ENFORCE
+          value: "1"
+      terminationGracePeriodSeconds: 10
+---
+# Source: smarter-demo/charts/smarter-pulseaudio/templates/common.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: smarter-pulseaudio
+  namespace: smarter
+  labels:
+    name: smarter-pulseaudio
+spec:
+  selector:
+    matchLabels:
+      name: smarter-pulseaudio
+  template:
+    metadata:
+      labels:
+        name: smarter-pulseaudio
+    spec:
+      nodeSelector:
+        smarter-pulseaudio: enabled
+      tolerations:
+      - key: "smarter.type"
+        operator: "Equal"
+        value: "edge"
+        effect: "NoSchedule"
+      hostname: smarter-pulseaudio
+      containers:
+      - name: smarter-pulseaudio
+        imagePullPolicy: IfNotPresent
+        image: ghcr.io/smarter-project/pulseaudio:v0.0.4
+        resources:
+          limits:
+            cpu: 350m
+            memory: 100Mi
+            smarter-devices/snd: 1
+          requests:
+            cpu: 250m
+            memory: 100Mi
+            smarter-devices/snd: 1
+      terminationGracePeriodSeconds: 15
+---
+# Source: smarter-demo/charts/smarter-fluent-bit/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-smarter-fluent-bit-test-connection"
+  labels:
+    helm.sh/chart: smarter-fluent-bit-0.20.9
+    app.kubernetes.io/name: smarter-fluent-bit
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.9.9"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: "busybox:latest"
+      imagePullPolicy: Always
+      command: ['wget']
+      args: ['my-release-smarter-fluent-bit:2020']
+  restartPolicy: Never

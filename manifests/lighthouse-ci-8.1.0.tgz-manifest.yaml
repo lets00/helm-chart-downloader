@@ -1,0 +1,214 @@
+---
+# Source: lighthouse-ci/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-lighthouse-ci
+  labels:
+    helm.sh/chart: lighthouse-ci-8.1.0
+    app.kubernetes.io/name: lighthouse-ci
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: lighthouse-ci/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-lighthouse-ci
+  labels:
+    helm.sh/chart: lighthouse-ci-8.1.0
+    app.kubernetes.io/name: lighthouse-ci
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.1"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+---
+# Source: lighthouse-ci/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-lighthouse-ci
+  labels:
+    helm.sh/chart: lighthouse-ci-8.1.0
+    app.kubernetes.io/name: lighthouse-ci
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  lighthouserc.json: |
+    {
+      "ci": {
+        "server": {
+          "port": 9001,
+          "storage": {
+            "storageMethod": "sql",
+            "sqlDialect": "sqlite",
+            "sqlDatabasePath": "/data/lhci.db"
+          },
+          "psiCollectCron": {
+            "psiApiKey": "",
+            "sites": []
+          },
+          "deleteOldBuildsCron": []
+        }
+      }
+    }
+---
+# Source: lighthouse-ci/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-lighthouse-ci
+  labels:
+    helm.sh/chart: lighthouse-ci-8.1.0
+    app.kubernetes.io/name: lighthouse-ci
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9001
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: lighthouse-ci
+    app.kubernetes.io/instance: my-release
+---
+# Source: lighthouse-ci/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-lighthouse-ci
+  labels:
+    helm.sh/chart: lighthouse-ci-8.1.0
+    app.kubernetes.io/name: lighthouse-ci
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lighthouse-ci
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lighthouse-ci
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/configmap: 90df1c801a2d2616a5928d686ed7a15069c76a3c8244277f25fc50691d6db1b2
+        checksum/secret: f368da1dd64c81e878dbe59c749cec90240b88056f35ccb3f7c0756c85f5e521
+    spec:
+      
+      serviceAccountName: my-release-lighthouse-ci
+      securityContext:
+        {}
+      containers:
+        - name: lighthouse-ci
+          securityContext:
+            {}
+          image: docker.io/patrickhulce/lhci-server:0.8.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LHCI_LOG_LEVEL
+              value: "verbose"
+          ports:
+            - name: http
+              containerPort: 9001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            {}
+          volumeMounts:
+            - name: config
+              mountPath: /usr/src/lhci/lighthouserc.json
+              subPath: lighthouserc.json
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-lighthouse-ci
+        - name: data
+          emptyDir: {}
+---
+# Source: lighthouse-ci/templates/tests/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-lighthouse-ci-tests
+  labels:
+    helm.sh/chart: lighthouse-ci-8.1.0
+    app.kubernetes.io/name: lighthouse-ci
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: tests
+  annotations:
+    helm.sh/hook: test
+data:
+  test_all.py: |
+    import requests
+
+
+    def test_service_connection():
+        url = "http://my-release-lighthouse-ci:9001/"
+
+        response = requests.get(url)
+
+        assert response.status_code == 200
+---
+# Source: lighthouse-ci/templates/tests/pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-release-lighthouse-ci-tests
+  labels:
+    helm.sh/chart: lighthouse-ci-8.1.0
+    app.kubernetes.io/name: lighthouse-ci
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: tests
+  annotations:
+    helm.sh/hook: test
+spec:
+  
+  containers:
+    - name: tests
+      image: ghcr.io/cowboysysop/pytest:1.0.35
+      imagePullPolicy: IfNotPresent
+      volumeMounts:
+        - name: tests
+          mountPath: /tests
+          readOnly: true
+      workingDir: /tests
+  restartPolicy: Never
+  volumes:
+    - name: tests
+      configMap:
+        name: my-release-lighthouse-ci-tests

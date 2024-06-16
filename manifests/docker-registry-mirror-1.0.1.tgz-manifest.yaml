@@ -1,0 +1,137 @@
+---
+# Source: docker-registry-mirror/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-docker-registry-mirror-secret
+  labels:
+    app: docker-registry-mirror
+    chart: docker-registry-mirror-1.0.1
+    heritage: Helm
+    release: my-release
+type: Opaque
+data:
+  haSharedSecret: "d3k0Z1RKTDFCSVQ4eGNrZQ=="
+---
+# Source: docker-registry-mirror/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-docker-registry-mirror-config
+  labels:
+    app: docker-registry-mirror
+    chart: docker-registry-mirror-1.0.1
+    heritage: Helm
+    release: my-release
+data:
+  config.yml: |-
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    http:
+      addr: :5000
+      headers:
+        X-Content-Type-Options:
+        - nosniff
+    log:
+      fields:
+        service: registry
+    storage:
+      cache:
+        blobdescriptor: inmemory
+      filesystem:
+        rootdirectory: /var/lib/registry
+    version: 0.1
+---
+# Source: docker-registry-mirror/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-docker-registry-mirror
+  labels:
+    app: docker-registry-mirror
+    chart: docker-registry-mirror-1.0.1
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      protocol: TCP
+      name: registry
+      targetPort: 5000
+  selector:
+    app: docker-registry-mirror
+    release: my-release
+---
+# Source: docker-registry-mirror/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-docker-registry-mirror
+  labels:
+    app: docker-registry-mirror
+    chart: docker-registry-mirror-1.0.1
+    release: my-release
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app: docker-registry-mirror
+      release: my-release
+  replicas: 1
+  minReadySeconds: 5
+  template:
+    metadata:
+      labels:
+        app: docker-registry-mirror
+        release: my-release
+      annotations:
+        checksum/config: c8e0774b83cb4c3f6dda59c03da98559c53cf7b34ea29f4c961df67f76be4ccb
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      containers:
+        - name: docker-registry-mirror
+          image: "registry:2.8.3"
+          imagePullPolicy: IfNotPresent
+          command:
+          - /bin/registry
+          - serve
+          - /etc/docker/registry/config.yml
+          ports:
+            - containerPort: 5000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+          resources:
+            {}
+          env:
+            - name: REGISTRY_HTTP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-docker-registry-mirror-secret
+                  key: haSharedSecret
+            - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+              value: "/var/lib/registry"
+            - name: REGISTRY_PROXY_REMOTEURL
+              value: "https://registry-1.docker.io"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/registry/
+            - name: "my-release-docker-registry-mirror-config"
+              mountPath: "/etc/docker/registry"
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: my-release-docker-registry-mirror-config
+          configMap:
+            name: my-release-docker-registry-mirror-config

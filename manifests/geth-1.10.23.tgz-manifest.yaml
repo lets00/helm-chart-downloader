@@ -1,0 +1,235 @@
+---
+# Source: geth/charts/base/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-geth
+  labels:
+    helm.sh/chart: base-1.0.0
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.14"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: geth/charts/base/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name:  geth-influxdb
+type: Opaque
+stringData:
+  INFLUXDB_DATABASE: geth
+  INFLUXDB_ENDPOINT: http://influxdb.default:8086
+  INFLUXDB_PASSWORD: ""
+  INFLUXDB_USERNAME: admin
+---
+# Source: geth/charts/base/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: geth-files
+data:
+  config.toml: |2
+  
+    [Eth]
+    NetworkId = 1
+    [Node]
+    HTTPHost = "0.0.0.0"
+    HTTPPort = 8545
+    HTTPVirtualHosts = ["*"]
+    HTTPModules = ["net", "web3", "eth", "txpool"]
+    WSHost = "0.0.0.0"
+    WSPort = 8546
+    WSOrigins = ["*"]
+    WSModules = ["net", "web3", "eth", "txpool"]
+    [Node.P2P]
+    MaxPeers = 200
+    ListenAddr = ":30001"
+  genesis: ""
+---
+# Source: geth/charts/base/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-geth-rpc"
+  labels:
+    helm.sh/chart: base-1.0.0
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.14"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8545
+      targetPort: 8545
+      protocol: TCP
+      name: http
+    - port: 8546
+      targetPort: 8546
+      protocol: TCP
+      name: ws
+  selector:
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+---
+# Source: geth/charts/base/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-geth-prometheus"
+  labels:
+    helm.sh/chart: base-1.0.0
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.14"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6060
+      targetPort: 6060
+      protocol: TCP
+      name: prometheus
+  selector:
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+---
+# Source: geth/charts/base/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-geth-p2p"
+  labels:
+    helm.sh/chart: base-1.0.0
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.14"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 30001
+      targetPort: 30001
+      protocol: TCP
+      name: listener
+      nodePort: 30001
+    - port: 30001
+      targetPort: 30001
+      protocol: UDP
+      name: discovery
+      nodePort: 30001
+  selector:
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+---
+# Source: geth/charts/base/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-geth
+  labels:
+    helm.sh/chart: base-1.0.0
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.14"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: geth
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-geth
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: c11dc884dc7367a8531da43b381a0c2f160a3b830361ddd0266ce7d0fd15dfc0
+        checksum/secret: 367d5cbb8b8b7acbdac38fb82864ba9297cca411af837e348df9125b32242a83
+      labels:
+        app.kubernetes.io/name: geth
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-geth
+      initContainers:
+      containers:
+        - name: base-0          
+          image: "ethereum/client-go:v1.10.23"
+          imagePullPolicy: IfNotPresent
+          command:
+            - geth
+          args:
+            - --config
+            - /root/files/config.toml
+            - --nat=extip:$(HOST_IP)
+            - --metrics
+            - --metrics.addr=0.0.0.0
+            - --ipcdisable
+            - --cache=$(CACHE_MEMORY)
+            - --http.corsdomain=*          
+          volumeMounts:
+            - name: files
+              mountPath: /root/files
+            - name: data
+              mountPath: /root/.ethereum
+            - name: chaindata
+              mountPath: /root/.ethereum/geth/chaindata
+            - name: keystore
+              mountPath: /root/.ethereum/keystore
+          ports:
+            
+            - name: http
+              containerPort: 8545
+              protocol: TCP
+            - name: ws
+              containerPort: 8546
+              protocol: TCP
+            - name: prometheus
+              containerPort: 6060
+              protocol: TCP
+            - name: listener
+              containerPort: 30001
+              protocol: TCP
+            - name: discovery
+              containerPort: 30001
+              protocol: TCP
+          env:
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi      
+      volumes:
+        - name: files
+          configMap:
+            name: geth-files
+        - name: data
+        - name: chaindata
+        - name: keystore  
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "50G"
+        storageClassName: openebs-zfspv
+    - metadata:
+        name: chaindata
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "700G"
+        storageClassName: openebs-zfspv
+    - metadata:
+        name: keystore
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1G"
+        storageClassName: openebs-zfspv

@@ -1,0 +1,1535 @@
+---
+# Source: coroot/charts/clickhouse/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-clickhouse
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: clickhouse
+    helm.sh/chart: clickhouse-3.1.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: clickhouse
+automountServiceAccountToken: true
+---
+# Source: coroot/charts/prometheus/charts/kube-state-metrics/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.13.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.5.0"
+  name: my-release-kube-state-metrics
+  namespace: default
+imagePullSecrets:
+  []
+---
+# Source: coroot/charts/prometheus/templates/server/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-15.16.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: default
+  annotations:
+    {}
+---
+# Source: coroot/templates/cluster-agent.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-cluster-agent
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: my-release-cluster-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: coroot/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-coroot
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: coroot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: coroot/charts/clickhouse/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-clickhouse
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: clickhouse
+    helm.sh/chart: clickhouse-3.1.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: clickhouse
+type: Opaque
+data:
+  admin-password: "MEhaWXZZV0hPWg=="
+---
+# Source: coroot/charts/clickhouse/templates/configmap-extra.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-clickhouse-extra
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: clickhouse
+    helm.sh/chart: clickhouse-3.1.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: clickhouse
+data:
+  01_extra_overrides.xml: |
+    <clickhouse>
+      <asynchronous_metric_log remove="1"/>
+      <metric_log remove="1"/>
+      <query_log remove="1" />
+      <query_thread_log remove="1" />  
+      <query_views_log remove="1" />
+      <part_log remove="1"/>
+      <text_log remove="1" />
+      <trace_log remove="1"/>
+      <opentelemetry_span_log remove="1"/>
+    </clickhouse>
+---
+# Source: coroot/charts/clickhouse/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-clickhouse
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: clickhouse
+    helm.sh/chart: clickhouse-3.1.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: clickhouse
+data:
+  00_default_overrides.xml: |
+    <clickhouse>
+      <!-- Macros -->
+      <macros>
+        <shard from_env="CLICKHOUSE_SHARD_ID"></shard>
+        <replica from_env="CLICKHOUSE_REPLICA_ID"></replica>
+        <layer>my-release-clickhouse</layer>
+      </macros>
+      <!-- Log Level -->
+      <logger>
+        <level>information</level>
+      </logger>
+    </clickhouse>
+---
+# Source: coroot/charts/clickhouse/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-clickhouse-scripts
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: clickhouse
+    helm.sh/chart: clickhouse-3.1.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: clickhouse
+data:
+  setup.sh: |-
+    #!/bin/bash
+
+    # Execute entrypoint as usual after obtaining KEEPER_SERVER_ID
+    # check KEEPER_SERVER_ID in persistent volume via myid
+    # if not present, set based on POD hostname
+    if [[ -f "/bitnami/clickhouse/keeper/data/myid" ]]; then
+        export KEEPER_SERVER_ID="$(cat /bitnami/clickhouse/keeper/data/myid)"
+    else
+        HOSTNAME="$(hostname -s)"
+        if [[ $HOSTNAME =~ (.*)-([0-9]+)$ ]]; then
+            export KEEPER_SERVER_ID=${BASH_REMATCH[2]}
+        else
+            echo "Failed to get index from hostname $HOST"
+            exit 1
+        fi
+    fi
+    exec /opt/bitnami/scripts/clickhouse/entrypoint.sh /opt/bitnami/scripts/clickhouse/run.sh -- --listen_host=0.0.0.0
+---
+# Source: coroot/charts/prometheus/templates/server/cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-15.16.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: default
+data:
+  allow-snippet-annotations: "false"
+  alerting_rules.yml: |
+    {}
+  alerts: |
+    {}
+  prometheus.yml: |
+    global:
+      evaluation_interval: 1m
+      scrape_interval: 15s
+      scrape_timeout: 10s
+    rule_files:
+    - /etc/config/recording_rules.yml
+    - /etc/config/alerting_rules.yml
+    - /etc/config/rules
+    - /etc/config/alerts
+    scrape_configs:
+    - honor_labels: true
+      job_name: kubernetes-service-endpoints
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape
+      - action: drop
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_service_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_service_name
+        target_label: service
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: node
+    - honor_labels: true
+      job_name: kubernetes-service-endpoints-slow
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_service_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_service_name
+        target_label: service
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: node
+      scrape_interval: 5m
+      scrape_timeout: 30s
+    - honor_labels: true
+      job_name: prometheus-pushgateway
+      kubernetes_sd_configs:
+      - role: service
+      relabel_configs:
+      - action: keep
+        regex: pushgateway
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+    - honor_labels: true
+      job_name: kubernetes-services
+      kubernetes_sd_configs:
+      - role: service
+      metrics_path: /probe
+      params:
+        module:
+        - http_2xx
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+      - source_labels:
+        - __address__
+        target_label: __param_target
+      - replacement: blackbox
+        target_label: __address__
+      - source_labels:
+        - __param_target
+        target_label: instance
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - source_labels:
+        - __meta_kubernetes_service_name
+        target_label: service
+    - honor_labels: true
+      job_name: coroot-node-agent
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+      - action: drop
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
+      - action: keep
+        regex: coroot-node-agent
+        source_labels:
+        - __meta_kubernetes_pod_label_app
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: drop
+        regex: Pending|Succeeded|Failed|Completed
+        source_labels:
+        - __meta_kubernetes_pod_phase
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: instance
+    - honor_labels: true
+      job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: drop
+        regex: coroot-node-agent
+        source_labels:
+        - __meta_kubernetes_pod_label_app
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+      - action: drop
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: pod
+      - action: drop
+        regex: Pending|Succeeded|Failed|Completed
+        source_labels:
+        - __meta_kubernetes_pod_phase
+    - honor_labels: true
+      job_name: kubernetes-pods-slow
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: pod
+      - action: drop
+        regex: Pending|Succeeded|Failed|Completed
+        source_labels:
+        - __meta_kubernetes_pod_phase
+      scrape_interval: 5m
+      scrape_timeout: 30s
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-fargate-cadvisor
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - action: keep
+        regex: (fargate-.+)
+        source_labels:
+        - __meta_kubernetes_node_name
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+  recording_rules.yml: |
+    {}
+  rules: |
+    {}
+---
+# Source: coroot/templates/cluster-agent.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-cluster-agent
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: my-release-cluster-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    coroot_url: http://coroot:8080
+    listen: :8080
+    profiles:
+      scrape:
+        interval: 1m
+---
+# Source: coroot/charts/prometheus/templates/server/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-15.16.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "10Gi"
+---
+# Source: coroot/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-coroot-data
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: coroot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "10Gi"
+---
+# Source: coroot/charts/prometheus/charts/kube-state-metrics/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.13.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.5.0"
+  name: my-release-kube-state-metrics
+rules:
+
+- apiGroups: ["certificates.k8s.io"]
+  resources:
+  - certificatesigningrequests
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["list", "watch"]
+
+- apiGroups: ["batch"]
+  resources:
+  - cronjobs
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - daemonsets
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - deployments
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - endpoints
+  verbs: ["list", "watch"]
+
+- apiGroups: ["autoscaling"]
+  resources:
+  - horizontalpodautoscalers
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources:
+  - ingresses
+  verbs: ["list", "watch"]
+
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - limitranges
+  verbs: ["list", "watch"]
+
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources:
+    - mutatingwebhookconfigurations
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - namespaces
+  verbs: ["list", "watch"]
+
+- apiGroups: ["networking.k8s.io"]
+  resources:
+  - networkpolicies
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - nodes
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - persistentvolumeclaims
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - persistentvolumes
+  verbs: ["list", "watch"]
+
+- apiGroups: ["policy"]
+  resources:
+    - poddisruptionbudgets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - pods
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - replicasets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - replicationcontrollers
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - resourcequotas
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - secrets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - services
+  verbs: ["list", "watch"]
+
+- apiGroups: ["apps"]
+  resources:
+  - statefulsets
+  verbs: ["list", "watch"]
+
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - storageclasses
+  verbs: ["list", "watch"]
+
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources:
+    - validatingwebhookconfigurations
+  verbs: ["list", "watch"]
+
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - volumeattachments
+  verbs: ["list", "watch"]
+---
+# Source: coroot/charts/prometheus/templates/server/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-15.16.1
+    heritage: Helm
+  name: my-release-prometheus-server
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+      - ingresses
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "extensions"
+      - "networking.k8s.io"
+    resources:
+      - ingresses/status
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+---
+# Source: coroot/charts/prometheus/charts/kube-state-metrics/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.13.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.5.0"
+  name: my-release-kube-state-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kube-state-metrics
+subjects:
+- kind: ServiceAccount
+  name: my-release-kube-state-metrics
+  namespace: default
+---
+# Source: coroot/charts/prometheus/templates/server/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-15.16.1
+    heritage: Helm
+  name: my-release-prometheus-server
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-server
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-prometheus-server
+---
+# Source: coroot/templates/cluster-agent.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-cluster-agent
+subjects:
+  - kind: ServiceAccount
+    name: my-release-cluster-agent
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: coroot/charts/clickhouse/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clickhouse-headless
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: clickhouse
+    helm.sh/chart: clickhouse-3.1.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: clickhouse
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      targetPort: http
+      port: 8123
+      protocol: TCP
+    - name: tcp
+      targetPort: tcp
+      port: 9000
+      protocol: TCP
+    - name: tcp-mysql
+      targetPort: tcp-mysql
+      port: 9004
+      protocol: TCP
+    - name: tcp-postgresql
+      targetPort: tcp-postgresql
+      port: 9005
+      protocol: TCP
+    - name: http-intersrv
+      targetPort: http-intersrv
+      port: 9009
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: clickhouse
+---
+# Source: coroot/charts/clickhouse/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clickhouse
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: clickhouse
+    helm.sh/chart: clickhouse-3.1.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: clickhouse
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      targetPort: http
+      port: 8123
+      protocol: TCP
+      nodePort: null
+    - name: tcp
+      targetPort: tcp
+      port: 9000
+      protocol: TCP
+      nodePort: null
+    - name: tcp-mysql
+      targetPort: tcp-mysql
+      port: 9004
+      protocol: TCP
+      nodePort: null
+    - name: tcp-postgresql
+      targetPort: tcp-postgresql
+      port: 9005
+      protocol: TCP
+      nodePort: null
+    - name: http-intersrv
+      targetPort: http-intersrv
+      port: 9009
+      protocol: TCP
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: clickhouse
+---
+# Source: coroot/charts/prometheus/charts/kube-state-metrics/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kube-state-metrics
+  namespace: default
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.13.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.5.0"
+  annotations:
+    prometheus.io/scrape: 'true'
+spec:
+  type: "ClusterIP"
+  ports:
+  - name: "http"
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  
+  selector:    
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+---
+# Source: coroot/charts/prometheus/templates/server/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-15.16.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: default
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    component: "server"
+    app: prometheus
+    release: my-release
+  sessionAffinity: None
+  type: "ClusterIP"
+---
+# Source: coroot/templates/cluster-agent.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-cluster-agent
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: my-release-cluster-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+      app.kubernetes.io/name: my-release-cluster-agent
+      app.kubernetes.io/instance: my-release
+---
+# Source: coroot/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-coroot
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: coroot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: coroot
+    app.kubernetes.io/instance: my-release
+---
+# Source: coroot/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: coroot-opentelemetry-collector
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: coroot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4318
+      targetPort: http
+      protocol: TCP
+      name: otel-http
+  selector:
+    app.kubernetes.io/name: coroot
+    app.kubernetes.io/instance: my-release
+---
+# Source: coroot/charts/node-agent/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-release-node-agent
+  labels:
+    helm.sh/chart: node-agent-0.1.76
+    app.kubernetes.io/name: node-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.20.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: node-agent
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: node-agent
+        app.kubernetes.io/instance: my-release
+        app: coroot-node-agent
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '80'
+    spec:
+      tolerations:
+        - operator: Exists
+      priorityClassName: 
+      hostPID: true
+      containers:
+        - name: node-agent
+          image: "ghcr.io/coroot/coroot-node-agent:1.20.0"
+          command: ["coroot-node-agent", "--listen=0.0.0.0:80", "--cgroupfs-root", "/host/sys/fs/cgroup"]
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 50Mi
+          env:
+            - name: TRACES_ENDPOINT
+              value: "http://coroot:8080/v1/traces"
+            - name: LOGS_ENDPOINT
+              value: "http://coroot:8080/v1/logs"
+            - name: PROFILES_ENDPOINT
+              value: "http://coroot:8080/v1/profiles"
+          ports:
+            - containerPort: 80
+              name: http
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /host/sys/fs/cgroup
+              name: cgroupfs
+              readOnly: true
+            - mountPath: /sys/kernel/tracing
+              name: tracefs
+              readOnly: false
+            - mountPath: /sys/kernel/debug
+              name: debugfs
+              readOnly: false
+            - mountPath: /tmp
+              name: tmp
+              readOnly: false
+      volumes:
+        - hostPath:
+            path: /sys/fs/cgroup
+          name: cgroupfs
+        - hostPath:
+            path: /sys/kernel/tracing
+          name: tracefs
+        - hostPath:
+            path: /sys/kernel/debug
+          name: debugfs
+        - emptyDir: {}
+          name: tmp
+---
+# Source: coroot/charts/prometheus/charts/kube-state-metrics/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kube-state-metrics
+  namespace: default
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.13.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.5.0"
+spec:
+  selector:
+    matchLabels:      
+      app.kubernetes.io/name: kube-state-metrics
+      app.kubernetes.io/instance: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:        
+        helm.sh/chart: kube-state-metrics-4.13.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: metrics
+        app.kubernetes.io/part-of: kube-state-metrics
+        app.kubernetes.io/name: kube-state-metrics
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.5.0"
+    spec:
+      hostNetwork: false
+      serviceAccountName: my-release-kube-state-metrics
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsUser: 65534
+      containers:
+      - name: kube-state-metrics
+        args:
+        - --port=8080
+        - --resources=certificatesigningrequests,configmaps,cronjobs,daemonsets,deployments,endpoints,horizontalpodautoscalers,ingresses,jobs,limitranges,mutatingwebhookconfigurations,namespaces,networkpolicies,nodes,persistentvolumeclaims,persistentvolumes,poddisruptionbudgets,pods,replicasets,replicationcontrollers,resourcequotas,secrets,services,statefulsets,storageclasses,validatingwebhookconfigurations,volumeattachments
+        - --metric-labels-allowlist=pods=[*]
+        - --telemetry-port=8081
+        imagePullPolicy: IfNotPresent
+        image: "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.5.0"
+        ports:
+        - containerPort: 8080
+          name: "http"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+---
+# Source: coroot/charts/prometheus/templates/server/deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-15.16.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      component: "server"
+      app: prometheus
+      release: my-release
+  replicas: 1
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+  template:
+    metadata:
+      labels:
+        component: "server"
+        app: prometheus
+        release: my-release
+        chart: prometheus-15.16.1
+        heritage: Helm
+    spec:
+      enableServiceLinks: true
+      serviceAccountName: my-release-prometheus-server
+      containers:
+        - name: prometheus-server-configmap-reload
+          image: "jimmidyson/configmap-reload:v0.5.0"
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            {}
+          args:
+            - --volume-dir=/etc/config
+            - --webhook-url=http://127.0.0.1:9090/-/reload
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+              readOnly: true
+
+        - name: prometheus-server
+          image: "quay.io/prometheus/prometheus:v2.39.1"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --storage.tsdb.retention.time=1d
+            - --config.file=/etc/config/prometheus.yml
+            - --storage.tsdb.path=/data
+            - --web.console.libraries=/etc/prometheus/console_libraries
+            - --web.console.templates=/etc/prometheus/consoles
+            - --web.enable-remote-write-receiver
+          ports:
+            - containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+            - name: storage-volume
+              mountPath: /data
+              subPath: ""
+      dnsPolicy: ClusterFirst
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-release-prometheus-server
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: my-release-prometheus-server
+---
+# Source: coroot/templates/cluster-agent.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-cluster-agent
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: my-release-cluster-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-cluster-agent
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 8f4e58a21fd7729cc3bd4417121517260dd05a0c43ebb6f3697eeba3717dde5f
+      labels:
+        app.kubernetes.io/name: my-release-cluster-agent
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-cluster-agent
+      securityContext:
+        {}
+      containers:
+        - name: cluster-agent
+          securityContext:
+            {}
+          image: "ghcr.io/coroot/coroot-cluster-agent:0.2.0"
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 100m
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-cluster-agent
+---
+# Source: coroot/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-coroot
+  labels:
+    helm.sh/chart: coroot-0.12.1
+    app.kubernetes.io/name: coroot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coroot
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coroot
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-coroot
+      securityContext:
+        {}
+      containers:
+        - name: coroot
+          securityContext:
+            {}
+          image: "ghcr.io/coroot/coroot:1.2.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --listen=:8080
+            - --data-dir=/data
+            - --bootstrap-prometheus-url=http://my-release-prometheus-server:80
+            - --bootstrap-refresh-interval=15s
+          env:
+            - name: BOOTSTRAP_CLICKHOUSE_ADDRESS
+              value: my-release-clickhouse:9000
+            - name: BOOTSTRAP_CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-clickhouse
+                  key: "admin-password"
+            - name: BOOTSTRAP_CLICKHOUSE_USER
+              value: default
+            - name: BOOTSTRAP_CLICKHOUSE_DATABASE
+              value: default
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 1Gi
+          volumeMounts:
+            - mountPath: /data
+              name: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-coroot-data
+---
+# Source: coroot/charts/clickhouse/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-clickhouse-shard0
+  namespace: "default"
+  labels:
+    app.kubernetes.io/name: clickhouse
+    helm.sh/chart: clickhouse-3.1.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: clickhouse
+spec:
+  replicas: 1
+  podManagementPolicy: "Parallel"
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: clickhouse
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: clickhouse
+  serviceName: my-release-clickhouse-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/config: f7f91da6519503fd383edf0ad9408fefadc7edcc0a3fe766f229c831620f376d
+        checksum/config-extra: 5f5ff7c917b31ad0ae98f1e587663f31d8a77d0b9e13052a71f669609b42f7e9
+      labels:
+        app.kubernetes.io/name: clickhouse
+        helm.sh/chart: clickhouse-3.1.6
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: clickhouse
+    spec:
+      serviceAccountName: my-release-clickhouse
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: clickhouse
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: clickhouse
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      containers:
+        - name: clickhouse
+          image: docker.io/bitnami/clickhouse:23.3.1-debian-11-r0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            runAsNonRoot: true
+            runAsUser: 1001
+          command:
+            - /scripts/setup.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: CLICKHOUSE_HTTP_PORT
+              value: "8123"
+            - name: CLICKHOUSE_TCP_PORT
+              value: "9000"
+            - name: CLICKHOUSE_MYSQL_PORT
+              value: "9004"
+            - name: CLICKHOUSE_POSTGRESQL_PORT
+              value: "9005"
+            - name: CLICKHOUSE_INTERSERVER_HTTP_PORT
+              value: "9009"
+            - name: CLICKHOUSE_ADMIN_USER
+              value: "default"
+            - name: CLICKHOUSE_SHARD_ID
+              value: "shard0"
+            - name: CLICKHOUSE_REPLICA_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: CLICKHOUSE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-clickhouse
+                  key: admin-password
+          envFrom:
+          resources:
+            limits: {}
+            requests: {}
+          ports:
+            - name: http
+              containerPort: 8123
+            - name: tcp
+              containerPort: 9000
+            - name: tcp-postgresql
+              containerPort: 9005
+            - name: tcp-mysql
+              containerPort: 9004
+            - name: http-intersrv
+              containerPort: 9009
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            httpGet:
+              path: /ping
+              port: http
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            httpGet:
+              path: /ping
+              port: http
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts/setup.sh
+              subPath: setup.sh
+            - name: data
+              mountPath: /bitnami/clickhouse
+            - name: config
+              mountPath: /bitnami/clickhouse/etc/conf.d/default
+            - name: extra-config
+              mountPath: /bitnami/clickhouse/etc/conf.d/extra-configmap
+      volumes:
+        - name: scripts
+          configMap:
+            name: my-release-clickhouse-scripts
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: my-release-clickhouse
+        - name: extra-config
+          configMap:
+            name: my-release-clickhouse-extra
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        annotations:
+        labels:
+          app.kubernetes.io/name: clickhouse
+          helm.sh/chart: clickhouse-3.1.6
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/component: clickhouse
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "50Gi"

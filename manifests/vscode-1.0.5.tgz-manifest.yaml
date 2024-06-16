@@ -1,0 +1,120 @@
+---
+# Source: vscode/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: code
+  labels:
+    app.kubernetes.io/name: code
+type: Opaque
+data:
+  
+  password: "Y2xvdWQxNjg4"
+---
+# Source: vscode/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: code
+  namespace: default
+  labels:
+    app.kubernetes.io/name: code
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "10Gi"
+---
+# Source: vscode/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: code
+  labels:
+    app.kubernetes.io/name: code
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: code
+---
+# Source: vscode/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code
+  labels:
+    app.kubernetes.io/name: code
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: code
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: code
+    spec:
+      hostname: vscode
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+      - name: init-chmod-data
+        image: registry.cn-beijing.aliyuncs.com/kubegemsapp/busybox:latest
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+          - -c
+          - |
+            chown -R 1000:1000 /home/coder
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: data
+          mountPath: /home/coder
+      containers:
+        - name: vscode
+          image: "registry.cn-beijing.aliyuncs.com/kubegemsapp/code-server:3.12.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1000
+          env:
+          - name: PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: code
+                key: password
+          volumeMounts:
+          - name: data
+            mountPath: /home/coder
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            limits:
+              cpu: 1
+              memory: 2Gi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      serviceAccountName: default
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: code

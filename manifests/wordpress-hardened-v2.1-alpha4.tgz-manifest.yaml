@@ -1,0 +1,165 @@
+---
+# Source: wordpress-hardened/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+    name: wordpress-secrets
+    namespace: default
+stringData:
+    AUTH_KEY: change-me
+    SECURE_AUTH_KEY: change-me
+    LOGGED_IN_KEY: change-me
+    NONCE_KEY: change-me
+    AUTH_SALT: change-me
+    SECURE_AUTH_SALT: change-me
+    LOGGED_IN_SALT: change-me
+    NONCE_SALT: change-me
+
+    WORDPRESS_DB_NAME: "wordpress"
+    WORDPRESS_DB_USER: "wordpress"
+    WORDPRESS_DB_PASSWORD: "secret"
+    WORDPRESS_DB_HOST: "mariadb.db.svc.cluster.local"
+---
+# Source: wordpress-hardened/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: wp
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 256Mi
+---
+# Source: wordpress-hardened/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: wp-content
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 1Gi
+---
+# Source: wordpress-hardened/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+    name: my-release-wordpress-hardened
+    labels:
+        helm.sh/chart: wordpress-hardened-v2.1-alpha4
+        app.kubernetes.io/name: wordpress-hardened
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v2.1-alpha4"
+        app.kubernetes.io/managed-by: Helm
+spec:
+    type: ClusterIP
+    ports:
+        - port: 80
+          targetPort: http
+          protocol: TCP
+          name: http
+    selector:
+        app.kubernetes.io/name: wordpress-hardened
+        app.kubernetes.io/instance: my-release
+---
+# Source: wordpress-hardened/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: my-release-wordpress-hardened
+    labels:
+        helm.sh/chart: wordpress-hardened-v2.1-alpha4
+        app.kubernetes.io/name: wordpress-hardened
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v2.1-alpha4"
+        app.kubernetes.io/managed-by: Helm
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+          app.kubernetes.io/name: wordpress-hardened
+          app.kubernetes.io/instance: my-release
+    strategy:
+        type: RollingUpdate
+        rollingUpdate:
+            
+            maxSurge: 1
+            maxUnavailable: 0
+
+    template:
+        metadata:
+            labels:
+                app.kubernetes.io/name: wordpress-hardened
+                app.kubernetes.io/instance: my-release
+        spec:
+            automountServiceAccountToken: false
+            terminationGracePeriodSeconds: 20
+            securityContext:
+              fsGroup: 65161
+              runAsGroup: 65161
+              runAsUser: 65161
+            containers:
+
+                - name: app
+                  image: ghcr.io/riotkit-org/wordpress-hardened:v2.1-alpha4
+                  imagePullPolicy: Always
+                  env:
+                      - name: HEALTH_CHECK_ALLOWED_SUBNET
+                        value: "10.0.0.0/8"
+                      - name: HTTPS
+                        value: "on"
+                      - name: WP_PAGE_URL
+                        value: "https://my-page.org"
+                  envFrom:
+                      - secretRef:
+                            name: wordpress-secrets
+                  securityContext:
+                      allowPrivilegeEscalation: false
+                  volumeMounts:
+                      - name: wp
+                        mountPath: /var/www/riotkit
+                      - name: wp-content
+                        mountPath: /var/www/riotkit/wp-content
+                  ports:
+                      - name: http
+                        containerPort: 8080
+                        protocol: TCP
+                  livenessProbe:
+                      failureThreshold: 2
+                      periodSeconds: 60
+                      httpGet:
+                          path: /liveness.php
+                          scheme: HTTP
+                          port: http
+                  readinessProbe:
+                      failureThreshold: 2
+                      periodSeconds: 60
+                      httpGet:
+                          path: /readiness.php
+                          scheme: HTTP
+                          port: http
+                  startupProbe:
+                      httpGet:
+                          path: /liveness.php
+                          scheme: HTTP
+                          port: http
+                      failureThreshold: 10
+                      periodSeconds: 5
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: 128Mi
+                    requests:
+                      cpu: 0
+                      memory: 16Mi
+            volumes:
+                - name: wp
+                  persistentVolumeClaim:
+                      claimName: wp
+                - name: wp-content
+                  persistentVolumeClaim:
+                      claimName: wp-content

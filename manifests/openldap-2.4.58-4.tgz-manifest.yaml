@@ -1,0 +1,437 @@
+---
+# Source: openldap/charts/phpldapadmin/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-phpldapadmin
+  labels:
+    helm.sh/chart: phpldapadmin-0.1.4-0
+    app.kubernetes.io/name: phpldapadmin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: openldap/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: my-release-openldap
+  labels:
+    helm.sh/chart: openldap-2.4.58-4
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1-1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  # From https://itnext.io/manage-auto-generated-secrets-in-your-helm-charts-5aee48ba6918
+  # retrieve the existing secret data, if it doesn't exist, return an empty dictionary
+  # set password from config values, existing secret or generate one if none exists or were provided
+  admin:  "bm11WEpieGpjRGN5bHpvWXpZQjVFWEVCVWRhRThwUGtYOXdtTW41NFg1VXB2U2RxZ0gxS0N2U1JFRXp3MGw2cA=="
+---
+# Source: openldap/charts/phpldapadmin/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-phpldapadmin
+  labels:
+    helm.sh/chart: phpldapadmin-0.1.4-0
+    app.kubernetes.io/name: phpldapadmin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  LDAPBASE: "dc="
+  PHPLDAPADMIN_HTTPS: "false"
+  PHPLDAPADMIN_TRUST_PROXY_SSL: "true"
+---
+# Source: openldap/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-openldap
+  labels:
+    helm.sh/chart: openldap-2.4.58-4
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1-1"
+    app.kubernetes.io/managed-by: Helm
+
+data:
+  # One time init if the DB is absent. Sets up modules and access
+  init.ldif: |    
+    # One time initialization if the DB is not present. Executed via slapadd
+    dn: cn=config
+    objectClass: olcGlobal
+    cn: config
+    olcArgsFile: /ldap/run/slapd.args
+    olcPidFile: /ldap/run/slapd.pid
+    
+    dn: cn=schema,cn=config
+    objectClass: olcSchemaConfig
+    cn: schema
+    
+    dn: cn=module,cn=config
+    objectClass: olcModuleList
+    cn: module
+    olcModulepath: /usr/lib/ldap
+    olcModuleload: back_mdb.la
+    olcModuleLoad: back_monitor.la
+    olcModuleload: pw-sha2.la
+    
+    include: file:///etc/ldap/schema/core.ldif
+    include: file:///etc/ldap/schema/cosine.ldif
+    include: file:///etc/ldap/schema/nis.ldif
+    include: file:///etc/ldap/schema/inetorgperson.ldif
+    include: file:///etc/ldap/schema/ppolicy.ldif
+    
+    dn: olcDatabase=frontend,cn=config
+    objectClass: olcDatabaseConfig
+    objectClass: olcFrontendConfig
+    olcDatabase: frontend
+    # olcPasswordHash: $LDAP_admin
+    olcAccess: to dn.base="" by * read
+    olcAccess: to dn.base="cn=subschema" by * read
+    olcAccess: to *
+      by dn.base="gidNumber=100000+uidNumber=100000,cn=peercred,cn=external,cn=auth" manage
+      by * none
+    
+    dn: olcDatabase=config,cn=config
+    objectClass: olcDatabaseConfig
+    olcDatabase: config
+    olcRootDN: cn=config
+    olcAccess: to *
+      by dn.base="gidNumber=100000+uidNumber=100000,cn=peercred,cn=external,cn=auth" manage
+      by * none
+    
+    dn: olcDatabase=monitor,cn=config
+    objectClass: olcDatabaseConfig
+    olcDatabase: monitor
+    olcAccess: to *
+      by dn.subtree="gidNumber=100000+uidNumber=100000,cn=peercred,cn=external,cn=auth" manage
+      by * none
+    
+    dn: olcDatabase=mdb,cn=config
+    objectClass: olcDatabaseConfig
+    objectClass: olcMdbConfig
+    olcDatabase: mdb
+    olcSuffix: dc=example,dc=com
+    olcRootDN: cn=admin,dc=example,dc=com
+    olcRootPW: ${LDAP_admin}
+    olcDbDirectory: ${LDAPDIR}
+    olcDbIndex: objectClass,uid,uidNumber,gidNumber eq
+    olcDbMaxSize: 10485760
+    olcAccess: to attrs=userPassword
+      by self write
+      by anonymous auth
+      by dn.subtree="gidNumber=100000+uidNumber=100000,cn=peercred,cn=external,cn=auth" manage
+      by * none
+    olcAccess: to attrs=shadowLastChange by self write
+      by dn.subtree="gidNumber=100000+uidNumber=100000,cn=peercred,cn=external,cn=auth" manage
+      by dn.subtree="ou=system,dc=example,dc=com" read
+      by * none
+    olcAccess: to dn.subtree="ou=system,dc=example,dc=com"
+      by dn.subtree="gidNumber=100000+uidNumber=100000,cn=peercred,cn=external,cn=auth" manage
+      by * none
+    olcAccess: to dn.subtree="dc=example,dc=com"
+      by dn.subtree="gidNumber=100000+uidNumber=100000,cn=peercred,cn=external,cn=auth" manage
+      by users read
+      by * none
+    olcAccess: to *
+      by dn.subtree="gidNumber=100000+uidNumber=100000,cn=peercred,cn=external,cn=auth" manage
+      by * none
+    
+    
+  config.ldif: |    
+    # Executed after LDAP is started and with subsequent restarts.
+    # May be run more than once. Executed via ldapmodify -ca as admin.
+    # Script will be filtered through envsubst prior to running.
+    dn: dc=example,dc=com
+    changetype: add
+    objectClass: dcObject
+    objectClass: organization
+    objectClass: top
+    o: Example Organization
+    
+    dn: ou=groups,dc=example,dc=com
+    changetype: add
+    objectClass: organizationalUnit
+    objectClass: top
+    ou: groups
+    
+    dn: ou=users,dc=example,dc=com
+    changetype: add
+    objectClass: organizationalUnit
+    objectClass: top
+    ou: users
+    
+    dn: ou=system,dc=example,dc=com
+    changetype: add
+    objectClass: organizationalUnit
+    objectClass: top
+    ou: system
+---
+# Source: openldap/charts/phpldapadmin/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-phpldapadmin
+  labels:
+    helm.sh/chart: phpldapadmin-0.1.4-0
+    app.kubernetes.io/name: phpldapadmin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: phpldapadmin
+    app.kubernetes.io/instance: my-release
+---
+# Source: openldap/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-openldap-headless
+  labels:
+    helm.sh/chart: openldap-2.4.58-4
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1-1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None  # Headless service
+  ports:
+    - name: ldap
+      targetPort: ldap
+      protocol: TCP
+      port: 389
+  selector:
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: my-release
+---
+# Source: openldap/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-openldap
+  labels:
+    helm.sh/chart: openldap-2.4.58-4
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1-1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: ldap
+      targetPort: ldap
+      protocol: TCP
+      port: 389
+  selector:
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: my-release
+---
+# Source: openldap/charts/phpldapadmin/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-phpldapadmin
+  labels:
+    helm.sh/chart: phpldapadmin-0.1.4-0
+    app.kubernetes.io/name: phpldapadmin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: phpldapadmin
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: phpldapadmin
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-phpldapadmin
+      securityContext:
+        {}
+      containers:
+        - name: phpldapadmin
+          securityContext:
+            {}
+          image: "osixia/phpldapadmin:0.7.1"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+          - configMapRef:
+              name: my-release-phpldapadmin
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 30
+            periodSeconds: 10
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 60
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 600
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: openldap/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-openldap
+  labels:
+    helm.sh/chart: openldap-2.4.58-4
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1-1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: my-release-openldap-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openldap
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openldap
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: openldap
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 100000
+            runAsNonRoot: true
+            runAsUser: 100000
+          image: "roertel/openldap:1.0.1-1"
+          imagePullPolicy: IfNotPresent
+          # command: ["sleep", "infinity"]  # for debugging
+          # args:
+          env:
+            - name: LDAPURI
+              value: "ldapi://%2fldap%2frun%2fslapd.sock ldap://0.0.0.0:1389/"
+            - {name: LDAPSASL_MECH, value: "EXTERNAL"}
+            - {name: LDAPBASE     , value: "dc=example,dc=com"}
+            - {name: LDAP_DEBUG   , value: "0"}
+
+          ports:
+            - name: ldap
+              containerPort: 1389
+              protocol: TCP
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 60
+            exec:
+              command:
+              - /healthz
+          resources:
+            {}
+          volumeMounts:
+          - name: my-release-openldap-config
+            mountPath: /ldap/config
+            readOnly: true
+          - name: my-release-openldap-secret
+            mountPath: /ldap/secrets
+            readOnly: true
+      volumes:
+      - name: my-release-openldap-config
+        configMap:
+          name: my-release-openldap
+      - name: my-release-openldap-secret
+        secret:
+          secretName: my-release-openldap
+          defaultMode: 0444
+---
+# Source: openldap/charts/phpldapadmin/templates/tests/test-connection.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-phpldapadmin-test-connection"
+  labels:
+    helm.sh/chart: phpldapadmin-0.1.4-0
+    app.kubernetes.io/name: phpldapadmin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 1
+  template:
+    spec:
+      containers:
+        - name: wget
+          image: busybox
+          command: ['wget']
+          args: ['my-release-phpldapadmin:80']
+      restartPolicy: Never
+---
+# Source: openldap/templates/tests/test-connection.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-openldap-test-connection
+  labels:
+    helm.sh/chart: openldap-2.4.58-4
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1-1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+    kube-score/ignore: container-image-tag
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: test
+        image: roertel/openldap
+        command: ["ldapwhoami"]
+        args:
+          - "-v"
+          - "-x"
+          - "-H"
+          - "ldap://my-release-openldap:389/,"
+        securityContext: 
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 100000
+            runAsNonRoot: true
+            runAsUser: 100000

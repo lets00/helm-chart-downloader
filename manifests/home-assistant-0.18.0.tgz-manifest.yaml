@@ -1,0 +1,106 @@
+---
+# Source: home-assistant/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-home-assistant
+  labels:
+    helm.sh/chart: home-assistant-0.18.0
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2024.6.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: home-assistant/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-home-assistant
+  labels:
+    helm.sh/chart: home-assistant-0.18.0
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2024.6.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "5Gi"
+---
+# Source: home-assistant/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-home-assistant
+  labels:
+    helm.sh/chart: home-assistant-0.18.0
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2024.6.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8123
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/instance: my-release
+---
+# Source: home-assistant/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-home-assistant
+  labels:
+    helm.sh/chart: home-assistant-0.18.0
+    app.kubernetes.io/name: home-assistant
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2024.6.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: home-assistant
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: home-assistant
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-home-assistant
+      securityContext:
+        {}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: my-release-home-assistant
+      containers:
+        - name: home-assistant
+          securityContext:
+            {}
+          image: "ghcr.io/home-assistant/home-assistant:2024.6.2"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /config
+              name: config
+          ports:
+            - name: http
+              containerPort: 8123
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}

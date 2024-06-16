@@ -1,0 +1,205 @@
+---
+# Source: control-plane/templates/config-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/component: control-plane
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/version: 1.4.2
+    helm.sh/chart: control-plane-1.4.2
+  name: my-release-control-plane-config
+stringData:
+  syn-cp.yaml: |
+    data_dir: /data
+    server:
+      http_addr: :8080
+type: Opaque
+---
+# Source: control-plane/templates/image-pull-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/component: control-plane
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/version: 1.4.2
+    helm.sh/chart: control-plane-1.4.2
+  name: my-release-control-plane-regcred
+stringData:
+  .dockerconfigjson: |
+    {"auths":{"registry.synadia.io":{}}}
+type: kubernetes.io/dockerconfigjson
+---
+# Source: control-plane/templates/single-replica-mode/data-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/component: control-plane
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/version: 1.4.2
+    helm.sh/chart: control-plane-1.4.2
+  name: my-release-control-plane-encryption
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: control-plane/templates/single-replica-mode/postgres-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/component: control-plane
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/version: 1.4.2
+    helm.sh/chart: control-plane-1.4.2
+  name: my-release-control-plane-postgres
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: control-plane/templates/single-replica-mode/prometheus-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/component: control-plane
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/version: 1.4.2
+    helm.sh/chart: control-plane-1.4.2
+  name: my-release-control-plane-prometheus
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: control-plane/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: control-plane
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/version: 1.4.2
+    helm.sh/chart: control-plane-1.4.2
+  name: my-release-control-plane
+spec:
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+  selector:
+    app.kubernetes.io/component: control-plane
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: control-plane
+---
+# Source: control-plane/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: control-plane
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/version: 1.4.2
+    helm.sh/chart: control-plane-1.4.2
+  name: my-release-control-plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: control-plane
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: control-plane
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        checksum/config: 06d8391d517c3ad46e2375aa0c24aec3cb1f7a76340bde73bccfbd589f922a5b
+      labels:
+        app.kubernetes.io/component: control-plane
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/version: 1.4.2
+        helm.sh/chart: control-plane-1.4.2
+    spec:
+      containers:
+      - args:
+        - server
+        - start
+        - -c
+        - /etc/syn-cp/syn-cp.yaml
+        image: registry.synadia.io/control-plane:1.4.2
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 10
+        name: syn-cp
+        ports:
+        - containerPort: 8080
+          name: http
+        startupProbe:
+          failureThreshold: 20
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        volumeMounts:
+        - mountPath: /etc/syn-cp
+          name: config
+        - mountPath: /data
+          name: data
+        - mountPath: /data/encryption
+          name: encryption
+        - mountPath: /data/postgres
+          name: postgres
+        - mountPath: /data/prometheus
+          name: prometheus
+      enableServiceLinks: false
+      imagePullSecrets:
+      - name: my-release-control-plane-regcred
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      volumes:
+      - name: config
+        secret:
+          secretName: my-release-control-plane-config
+      - emptyDir: {}
+        name: data
+      - name: encryption
+        persistentVolumeClaim:
+          claimName: my-release-control-plane-encryption
+      - name: postgres
+        persistentVolumeClaim:
+          claimName: my-release-control-plane-postgres
+      - name: prometheus
+        persistentVolumeClaim:
+          claimName: my-release-control-plane-prometheus

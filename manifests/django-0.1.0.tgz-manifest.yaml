@@ -1,0 +1,598 @@
+---
+# Source: django/templates/app_serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-django
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: django/templates/app_secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-django-secret-env
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  DEBUG: "0"
+  SECRET_KEY: "changeme"
+  ALLOWED_HOSTS: "*"
+  DB_HOST: "my-release-mysql"
+  DB_PORT: "3306"
+  DB_NAME: "blog"
+  DB_USER: "blog"
+  DB_PASS: "changeme"
+  KV_HOST: "my-release-redis"
+  KV_PORT: "6379"
+  KV_PASS: "changeme"
+  ACCESS_KEY: ""
+  ACCESS_SECRET: ""
+  OSS_ENDPOINT: ""
+  OSS_BUCKET: ""
+  OSS_DOMAIN: "https://labdoc.oss-cn-beijing.aliyuncs.com"
+  DJANGO_SUPERUSER_USERNAME: "admin"
+  DJANGO_SUPERUSER_PASSWORD: "changeme"
+  DJANGO_SUPERUSER_MAIL: "admin@example.com"
+---
+# Source: django/templates/app_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-django-nginx-conf
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  nginx.conf: |-
+---
+# Source: django/templates/app_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-django-uwsgi-ini
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  uwsgi.ini: |-
+    [uwsgi]
+    chdir           = %d
+    module          = blog.wsgi
+    
+    # 静态文件，已部署在OSS，CDN加速
+    static-map = /static=%dstatic
+    
+    # 根据cpu核心自动计算 processes、threads
+    master          = true
+    enable-threads  = true
+    # threads         = %(%k * 20)
+    # processes       = %(%k * 2)
+    threads         = 2
+    processes       = 2
+    
+    # 使用 nginx 服务中的用户，uwsgi.sock
+    gid             = uwsgi
+    uid             = uwsgi
+    lazy-apps       = true
+    chmod-socket    = 777
+    
+    # http 暴露，直接访问
+    http            = :8000
+    
+    # 前面不支持 uwsgi
+    # http-socket     = :9090
+    
+    # Nginx 支持 uwsgi，可选 两种 socket
+    # TCP/IP socket，Nginx 和 uWSGI 部署在同一容器内使用
+    socket          = :3031
+    # UNIX socket，Nginx 和 uWSGI 部署在同一容器内使用
+    # socket          = uwsgi.sock
+    
+    # status文件，可以查看uwsgi的运行状态，uwsgitop uwsgi.status
+    # stats           = uwsgi.status
+    # pid文件，通过该文件可以控制uwsgi的重启和停止
+    pidfile         = uwsgi.pid
+    # 日志文件存放位置
+    # daemonize       = uwsgi.log
+    # 退出uwsgi是否清理中间文件，包含pid、sock和status文件
+    vacuum          = true
+    
+    # 调优wsgi-file
+    # 关闭log，提升性能
+    disable-logging = false
+    
+    # 处理过多少个请求后重启进程，目的是防止内存泄露
+    max-requests    = 5000
+    # 每个进程排队的请求数量，默认:100 并发数 = procsses * threads * listen
+    # 使用时需要修改系统
+    # listen          = 65535
+    # header 的 buffer 大小 默认:4k
+    buffer-size     = 65536
+    # 所有进程在 20s 没有响应后杀掉
+    harakiri        = 20
+    # 记录慢于 3000 毫秒的请求
+    # log-slow        = 3000
+    
+    # uWSGI 配置参数
+    # https://uwsgi-docs-zh.readthedocs.io/zh_CN/latest/ThingsToKnow.html
+    # https://uwsgi-docs-zh.readthedocs.io/zh_CN/latest/Configuration.html
+    # https://uwsgi-docs.readthedocs.io/en/latest/tutorials/Django_and_nginx.html
+---
+# Source: django/templates/app_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-django-docker-entrypoint
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  docker-entrypoint.sh: |-
+---
+# Source: django/templates/app_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-django-initial-database
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  initial.py: |-
+    import os
+    import time
+    
+    from django.db import connection
+    
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "blog.settings")
+    
+    
+    def check_db():
+        """
+        检测数据库连
+        :return:
+        """
+        with connection.cursor() as cursor:
+            # cursor.execute("show tables;")
+            pass
+    
+    
+    def initial_job():
+        """
+        执行任务：
+          - 数据模型初始化
+          - 创建超级管理员
+        :return:
+        """
+        # os.system('python3 -V')
+        # 一定要用 export 倒入变量
+    
+        # 通过环境变量方式设置超级账号密码
+        # os.environ.setdefault("DJANGO_SUPERUSER_PASSWORD", "changeme")
+        # export DJANGO_SUPERUSER_PASSWORD = changeme
+    
+        os.system('\
+            python3 manage.py makemigrations && python3 manage.py migrate && \
+            python3 manage.py createsuperuser --username $DJANGO_SUPERUSER_USERNAME --email $DJANGO_SUPERUSER_MAIL --noinput \
+        ')
+    
+    
+    def main():
+        try:
+            # 测试数据库连接
+            check_db()
+        except Exception as e:
+            now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+            print(now, e)
+            time.sleep(5)
+            main()
+        else:
+            # 初始化数据
+            initial_job()
+    
+    
+    if __name__ == "__main__":
+        main()
+---
+# Source: django/templates/redis_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-django-redis-conf
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: redis-my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  redis.conf: |-
+    requirepass changeme
+---
+# Source: django/templates/app_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-django
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+---
+# Source: django/templates/mysql_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mysql
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: mysql-my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: mysql
+  selector:
+    app.kubernetes.io/name: mysql-my-release
+    app.kubernetes.io/instance: my-release
+---
+# Source: django/templates/redis_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: redis-my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app.kubernetes.io/name: redis-my-release
+    app.kubernetes.io/instance: my-release
+---
+# Source: django/templates/app_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-django
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: django
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: django
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-django
+      securityContext:
+        {}
+      containers:
+        - name: django
+          securityContext:
+            {}
+          image: "ju4t/django:latest"
+#          command:
+#            - /bin/sh
+#            - -c
+#            - |
+#              nginx -g "daemon off;" & uwsgi --ini /app/uwsgi.ini
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: my-release-django-secret-env
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10  # 镜像启动延迟检测时间(s)
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+            - name: api-uwsgi-conf-volume
+              mountPath: /app/uwsgi.ini
+              subPath: uwsgi.ini
+#            - name: api-docker-entrypoint-volume
+#              mountPath: /app/docker-entrypoint.sh
+#              subPath: docker-entrypoint.sh
+#            - name: api-nginx-conf-volume
+#              mountPath: /etc/nginx/http.d/default.conf
+#              subPath: nginx.conf
+          resources:
+            limits:
+              cpu: 512m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: api-uwsgi-conf-volume
+          configMap:
+            defaultMode: 0644
+            name: my-release-django-uwsgi-ini
+#        - name: api-docker-entrypoint-volume
+#          configMap:
+#            defaultMode: 0644
+#            name: my-release-django-docker-entrypoint
+#        - name: api-nginx-conf-volume
+#          configMap:
+#            defaultMode: 0644
+#            name: my-release-django-nginx-conf
+---
+# Source: django/templates/mysql_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-mysql"
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: mysql-my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql-my-release
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql-my-release
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-django
+      securityContext:
+        {}
+      containers:
+        - name: django
+          securityContext:
+            {}
+          image: "mysql:latest"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: changeme
+            - name: MYSQL_DATABASE
+              value: blog
+            - name: MYSQL_USER
+              value: blog
+            - name: MYSQL_PASSWORD
+              value: changeme
+          ports:
+            - containerPort: 3306
+              name: mysql
+              protocol: TCP
+#          volumeMounts:
+#            - name: mysql-config-volume
+#              mountPath: ...
+#              subPath: mysql.conf
+          resources:
+            limits:
+              cpu: 512m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+#      volumes:
+#        - name: mysql-config-volume
+#          configMap:
+#            defaultMode: 0644
+#            name: my-release-django-mysql-conf
+---
+# Source: django/templates/redis_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-redis"
+  namespace: default
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: redis-my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis-my-release
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis-my-release
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-django
+      securityContext:
+        {}
+      containers:
+        - name: django
+          securityContext:
+            {}
+          image: "redis:7-alpine"
+          imagePullPolicy: IfNotPresent
+          command: [ "redis-server" ]
+          args: [ "/usr/local/etc/redis/redis.conf" ]
+          env:
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "no"
+            - name: REDIS_PASSWORD
+              value: "changeme"
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          volumeMounts:
+            - name: redis-config-volume
+              mountPath: /usr/local/etc/redis/redis.conf
+              subPath: redis.conf
+          resources:
+            limits:
+              cpu: 1024m
+              memory: 1024Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: redis-config-volume
+          configMap:
+            defaultMode: 0644
+            name: my-release-django-redis-conf
+---
+# Source: django/templates/app_hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-release-django
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-release-django
+  minReplicas: 1
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          averageUtilization: 80
+          type: Utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          averageUtilization: 80
+          type: Utilization
+---
+# Source: django/templates/app_job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-django-initial
+spec:
+  # 重试 5 次
+  backoffLimit: 5
+  # 5 分钟后自动删除
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      containers:
+      - name: django-initdata
+        image: "ju4t/django:latest"
+        command:
+          - /bin/sh
+          - -c
+          - |
+            python3 initial.py
+        envFrom:
+          - secretRef:
+              name: my-release-django-secret-env
+        volumeMounts:
+          - name: app-job-initial-volume
+            mountPath: /app/initial.py
+            subPath: initial.py
+      volumes:
+        - name: app-job-initial-volume
+          configMap:
+            defaultMode: 0644
+            name: my-release-django-initial-database
+      restartPolicy: OnFailure
+---
+# Source: django/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-django-test-connection"
+  labels:
+    helm.sh/chart: django-0.1.0
+    app.kubernetes.io/name: django
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.1.4"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-django:80']
+  restartPolicy: Never

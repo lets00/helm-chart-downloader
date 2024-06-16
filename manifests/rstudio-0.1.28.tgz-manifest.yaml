@@ -1,0 +1,245 @@
+---
+# Source: rstudio/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  # annotations:
+  #   template.openshift.io/expose-password: "{.data['application-password']}"
+  name: my-release-rstudio
+  labels:
+    helm.sh/chart: rstudio-0.1.28
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.2.0"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  application-password:
+---
+# Source: rstudio/templates/pvc.yaml
+kind: "PersistentVolumeClaim"
+apiVersion: "v1"
+metadata:
+  name: my-release-rstudio
+  labels:
+    helm.sh/chart: rstudio-0.1.28
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - "ReadWriteMany"
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: rstudio/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-rstudio
+  labels:
+    helm.sh/chart: rstudio-0.1.28
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8787
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+---
+# Source: rstudio/templates/shinyService.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-rstudio-shiny
+  labels:
+    helm.sh/chart: rstudio-0.1.28
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3838
+      targetPort: http-3838
+      protocol: TCP
+      name: http-3838
+  selector:
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+---
+# Source: rstudio/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-rstudio
+  labels:
+    helm.sh/chart: rstudio-0.1.28
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rstudio
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rstudio
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: anyuid
+      securityContext:
+        {}
+      containers:
+        - name: rstudio
+          securityContext:
+            {}
+          image: "ghcr.io/maastrichtu-ids/rstudio:latest"
+          imagePullPolicy: Always
+          workingDir: /home/rstudio
+          env:
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: application-password
+                  name: my-release-rstudio
+            - name: USER
+              value: rstudio
+            - name: ROOT
+              value: "TRUE"
+            - name: OPENBLAS_NUM_THREADS
+              value: "1"
+            # To enable updating the image: https://github.com/kubernetes/kubernetes/issues/33664
+            - name: RELEASE_DATE
+              value: "2024-06-15 21:35:49.929940948 -0300 -03 m=+0.039102785"
+            - name: ADD
+              value: "SHINY"
+          ports:
+            - name: http
+              containerPort: 8787
+              protocol: TCP
+            - name: http-3838
+              containerPort: 3838
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15 
+            failureThreshold: 40
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15 
+            failureThreshold: 40
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            {}
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /home/rstudio
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-rstudio
+---
+# Source: rstudio/templates/openshiftRoute.yaml
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: my-release-rstudio
+  labels:
+    helm.sh/chart: rstudio-0.1.28
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.2.0"
+    app.kubernetes.io/managed-by: Helm
+# Stub to solve ingress API validation issues
+status:
+  ingress:
+    - host: ""
+spec:
+  host: 
+  path: 
+  wildcardPolicy: None
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: my-release-rstudio
+    weight: 100
+---
+# Source: rstudio/templates/shinyOpenshiftRoute.yaml
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: my-release-rstudio-shiny
+  labels:
+    helm.sh/chart: rstudio-0.1.28
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.2.0"
+    app.kubernetes.io/managed-by: Helm
+# Stub to solve ingress API validation issues
+status:
+  ingress:
+    - host: ""
+spec:
+  host: 
+  path: 
+  wildcardPolicy: None
+  port:
+    targetPort: http-3838
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: my-release-rstudio-shiny
+    weight: 100
+---
+# Source: rstudio/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-rstudio-test-connection"
+  labels:
+    helm.sh/chart: rstudio-0.1.28
+    app.kubernetes.io/name: rstudio
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.2.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-rstudio:8787']
+  restartPolicy: Never

@@ -1,0 +1,147 @@
+---
+# Source: k3s-traefik-config/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-k3s-traefik-config
+  labels:
+    helm.sh/chart: k3s-traefik-config-1.0.5
+    app.kubernetes.io/name: k3s-traefik-config
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: k3s-traefik-config/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-k3s-traefik-config
+  labels:
+    helm.sh/chart: k3s-traefik-config-1.0.5
+    app.kubernetes.io/name: k3s-traefik-config
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  traefik-config.yaml: |
+    
+    apiVersion: helm.cattle.io/v1
+    kind: HelmChartConfig
+    metadata:
+      name: traefik
+      labels:
+        helm.sh/chart: k3s-traefik-config-1.0.5
+        app.kubernetes.io/name: k3s-traefik-config
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v1.0.1"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      valuesContent: |
+      
+        null
+---
+# Source: k3s-traefik-config/templates/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-release-k3s-traefik-config
+  labels:
+    helm.sh/chart: k3s-traefik-config-1.0.5
+    app.kubernetes.io/name: k3s-traefik-config
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/lib/rancher/k3s/server/manifests"
+---
+# Source: k3s-traefik-config/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-k3s-traefik-config
+  labels:
+    helm.sh/chart: k3s-traefik-config-1.0.5
+    app.kubernetes.io/name: k3s-traefik-config
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: k3s-traefik-config/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-k3s-traefik-config
+  labels:
+    helm.sh/chart: k3s-traefik-config-1.0.5
+    app.kubernetes.io/name: k3s-traefik-config
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k3s-traefik-config
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-k3s-traefik-config
+      securityContext:
+        {}
+
+      volumes:
+        - name: task-pv-storage
+          persistentVolumeClaim:
+            claimName: my-release-k3s-traefik-config
+        - name: config
+          configMap:
+            name: my-release-k3s-traefik-config
+
+
+      containers:
+        - name: k3s-traefik-config
+          securityContext:
+            {}
+          image: "alpine:3.15.0"
+          imagePullPolicy: IfNotPresent
+          command: ["cp",  "/opt/traefik/traefik-config.yaml", "/mnt/node/traefik/traefik-config.yaml"]
+          volumeMounts:
+            - name: config
+              mountPath: /opt/traefik/traefik-config.yaml
+              subPath: traefik-config.yaml
+            - mountPath: /mnt/node/traefik
+              name: task-pv-storage
+          resources:
+            {}
+      restartPolicy: Never
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
+  backoffLimit: 4
+---
+# Source: k3s-traefik-config/templates/config.yaml
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  labels:
+    helm.sh/chart: k3s-traefik-config-1.0.5
+    app.kubernetes.io/name: k3s-traefik-config
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  valuesContent: |
+  
+    null

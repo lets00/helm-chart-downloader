@@ -1,0 +1,916 @@
+---
+# Source: lumigo-operator/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lumigo-kubernetes-operator
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+---
+# Source: lumigo-operator/templates/controller-deployment-and-webhooks.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: 'my-release-lumigo-operator-lumigo-injector-webhook-certs'
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUR2ekNDQXFlZ0F3SUJBZ0lSQU1zVWpSK3ozQWUvTU1KMy9Vc0ZSYk13RFFZSktvWklodmNOQVFFTEJRQXcKSFRFYk1Ca0dBMVVFQXhNU2JIVnRhV2R2TFhkbFltaHZiMnR6TFdOaE1CNFhEVEkwTURZeE5USXpOVFV6TUZvWApEVEkxTURZeE5USXpOVFV6TUZvd0dqRVlNQllHQTFVRUF4TVBiSFZ0YVdkdkxXOXdaWEpoZEc5eU1JSUJJakFOCkJna3Foa2lHOXcwQkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQXdIUTNPTC95aG1WT3RiQUpsSzl1MnRFcDdZSzYKMVVXL3RZMVZRSlNmYlgwS0hXZTRjVmpPTGsxRmsvZjRnY0tjTCtVaUtFUUdjZENhbHFUbStJdlJrSWJKZVFnSQpYSXZHK2dzWGdXWHdCY1R6U01CcHVCVi84dUQ3NmpwTkNmR2FTQXBnVk9RYUlxazlWTGp3S0RCT3AzQ3htNUY5CnRhOXl4TDNGYWhJMkcvYWNoajRLOVQrTmxQNXVnSXl1Sis2SVBTUHdaaDFXM2IrZzczS3JidUlHWGM3cGtIZkIKTUsxZWs3ckZLQVo3ZEh5NzYxb3REK3JFeDAxRlNaMG44alkzOEszeU43eFRmNzkrUDM0Yk1tNk8zRnEzeXZrNwp2ZE01WGNwdUlxVGRsSTYwZ2xVblJRaWlXZ2RnZjVSVmVPeXFjZWNvSWR6cmhuekhaZGUyQmJPSEp3SURBUUFCCm80SDhNSUg1TUE0R0ExVWREd0VCL3dRRUF3SUZvREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEQVlEVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCVG50TGE0bE5sRFh1ZVcwdUd0YWtsZQpCOEZVblRDQm1BWURWUjBSQklHUU1JR05naUp0ZVMxeVpXeGxZWE5sTFd4MWJXbG5ieTF2Y0dWeVlYUnZjaTVrClpXWmhkV3gwZ2k1dGVTMXlaV3hsWVhObExXeDFiV2xuYnkxdmNHVnlZWFJ2Y2kxelpYSjJhV05sTG1SbFptRjEKYkhRdWMzWmpnamR0ZVMxeVpXeGxZWE5sTFd4MWJXbG5ieTF2Y0dWeVlYUnZjaTEzWldKb2IyOXJjeTF6WlhKMgphV05sTG1SbFptRjFiSFF1YzNaak1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQzczUDVCYmk4SkI5bXdLVEhwCjY1MzJEdU44RWkrODRwOEg3QkhxUlZoRGlmLzF5Z2NGOVhIN2NtZ3hGWmFGOC9ieHZKQjFIaGxIYm93Slp5SEcKOFZxTEE2cUxtNWtBaFFUWTU2NnJISGRObVQreERHMFRVT3daU0VuVGZHdXlXVXVxeHVUbHZ1TFR5QkJNUG0wSgoyT1VENlZvZ0hscUxNOEtiWXlhRm5KMVB1ZmpBR21vWW5NRnZib1FtUTBSVE01cFFBRERXbE5OZ3JuRkhnMTRlCnFWMFJZNllEb0VNZ0FFYm1CUlVEUjUyMkM0NEM2eDFHTXVoWkNvdjlIeWwzV0MvSU9RVUc4WmQxbkhEa0REVTEKd1U0Zm4xby8zWEUxa2EwbUx4T3lvREt3UWFnNU9RVm5Ea0hXL3hUNFF3SklDTlFVblZUQmpLd1NHenE2T2M1bQpPNGQyCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBd0hRM09ML3lobVZPdGJBSmxLOXUydEVwN1lLNjFVVy90WTFWUUpTZmJYMEtIV2U0CmNWak9MazFGay9mNGdjS2NMK1VpS0VRR2NkQ2FscVRtK0l2UmtJYkplUWdJWEl2Rytnc1hnV1h3QmNUelNNQnAKdUJWLzh1RDc2anBOQ2ZHYVNBcGdWT1FhSXFrOVZMandLREJPcDNDeG01Rjl0YTl5eEwzRmFoSTJHL2FjaGo0Swo5VCtObFA1dWdJeXVKKzZJUFNQd1poMVczYitnNzNLcmJ1SUdYYzdwa0hmQk1LMWVrN3JGS0FaN2RIeTc2MW90CkQrckV4MDFGU1owbjhqWTM4SzN5Tjd4VGY3OStQMzRiTW02TzNGcTN5dms3dmRNNVhjcHVJcVRkbEk2MGdsVW4KUlFpaVdnZGdmNVJWZU95cWNlY29JZHpyaG56SFpkZTJCYk9ISndJREFRQUJBb0lCQVFDb3JUTTVLZ01HaUFSVQplZFhyMjFidHNpVnRaZ2NhcGVkQTJINi8rNE5BRXplcVRoMzZPanQ3bVg1Q0VqUmNocFVkNVZYcXRMUnhUTVF4CkJKYnJnS0JNYTlacG5nQzJIRXhwR3crZStobEU5VG5GcWQ3KzJOa3Jwc1VrcGJTZjRvRzJZbUhNQmFCaWdMS2cKYnZjT1FraXR1TGZ5QWJLTWF4bk1GZ2ZReitWYzIyTERBUmxxVCtOWnZjM0dOdFprSkdsWnJ5Y3BBQ2h0eFRQVApYcHNoVTJ3bFlhbjRlL2s5MEVqZVl4Yk1OM2piYmlEM0IxUnhaQ055NDF5d0VBRWZ5aUJuNktZVzh5TCt0REdBClkxdDFhUW8vekVCYVdnSUVIeFJvWEE2NCtvNk9RUDU0OWNRYjM5cStKRzdMVTUyOWk0QWF1T0VVeEdQbG0vVGcKQXpCdXd5d0JBb0dCQU5ERUdaTGlEREhETWxYY1BYV3E4K3NPeWs1RE5HV2NINGh6UEVKRjNjcDEwb2lheERVNApjcWZZeXgvTEJRS0Jsajc0dG5RYk9ROGN5LzZVRFZQQzl1a29CNFFQdkpVcDk2aFNPZUVOdnpHdTBEY2Y4WHNxCmZKeUhBZ1F5Q29lYkl6a1NQZlFZMnlEU3gxZmZVclBxVnhrN3BZaUNadnFOQjRGUVN3ekFRM0N4QW9HQkFPdi8KVHZ3N1BDUGV4VGVTZGl1c3gzOFkyU0ZqRGpzU0VweHd1STZHeTJsdSsrSHBzZVloMU5xL1RkS0JUMUhKZ29kVwpBZkV1RDFFbytpV3RoTVZJSjhaY09FUTZiVTBvd0tIc0NGaU5vZEVXVmlrMnJjYTNhbmhMcUJSR2F2UDB5V2sxCnEyUzVvelU4aFpMbFJkNkZhbDFGWjdpcHRIRGJ5MHdYbE53YklxdFhBb0dCQUxmMFUrU05zdGtXZXdBVk5VSysKQkhpWGE4UlNpNVVOWU92SFBzM1c2bnhBSGVlcEdFTWRIa3F3U1N3V3BLOTBxSU9NZkprS2M5alJNeDk4TGRJawo5WlMxWlFvRkk5TDhTL0hSb3BhZ21seVpBWGZSZWVOaHFMUDBjdDVuaWNlNzkrbU9IWEU5aGJrQ2dnejRCOVBwCkpoNWg1SmJJOFJ6TnNGTk9BUk9YUnRYQkFvR0FEUVpWTktTTVNDcUdWZS9XWjhpc1pmNVlGWGlqRTIyRzYyMXAKTWl5TVUzQlZwSDFDWFVJbXZqL3FxcUNLWVNndTlRc3hKajkxaHZRdEFpRldmNURnNlJpejNrZ2ZPaS95bWIwdQpKTDBFWGtiT1VJMzgvMGVtTDZkMVNsRXNtL1E1blgzaHpMaFdJcDBKZmpiN0tUSFIwZjMvb0hoMVJmbExlaEtmCkc1cS95aGNDZ1lBdy9HcHo2c1hha3hGN004UVpZTlhYSFJNRU5mcDBmK0paN2NiaExPeEJXZkVESTZFc1lQQUQKWmlkTVZvKzdnaHFVQWlFZzg0NXZwdklzN2dwWXhTRTl4VkxEMTRKSXNEQlJ0UFFSRGVackdKdFNHeHlzZ3Myawo0eDU1bTFuTjFkeUY5WUF0V2c4RXVCSXVjOE50elgrZEJmZmdKaDJ6cFNZSmEyU09xVFhnK2c9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRZXQ2TUNyT3Fsc0ZEcVMwNnFJeHplekFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKc2RXMXBaMjh0ZDJWaWFHOXZhM010WTJFd0hoY05NalF3TmpFMU1qTTFOVE13V2hjTgpNalV3TmpFMU1qTTFOVE13V2pBZE1Sc3dHUVlEVlFRREV4SnNkVzFwWjI4dGQyVmlhRzl2YTNNdFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRREVQUURIOGlXVGtoLzVzSUJXbnlwZkc4L1IKWEFHWWFuSFhOQ2NUSFA4dmhEOXl3bHJBb1FQcGxQeTFiV0xZWmMwUERHQ2E0MGI0bkhLbHp4MWxSd1ZyUHZmYwpJcS9XVXFoeUZpd2RwL0cxYTVJYTU4ZE5tNE9SVGU5THlYREE5d2ZkQnppWkRNTWpZUVdkeHo1VmJEN2hMRkw5Cnd5L25MdFBQMnVXektQZnNzaDZRdXlZT0IxWWdLaUhocC82OUJFZW5wY1Q4ZUJScWt6S25kNTNqQzh6cWtROTMKenFMcnI5bTliK2NVWFdBWmZaZElJOHVUcGNtOVVSNkJ0cXJOWkVhdlhpbEpXVTVQdjNNTCtoWERYSE4zbHVJSgpSdk5OYk5LTjRXRVdoNEVWd0FtMWVGSUFQejVwZjI4M3dJOGxTVjh2ZlNzTit6WnVmUjRXNndNelZrS3BBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVU1N1MydUpUWlExN25sdExocldwSgpYZ2ZCVkowd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFGd3I0NTk5L1EvVTBPT1BEc2ptaXdWdTk1V0JiNHlHCm51Ymk1ekhuR3Ztb2g3dFBsNG1JTzJnOG8zc3MwazZIRFpwVHJiTFFhOEkyMlFLMGk4V1pFM1gzK1poRnAwMlIKdFZieEdZZUFFV2tIQStBUVpFditTOEhVOTlPN0VoVEJsanZseGRvOUMzVEtIUWR1aVBFQXdic08yVUYvNEpLSwp0RktxZUJWVE1RR3ExbFlaa2xDVVZabHdscUNyTS83OVRUR3BaTjRIQUF4WUZCZzdZM0ptd0ZCNXk4S2hrendmCjIzV0Ntd0xwTnpSZnFSOC9zU28veGMrZUd2Z1IvK3E4aTVQemZFaUhFbEdicStvMmFxSkVydyt6Q052dHp4cUMKelRCTWxWWWlCMitqVW9JL1FtUG1GOHFPNEdOZWdBZjRUeHIzeGJtYkplWkhJNHg0OW40MkRSUT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+---
+# Source: lumigo-operator/templates/lumigo-crd.yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: lumigoes.operator.lumigo.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  group: operator.lumigo.io
+  names:
+    kind: Lumigo
+    listKind: LumigoList
+    plural: lumigoes
+    singular: lumigo
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Lumigo is the Schema for the lumigoes API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: LumigoSpec defines the desired state of Lumigo
+            properties:
+              infrastructure:
+                properties:
+                  enabled:
+                    description: Whether Kubernetes infrastructrure collection should
+                      be active. If unspecified, defaults to `true`
+                    type: boolean
+                  kubeEvents:
+                    description: How to collect Kubernetes events and send them to
+                      Lumigo.
+                    properties:
+                      enabled:
+                        description: Whether Kubernetes events should be collected
+                          and sent to Lumigo. If unspecified, defaults to `true`
+                        type: boolean
+                    type: object
+                type: object
+              lumigoToken:
+                description: 'The Lumigo token to be used to authenticate against
+                  Lumigo. For info on how to retrieve your Lumigo token, refer to:
+                  https://docs.lumigo.io/docs/lumigo-tokens'
+                properties:
+                  secretRef:
+                    description: Reference to a Kubernetes secret that contains the
+                      credentials for Lumigo. The secret must be in the same namespace
+                      as the LumigoSpec referencing it.
+                    properties:
+                      key:
+                        description: Key of the Kubernetes secret that contains the
+                          credential data.
+                        type: string
+                      name:
+                        description: Name of a Kubernetes secret.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                type: object
+              tracing:
+                description: 'TracingSpec specified how distributed tracing (for example:
+                  tracer injection) should be set up by the operator'
+                properties:
+                  injection:
+                    properties:
+                      enabled:
+                        description: Whether Daemonsets, Deployments, ReplicaSets,
+                          StatefulSets, CronJobs and Jobs that are created or updated
+                          after the creation of the Lumigo resource be injected. If
+                          unspecified, defaults to `true`
+                        type: boolean
+                      injectLumigoIntoExistingResourcesOnCreation:
+                        description: Whether Daemonsets, Deployments, ReplicaSets,
+                          StatefulSets, CronJobs and Jobs that already exist when
+                          the Lumigo resource is created, will be updated with injection.
+                          If unspecified, defaults to `true`. It requires `Enabled`
+                          to be set to `true`.
+                        type: boolean
+                      removeLumigoFromResourcesOnDeletion:
+                        description: Whether Daemonsets, Deployments, ReplicaSets,
+                          StatefulSets, CronJobs and Jobs that are injected with Lumigo
+                          will be updated to remove the injection when the Lumigo
+                          resource is deleted. If unspecified, defaults to `true`.
+                          It requires `Enabled` to be set to `true`.
+                        type: boolean
+                    type: object
+                required:
+                - injection
+                type: object
+            type: object
+          status:
+            description: LumigoStatus defines the observed state of Lumigo
+            properties:
+              conditions:
+                description: The status of single Lumigo resources
+                items:
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    lastUpdateTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - lastUpdateTime
+                  - message
+                  - status
+                  - type
+                  type: object
+                type: array
+              instrumentedResources:
+                description: List of resources instrumented by this Lumigo instance
+                items:
+                  description: "ObjectReference contains enough information to let
+                    you inspect or modify the referred object. --- New uses of this
+                    type are discouraged because of difficulty describing its usage
+                    when embedded in APIs. 1. Ignored fields.  It includes many fields
+                    which are not generally honored.  For instance, ResourceVersion
+                    and FieldPath are both very rarely valid in actual usage. 2. Invalid
+                    usage help.  It is impossible to add specific help for individual
+                    usage.  In most embedded usages, there are particular restrictions
+                    like, \"must refer only to types A and B\" or \"UID not honored\"
+                    or \"name must be restricted\". Those cannot be well described
+                    when embedded. 3. Inconsistent validation.  Because the usages
+                    are different, the validation rules are different by usage, which
+                    makes it hard for users to predict what will happen. 4. The fields
+                    are both imprecise and overly precise.  Kind is not a precise
+                    mapping to a URL. This can produce ambiguity during interpretation
+                    and require a REST mapping.  In most cases, the dependency is
+                    on the group,resource tuple and the version of the actual struct
+                    is irrelevant. 5. We cannot easily change it.  Because this type
+                    is embedded in many locations, updates to this type will affect
+                    numerous schemas.  Don't make new APIs embed an underspecified
+                    API type they do not control. \n Instead of using this type, create
+                    a locally provided and used type that is well-focused on your
+                    reference. For example, ServiceReferences for admission registration:
+                    https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533
+                    ."
+                  properties:
+                    apiVersion:
+                      description: API version of the referent.
+                      type: string
+                    fieldPath:
+                      description: 'If referring to a piece of an object instead of
+                        an entire object, this string should contain a valid JSON/Go
+                        field access statement, such as desiredState.manifest.containers[2].
+                        For example, if the object reference is to a container within
+                        a pod, this would take on a value like: "spec.containers{name}"
+                        (where "name" refers to the name of the container that triggered
+                        the event) or if no container name is specified "spec.containers[2]"
+                        (container with index 2 in this pod). This syntax is chosen
+                        only to have some well-defined way of referencing a part of
+                        an object. TODO: this design is not final and this field is
+                        subject to change in the future.'
+                      type: string
+                    kind:
+                      description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                      type: string
+                    name:
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                      type: string
+                    namespace:
+                      description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                      type: string
+                    resourceVersion:
+                      description: 'Specific resourceVersion to which this reference
+                        is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                      type: string
+                    uid:
+                      description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
+            required:
+            - conditions
+            - instrumentedResources
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+# Source: lumigo-operator/templates/manager-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-lumigo-operator-manager-role
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - operator.lumigo.io
+  resources:
+  - lumigoes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.lumigo.io
+  resources:
+  - lumigoes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - operator.lumigo.io
+  resources:
+  - lumigoes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - namespaces/status
+  - nodes
+  - nodes/spec
+  - pods
+  - pods/status
+  - replicationcontrollers
+  - replicationcontrollers/status
+  - resourcequotas
+  - secrets
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+---
+# Source: lumigo-operator/templates/metrics-reader-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-lumigo-operator-metrics-reader
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+# Source: lumigo-operator/templates/proxy-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-lumigo-operator-proxy-role
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+# Source: lumigo-operator/templates/manager-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-lumigo-operator-manager-rolebinding
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'my-release-lumigo-operator-manager-role'
+subjects:
+- kind: ServiceAccount
+  name: 'lumigo-kubernetes-operator'
+  namespace: 'default'
+---
+# Source: lumigo-operator/templates/proxy-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-lumigo-operator-proxy-rolebinding
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: 'my-release-lumigo-operator-proxy-role'
+subjects:
+- kind: ServiceAccount
+  name: 'lumigo-kubernetes-operator'
+  namespace: 'default'
+---
+# Source: lumigo-operator/templates/leader-election-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-lumigo-operator-leader-election-role
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+# Source: lumigo-operator/templates/leader-election-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-lumigo-operator-leader-election-rolebinding
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'my-release-lumigo-operator-leader-election-role'
+subjects:
+- kind: ServiceAccount
+  name: 'lumigo-kubernetes-operator'
+  namespace: 'default'
+---
+# Source: lumigo-operator/templates/controller-deployment-and-webhooks.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-lumigo-operator-webhooks-service
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: lumigo
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    control-plane: controller-manager
+    lumigo.cert-digest: "dJTiBDRVJUSUZJQ"
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+---
+# Source: lumigo-operator/templates/metrics-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-lumigo-operator-controller-manager-metrics-service
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+    control-plane: controller-manager
+spec:
+  type: ClusterIP
+  selector:
+    control-plane: controller-manager
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+---
+# Source: lumigo-operator/templates/telemetry-proxy-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-lumigo-operator-telemetry-proxy-service
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: telemetry-proxy
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+    control-plane: controller-manager
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    control-plane: controller-manager
+  ports:
+  - name: otlphttp
+    protocol: TCP
+    # TODO Can we use generated certificates to make it HTTPS?
+    # If we used self-signed certs, how would we pass the CA to OTLP exporters in client apps?
+    port: 80
+    targetPort: otlphttp
+---
+# Source: lumigo-operator/templates/controller-deployment-and-webhooks.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-lumigo-operator-controller-manager
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+    control-plane: controller-manager
+    lumigo.auto-trace: 'false' # We do not need the operator to inject itself
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: lumigo-operator
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lumigo-operator
+        app.kubernetes.io/instance: my-release
+        control-plane: controller-manager
+        lumigo.auto-trace: 'false' # We do not need the operator to inject itself
+        lumigo.cert-digest: "dJTiBDRVJUSUZJQ"
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      containers:
+      - name: manager
+        image: public.ecr.aws/lumigo/lumigo-kubernetes-operator:28
+        command:
+        - /manager
+        args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
+        env:
+        - name: LUMIGO_DEBUG
+          value: "false"
+        - name: LUMIGO_CONTROLLER_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: LUMIGO_CONTROLLER_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: cluster.local
+        - name: TELEMETRY_PROXY_OTLP_SERVICE
+          value: "http://my-release-lumigo-operator-telemetry-proxy-service.default.svc.cluster.local"
+        - name: LUMIGO_NAMESPACE_CONFIGURATIONS
+          value: /lumigo/etc/namespaces/namespaces_to_monitor.json
+        - name: LUMIGO_OPERATOR_VERSION
+          value: "28"
+        - name: LUMIGO_OPERATOR_DEPLOYMENT_METHOD
+          value: "helm-v3.15.2"
+        - name: LUMIGO_INJECTOR_IMAGE
+          value: public.ecr.aws/lumigo/lumigo-autotrace:latest
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1234
+        volumeMounts:
+        - name: cert
+          mountPath: /tmp/k8s-webhook-server/serving-certs
+          readOnly: true
+        - name: namespace-configurations
+          mountPath: /lumigo/etc/namespaces/
+          readOnly: false
+      - name: telemetry-proxy
+        image: public.ecr.aws/lumigo/lumigo-kubernetes-telemetry-proxy:28
+        env:
+        - name: LUMIGO_DEBUG
+          value: "false"
+        - name: LUMIGO_ENDPOINT
+          value: "https://ga-otlp.lumigo-tracer-edge.golumigo.com"
+        - name: LUMIGO_OPERATOR_VERSION
+          value: "28"
+        - name: LUMIGO_OPERATOR_DEPLOYMENT_METHOD
+          value: "Helm-v3.15.2"
+        - name: LUMIGO_OPERATOR_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        ports:
+        - containerPort: 4318
+          name: otlphttp
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 10m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          # readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1234
+        volumeMounts:
+        - name: telemetry-proxy-configurations
+          mountPath: /lumigo/etc/otelcol/
+          readOnly: false
+        - name: namespace-configurations
+          mountPath: /lumigo/etc/namespaces/
+          readOnly: false
+      - name: kube-rbac-proxy
+        image: public.ecr.aws/lumigo/lumigo-kubernetes-rbac-proxy:28
+        args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=0
+        env:
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: cluster.local
+        # - name: GOMEMLIMIT
+        #   value: 128Mi
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1234
+      serviceAccountName: lumigo-kubernetes-operator
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: 'my-release-lumigo-operator-lumigo-injector-webhook-certs'
+      - name: namespace-configurations
+        emptyDir: {}
+      - name: telemetry-proxy-configurations
+        emptyDir: {}
+---
+# Source: lumigo-operator/templates/controller-deployment-and-webhooks.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: my-release-lumigo-operator-injector-webhook-configuration
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRZXQ2TUNyT3Fsc0ZEcVMwNnFJeHplekFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKc2RXMXBaMjh0ZDJWaWFHOXZhM010WTJFd0hoY05NalF3TmpFMU1qTTFOVE13V2hjTgpNalV3TmpFMU1qTTFOVE13V2pBZE1Sc3dHUVlEVlFRREV4SnNkVzFwWjI4dGQyVmlhRzl2YTNNdFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRREVQUURIOGlXVGtoLzVzSUJXbnlwZkc4L1IKWEFHWWFuSFhOQ2NUSFA4dmhEOXl3bHJBb1FQcGxQeTFiV0xZWmMwUERHQ2E0MGI0bkhLbHp4MWxSd1ZyUHZmYwpJcS9XVXFoeUZpd2RwL0cxYTVJYTU4ZE5tNE9SVGU5THlYREE5d2ZkQnppWkRNTWpZUVdkeHo1VmJEN2hMRkw5Cnd5L25MdFBQMnVXektQZnNzaDZRdXlZT0IxWWdLaUhocC82OUJFZW5wY1Q4ZUJScWt6S25kNTNqQzh6cWtROTMKenFMcnI5bTliK2NVWFdBWmZaZElJOHVUcGNtOVVSNkJ0cXJOWkVhdlhpbEpXVTVQdjNNTCtoWERYSE4zbHVJSgpSdk5OYk5LTjRXRVdoNEVWd0FtMWVGSUFQejVwZjI4M3dJOGxTVjh2ZlNzTit6WnVmUjRXNndNelZrS3BBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVU1N1MydUpUWlExN25sdExocldwSgpYZ2ZCVkowd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFGd3I0NTk5L1EvVTBPT1BEc2ptaXdWdTk1V0JiNHlHCm51Ymk1ekhuR3Ztb2g3dFBsNG1JTzJnOG8zc3MwazZIRFpwVHJiTFFhOEkyMlFLMGk4V1pFM1gzK1poRnAwMlIKdFZieEdZZUFFV2tIQStBUVpFditTOEhVOTlPN0VoVEJsanZseGRvOUMzVEtIUWR1aVBFQXdic08yVUYvNEpLSwp0RktxZUJWVE1RR3ExbFlaa2xDVVZabHdscUNyTS83OVRUR3BaTjRIQUF4WUZCZzdZM0ptd0ZCNXk4S2hrendmCjIzV0Ntd0xwTnpSZnFSOC9zU28veGMrZUd2Z1IvK3E4aTVQemZFaUhFbEdicStvMmFxSkVydyt6Q052dHp4cUMKelRCTWxWWWlCMitqVW9JL1FtUG1GOHFPNEdOZWdBZjRUeHIzeGJtYkplWkhJNHg0OW40MkRSUT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    service:
+      name: 'my-release-lumigo-operator-webhooks-service'
+      namespace: 'default'
+      path: /v1alpha1/inject
+  failurePolicy: Ignore
+  name: lumigoinjector.kb.io
+  rules:
+  - apiGroups:
+    - apps
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - daemonsets
+    - deployments
+    - replicasets
+    - statefulsets
+  - apiGroups:
+    - batch
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - cronjobs
+    - jobs
+  sideEffects: None
+  timeoutSeconds: 5
+---
+# Source: lumigo-operator/templates/controller-deployment-and-webhooks.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: my-release-lumigo-operator-defaulter-webhook-configuration
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKVENDQWcyZ0F3SUJBZ0lRZXQ2TUNyT3Fsc0ZEcVMwNnFJeHplekFOQmdrcWhraUc5dzBCQVFzRkFEQWQKTVJzd0dRWURWUVFERXhKc2RXMXBaMjh0ZDJWaWFHOXZhM010WTJFd0hoY05NalF3TmpFMU1qTTFOVE13V2hjTgpNalV3TmpFMU1qTTFOVE13V2pBZE1Sc3dHUVlEVlFRREV4SnNkVzFwWjI4dGQyVmlhRzl2YTNNdFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRREVQUURIOGlXVGtoLzVzSUJXbnlwZkc4L1IKWEFHWWFuSFhOQ2NUSFA4dmhEOXl3bHJBb1FQcGxQeTFiV0xZWmMwUERHQ2E0MGI0bkhLbHp4MWxSd1ZyUHZmYwpJcS9XVXFoeUZpd2RwL0cxYTVJYTU4ZE5tNE9SVGU5THlYREE5d2ZkQnppWkRNTWpZUVdkeHo1VmJEN2hMRkw5Cnd5L25MdFBQMnVXektQZnNzaDZRdXlZT0IxWWdLaUhocC82OUJFZW5wY1Q4ZUJScWt6S25kNTNqQzh6cWtROTMKenFMcnI5bTliK2NVWFdBWmZaZElJOHVUcGNtOVVSNkJ0cXJOWkVhdlhpbEpXVTVQdjNNTCtoWERYSE4zbHVJSgpSdk5OYk5LTjRXRVdoNEVWd0FtMWVGSUFQejVwZjI4M3dJOGxTVjh2ZlNzTit6WnVmUjRXNndNelZrS3BBZ01CCkFBR2pZVEJmTUE0R0ExVWREd0VCL3dRRUF3SUNwREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QWRCZ05WSFE0RUZnUVU1N1MydUpUWlExN25sdExocldwSgpYZ2ZCVkowd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFGd3I0NTk5L1EvVTBPT1BEc2ptaXdWdTk1V0JiNHlHCm51Ymk1ekhuR3Ztb2g3dFBsNG1JTzJnOG8zc3MwazZIRFpwVHJiTFFhOEkyMlFLMGk4V1pFM1gzK1poRnAwMlIKdFZieEdZZUFFV2tIQStBUVpFditTOEhVOTlPN0VoVEJsanZseGRvOUMzVEtIUWR1aVBFQXdic08yVUYvNEpLSwp0RktxZUJWVE1RR3ExbFlaa2xDVVZabHdscUNyTS83OVRUR3BaTjRIQUF4WUZCZzdZM0ptd0ZCNXk4S2hrendmCjIzV0Ntd0xwTnpSZnFSOC9zU28veGMrZUd2Z1IvK3E4aTVQemZFaUhFbEdicStvMmFxSkVydyt6Q052dHp4cUMKelRCTWxWWWlCMitqVW9JL1FtUG1GOHFPNEdOZWdBZjRUeHIzeGJtYkplWkhJNHg0OW40MkRSUT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    service:
+      name: 'my-release-lumigo-operator-webhooks-service'
+      namespace: 'default'
+      path: /v1alpha1/mutate
+  failurePolicy: Fail
+  name: lumigodefaulter.kb.io
+  rules:
+  - apiGroups:
+    - operator.lumigo.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - lumigoes
+  sideEffects: None
+  timeoutSeconds: 5
+---
+# Source: lumigo-operator/templates/uninstallation/uninstall-hook.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-lumigo-operator-uninstall-hook
+  labels:
+    helm.sh/chart: lumigo-operator-28
+    app.kubernetes.io/name: lumigo-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "28"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: lumigo
+    app.kubernetes.io/part-of: lumigo
+    control-plane: controller-manager
+    lumigo.auto-trace: 'false' # We do not need the operator to inject itself
+  annotations:
+    helm.sh/hook: pre-delete
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded # we skip hook-failed so that we can look up logs if it fails
+spec:
+  completions: 1
+  backoffLimit: 2
+  template:
+    metadata:
+      name: "my-release"
+      labels:
+        app.kubernetes.io/name: lumigo-operator
+        app.kubernetes.io/instance: my-release
+        lumigo.auto-trace: 'false' # We do not need the operator to inject itself
+        control-plane: controller-manager
+    spec:
+      restartPolicy: Never
+      activeDeadlineSeconds: 120 # Unfortunately, as of v3.11, Helm does not expose to templates its own timeout
+      containers:
+      - name: uninstall-hook
+        image: public.ecr.aws/lumigo/lumigo-kubernetes-operator:28
+        command: ["/manager", "--uninstall"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1234
+      serviceAccountName: lumigo-kubernetes-operator

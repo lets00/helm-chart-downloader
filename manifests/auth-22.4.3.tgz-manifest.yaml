@@ -1,0 +1,101 @@
+---
+# Source: auth/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-auth
+  labels:
+    helm.sh/chart: auth-22.4.3
+    app.kubernetes.io/name: auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.6.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: auth/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-auth-config
+data:
+  config.yml: "IyBTZWUgW3JlZmVyZW5jZS55bWxdW10gZm9yIGV4cGxhbmF0aW9uIGZvciBleHBsYW5hdGlvbiBvZiBhbGwgb3B0aW9ucy4KIwojIFtyZWZlcmVuY2UueW1sXTogaHR0cHM6Ly9naXRodWIuY29tL2Nlc2FudGEvZG9ja2VyX2F1dGgvYmxvYi9tYWluL2V4YW1wbGVzL3JlZmVyZW5jZS55bWwKIwoKc2VydmVyOgogIGFkZHI6ICI6NTAwMSIKCnRva2VuOgogIGNlcnRpZmljYXRlOiAiIgogIGV4cGlyYXRpb246IDkwMAogIGlzc3VlcjogQWNtZSBBdXRoIFNlcnZlcgogIGtleTogIiIKdXNlcnM6CiAge30KYWNsOgogIFtd"
+---
+# Source: auth/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-auth
+  labels:
+    helm.sh/chart: auth-22.4.3
+    app.kubernetes.io/name: auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.6.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5001
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: auth
+    app.kubernetes.io/instance: my-release
+---
+# Source: auth/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-auth
+  labels:
+    helm.sh/chart: auth-22.4.3
+    app.kubernetes.io/name: auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.6.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 33d6bfdfc2321954b086c853a32226435195e7802342d3723fe3c991e9c1640a
+      labels:
+        app.kubernetes.io/name: auth
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-auth
+      securityContext:
+        {}
+      containers:
+        - name: auth
+          securityContext:
+            {}
+          image: "cesanta/docker_auth:1.6.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - /etc/docker/auth/config.yml
+          ports:
+            - name: http
+              containerPort: 5001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /etc/docker/auth
+              name: config
+              readOnly: true
+      volumes:
+        - name: config
+          secret:
+            secretName: my-release-auth-config

@@ -1,0 +1,153 @@
+---
+# Source: oracle/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-oracle
+  labels:
+    app.kubernetes.io/name: oracle
+    helm.sh/chart: oracle-3.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: oracle/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-oracle
+  namespace: default
+  labels:
+    app.kubernetes.io/name: oracle
+    helm.sh/chart: oracle-3.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  IPFS_PINATA_API_KEY: ""
+  IPFS_PINATA_SECRET_KEY: ""
+  SENTRY_DSN: ""
+  ORACLE_PRIVATE_KEY: ""
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+  INFURA_IPFS_CLIENT_USERNAME: ""
+  INFURA_IPFS_CLIENT_PASSWORD: ""
+---
+# Source: oracle/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-oracle
+  labels:
+    app.kubernetes.io/name: oracle
+    helm.sh/chart: oracle-3.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  LOG_LEVEL: "INFO"
+  NETWORK: "mainnet"
+  ENABLE_HEALTH_SERVER: "False"
+  HEALTH_SERVER_HOST: "0.0.0.0"
+  HEALTH_SERVER_PORT: "8080"
+  IPFS_PIN_ENDPOINTS: "/dns/ipfs.infura.io/tcp/5001/https"
+  IPFS_FETCH_ENDPOINTS: "https://gateway.pinata.cloud,http://cloudflare-ipfs.com,https://ipfs.io"
+  IPFS_PINATA_PIN_ENDPOINT: "https://api.pinata.cloud/pinning/pinJSONToIPFS"
+  ETH1_ENDPOINT: ""
+  ETH2_ENDPOINT: ""
+  STAKEWISE_SUBGRAPH_URLS: "https://graph.stakewise.io/subgraphs/name/stakewise/stakewise,https://api.thegraph.com/subgraphs/name/stakewise/stakewise-mainnet"
+  ETHEREUM_SUBGRAPH_URLS: "https://graph.stakewise.io/subgraphs/name/stakewise/ethereum,https://api.thegraph.com/subgraphs/name/stakewise/ethereum-mainnet"
+  UNISWAP_V3_SUBGRAPH_URLS: "https://graph.stakewise.io/subgraphs/name/stakewise/uniswap-v3,https://api.thegraph.com/subgraphs/name/stakewise/uniswap-v3-mainnet"
+  AWS_REGION: ""
+  AWS_BUCKET_NAME: ""
+  VALIDATORS_BATCH_SIZE: "10"
+  VALIDATORS_FETCH_CHUNK_SIZE: "100"
+  HARBOUR_MAINNET_SEND_TELEGRAM_NOTIFICATIONS: "false"
+---
+# Source: oracle/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-oracle
+  labels:
+    app.kubernetes.io/name: oracle
+    helm.sh/chart: oracle-3.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - my-release-oracle
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - my-release-oracle
+    verbs: ["get"]
+---
+# Source: oracle/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-oracle
+  labels:
+    app.kubernetes.io/name: oracle
+    helm.sh/chart: oracle-3.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: my-release-oracle
+subjects:
+  - kind: ServiceAccount
+    name: my-release-oracle
+    namespace: default
+---
+# Source: oracle/templates/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: my-release-oracle
+  labels:
+    app.kubernetes.io/name: oracle
+    helm.sh/chart: oracle-3.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oracle
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oracle
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/oracle-secret: 480c0959e168ab87204aa79df312a910acb5b37778c1465642f11ce0db760a93
+        checksum/oracle-configmap: 82f661bc259597e8e7a1d6cbb5c0e3a4f9294c417195ce9bcb7d97d461b3e1fb
+    spec:
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+      serviceAccountName: my-release-oracle
+      priorityClassName: ""
+      terminationGracePeriodSeconds: 1800
+      containers:
+        - name: oracle
+          image: "europe-west4-docker.pkg.dev/stakewiselabs/public/oracle:v3.3.0"
+          imagePullPolicy: IfNotPresent
+          command: ["python"]
+          args: ["oracle/oracle/main.py"]
+          envFrom:
+            - configMapRef:
+                name: my-release-oracle
+            - secretRef:
+                name: my-release-oracle
+          resources:
+            requests:
+              cpu: 10m
+              memory: 200Mi

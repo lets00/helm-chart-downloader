@@ -1,0 +1,114 @@
+---
+# Source: caddy/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-caddy
+  labels:
+    helm.sh/chart: caddy-0.0.14
+    app.kubernetes.io/name: caddy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.4.5"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: caddy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-caddy
+  labels:
+    helm.sh/chart: caddy-0.0.14
+    app.kubernetes.io/name: caddy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.4.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+      appProtocol: http
+  selector:
+    app.kubernetes.io/name: caddy
+    app.kubernetes.io/instance: my-release
+---
+# Source: caddy/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-caddy
+  labels:
+    helm.sh/chart: caddy-0.0.14
+    app.kubernetes.io/name: caddy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.4.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: caddy
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+      labels:
+        app.kubernetes.io/name: caddy
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-caddy
+      securityContext:
+        {}
+      containers:
+        - name: caddy
+          securityContext:
+            {}
+          image: "caddy:2.4.5"
+          imagePullPolicy: IfNotPresent
+          args:
+            - caddy
+            - run
+            - --config
+            - /etc/caddy/Caddyfile
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: caddy/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-caddy-test-connection"
+  labels:
+    helm.sh/chart: caddy-0.0.14
+    app.kubernetes.io/name: caddy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.4.5"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command:
+        - /bin/sh
+        - -c
+        - |
+            sleep 10 # Readiness takes some time
+            wget my-release-caddy:80
+  restartPolicy: Never

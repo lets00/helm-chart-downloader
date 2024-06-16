@@ -1,0 +1,152 @@
+---
+# Source: frigate/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-frigate
+  namespace: default
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.0.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yml: |
+    mqtt:
+      host: test.mosquitto.org
+      topic_prefix: frigate
+    detectors:
+      cpu1:
+        type: cpu
+    cameras: {}
+---
+# Source: frigate/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-frigate
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.0.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.13.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 5000
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: frigate
+    app.kubernetes.io/instance: my-release
+---
+# Source: frigate/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-frigate
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.0.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.13.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frigate
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frigate
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/configmap: aa403f7dfb40dbd3e5e0e99cf1e523b162086f56dd51b489be7aaf9c2bc88945
+    spec:
+      containers:
+        - name: frigate
+          image: "ghcr.io/blakeblackshear/frigate:0.12.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            {}
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+            - name: rtmp
+              containerPort: 1935
+              protocol: TCP
+            - name: rtsp
+              containerPort: 8554
+              protocol: TCP
+            - name: webrtc-tcp
+              containerPort: 8555
+              protocol: TCP
+            - name: webrtc-udp
+              containerPort: 8555
+              protocol: UDP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            failureThreshold: 5
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            failureThreshold: 5
+            timeoutSeconds: 10
+          env:
+          envFrom:
+          volumeMounts:
+            - mountPath: /config/config.yml
+              name: config
+              subPath: config.yml
+            - mountPath: /data
+              name: data
+            - name: dshm
+              mountPath: /dev/shm
+          resources:
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-frigate
+        - name: data
+          emptyDir: {}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+---
+# Source: frigate/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-frigate-test-connection"
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.0.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.13.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget-frontend
+      image: busybox
+      command: ['wget']
+      args: ['-q', '-O-', 'http://my-release-frigate:5000/api']
+  restartPolicy: Never

@@ -1,0 +1,62 @@
+---
+# Source: kapacitor/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kapacitor
+  namespace: default
+  labels:
+    chart: "kapacitor-1.4.7"
+    release: "my-release"
+    heritage: "Helm"
+    app: my-release-kapacitor
+---
+# Source: kapacitor/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-kapacitor-clusterrole
+  labels:
+    chart: "kapacitor-1.4.7"
+    release: "my-release"
+    heritage: "Helm"
+    app: my-release-kapacitor
+rules: []
+---
+# Source: kapacitor/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-kapacitor-clusterrolebinding
+  labels:
+    chart: "kapacitor-1.4.7"
+    release: "my-release"
+    heritage: "Helm"
+    app: my-release-kapacitor
+subjects:
+  - kind: ServiceAccount
+    name: my-release-kapacitor
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: my-release-kapacitor-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: kapacitor/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kapacitor
+  labels:
+    chart: "kapacitor-1.4.7"
+    release: "my-release"
+    heritage: "Helm"
+    app: my-release-kapacitor
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9092
+    targetPort: 9092
+    name: api
+  selector:
+    app: my-release-kapacitor

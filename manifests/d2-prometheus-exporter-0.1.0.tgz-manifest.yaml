@@ -1,0 +1,72 @@
+---
+# Source: d2-prometheus-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-d2-prometheus-exporter
+  labels:
+    helm.sh/chart: d2-prometheus-exporter-0.1.0
+    app.kubernetes.io/name: d2-prometheus-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: d2-prometheus-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: d2-prometheus-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-d2-prometheus-exporter
+  labels:
+    helm.sh/chart: d2-prometheus-exporter-0.1.0
+    app.kubernetes.io/name: d2-prometheus-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: d2-prometheus-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: d2-prometheus-exporter
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+        - name: d2-prometheus-exporter
+          
+          image: "cmacrae/d2-prometheus-exporter:v0.1.0"
+          
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            {}
+          env:
+            - name: PLAYER_PLATFORM
+              value: "stadia"
+            - name: PLAYER_NAME
+              value: "example"
+            - name: BNET_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "d2-prometheus-exporter"
+                  key: "api-key"

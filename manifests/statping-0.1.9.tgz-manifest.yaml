@@ -1,0 +1,185 @@
+---
+# Source: statping/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-statping
+  labels:
+    helm.sh/chart: statping-0.1.9
+    app.kubernetes.io/name: statping
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.90.65"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: statping/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-statping
+  labels:
+    helm.sh/chart: statping-0.1.9
+    app.kubernetes.io/name: statping
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.90.65"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  admin-user: admin
+  admin-password: "TGdwSGQ0N1F1NUdXNUFYUQ=="
+  admin-email: info@admin.com
+---
+# Source: statping/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-statping
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+---
+# Source: statping/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-statping
+  labels:
+    helm.sh/chart: statping-0.1.9
+    app.kubernetes.io/name: statping
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.90.65"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: statping
+    app.kubernetes.io/instance: my-release
+---
+# Source: statping/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-statping
+  labels:
+    helm.sh/chart: statping-0.1.9
+    app.kubernetes.io/name: statping
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.90.65"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: statping
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: statping
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-statping
+      securityContext:
+        {}
+      containers:
+        - name: statping
+          securityContext:
+            {}
+          image: "statping/statping:v0.90.65"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-statping
+                  key: admin-user
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-statping
+                  key: admin-password
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-statping
+                  key: admin-email
+            - name: DB_CONN
+              value: postgres
+            - name: DB_HOST
+              value: postgres-my-release-statping
+            - name: DB_DATABASE
+              value: postgres
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-my-release-statping-auth
+                  key: POSTGRES_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-my-release-statping-auth
+                  key: POSTGRES_PASSWORD
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+            - mountPath: /app
+              name: config
+          resources:
+            {}
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: my-release-statping
+---
+# Source: statping/templates/postgres.yaml
+apiVersion: kubedb.com/v1alpha1
+kind: Postgres
+metadata:
+  name: postgres-my-release-statping
+spec:
+  version: 11.1
+  storageType: Durable
+  storage:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+---
+# Source: statping/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-statping-test-connection"
+  labels:
+    helm.sh/chart: statping-0.1.9
+    app.kubernetes.io/name: statping
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.90.65"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-statping:8080']
+  restartPolicy: Never

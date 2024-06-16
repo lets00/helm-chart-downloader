@@ -1,0 +1,102 @@
+---
+# Source: kubewatch/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kubewatch
+  namespace: default
+  labels:
+    app.kubernetes.io/name: kubewatch
+    helm.sh/chart: kubewatch-3.2.16
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kubewatch/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubewatch-config
+  namespace: default
+  labels:
+    app.kubernetes.io/name: kubewatch
+    helm.sh/chart: kubewatch-3.2.16
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  .kubewatch.yaml: |
+    handler:
+      slack:
+        channel: XXXX
+        enabled: true
+        token: XXXX
+    resource:
+      daemonset: false
+      deployment: true
+      job: false
+      persistentvolume: false
+      pod: true
+      replicaset: false
+      replicationcontroller: false
+      services: false
+    namespace: ""
+---
+# Source: kubewatch/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kubewatch
+  labels:
+    app.kubernetes.io/name: kubewatch
+    helm.sh/chart: kubewatch-3.2.16
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubewatch
+      app.kubernetes.io/instance: my-release
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        checksum/config-map: caf994b01053ba94abd74379ddf64d1426cb6bb0f4dbf1744a11af8bcaae0b92
+      labels:
+        app.kubernetes.io/name: kubewatch
+        helm.sh/chart: kubewatch-3.2.16
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: kubewatch
+                    app.kubernetes.io/instance: my-release
+                namespaces:
+                  - "default"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      restartPolicy: Always
+      serviceAccountName: my-release-kubewatch
+      containers:
+        - name: kubewatch
+          image: docker.io/bitnami/kubewatch:0.1.0-debian-10-r398
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: configuration
+              mountPath: /opt/bitnami/kubewatch/.kubewatch.yaml
+              subPath: .kubewatch.yaml
+      volumes:
+        - name: configuration
+          configMap:
+            name: my-release-kubewatch-config

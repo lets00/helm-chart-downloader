@@ -1,0 +1,123 @@
+---
+# Source: hive-metastore/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-hive-metastore
+  namespace: default
+  labels:
+    helm.sh/chart: hive-metastore-0.0.5
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.9-2.10.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  hive-site.xml: |
+    
+    <configuration>
+    
+    </configuration>
+---
+# Source: hive-metastore/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-hive-metastore
+  namespace: default
+  labels:
+    helm.sh/chart: hive-metastore-0.0.5
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.9-2.10.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9083
+      targetPort: thrift
+      protocol: TCP
+      name: thrift
+  selector:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/instance: my-release
+---
+# Source: hive-metastore/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-hive-metastore
+  namespace: default
+  labels:
+    helm.sh/chart: hive-metastore-0.0.5
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.9-2.10.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hive-metastore
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hive-metastore
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: e6e35bd9d3db3cccc271870254fe7959042759720ee0b606147ca3f819661807
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      initContainers:
+        - name: expand-configs
+          image: tempire/alpine-perl:3.14.0
+          command:
+            - sh
+          args:
+            - -c
+            - cp /tmp/hive-site.xml /opt/hive-configs/ && perl -pi -e 's/\${env:([_A-Z0-9]+)}/$ENV{$1}/g' /opt/hive-configs/hive-site.xml
+          volumeMounts:
+          - name: hive-config-map
+            mountPath: /tmp/hive-site.xml
+            subPath: hive-site.xml
+          - name: hive-configs
+            mountPath: /opt/hive-configs
+      containers:
+        - name: hive-metastore
+          securityContext:
+            {}
+          image: "slamdev/apache-hive:2.3.9-2.10.1"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --service
+            - metastore
+          ports:
+            - name: thrift
+              containerPort: 9083
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: thrift
+          readinessProbe:
+            tcpSocket:
+              port: thrift
+          startupProbe:
+            failureThreshold: 60
+            tcpSocket:
+              port: thrift
+          resources:
+            {}
+          env:
+            - name: HIVE_CONF_DIR
+              value: /opt/hive-configs
+          volumeMounts:
+            - name: hive-configs
+              mountPath: /opt/hive-configs
+      volumes:
+        - name: hive-configs
+          emptyDir: {}
+        - name: hive-config-map
+          configMap:
+            name: my-release-hive-metastore

@@ -1,0 +1,362 @@
+---
+# Source: ibm-mqadvanced-server-dev/templates/service-account.yaml
+# © Copyright IBM Corporation 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-ibm-mq
+  labels:
+    app: "ibm-mq"
+    chart: "ibm-mqadvanced-server-dev"
+    heritage: "Helm"
+    release: "my-release"    
+imagePullSecrets:
+  - name: sa-default
+---
+# Source: ibm-mqadvanced-server-dev/templates/metrics-service.yaml
+# © Copyright IBM Corporation 2018, 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# This is a separate service, because Prometheus will try and gather metrics
+# from the MQ port (1414) if it's included in the same service.
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '9157'
+  name: my-release-ibm-mq-metrics
+  labels:
+    app: "ibm-mq"
+    chart: "ibm-mqadvanced-server-dev"
+    heritage: "Helm"
+    release: "my-release"    
+spec:
+  type: ClusterIP
+  ports:
+  - targetPort: 9157
+    port: 9157
+    protocol: TCP
+  selector:
+    app: "ibm-mq"
+    release: "my-release"
+---
+# Source: ibm-mqadvanced-server-dev/templates/service.yaml
+# © Copyright IBM Corporation 2017, 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ibm-mq
+  labels:
+    app: "ibm-mq"
+    chart: "ibm-mqadvanced-server-dev"
+    heritage: "Helm"
+    release: "my-release"    
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9443
+    name: console-https
+  - port: 1414
+    name: qmgr
+  selector:
+    app: "ibm-mq"
+    release: "my-release"
+---
+# Source: ibm-mqadvanced-server-dev/templates/stateful-set.yaml
+# © Copyright IBM Corporation 2017, 2020
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+
+
+
+
+
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-ibm-mq
+  labels:
+    app: "ibm-mq"
+    chart: "ibm-mqadvanced-server-dev"
+    heritage: "Helm"
+    release: "my-release"    
+spec:
+  selector:
+    matchLabels:
+      app: "ibm-mq"
+      chart: "ibm-mqadvanced-server-dev"
+      heritage: "Helm"
+      release: "my-release"
+  serviceName: qm
+  replicas: 1
+  template:
+    metadata:
+      annotations:        
+        productID: "2f886a3eefbe4ccb89b2adb97c78b9cb"
+        productName: "IBM MQ Advanced for Developers"
+        productVersion: "9.1.5.0"
+        productMetric: "FREE_USAGE"
+        productChargedContainers: ""
+      labels:
+        statefulSetName: "my-release-ibm-mq"
+        app: "ibm-mq"
+        chart: "ibm-mqadvanced-server-dev"
+        heritage: "Helm"
+        release: "my-release"        
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: beta.kubernetes.io/arch
+                operator: In
+                values:
+                - "amd64"
+              - key: beta.kubernetes.io/os
+                operator: In
+                values:
+                - "linux"
+      serviceAccountName: my-release-ibm-mq
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      securityContext:
+        fsGroup: 
+        supplementalGroups:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: qmgr
+          image: "ibmcom/mq:9.1.5.0-r1"
+          imagePullPolicy: IfNotPresent
+          terminationMessagePath: "/run/termination-log"
+          ports:
+          - containerPort: 1414
+          - containerPort: 9443
+          - containerPort: 9157
+          env:
+          - name: LICENSE
+            value: not accepted
+          - name: MQ_QMGR_NAME
+            value: myrelease
+          - name: MQ_MULTI_INSTANCE
+            value: "false"
+          - name: LOG_FORMAT
+            value: basic
+          - name: MQ_ENABLE_METRICS
+            value: "true"
+          - name: DEBUG
+            value: "false"
+          - name: MQ_ENABLE_TRACE_STRMQM
+            value: "false"
+          - name: MQ_EPHEMERAL_PREFIX
+            value: "/run/mqm"
+          - name: MQ_GRACE_PERIOD
+            value: "29"
+          - name: MQ_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: 
+          volumeMounts:
+          - mountPath: "/mnt/mqm"
+            name: data
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+          # Set liveness probe to determine if the queue manager is running
+          livenessProbe:
+            exec:
+              command:
+              - chkmqhealthy
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 1
+          # Set readiness probe to determine if the MQ listener is running
+          readinessProbe:
+            exec:
+              command:
+              - chkmqready
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 1
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: "ibm-mq"
+        chart: "ibm-mqadvanced-server-dev"
+        heritage: "Helm"
+        release: "my-release"        
+    spec:
+      # If present, use the storageClassName from the values.yaml, else use the
+      # default storageClass setup by Kubernetes Administrator
+      #
+      # Setting storageClassName to nil means use the default storage class
+      storageClassName: 
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: "2Gi"
+---
+# Source: ibm-mqadvanced-server-dev/templates/pvc-log.yaml
+# © Copyright IBM Corporation 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Using "sch.names.volumeClaimTemplateName" to maintain consistency with previous chart versions for upgrade purposes
+---
+# Source: ibm-mqadvanced-server-dev/templates/pvc-qm.yaml
+# © Copyright IBM Corporation 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Using "sch.names.volumeClaimTemplateName" to maintain consistency with previous chart versions for upgrade purposes
+---
+# Source: ibm-mqadvanced-server-dev/templates/route-qm.yaml
+# © Copyright IBM Corporation 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: ibm-mqadvanced-server-dev/templates/route-web.yaml
+# © Copyright IBM Corporation 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: ibm-mqadvanced-server-dev/templates/tests/test-metrics.yaml
+# © Copyright IBM Corporation 2018, 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This test tries to open port 9157 every second.  It keeps trying until it works,
+# or `livenessProbe.initialDelaySeconds` have passed.
+---
+# Source: ibm-mqadvanced-server-dev/templates/tests/test.yaml
+# © Copyright IBM Corporation 2017, 2019
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This test tries to open port 1414 every second.  It keeps trying until it works,
+# or `livenessProbe.initialDelaySeconds` have passed.

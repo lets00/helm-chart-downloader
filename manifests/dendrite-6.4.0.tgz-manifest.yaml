@@ -1,0 +1,269 @@
+---
+# Source: dendrite/templates/dendrite-config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-dendrite-config
+type: Opaque
+stringData:
+  dendrite.yaml: |
+    version: 2
+    global:
+      server_name: "localhost"
+      private_key: matrix_key.pem
+      key_validity_period: "168h0m0s"
+      cache:
+        max_size_estimated: "1gb"
+        max_age: "1h"
+      well_known_server_name: ""
+      well_known_client_name: ""
+      trusted_third_party_id_servers:
+        - matrix.org
+        - vector.im
+      disable_federation: false
+      presence:
+        enable_inbound: false
+        enable_outbound: false
+      report_stats:
+        enabled: false
+        endpoint: https://matrix.org/report-usage-stats/push
+      server_notices:
+        enabled: false
+        local_part: "_server"
+        display_name: "Server alerts"
+        avatar_url: ""
+        room_name: "Server Alerts"
+      jetstream:
+        addresses:
+          []
+        in_memory: true
+        storage_path: /var/dendrite/jetstream
+        topic_prefix: "Dendrite"
+      metrics:
+        enabled: false
+        basic_auth:
+          username: "metrics"
+          password: "metrics"
+      dns_cache:
+        enabled: false
+        cache_size: 256
+        cache_lifetime: 5m
+    app_service_api:
+      database:
+        connection_string: file:dendrite_appservice?sslmode=disable
+        max_open_conns: 100
+        max_idle_conns: 2
+        conn_max_lifetime: -1
+      config_files:
+        []
+    client_api:
+      registration_disabled: true
+      registration_shared_secret: ""
+      enable_registration_captcha: false
+      recaptcha_public_key: ""
+      recaptcha_private_key: ""
+      recaptcha_bypass_secret: ""
+      recaptcha_siteverify_api: ""
+      turn:
+        turn_password: ""
+        turn_shared_secret: ""
+        turn_uris: []
+        turn_user_lifetime: ""
+        turn_username: ""
+      rate_limiting:
+        enabled: true
+        threshold: 5
+        cooloff_ms: 500
+        exempt_user_ids: 
+    federation_api:
+      database:
+        connection_string: file:dendrite_federationapi?sslmode=disable
+        max_open_conns: 100
+        max_idle_conns: 2
+      send_max_retries: 16
+      disable_tls_validation: false
+      key_perspectives:
+        - keys:
+          - key_id: ed25519:auto
+            public_key: Noi6WqcDj0QmPxCNQqgezwTlBKrfqehY1u2FyWP9uYw
+          - key_id: ed25519:a_RXGa
+            public_key: l8Hft5qXKn1vfHrg3p4+W8gELQVo8N13JkluMfmn2sQ
+          server_name: matrix.org
+      prefer_direct_fetch: false
+    key_server:
+      database:
+        connection_string: file:dendrite_keyserver?sslmode=disable
+        max_open_conns: 100
+        max_idle_conns: 2
+        conn_max_lifetime: -1
+    media_api:
+      database:
+        connection_string: file:dendrite_mediaapi?sslmode=disable
+        max_open_conns: 100
+        max_idle_conns: 2
+        conn_max_lifetime: -1
+      base_path: "/var/dendrite/media"
+      max_file_size_bytes: 10485760
+      dynamic_thumbnails: false
+      max_thumbnail_generators: 10
+      thumbnail_sizes:
+        - height: 32
+          method: crop
+          width: 32
+        - height: 96
+          method: crop
+          width: 96
+        - height: 480
+          method: scale
+          width: 640
+    mscs:
+      mscs: 
+        []
+      database:
+        connection_string: file:dendrite_mscs?sslmode=disable
+        max_open_conns: 100
+        max_idle_conns: 2
+        conn_max_lifetime: -1
+    room_server:
+      database:
+        connection_string: file:dendrite_roomserver?sslmode=disable
+        max_open_conns: 100
+        max_idle_conns: 2
+        conn_max_lifetime: -1
+    sync_api:
+      database:
+        connection_string: file:dendrite_syncapi?sslmode=disable
+        max_open_conns: 100
+        max_idle_conns: 2
+        conn_max_lifetime: -1
+    user_api:
+      account_database:
+        connection_string: file:dendrite_userapi_accounts?sslmode=disable
+        max_open_conns: 100
+        max_idle_conns: 2
+        conn_max_lifetime: -1
+      bcrypt_cost: 10
+    tracing:
+      enabled: false
+      jaeger:
+        baggage_restrictions: null
+        disabled: false
+        headers: null
+        reporter: null
+        rpc_metrics: false
+        sampler: null
+        serviceName: ""
+        tags: []
+        throttler: null
+    logging:
+      - level: info
+        params:
+          path: /var/log/dendrite
+        type: file
+---
+# Source: dendrite/templates/common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-dendrite
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dendrite
+    app.kubernetes.io/version: v0.9.4
+    helm.sh/chart: dendrite-6.4.0
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8008
+    targetPort: http
+    protocol: TCP
+    name: http
+  - port: 8448
+    targetPort: https
+    protocol: TCP
+    name: https
+  selector:
+    app.kubernetes.io/name: dendrite
+    app.kubernetes.io/instance: my-release
+---
+# Source: dendrite/templates/common.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-dendrite
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dendrite
+    app.kubernetes.io/version: v0.9.4
+    helm.sh/chart: dendrite-6.4.0
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dendrite
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dendrite
+        app.kubernetes.io/instance: my-release
+    spec:
+      
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      containers:
+        - name: my-release-dendrite
+          image: "ghcr.io/matrix-org/dendrite-monolith:v0.9.4"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8008
+              protocol: TCP
+            - name: https
+              containerPort: 8448
+              protocol: TCP
+          volumeMounts:
+            - name: dendrite-config
+              subPath: dendrite.yaml
+              mountPath: /etc/dendrite/dendrite.yaml
+            - name: dendrite-key
+              subPath: matrix_key.pem
+              mountPath: /etc/dendrite/matrix_key.pem
+          livenessProbe:
+            tcpSocket:
+              port: 8008
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 8008
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          startupProbe:
+            tcpSocket:
+              port: 8008
+            initialDelaySeconds: 0
+            failureThreshold: 30
+            timeoutSeconds: 1
+            periodSeconds: 5
+      volumes:
+        - name: dendrite-config
+          secret:
+            defaultMode: 384
+            secretName: my-release-dendrite-config
+        - name: dendrite-key
+          secret:
+            defaultMode: 384
+            secretName: my-release-dendrite-key

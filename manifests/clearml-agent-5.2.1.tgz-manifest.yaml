@@ -1,0 +1,229 @@
+---
+# Source: clearml-agent/templates/agentk8sglue-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-clearml-agent-sa
+  namespace: default
+---
+# Source: clearml-agent/templates/clearml-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-clearml-agent-ac
+data:
+  agentk8sglue_key: QUNDRVNTS0VZ
+  agentk8sglue_secret: U0VDUkVUS0VZ
+  clearml.conf: c2RrIHsKfQ==
+---
+# Source: clearml-agent/templates/agentk8sglue-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-clearml-agent-pt
+data:
+  template.yaml: |
+    apiVersion: v1
+    metadata:
+      namespace: default
+      labels:
+        {}
+      annotations:
+        {}
+    spec:
+      serviceAccountName: my-release-clearml-agent-sa
+      securityContext:
+        
+        {}
+      priorityClassName: 
+      initContainers:
+        []
+      containers:
+      - resources:
+          {}
+        securityContext:
+          
+          {}
+        ports:
+        - containerPort: 10022
+        env:
+        - name: CLEARML_API_HOST
+          value: https://api.clear.ml
+        - name: CLEARML_WEB_HOST
+          value: https://app.clear.ml
+        - name: CLEARML_FILES_HOST
+          value: https://files.clear.ml
+        - name: CLEARML_API_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-release-clearml-agent-ac
+              key: agentk8sglue_key
+        - name: CLEARML_API_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-release-clearml-agent-ac
+              key: agentk8sglue_secret
+---
+# Source: clearml-agent/templates/agentk8sglue-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-clearml-agent-kpa
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - secrets
+      - services
+      - events
+    verbs: ["get", "list", "watch", "create", "patch", "delete"]
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs: ["list"]
+---
+# Source: clearml-agent/templates/agentk8sglue-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-clearml-agent-kpa
+subjects:
+  - kind: ServiceAccount
+    name: my-release-clearml-agent-sa
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-clearml-agent-kpa
+---
+# Source: clearml-agent/templates/agentk8sglue-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-clearml-agent
+  labels:
+    helm.sh/chart: clearml-agent-5.2.1
+    app.kubernetes.io/name: my-release-clearml-agent
+    app.kubernetes.io/instance: my-release-clearml-agent
+    app.kubernetes.io/version: "1.24"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-clearml-agent
+      app.kubernetes.io/instance: my-release-clearml-agent
+  template:
+    metadata:
+      annotations:
+        checksum/config: 427c3ccd52697f394b8188745c557aaf1b11007f8eb653bb72af47ff1d5168b8
+        
+      labels:
+        helm.sh/chart: clearml-agent-5.2.1
+        app.kubernetes.io/name: my-release-clearml-agent
+        app.kubernetes.io/instance: my-release-clearml-agent
+        app.kubernetes.io/version: "1.24"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-clearml-agent-sa
+      securityContext:
+        
+        {}
+      initContainers:
+        - name: init-k8s-glue
+          image: "docker.io/allegroai/clearml-agent-k8s-base:1.24-21"
+          command:
+            - /bin/sh
+            - -c
+            - >
+              set -x;
+              while [ $(curl  -sw '%{http_code}' "https://api.clear.ml/debug.ping" -o /dev/null) -ne 200 ] ; do
+                echo "waiting for apiserver" ;
+                sleep 5 ;
+              done;
+              while [[ $(curl  -sw '%{http_code}' "https://files.clear.ml/" -o /dev/null) =~ 403|405 ]] ; do
+                echo "waiting for fileserver" ;
+                sleep 5 ;
+              done;
+              while [ $(curl  -sw '%{http_code}' "https://app.clear.ml/" -o /dev/null) -ne 200 ] ; do
+                echo "waiting for webserver" ;
+                sleep 5 ;
+              done
+          securityContext:
+            
+            {}
+          resources:
+            {}
+      containers:
+        - name: k8s-glue
+          image: "docker.io/allegroai/clearml-agent-k8s-base:1.24-21"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -c
+            - >
+              export PATH=$PATH:$HOME/bin;
+              source /root/.bashrc && /root/entrypoint.sh
+          volumeMounts:
+            - name: my-release-clearml-agent-pt
+              mountPath: /root/template
+            
+            - name: k8sagent-clearml-conf-volume
+              mountPath: /root/clearml.conf
+              subPath: clearml.conf
+              readOnly: true
+          env:
+            - name: CLEARML_API_HOST
+              value: "https://api.clear.ml"
+            - name: CLEARML_WEB_HOST
+              value: "https://app.clear.ml"
+            - name: CLEARML_FILES_HOST
+              value: "https://files.clear.ml"
+            - name: K8S_GLUE_EXTRA_ARGS
+              value: "--namespace default --template-yaml /root/template/template.yaml \
+                     "
+            
+            - name: CLEARML_CONFIG_FILE
+              value: /root/clearml.conf
+            - name: K8S_DEFAULT_NAMESPACE
+              value: "default"
+            - name: CLEARML_API_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-clearml-agent-ac
+                  key: agentk8sglue_key
+            - name: CLEARML_API_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-clearml-agent-ac
+                  key: agentk8sglue_secret
+            - name: CLEARML_WORKER_ID
+              value: my-release-clearml-agent
+            - name: CLEARML_AGENT_UPDATE_REPO
+              value: ""
+            - name: FORCE_CLEARML_AGENT_REPO
+              value: "" 
+            - name: CLEARML_DOCKER_IMAGE
+              value: "ubuntu:18.04"
+            - name: K8S_GLUE_QUEUE
+              value: default
+          securityContext:
+            
+            {}
+          resources:
+            {}
+      volumes:
+        - name: my-release-clearml-agent-pt
+          configMap:
+            name: my-release-clearml-agent-pt
+        
+        - name: k8sagent-clearml-conf-volume
+          secret:
+            secretName: my-release-clearml-agent-ac
+            items:
+            - key: clearml.conf
+              path: clearml.conf

@@ -1,0 +1,145 @@
+---
+# Source: bitcoind/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-bitcoind
+  labels:
+    app: bitcoind
+    chart: bitcoind-0.2.3
+    release: my-release
+    heritage: Helm
+data:
+  bitcoin.conf: |-
+    server=1
+    printtoconsole=1
+    rpcauth=rpcuser:3de4eb23a68a288cfbc857d3cf52b5c4$0b28c21a8d32d047b4da6b4b5f290951319bad3cb0985ef863c8fa4614f3c109
+---
+# Source: bitcoind/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-bitcoind
+  annotations:
+    "helm.sh/resource-policy": keep
+  labels:
+    app: bitcoind
+    chart: "bitcoind-0.2.3"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "300Gi"
+---
+# Source: bitcoind/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-bitcoind
+  labels:
+    app: bitcoind
+    chart: bitcoind-0.2.3
+    release: my-release
+    heritage: Helm
+spec:
+  ports:
+    - name: rpc
+      port: 8332
+      targetPort: rpc
+    - name: p2p
+      port: 8333
+      targetPort: p2p
+    - name: testnet
+      port: 18332
+    - name: testnet-p2p
+      port: 18333
+    - name: regtest
+      port: 18443
+    - name: regtest-p2p
+      port: 18444
+    - name: zmq-raw-block
+      port: 28332
+    - name: zmq-raw-tx
+      port: 28333
+    - name: zmq-hash-block
+      port: 28334
+  selector:
+    app: bitcoind
+    release: my-release
+---
+# Source: bitcoind/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-bitcoind
+  labels:
+    app: bitcoind
+    chart: bitcoind-0.2.3
+    release: my-release
+    heritage: Helm
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bitcoind
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: bitcoind
+        release: my-release
+    spec:
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: copy-bitcoind-config
+          image: busybox
+          command: ['sh', '-c', 'cp /configmap/bitcoin.conf /bitcoin/.bitcoin/bitcoin.conf']
+          volumeMounts:
+            - name: configmap
+              mountPath: /configmap
+            - name: config
+              mountPath: /bitcoin/.bitcoin/
+      containers:
+        - name: my-release-bitcoind
+          image: "ruimarinho/bitcoin-core:22"
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            {}
+          ports:
+            - name: rpc
+              containerPort: 8332
+            - name: p2p
+              containerPort: 8333
+            - name: testnet
+              containerPort: 18332
+            - name: testnetp2pport
+              containerPort: 18333
+            - name: regtest
+              containerPort: 18443
+            - name: regtestp2pport
+              containerPort: 18444
+            - name: zmq-raw-block
+              containerPort: 28332
+            - name: zmq-raw-tx
+              containerPort: 28333
+            - name: zmq-hash-block
+              containerPort: 28334
+          volumeMounts:
+            - name: data
+              mountPath: /home/bitcoin/.bitcoin
+            - name: config
+              mountPath: /home/bitcoin/.bitcoin/bitcoin.conf
+              subPath: bitcoin.conf
+      volumes:
+        - name: config
+          emptyDir: {}
+        - name: configmap
+          configMap:
+            name: my-release-bitcoind
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-bitcoind

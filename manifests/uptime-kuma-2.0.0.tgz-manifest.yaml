@@ -1,0 +1,93 @@
+---
+# Source: uptime-kuma/templates/persistantvolumeclaim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-uptime-kuma-storage
+  labels:
+    helm.sh/chart: uptime-kuma-2.0.0
+    app.kubernetes.io/name: uptime-kuma
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.23.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+---
+# Source: uptime-kuma/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-uptime-kuma-web
+  labels:
+    helm.sh/chart: uptime-kuma-2.0.0
+    app.kubernetes.io/name: uptime-kuma
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.23.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: "http"
+      port: 3001
+      targetPort: "http"
+      protocol: "TCP"
+  selector:
+    app.kubernetes.io/name: uptime-kuma
+    app.kubernetes.io/instance: my-release
+---
+# Source: uptime-kuma/templates/controller.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-uptime-kuma
+  labels:
+    helm.sh/chart: uptime-kuma-2.0.0
+    app.kubernetes.io/name: uptime-kuma
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.23.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: uptime-kuma
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: uptime-kuma
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: uptime-kuma
+          image: "louislam/uptime-kuma:1.23.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: "http"
+              containerPort: 3001
+              protocol: "TCP"
+          env:
+            - name: "TZ"
+              value: "UTC"
+          volumeMounts:
+            - name: my-release-uptime-kuma-storage
+              mountPath: /app/data
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources: {}
+      volumes:
+        - name: my-release-uptime-kuma-storage
+          persistentVolumeClaim:
+            claimName: my-release-uptime-kuma-storage

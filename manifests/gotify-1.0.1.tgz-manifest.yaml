@@ -1,0 +1,158 @@
+---
+# Source: gotify/charts/common/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-gotify-defaultuser-name
+data:
+  secret: YWRtaW4=
+---
+# Source: gotify/charts/common/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-gotify-defaultuser-pass
+data:
+  secret: YWRtaW4=
+---
+# Source: gotify/charts/common/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: my-release 
+  name: my-release-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: gotify/charts/common/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  selector:
+    app: my-release
+  ports:
+  - targetPort: 80
+    port: 80
+---
+# Source: gotify/charts/common/templates/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+    spec:
+      containers:
+        - name: my-release
+          imagePullPolicy: Always
+          image: "gotify/server:2.2.4"
+          ports:
+          - containerPort: 80
+          resources:
+            requests:
+            limits:
+          env:
+          - name: GOTIFY_DATABASE_CONNECTION
+            value: "data/gotify.db"
+          - name: GOTIFY_DATABASE_DIALECT
+            value: "sqlite3"
+          - name: GOTIFY_PASSSTRENGTH
+            value: "10"
+          - name: GOTIFY_PLUGINSDIR
+            value: "data/plugins"
+          - name: GOTIFY_UPLOADEDIMAGESDIR
+            value: "data/images"
+          - name: TZ
+            value: "Europe/Paris"
+          - name: GOTIFY_DEFAULTUSER_NAME
+            valueFrom:
+              secretKeyRef:
+                name: my-release-gotify-defaultuser-name
+                key: secret
+          - name: GOTIFY_DEFAULTUSER_PASS
+            valueFrom:
+              secretKeyRef:
+                name: my-release-gotify-defaultuser-pass
+                key: secret
+          startupProbe:
+            failureThreshold: 20
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 2
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 3
+          livenessProbe:
+            failureThreshold: 2
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 3
+          volumeMounts:
+            - mountPath: /app/data/
+              name: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-data
+---
+# Source: gotify/charts/common/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-connection-wget-my-release
+  labels:
+    app: my-release
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release:80']
+  restartPolicy: Never
+---
+# Source: gotify/charts/common/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-connection-curl-my-release
+  labels:
+    app: my-release
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:7.70.0 
+      command: ['curl']
+      args: ['my-release:80/', '-H', '"Host:gotify.thoughtless.eu:80"']
+  restartPolicy: Never

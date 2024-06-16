@@ -1,0 +1,76 @@
+---
+# Source: k8s-ttl-controller/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-ttl-controller
+  namespace: default
+  labels:
+    app: k8s-ttl-controller
+---
+# Source: k8s-ttl-controller/templates/cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-ttl-controller
+  labels:
+    app: k8s-ttl-controller
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - "get"
+      - "list"
+      - "delete"
+  - apiGroups:
+      - ""
+      - "events.k8s.io"
+    resources:
+      - "events"
+    verbs:
+      - "create"
+---
+# Source: k8s-ttl-controller/templates/cluster-role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-ttl-controller
+  labels:
+    app: k8s-ttl-controller
+roleRef:
+  kind: ClusterRole
+  name: k8s-ttl-controller
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: k8s-ttl-controller
+    namespace: default
+---
+# Source: k8s-ttl-controller/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-ttl-controller
+  namespace: default
+  labels:
+    app: k8s-ttl-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-ttl-controller
+  template:
+    metadata:
+      labels:
+        app: k8s-ttl-controller
+    spec:
+      automountServiceAccountToken: true
+      serviceAccountName: k8s-ttl-controller
+      restartPolicy: Always
+      dnsPolicy: Default
+      containers:
+        - name: k8s-ttl-controller
+          image: ghcr.io/twin/k8s-ttl-controller:v1.2.0
+          imagePullPolicy: IfNotPresent

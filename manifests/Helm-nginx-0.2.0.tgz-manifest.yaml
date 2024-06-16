@@ -1,0 +1,40 @@
+---
+# Source: Helm-nginx/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  labels:
+    env  : test
+spec:
+  selector:
+    project: nginx-helm
+  ports:
+    - name      : nginx-listener
+      protocol  : TCP
+      port      : 80
+      targetPort: 80
+  type: LoadBalancer
+---
+# Source: Helm-nginx/templates/deployment.yaml
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app : nginx-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      project: nginx-helm
+  template:
+    metadata:
+      labels:
+        project: nginx-helm
+    spec:
+      containers:
+        - name : nginx-container
+          image: nrrrus/nginx-test:latest
+          ports:
+            - containerPort: 80

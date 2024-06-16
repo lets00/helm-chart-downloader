@@ -1,0 +1,39 @@
+---
+# Source: cluster-autoscaler/templates/pdb.yaml
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    app: aws-cluster-autoscaler
+    chart: cluster-autoscaler-0.12.5
+    heritage: Helm
+    release: my-release
+  name: my-release-aws-cluster-autoscaler
+spec:
+  selector:
+    matchLabels:
+      app: aws-cluster-autoscaler
+      release: my-release
+  maxUnavailable: 1
+  # minAvailable: 2
+---
+# Source: cluster-autoscaler/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: aws-cluster-autoscaler
+    chart: cluster-autoscaler-0.12.5
+    heritage: Helm
+    release: my-release
+  name: my-release-aws-cluster-autoscaler
+spec:
+  ports:
+    - port: 8085
+      protocol: TCP
+      targetPort: 8085
+      name: http
+  selector:
+    app: aws-cluster-autoscaler
+    release: my-release
+  type: "ClusterIP"

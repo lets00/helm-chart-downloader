@@ -1,0 +1,146 @@
+---
+# Source: imgproxy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: imgproxy-service
+  labels:
+    app.kubernetes.io/name: imgproxy
+    helm.sh/chart: imgproxy-0.8.30
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    app.kubernetes.io/name: imgproxy
+    app.kubernetes.io/instance: my-release
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+# Source: imgproxy/templates/deployments/imgproxy.yaml
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: imgproxy
+  labels:
+    app.kubernetes.io/name: imgproxy
+    helm.sh/chart: imgproxy-0.8.30
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: imgproxy
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: imgproxy
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+        - name: imgproxy
+          image: darthsim/imgproxy:v3.15.0
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 300m
+              memory: 400Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          ports:
+            - name: container
+              containerPort: 80
+          volumeMounts:
+            - name: config
+              mountPath: /config
+---
+# Source: imgproxy/templates/certificates/imgproxy.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: imgproxy
+  labels:
+    app.kubernetes.io/name: imgproxy
+    helm.sh/chart: imgproxy-0.8.30
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  secretName: imgproxy-cert
+  isCA: false
+  commonName: "my-release-imgproxy-imgproxy-stack-ha"
+  subject:
+    organizations:
+      - selfsigned
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  issuerRef:
+    name: selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - my-release-imgproxy-imgproxy-stack-ha.default
+    - my-release-imgproxy-imgproxy-stack-ha.default.svc
+    - my-release-imgproxy-imgproxy-stack-ha.default.svc.cluster.local
+---
+# Source: imgproxy/templates/releases/imgproxy.yaml
+apiVersion: v1
+kind: HelmRelease
+metadata:
+  name: my-release-release
+  labels:
+    app.kubernetes.io/name: imgproxy
+    helm.sh/chart: imgproxy-0.8.30
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: imgproxy
+      version: "0.8.30"
+      sourceRef:
+        apiVersion: v1
+        kind: HelmRepository
+        name: imgproxy
+  values: {}
+---
+# Source: imgproxy/templates/releases/imgproxy.yaml
+apiVersion: v1
+kind: HelmRepository
+metadata:
+  name: imgproxy
+  labels:
+    app.kubernetes.io/name: imgproxy
+    helm.sh/chart: imgproxy-0.8.30
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  interval: 5m
+  url: https://helm.imgproxy.net
+---
+# Source: imgproxy/templates/integrations/ca-replicator.yaml
+apiVersion: integration.rock8s.com/v1beta1
+kind: Plug
+metadata:
+  name: ca-replicator
+  labels:
+    app.kubernetes.io/name: imgproxy
+    helm.sh/chart: imgproxy-0.8.30
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  socket:
+    name: ca-replicator
+    namespace: kube-system
+  config:
+    caName: ca
+    includeTlsKey: 'false'

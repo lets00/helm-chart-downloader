@@ -1,0 +1,127 @@
+---
+# Source: gatus/templates/common.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-gatus-config
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/version: v3.8.0
+    helm.sh/chart: gatus-1.1.2
+data:
+  config.yaml: |
+    storage:
+      type: sqlite
+      path: /data/data.db
+  
+    endpoints:
+      - name: Google
+        url: "https://www.google.com"
+        interval: 5m
+        conditions:
+          - "[STATUS] == 200"
+---
+# Source: gatus/templates/common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gatus
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/version: v3.8.0
+    helm.sh/chart: gatus-1.1.2
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/instance: my-release
+---
+# Source: gatus/templates/common.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-gatus
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: gatus
+    app.kubernetes.io/version: v3.8.0
+    helm.sh/chart: gatus-1.1.2
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gatus
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        
+        configmap/checksum: c721de3bec4dbc19bba915e6998e69c790c6482806256881d1990415deee4ce2
+        checksum/config: 35422843d07434a3860bd0bfad451a7f068e000e808e49c0d91c71e78f4f3f64
+      labels:
+        app.kubernetes.io/name: gatus
+        app.kubernetes.io/instance: my-release
+    spec:
+      
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      containers:
+        - name: my-release-gatus
+          image: "twinproduction/gatus:v3.8.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: UTC
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 0
+            failureThreshold: 30
+            timeoutSeconds: 1
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-gatus-config
+        - name: data
+          emptyDir:
+            {}

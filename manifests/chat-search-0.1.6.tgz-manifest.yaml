@@ -1,0 +1,149 @@
+---
+# Source: chat-search/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-chat-search
+  labels:
+    helm.sh/chart: chat-search-0.1.6
+    app.kubernetes.io/name: chat-search
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.6"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: chat-search/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-chat-search
+  labels:
+    helm.sh/chart: chat-search-0.1.6
+    app.kubernetes.io/name: chat-search
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.6"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  AUTH_TOKEN: 
+  OPENAI_API_KEY: RU1QVFk=
+  REDIS_URL: cmVkaXM6Ly9yZWRpcy1zdGFjay1zZXJ2ZXI6NjM3OS8=
+---
+# Source: chat-search/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-chat-search
+  labels:
+    helm.sh/chart: chat-search-0.1.6
+    app.kubernetes.io/name: chat-search
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.6"
+    app.kubernetes.io/managed-by: Helm
+data:
+  CHAT_PROVIDER: openai
+  EMBEDDING_PROVIDER: openai
+  LANGCHAIN_TRACING_V2: "false"
+  OTEL_SDK_DISABLED: "true"
+  PYROSCOPE_ENABLED: "0"
+---
+# Source: chat-search/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-chat-search
+  labels:
+    helm.sh/chart: chat-search-0.1.6
+    app.kubernetes.io/name: chat-search
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.6"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: chat-search
+    app.kubernetes.io/instance: my-release
+---
+# Source: chat-search/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-chat-search
+  labels:
+    helm.sh/chart: chat-search-0.1.6
+    app.kubernetes.io/name: chat-search
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.6"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chat-search
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: a22bb8cd208028fe4bf75c3a131766078dd730f00d573c6570f11c6022c9cdbb
+        checksum/secret: adbaa39953436cbdd0d4ded3842c03320d05694b0b5479abc7e1cb7064aa5cf9
+      labels:
+        helm.sh/chart: chat-search-0.1.6
+        app.kubernetes.io/name: chat-search
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.1.6"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-chat-search
+      securityContext:
+        {}
+      containers:
+        - name: chat-search
+          securityContext:
+            {}
+          image: "ghcr.io/hemslo/chat-search:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {}
+          envFrom:
+            - configMapRef:
+                name: my-release-chat-search
+            - secretRef:
+                name: my-release-chat-search
+---
+# Source: chat-search/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-chat-search-test-connection"
+  labels:
+    helm.sh/chart: chat-search-0.1.6
+    app.kubernetes.io/name: chat-search
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.6"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-chat-search:8000']
+  restartPolicy: Never

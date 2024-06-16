@@ -1,0 +1,188 @@
+---
+# Source: centrifugo/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-centrifugo
+  labels:
+    app: centrifugo
+    chart: centrifugo-3.1.0
+    release: my-release
+    heritage: Helm
+type: Opaque
+data:
+  admin-password: "cW9aZ0tMZGQ5cA=="
+  admin-secret: "a3J4eGpwT0RrYg=="
+  secret: "bzRtNDhFVmxHSQ=="
+---
+# Source: centrifugo/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-centrifugo-config
+  labels:
+    heritage: Helm
+    release: my-release
+    chart: centrifugo-3.1.0
+    app: centrifugo
+data:
+  config.json: |-
+    {"namespaces":[{"anonymous":false,"history_lifetime":60,"history_recover":true,"history_size":10,"join_leave":true,"name":"chat","presence":true,"presence_stats":true,"publish":true},{"anonymous":true,"history_lifetime":60,"history_recover":true,"history_size":10,"join_leave":true,"name":"public","presence":true,"presence_stats":true,"publish":true}]}
+---
+# Source: centrifugo/templates/tests/centrifugo-config-test.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-centrifugo-tests
+  labels:
+    app.kubernetes.io/name: centrifugo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: centrifugo-3.1.0
+data:
+  run.sh: |-
+    @test "Testing if centrifugo ui is accessible" {
+      curl --retry 48 --retry-delay 10 my-release-centrifugo.default.svc.cluster.local:8000
+    }
+---
+# Source: centrifugo/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    heritage: Helm
+    release: my-release
+    chart: centrifugo-3.1.0
+    app: centrifugo
+  name: my-release-centrifugo
+spec:
+  type: "ClusterIP"
+  clusterIP: ""
+  ports:
+    - name: http
+      port: 8000
+      protocol: TCP
+      targetPort: http
+  selector:
+    app: centrifugo
+    release: my-release
+---
+# Source: centrifugo/templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: my-release-centrifugo
+  labels:
+    heritage: Helm
+    release: my-release
+    chart: centrifugo-3.1.0
+    app: centrifugo
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+  template:
+    metadata:
+      annotations:
+        checksum/config: d1c4ca79c54a5c29861b09937b8053e0135030346922f3e5eb28a89ca220a746
+      labels:
+        app: centrifugo
+        release: my-release
+    spec:
+      containers:
+      - name: centrifugo
+        image: "centrifugo/centrifugo:v2.1.0"
+        imagePullPolicy: IfNotPresent
+        command:
+        - centrifugo
+        args:
+        - --config=centrifugo/config.json
+        - --admin
+        - --health
+        env:
+        - name: CENTRIFUGO_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-centrifugo
+              key: admin-password
+        - name: CENTRIFUGO_ADMIN_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: my-release-centrifugo
+              key: admin-secret
+        - name: CENTRIFUGO_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: my-release-centrifugo
+              key: secret
+        volumeMounts:
+        - name: "my-release-centrifugo-config"
+          mountPath: "/centrifugo"
+          readOnly: true
+        ports:
+        - name: http
+          containerPort: 8000
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        resources:
+          {}
+      volumes:
+      - name: my-release-centrifugo-config
+        configMap:
+          name: my-release-centrifugo-config
+---
+# Source: centrifugo/templates/tests/centrifugo-test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-release-centrifugo-test-ejmih
+  labels:
+    app.kubernetes.io/name: centrifugo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: centrifugo-3.1.0
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  initContainers:
+  - name: "test-framework"
+    image: "dduportal/bats:0.4.0"
+    command:
+    - "bash"
+    - "-c"
+    - |
+      set -ex
+      # copy bats to tools dir
+      cp -R /usr/local/libexec/ /tools/bats/
+    volumeMounts:
+    - mountPath: /tools
+      name: tools
+  containers:
+  - name: my-release-test
+    image: "dduportal/bats:0.4.0"
+    command: ["/tools/bats/bats", "-t", "/tests/run.sh"]
+    volumeMounts:
+    - mountPath: /tests
+      name: tests
+      readOnly: true
+    - mountPath: /tools
+      name: tools
+  volumes:
+  - name: tests
+    configMap:
+      name: my-release-centrifugo-tests
+  - name: tools
+    emptyDir: {}
+  restartPolicy: Never

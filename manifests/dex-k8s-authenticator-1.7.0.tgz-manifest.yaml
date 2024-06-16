@@ -1,0 +1,94 @@
+---
+# Source: dex-k8s-authenticator/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-dex-k8s-authenticator
+  labels:
+    app: my-release-dex-k8s-authenticator
+    env: dev
+    chart: "dex-k8s-authenticator-1.7.0"
+    release: "my-release"
+    heritage: "Helm"
+data:
+  config.yaml: |-
+    listen: http://0.0.0.0:5555
+    web_path_prefix: /
+    debug: false
+---
+# Source: dex-k8s-authenticator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-dex-k8s-authenticator
+  labels:
+    app: dex-k8s-authenticator
+    env: dev
+    chart: dex-k8s-authenticator-1.7.0
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5555
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: dex-k8s-authenticator
+    release: my-release
+---
+# Source: dex-k8s-authenticator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-dex-k8s-authenticator
+  labels:
+    app: dex-k8s-authenticator
+    env: dev
+    chart: dex-k8s-authenticator-1.7.0
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dex-k8s-authenticator
+      env: dev
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: dex-k8s-authenticator
+        env: dev
+        release: my-release
+      annotations:
+        checksum/config: 23a4b10a6719d2bb05746f0493d85ae666168bb0b5947319ea90c37774d11fee
+    spec:
+      containers:
+      - name: dex-k8s-authenticator
+        image: "mintel/dex-k8s-authenticator:1.4.0"
+        imagePullPolicy: Always
+        args: [ "--config", "config.yaml" ]
+        ports:
+        - name: http
+          containerPort: 5555
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+        volumeMounts:
+        - name: config
+          subPath: config.yaml
+          mountPath: /app/config.yaml
+        resources:
+          {}
+      volumes:
+      - name: config
+        configMap:
+          name: my-release-dex-k8s-authenticator

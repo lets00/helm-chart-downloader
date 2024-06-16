@@ -1,0 +1,204 @@
+---
+# Source: atlantis/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-atlantis
+  labels:
+    app: atlantis
+    chart: atlantis-3.12.11
+    release: my-release
+    heritage: Helm
+---
+# Source: atlantis/templates/secret-webhook.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-atlantis-webhook
+  labels:
+    app: atlantis
+    chart: atlantis-3.12.11
+    release: my-release
+    heritage: Helm
+data:
+---
+# Source: atlantis/templates/tests/test-atlantis-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-atlantis-tests
+data:
+  run.sh: |-
+    @test "Atlantis UI is available" {
+      ATLANTIS_URL=http://my-release-atlantis.default.svc.cluster.local:80
+      echo "Trying Atlantis at: $ATLANTIS_URL"
+      curl $ATLANTIS_URL
+    }
+---
+# Source: atlantis/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-atlantis
+  labels:
+    app: atlantis
+    chart: atlantis-3.12.11
+    release: my-release
+    heritage: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 4141
+      protocol: TCP
+      name: atlantis
+  selector:
+    app: atlantis
+    release: my-release
+---
+# Source: atlantis/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-atlantis
+  labels:
+    app: atlantis
+    chart: atlantis-3.12.11
+    release: my-release
+    heritage: Helm
+spec:
+  serviceName: my-release-atlantis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: atlantis
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: atlantis
+        release: my-release
+    spec:
+      serviceAccountName: my-release-atlantis
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 100
+      volumes:
+      containers:
+        - name: atlantis
+          image: "runatlantis/atlantis:v0.16.1"
+          imagePullPolicy: IfNotPresent
+          args:
+            - server
+          ports:
+          - name: atlantis
+            containerPort: 4141
+          env:
+          - name: ATLANTIS_DATA_DIR
+            value: /atlantis-data
+          - name: ATLANTIS_REPO_WHITELIST
+            value: <replace-me>
+          - name: ATLANTIS_PORT
+            value: "4141"
+          - name: ATLANTIS_ATLANTIS_URL
+            value: http://chart-example.local
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4141
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 60
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 4141
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 60
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          volumeMounts:
+          - name: atlantis-data
+            mountPath: /atlantis-data
+          resources:
+            limits:
+              cpu: 100m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 1Gi
+  volumeClaimTemplates:
+  - metadata:
+      name: atlantis-data
+    spec:
+      accessModes: ["ReadWriteOnce"] # Volume should not be shared by multiple nodes.
+      resources:
+        requests:
+          # The biggest thing Atlantis stores is the Git repo when it checks it out.
+          # It deletes the repo after the pull request is merged.
+          storage: 5Gi
+---
+# Source: atlantis/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: my-release-atlantis
+  labels:
+    app: atlantis
+    chart: atlantis-3.12.11
+    release: my-release
+    heritage: Helm
+spec:
+  rules:
+    - host: chart-example.local
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: my-release-atlantis
+              servicePort: 80
+---
+# Source: atlantis/templates/tests/test-atlantis-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-ui-test-2qg8w"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  initContainers:
+    - name: test-framework
+      image: dduportal/bats:0.4.0
+      command:
+      - "bash"
+      - "-c"
+      - |
+        set -ex
+        # copy bats to tools dir
+        cp -R /usr/local/libexec/ /tools/bats/
+      volumeMounts:
+      - mountPath: /tools
+        name: tools
+  containers:
+    - name: my-release-ui-test
+      image: lachlanevenson/k8s-kubectl:v1.4.8-bash
+      command: ["/tools/bats/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+      - mountPath: /tests
+        name: tests
+        readOnly: true
+      - mountPath: /tools
+        name: tools
+  volumes:
+  - name: tests
+    configMap:
+      name: my-release-atlantis-tests
+  - name: tools
+    emptyDir: {}
+  restartPolicy: Never

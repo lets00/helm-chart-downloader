@@ -1,0 +1,121 @@
+---
+# Source: jackett/charts/common/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: my-release 
+  name: my-release-config
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: jackett/charts/common/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: my-release 
+  name: my-release-downloads
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: jackett/charts/common/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  selector:
+    app: my-release
+  ports:
+  - targetPort: 9117
+    port: 80
+---
+# Source: jackett/charts/common/templates/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+    spec:
+      containers:
+        - name: my-release
+          imagePullPolicy: Always
+          image: "linuxserver/jackett:0.21.290"
+          ports:
+          - containerPort: 9117
+          resources:
+            requests:
+            limits:
+          env:
+          - name: AUTO_UPDATE
+            value: "true"
+          - name: PGID
+            value: "1000"
+          - name: PUID
+            value: "1000"
+          - name: TZ
+            value: "Etc/UTC"
+          readinessProbe:
+            failureThreshold: 2
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            tcpSocket:
+              port: 9117
+            timeoutSeconds: 3
+          livenessProbe:
+            failureThreshold: 2
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            tcpSocket:
+              port: 9117
+            timeoutSeconds: 3
+          volumeMounts:
+            - mountPath: /config/
+              name: config
+            - mountPath: /downloads/
+              name: downloads
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: my-release-config
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: my-release-downloads
+---
+# Source: jackett/charts/common/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-connection-curl-my-release
+  labels:
+    app: my-release
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:7.70.0 
+      command: ['curl']
+      args: ['my-release:80/', '-H', '"Host:jackett.thoughtless.eu:80"']
+  restartPolicy: Never

@@ -1,0 +1,93 @@
+---
+# Source: jellyfin/templates/configmap-env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-jellyfin-env
+data:
+  {}
+---
+# Source: jellyfin/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jellyfin
+  labels:
+    app.kubernetes.io/name: jellyfin-2.0.3
+    app: jellyfin-2.0.3
+    helm.sh/chart: jellyfin-2.0.3
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.7.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8096
+      protocol: TCP
+      targetPort: http
+
+  selector:
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+---
+# Source: jellyfin/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-jellyfin
+  labels:
+    app.kubernetes.io/name: jellyfin-2.0.3
+    app: jellyfin-2.0.3
+    helm.sh/chart: jellyfin-2.0.3
+    app.kubernetes.io/name: jellyfin
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.7.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jellyfin
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jellyfin
+        app.kubernetes.io/instance: my-release
+    spec:
+      automountServiceAccountToken: true
+      containers:
+        - name: jellyfin
+          image: "jellyfin/jellyfin:10.7.5"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: my-release-jellyfin-env
+          ports:
+            - name: http
+              containerPort: 8096
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: http
+          readinessProbe:
+            tcpSocket:
+              port: http
+          volumeMounts:
+            - mountPath: /config
+              name: config
+            - mountPath: /media
+              name: media
+          resources:
+            {}
+          securityContext:
+            {}
+      volumes:
+      - name: config
+        emptyDir: {}
+      - name: media
+        emptyDir: {}

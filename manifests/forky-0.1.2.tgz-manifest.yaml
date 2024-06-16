@@ -1,0 +1,155 @@
+---
+# Source: forky/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-forky-env
+  labels:
+    helm.sh/chart: forky-0.1.2
+    app.kubernetes.io/name: forky
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: forky/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-forky
+  labels:
+    helm.sh/chart: forky-0.1.2
+    app.kubernetes.io/name: forky
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |-
+    
+    forky:
+      ethereum:
+        network: null
+      indexer:
+        driver_name: sqlite
+        dsn: ':memory:'
+      retention_period: 30m
+      sources:
+      - config:
+          address: http://localhost:5052
+          labels:
+          - example_label
+          polling_interval: 12s
+        name: example
+        type: beacon_node
+      store:
+        type: memory
+    listen_addr: :5555
+    log_level: debug
+    metrics:
+      addr: :9090
+      enabled: true
+---
+# Source: forky/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-forky
+  labels:
+    helm.sh/chart: forky-0.1.2
+    app.kubernetes.io/name: forky
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5555
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9090
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: forky
+    app.kubernetes.io/instance: my-release
+---
+# Source: forky/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-forky
+  labels:
+    helm.sh/chart: forky-0.1.2
+    app.kubernetes.io/name: forky
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forky
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: forky
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 7086f8859907ae14bbaaf1f0fdf8a47d0b5c972d693cba32c7b0289d2e19cf7b
+        checksum/secrets: 9409ce1295b759cdcfc7314937828c55fe302b82ae64eb8d18077c7c1c26adc6
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+      - name: forky
+        image: "ethpandaops/forky:debian-latest"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/forky"
+          - --config=/config.yaml
+        securityContext:
+            {}
+        volumeMounts:
+          - name: config
+            mountPath: "/config.yaml"
+            subPath: config.yaml
+            readOnly: true
+        ports:
+          - name: http
+            containerPort: 5555
+            protocol: TCP
+          - name: metrics
+            containerPort: 9090
+            protocol: TCP
+        livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http
+        readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http
+        resources:
+            {}
+        env:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-forky

@@ -1,0 +1,108 @@
+---
+# Source: ipmi-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-ipmi-exporter
+  labels:
+    helm.sh/chart: ipmi-exporter-0.1.14
+    app.kubernetes.io/name: ipmi-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.14"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: ipmi-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-ipmi-exporter
+  labels:
+    helm.sh/chart: ipmi-exporter-0.1.14
+    app.kubernetes.io/name: ipmi-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.14"
+    app.kubernetes.io/managed-by: Helm
+data:
+  ipmi.yaml: bW9kdWxlczoKICBkZWZhdWx0OgogICAgY29sbGVjdG9yczoKICAgIC0gYm1jCiAgICAtIGlwbWkKICAgIC0gY2hhc3NpcwogICAgLSBkY21pCiAgICAtIHNlbAogICAgZHJpdmVyOiBMQU5fMl8wCiAgICBwYXNzOiBleGFtcGxlX3B3CiAgICBwcml2aWxlZ2U6IHVzZXIKICAgIHRpbWVvdXQ6IDEwMDAwCiAgICB1c2VyOiBkZWZhdWx0X3VzZXI=
+---
+# Source: ipmi-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ipmi-exporter
+  labels:
+    helm.sh/chart: ipmi-exporter-0.1.14
+    app.kubernetes.io/name: ipmi-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.14"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: ipmi-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: ipmi-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-ipmi-exporter
+  labels:
+    helm.sh/chart: ipmi-exporter-0.1.14
+    app.kubernetes.io/name: ipmi-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.14"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ipmi-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/secret: "1ede2eab890fe2e1a13d7cb51729f446493a3965e438dd72f9b90dc25c80e2ac"
+      labels:
+        app.kubernetes.io/name: ipmi-exporter
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-ipmi-exporter
+      securityContext:
+        {}
+      containers:
+        - name: ipmi-exporter
+          securityContext:
+            {}
+          image: docker.io/pnnlmiscscripts/ipmi-exporter:1.2.0-14
+          imagePullPolicy: IfNotPresent
+          command:
+          - /usr/bin/ipmi_exporter
+          - --config.file
+          - /etc/ipmi-exporter/ipmi.yaml
+          ports:
+            - name: http
+              containerPort: 9290
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+          volumeMounts:
+          - name: config
+            mountPath: /etc/ipmi-exporter
+      volumes:
+      - name: config
+        secret:
+          secretName: my-release-ipmi-exporter

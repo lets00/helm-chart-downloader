@@ -1,0 +1,379 @@
+---
+# Source: flink/templates/serviceaccounts.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-flink-jobmanager
+  labels:
+    app.kubernetes.io/name: flink
+    helm.sh/chart: flink-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.11.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: flink/templates/serviceaccounts.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-flink-taskmanager
+  labels:
+    app.kubernetes.io/name: flink
+    helm.sh/chart: flink-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.11.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: flink/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-flink-config
+  labels:
+    app.kubernetes.io/name: flink
+    helm.sh/chart: flink-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.11.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  flink-conf.yaml: |+
+    taskmanager.numberOfTaskSlots: 1
+        blob.server.port: 6124
+        taskmanager.rpc.port: 6122
+        jobmanager.heap.size: 1g
+        taskmanager.memory.process.size: 1g
+        metrics.reporters: prom
+        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+        metrics.reporter.prom.port: 9999
+        metrics.system-resource: true
+        metrics.system-resource-probing-interval: 5000
+        jobmanager.rpc.address: my-release-flink-jobmanager
+        jobmanager.rpc.port: 6123
+        
+  flink-conf-taskmanager.yaml: |+
+    taskmanager.numberOfTaskSlots: 1
+        blob.server.port: 6124
+        taskmanager.rpc.port: 6122
+        jobmanager.heap.size: 1g
+        taskmanager.memory.process.size: 1g
+        metrics.reporters: prom
+        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+        metrics.reporter.prom.port: 9999
+        metrics.system-resource: true
+        metrics.system-resource-probing-interval: 5000
+        jobmanager.rpc.address: my-release-flink-jobmanager
+        jobmanager.rpc.port: 6123
+        
+  log4j.properties: |+
+    # This affects logging for both user code and Flink
+    rootLogger.level = INFO
+    rootLogger.appenderRef.console.ref = ConsoleAppender
+    rootLogger.appenderRef.rolling.ref = RollingFileAppender
+    
+    # Uncomment this if you want to _only_ change Flink's logging
+    #logger.flink.name = org.apache.flink
+    #logger.flink.level = INFO
+    
+    # The following lines keep the log level of common libraries/connectors on
+    # log level INFO. The root logger does not override this. You have to manually
+    # change the log levels here.
+    logger.akka.name = akka
+    logger.akka.level = INFO
+    logger.kafka.name= org.apache.kafka
+    logger.kafka.level = INFO
+    logger.hadoop.name = org.apache.hadoop
+    logger.hadoop.level = INFO
+    logger.zookeeper.name = org.apache.zookeeper
+    logger.zookeeper.level = INFO
+    
+    # Log all infos to the console
+    appender.console.name = ConsoleAppender
+    appender.console.type = CONSOLE
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    
+    # Log all infos in the given rolling file
+    appender.rolling.name = RollingFileAppender
+    appender.rolling.type = RollingFile
+    appender.rolling.append = false
+    appender.rolling.fileName = ${sys:log.file}
+    appender.rolling.filePattern = ${sys:log.file}.%i
+    appender.rolling.layout.type = PatternLayout
+    appender.rolling.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    appender.rolling.policies.type = Policies
+    appender.rolling.policies.size.type = SizeBasedTriggeringPolicy
+    appender.rolling.policies.size.size=100MB
+    appender.rolling.strategy.type = DefaultRolloverStrategy
+    appender.rolling.strategy.max = 10
+    
+    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
+    logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.level = OFF
+    
+    
+  security.properties:
+    # The java-level namelookup cache policy for successful lookups
+    networkaddress.cache.ttl=30
+---
+# Source: flink/templates/jobmanager-rest-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-flink-jobmanager-rest
+  labels:
+    app.kubernetes.io/name: flink
+    helm.sh/chart: flink-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.11.2"
+    app.kubernetes.io/managed-by: Helm
+    component: jobmanager
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+      name: ui
+  selector:
+    app.kubernetes.io/name: flink
+    app.kubernetes.io/instance: my-release
+    component: jobmanager
+---
+# Source: flink/templates/jobmanager-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-flink-jobmanager
+  labels:
+    app.kubernetes.io/name: flink
+    helm.sh/chart: flink-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.11.2"
+    app.kubernetes.io/managed-by: Helm
+    component: jobmanager
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6124
+      targetPort: blob
+      protocol: TCP
+      name: blob
+    - port: 6123
+      targetPort: rpc
+      protocol: TCP
+      name: rpc
+    - port: 8081
+      targetPort: ui
+      protocol: TCP
+      name: ui
+    - port: 9999
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: flink
+    app.kubernetes.io/instance: my-release
+    component: jobmanager
+---
+# Source: flink/templates/taskmanager-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-flink-taskmanager
+  labels:
+    app.kubernetes.io/name: flink
+    helm.sh/chart: flink-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.11.2"
+    app.kubernetes.io/managed-by: Helm
+    component: taskmanager
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6122
+      targetPort: rpc
+      protocol: TCP
+      name: rpc
+    - port: 9999
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: flink
+    app.kubernetes.io/instance: my-release
+    component: taskmanager
+---
+# Source: flink/templates/jobmanager.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-flink-jobmanager
+  labels:
+    app.kubernetes.io/name: flink
+    helm.sh/chart: flink-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.11.2"
+    app.kubernetes.io/managed-by: Helm
+    component: jobmanager
+  annotations:
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flink
+      app.kubernetes.io/instance: my-release
+      component: jobmanager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flink
+        app.kubernetes.io/instance: my-release
+        component: jobmanager
+      annotations:
+    spec:
+      serviceAccountName: my-release-flink-jobmanager
+      securityContext:
+                {}
+      initContainers:
+      containers:
+        - name: jobmanager
+          image: "flink:1.11.2-scala_2.12"
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/flink
+          command:
+            - "/bin/bash"
+            - "-c"
+            - "cp /opt/flink/opt/flink-s3-fs-presto-*.jar /opt/flink/lib/ && wget https://repo1.maven.org/maven2/com/github/oshi/oshi-core/3.4.0/oshi-core-3.4.0.jar -O /opt/flink/lib/oshi-core-3.4.0.jar && wget https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.4.0/jna-5.4.0.jar -O /opt/flink/lib/jna-5.4.0.jar && wget https://repo1.maven.org/maven2/net/java/dev/jna/jna-platform/5.4.0/jna-platform-5.4.0.jar -O /opt/flink/lib/jna-platform-5.4.0.jar && cp $FLINK_HOME/conf/flink-conf.yaml.tpl $FLINK_HOME/conf/flink-conf.yaml && $FLINK_HOME/bin/jobmanager.sh start-foreground;"
+          env:
+            - name: JVM_ARGS
+              value: "-Djava.security.properties=/opt/flink/conf/security.properties"
+            - name: FLINK_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+          ports:
+            - containerPort: 6124
+              name: blob
+            - containerPort: 6123
+              name: rpc
+            - containerPort: 8081
+              name: ui
+            - containerPort: 9999
+              name: metrics
+          readinessProbe:
+            tcpSocket:
+              port: 6123
+            periodSeconds: 10
+            initialDelaySeconds: 20
+          livenessProbe:
+            tcpSocket:
+              port: 6124
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          volumeMounts:
+            - name: flink-config-volume
+              mountPath: /opt/flink/conf/flink-conf.yaml.tpl
+              subPath: flink-conf.yaml.tpl
+            - name: flink-config-volume
+              mountPath: /opt/flink/conf/log4j.properties
+              subPath: log4j.properties
+            - name: flink-config-volume
+              mountPath: /opt/flink/conf/log4j-console.properties
+              subPath: log4j.properties
+            - name: flink-config-volume
+              mountPath: /opt/flink/conf/security.properties
+              subPath: security.properties
+          resources:
+            {}
+
+      volumes:
+        - name: flink-config-volume
+          configMap:
+            name: my-release-flink-config
+            items:
+              - key: flink-conf.yaml
+                path: flink-conf.yaml.tpl
+              - key: log4j.properties
+                path: log4j.properties
+              - key: security.properties
+                path: security.properties
+---
+# Source: flink/templates/taskmanager.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-flink-taskmanager
+  labels:
+    app.kubernetes.io/name: flink
+    helm.sh/chart: flink-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.11.2"
+    app.kubernetes.io/managed-by: Helm
+    component: taskmanager
+  annotations:
+    "cluster-autoscaler.kubernetes.io/safe-to-evict": "false"
+spec:
+  replicas: 4
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flink
+      app.kubernetes.io/instance: my-release
+      component: taskmanager
+  serviceName: my-release-flink-taskmanager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flink
+        app.kubernetes.io/instance: my-release
+        component: taskmanager
+      annotations:
+    spec:
+      serviceAccountName: my-release-flink-taskmanager
+      securityContext:
+                {}
+      initContainers:
+      containers:
+        - name: taskmanager
+          image: "flink:1.11.2-scala_2.12"
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/flink
+          command:
+            - "/bin/bash"
+            - "-c"
+            - "cp /opt/flink/opt/flink-s3-fs-presto-*.jar /opt/flink/lib/ && wget https://repo1.maven.org/maven2/com/github/oshi/oshi-core/3.4.0/oshi-core-3.4.0.jar -O /opt/flink/lib/oshi-core-3.4.0.jar && wget https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.4.0/jna-5.4.0.jar -O /opt/flink/lib/jna-5.4.0.jar && wget https://repo1.maven.org/maven2/net/java/dev/jna/jna-platform/5.4.0/jna-platform-5.4.0.jar -O /opt/flink/lib/jna-platform-5.4.0.jar && $FLINK_HOME/bin/taskmanager.sh start-foreground;"
+          env:
+            - name: JVM_ARGS
+              value: "-Djava.security.properties=/opt/flink/conf/security.properties"
+          envFrom:
+          ports:
+            - containerPort: 6122
+              name: rpc
+            - containerPort: 9999
+              name: metrics
+          livenessProbe:
+            tcpSocket:
+              port: 6122
+            initialDelaySeconds: 30
+            periodSeconds: 60
+          volumeMounts:
+            - name: flink-config-volume
+              mountPath: /opt/flink/conf
+          resources:
+            {}
+
+      volumes:
+        - name: flink-config-volume
+          configMap:
+            name: my-release-flink-config
+            items:
+              - key: flink-conf-taskmanager.yaml
+                path: flink-conf.yaml
+              - key: log4j.properties
+                path: log4j.properties
+              - key: log4j.properties
+                path: log4j-console.properties
+              - key: security.properties
+                path: security.properties

@@ -1,0 +1,91 @@
+---
+# Source: sdm-relay/templates/Secret.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: my-release-secret
+  labels:    
+    generator: helm
+    date: 2024-06-15
+    chart: sdm-relay
+    version: 0.1.8
+type: Opaque
+data:
+    token: 
+    adminToken:
+---
+# Source: sdm-relay/templates/ConfigMap.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: my-release-config
+  labels:    
+    generator: helm
+    date: 2024-06-15
+    chart: sdm-relay
+    version: 0.1.8
+data:
+  SDM_ORCHESTRATOR_PROBES: ":9090"
+  SDM_RELAY_LOG_FORMAT: "json"
+---
+# Source: sdm-relay/templates/Deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: my-release-deployment
+  labels:
+    app: my-release-app    
+    generator: helm
+    date: 2024-06-15
+    chart: sdm-relay
+    version: 0.1.8
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-app
+  template:
+    metadata:
+      labels:
+        app: my-release-app
+    spec:
+      containers:
+      - name: my-release-app
+        image: public.ecr.aws/strongdm/relay:latest
+        imagePullPolicy: Always
+        command: 
+            - bash
+            - -c
+        args:
+            
+            - "set -e;\nSDM_CMD=\"/sdm.linux\";\nensure_SDM_RELAY_TOKEN() {\n  if [ -n \"${SDM_RELAY_TOKEN}\" ]; then\n    export SDM_RELAY_TOKEN;\n    echo \"SDM_RELAY_TOKEN is already set.\";\n    return 0;\n  fi;\n  if [ -z \"${SDM_ADMIN_TOKEN}\" ]; then\n    echo \"SDM_ADMIN_TOKEN is required to generate a new SDM_RELAY_TOKEN.  Exiting.\";\n    exit 1;\n  fi;\n  echo \"Logging in with SDM_ADMIN_TOKEN\";\n  ${SDM_CMD} login --admin-token=${SDM_ADMIN_TOKEN};\n  if ! \"${SDM_CMD}\" status; then\n    echo \"Not logged in.  Missing SDM_ADMIN_TOKEN?\";\n    exit 2;\n  fi;\n  SDM_RELAY_MAINTENANCE_WINDOW=\"${SDM_RELAY_MAINTENANCE_WINDOW:-* * * * *}\";\n  if [ -n \"${SDM_GATEWAY_LISTEN_ADDR_PORT}\" ]; then\n    echo \"Generating gateway token for ${SDM_RELAY_NAME} at ${SDM_GATEWAY_LISTEN_ADDR_PORT}\";\n    SDM_RELAY_TOKEN=$(SDM_DOCKERIZED=\"\" \"${SDM_CMD}\"  admin relays create-gateway --name \"${SDM_RELAY_NAME}\" --tags \"${SDM_RELAY_TAGS}\" --maintenance-windows \"${SDM_RELAY_MAINTENANCE_WINDOW}\" \"${SDM_GATEWAY_LISTEN_ADDR_PORT}\" \"${SDM_GATEWAY_BIND_ADDR_PORT}\");\n  else\n    echo \"Generating relay token for $SDM_RELAY_NAME\";\n    SDM_RELAY_TOKEN=$(SDM_DOCKERIZED=\"\" \"${SDM_CMD}\" admin relays create --name \"${SDM_RELAY_NAME}\" --tags \"${SDM_RELAY_TAGS}\" --maintenance-windows \"${SDM_RELAY_MAINTENANCE_WINDOW}\");\n  fi;\n  # Verify that the response does actually look like a token.\n  if ! grep -qE \"^[[:graph:]]+[.][[:graph:]]+[.][[:graph:]]+$\" <<< \"${SDM_RELAY_TOKEN}\";  then\n    echo \"Failed to set SDM_RELAY_TOKEN.\";\n    echo \"Response was ${SDM_RELAY_TOKEN}\";\n    SDM_RELAY_TOKEN=\"\";\n    exit 3;\n  fi;\n  export SDM_RELAY_TOKEN;\n};\nensure_SDM_RELAY_TOKEN;\nSDM_ADMIN_TOKEN=\"\" /sdm.linux relay -d;\n"
+            
+        env:        
+        - name: SDM_RELAY_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: my-release-secret
+              key: token
+        - name: SDM_ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: my-release-secret
+              key: adminToken
+        - name: SDM_ORCHESTRATOR_PROBES
+          valueFrom:
+            configMapKeyRef:
+              name: my-release-config
+              key: SDM_ORCHESTRATOR_PROBES
+        - name: SDM_RELAY_LOG_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              name: my-release-config
+              key: SDM_RELAY_LOG_FORMAT
+        livenessProbe:
+          httpGet:
+            path: /liveness
+            port: 9090
+          initialDelaySeconds: 25
+          timeoutSeconds: 10
+          periodSeconds: 15
+          failureThreshold: 5

@@ -1,0 +1,82 @@
+---
+# Source: influxdb/templates/service.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: influxdb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.8.4"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release
+  ports:
+    - protocol: TCP
+      port: 8086
+      targetPort: influxdb
+---
+# Source: influxdb/templates/deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: influxdb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.8.4"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+        app.kubernetes.io/name: influxdb
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.8.4"
+        app.kubernetes.io/component: database
+        app.kubernetes.io/managed-by: helm
+    spec:
+      containers:
+        - name: my-release
+          image: "influxdb:1.8.4"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: INFLUXDB_DB
+              value: k6
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "200m"
+          livenessProbe:
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            httpGet:
+              path: /ping
+              port: api
+              scheme: HTTP
+          readinessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+            httpGet:
+              path: /ping
+              port: 8086
+              scheme: HTTP
+          ports:
+            - name: influxdb
+              containerPort: 8086
+          volumeMounts:
+            - name: influxdb-storage-volume
+              mountPath: /var/lib/influxdb
+      volumes:
+        - name: influxdb-storage-volume

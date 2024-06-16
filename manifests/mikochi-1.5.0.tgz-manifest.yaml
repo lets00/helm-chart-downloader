@@ -1,0 +1,114 @@
+---
+# Source: mikochi/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mikochi
+  labels:
+    helm.sh/chart: mikochi-1.5.0
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  username: cm9vdA==
+  password: cGFzcw==
+---
+# Source: mikochi/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mikochi
+  labels:
+    helm.sh/chart: mikochi-1.5.0
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mikochi
+    app.kubernetes.io/instance: my-release
+---
+# Source: mikochi/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mikochi
+  labels:
+    helm.sh/chart: mikochi-1.5.0
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mikochi
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mikochi
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: mikochi
+          securityContext:
+            {}
+          image: "zer0tonin/mikochi:1.5.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+          env:
+            - name: USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mikochi
+                  key: username
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mikochi
+                  key: password
+          volumeMounts:
+            - name: mikochi-data
+              mountPath: "/data"
+          resources:
+            {}
+      volumes:
+        - name: mikochi-data
+          emptyDir: {}
+---
+# Source: mikochi/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mikochi-test-connection"
+  labels:
+    helm.sh/chart: mikochi-1.5.0
+    app.kubernetes.io/version: "1.5.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mikochi:8080']
+  restartPolicy: Never

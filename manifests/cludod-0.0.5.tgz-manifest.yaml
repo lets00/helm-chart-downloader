@@ -1,0 +1,95 @@
+---
+# Source: cludod/templates/cludod-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-cludod
+  labels:
+    helm.sh/chart: cludod-0.0.5
+    app.kubernetes.io/name: cludod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.2-alpha"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  externalTrafficPolicy: Local
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: cludod
+    app.kubernetes.io/instance: my-release
+---
+# Source: cludod/templates/cludod-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-cludod
+  labels:
+    helm.sh/chart: cludod-0.0.5
+    app.kubernetes.io/name: cludod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.2-alpha"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cludod
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cludod
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: cludod
+          securityContext:
+            {}
+          image: "superorbital/cludod:0.0.2-alpha"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+          resources:
+            limits:
+              cpu: "1"
+              memory: 128M
+            requests:
+              cpu: 250m
+              memory: 32M
+---
+# Source: cludod/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-cludod-test-connection"
+  labels:
+    helm.sh/chart: cludod-0.0.5
+    app.kubernetes.io/name: cludod
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.2-alpha"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-cludod:80']
+  restartPolicy: Never

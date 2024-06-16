@@ -1,0 +1,152 @@
+---
+# Source: prometheus-mongodb-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-prometheus-mongodb-exporter
+  labels:
+    helm.sh/chart: prometheus-mongodb-exporter-3.5.0
+    app.kubernetes.io/name: prometheus-mongodb-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.40.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prometheus-mongodb-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-prometheus-mongodb-exporter
+  labels:
+    helm.sh/chart: prometheus-mongodb-exporter-3.5.0
+    app.kubernetes.io/name: prometheus-mongodb-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.40.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  mongodb-uri: bW9uZ29kYjovL21vbmdvZGI6MjcwMTc=
+---
+# Source: prometheus-mongodb-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-prometheus-mongodb-exporter
+  labels:
+    helm.sh/chart: prometheus-mongodb-exporter-3.5.0
+    app.kubernetes.io/name: prometheus-mongodb-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.40.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  ports:
+    - port: 9216
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: prometheus-mongodb-exporter
+    app.kubernetes.io/instance: my-release
+  type: ClusterIP
+---
+# Source: prometheus-mongodb-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-prometheus-mongodb-exporter
+  labels:
+    helm.sh/chart: prometheus-mongodb-exporter-3.5.0
+    app.kubernetes.io/name: prometheus-mongodb-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.40.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-mongodb-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: a47b812bdebeab5d4d692052f84f207a48a1634d5179a986072675642c02f408
+      labels:
+        app.kubernetes.io/name: prometheus-mongodb-exporter
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-prometheus-mongodb-exporter
+      containers:
+        - name: mongodb-exporter
+          env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-prometheus-mongodb-exporter
+                  key: mongodb-uri
+          image: "percona/mongodb_exporter:0.40.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --web.listen-address=:9216
+            - --collect-all
+          ports:
+            - name: metrics
+              containerPort: 9216
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: metrics
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: metrics
+            initialDelaySeconds: 10
+          resources:
+            {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - all
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000
+          volumeMounts:
+            []
+      affinity:
+        {}
+      imagePullSecrets:
+        []
+      nodeSelector:
+        {}
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        []
+      volumes:
+        []
+---
+# Source: prometheus-mongodb-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-prometheus-mongodb-exporter-test-connection"
+  labels:
+    helm.sh/chart: prometheus-mongodb-exporter-3.5.0
+    app.kubernetes.io/name: prometheus-mongodb-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.40.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+  - name: wget
+    image: busybox
+    command: ['wget']
+    args:  ['-qO-', 'my-release-prometheus-mongodb-exporter:9216/metrics']
+  restartPolicy: Never

@@ -1,0 +1,54 @@
+---
+# Source: synthetics-private-location/templates/service_account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-synthetics-private-location
+  labels:
+    helm.sh/chart: synthetics-private-location-0.16.2
+    app.kubernetes.io/name: synthetics-private-location
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.48.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: synthetics-private-location/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-synthetics-private-location
+  labels:
+    helm.sh/chart: synthetics-private-location-0.16.2
+    app.kubernetes.io/name: synthetics-private-location
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.48.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: synthetics-private-location
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: synthetics-private-location
+        app.kubernetes.io/instance: my-release
+    spec:
+      
+      dnsPolicy: ClusterFirst
+      
+      securityContext:
+        {}
+      serviceAccountName: my-release-synthetics-private-location
+      hostAliases:
+        []
+      containers:
+        - name: synthetics-private-location
+          securityContext:
+            {}
+          image: "gcr.io/datadoghq/synthetics-private-location-worker:1.48.0"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          resources:
+            {}
+      volumes:

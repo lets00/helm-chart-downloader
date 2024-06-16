@@ -1,0 +1,138 @@
+---
+# Source: alpine-tor/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-alpine-tor
+  labels:
+
+    helm.sh/chart: alpine-tor-1.1.0
+    app.kubernetes.io/name: alpine-tor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: alpine-tor/templates/volume.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: my-release-alpine-tor-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 100M
+  storageClassName: alpine-tor-storage
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /tmp
+---
+# Source: alpine-tor/templates/volumeclaim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-alpine-tor-volumeclaim
+spec:
+  storageClassName: alpine-tor-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100M
+---
+# Source: alpine-tor/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-alpine-tor
+  labels:
+    helm.sh/chart: alpine-tor-1.1.0
+    app.kubernetes.io/name: alpine-tor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: dirserviceport
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+      name: orport
+    - port: 9050
+      targetPort: 9050
+      protocol: TCP
+      name: socks5port
+  
+  selector:
+    app.kubernetes.io/name: alpine-tor
+    app.kubernetes.io/instance: my-release
+---
+# Source: alpine-tor/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-alpine-tor
+  labels:
+    helm.sh/chart: alpine-tor-1.1.0
+    app.kubernetes.io/name: alpine-tor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alpine-tor
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alpine-tor
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-alpine-tor
+      volumes:
+        - name: alpine-tor-storage
+          persistentVolumeClaim:
+            claimName: my-release-alpine-tor-volumeclaim
+      securityContext:
+        {}
+      containers:
+        - name: alpine-tor
+          securityContext:
+            {}
+          image: "jfwenisch/alpine-tor:latest"
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: "/tor"
+              name: alpine-tor-storage
+          env:
+            - name: mode
+              value: proxy
+            - name: DirPort
+              value: "80"
+            - name: ORPort
+              value: "443"
+            - name: SOCKSPort
+              value: "9050"
+            - name: ContactInfo
+              value: "J.-Fabian Wenisch <info AT jfwenisch dot com>"
+            - name: Nickname
+              value: "AlpineTor"
+            - name: DNSPort
+              value: 
+            - name: DNSListenAddress
+              value: 
+            - name: MyFamily
+              value: 
+            - name: HiddenServiceDir
+              value: 
+            - name: HiddenServicePort
+              value: 
+          resources:
+            {}
