@@ -1,0 +1,803 @@
+---
+# Source: deepspeed/templates/client/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-deepspeed-client
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: client
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: deepspeed
+      app.kubernetes.io/part-of: deepspeed
+      app.kubernetes.io/component: client
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # By default, the client is not setting any port
+---
+# Source: deepspeed/templates/worker/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-deepspeed-worker
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: deepspeed
+      app.kubernetes.io/part-of: deepspeed
+      app.kubernetes.io/component: worker
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # Allow complete connection from other worker pods (we cannot predict the ports the application creates)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: my-release
+              app.kubernetes.io/name: deepspeed
+              app.kubernetes.io/part-of: deepspeed
+              app.kubernetes.io/component: worker 
+    - ports:
+        - port: 2222
+      from:
+---
+# Source: deepspeed/templates/client/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-deepspeed-client
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: client
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: deepspeed
+      app.kubernetes.io/part-of: deepspeed
+      app.kubernetes.io/component: client
+---
+# Source: deepspeed/templates/worker/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-deepspeed-worker
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: worker
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: deepspeed
+      app.kubernetes.io/part-of: deepspeed
+      app.kubernetes.io/component: worker
+---
+# Source: deepspeed/templates/client/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-deepspeed-client
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: client
+automountServiceAccountToken: false
+---
+# Source: deepspeed/templates/worker/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-deepspeed-worker
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: worker
+automountServiceAccountToken: false
+---
+# Source: deepspeed/templates/ssh-keys-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-deepspeed-ssh-key
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: client
+data:
+  id_rsa: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS0FJQkFBS0NBZ0VBMUtOQ0swMzM2OEhoZGFMdk1wbW9sejV5WWw5VWNhdm5Xb3VuaVBvN3RqTmo5aGhlCmJlZnpZbXZVam9oek5CNzNPY090a3RjeTkxTzAzV09MVUZ5dStnUEY4TFM1YmJIVFFnRnUxbWdBdmpkbmhST0wKZ3hJeEV1R0k3RU1HZjlqdjZQVGpEeURPR01Vc2JMVkIreDJnc0J3d05mQ1RBYlZZNmxhU21TZXAwMzVlYlYxVApMTTQ5OXp5ejg1T1lBamhta2JJRFR5cklMTFRqTUFxYkVDMDBBY3NtcXBvZTVyUWpaVEhnZUE3Z1o3QVlrMGNVCllldWNDMlNLZ2pML0FobjYvczZYY1BCdjQzK2trOWF0UG9nbEc5WXRoWTh6S1lZcFZPYzErS1ZyWTNNQUtjTEgKQTBKU3owNVpEQVJZR1dGMDVpamFOaklOWUtDMEl3cFY4K1BDakJMd1VRUG1MSDJsYUcwbHJQU0Q0cENZUkg5YgpIRzBaYnBYdDEyaElHVndteDg5UFJsaTM5SDNYQUFsM0ZFZWlsTUh5SGsyMUZGNWxvRk5ReDZYSTdnR0lyYThTCnNoRlBmY2F3U291MzBDcVJ2ejBuV0VsaitkeU1sZk8wQ2QzR2R4RzhXZm0vT3JtTW53QVgxWGJUWm5ZRnRRa08KajdkR3gvVklrcldKWFNOT1JFbnBSUjVJVmxoRHZyQUtFU004SGtZRE9Nby9MRG9scVJseW5EUHl1c3MrU1JiSwpMbTRENHlJUTlaanozV200cklnVk56emlnRzg0WDZYbURsRTVSZWxoNXkvYURoeWY4MWI4N2RSdjcweFlvNGtFCnRreFB6dlNHSCtTVEhoWjhCdGVHSS9vK2syMGtGbytXaWVudjNWRUxpVCsvaXZ2MzhwZkhKSkVsZ05VQ0F3RUEKQVFLQ0FnQmpLT2NZanJtSXhkZEFKb1Zwa1dLZmRVMmVObHFJeitPSnhBcVN4QzdJWHRyRXpzUnFlSHAxY1ZlawpTRm1BK3RmTHBrYnhiVTJsTFBIeE5CU3BteTgyQkVCd2FiYjNRckFEM2VzMExUZjdmSmJYNWk5dkpqS2dYWENlCnpQcmc3K2VoT1dJUmtmaktjRml4TVMzZHp3azZWMHJjUEo0eGM4Sk5OYVlUcWYxMlZUM3Z2aytsVzJCbVJYYWQKcGp5Qy9JNUliejAvMC9HWmQ1bGlzKzl2OGNTSStaWEVoUzdYNHpXR1lXWU9WdEdyU09HTS9ONnljMDlIdU5FbQp1bVZWTTR4cSt5aUFVSCs5RmE5SUNocXNTSTBWbUNHT1lTTTR3QW5TUUNoWkZic29tMTUrR3dqM3FodzM5STl1CkhUQ0FWWVJRT01qWjhTbHY0RUZnL2RicmIxRXZhcmYzZ0VlVTBhN2NKOE5ZNUxtU1RudVVQZkV1dnIyUzdpdHAKbDR4VDVDZStGM1cwNDNBWERsalhBYjl2Nk9ZcnJFMFEwdEVGVUIzcjhYM1RKaTl2d3VzUzAvOWloL05Ncy8zbwo3QkNqL0ZtQnRUbVlkaDh0Wk9QWlZIVlRkNkJSZldWRVlJdm5vSUxlZXdoakF1dENLVmlZeVhKamN3Ty9QNTRYCmFqeTF0RHZhMFdpMnNwVndDdXNBa2FvdFpEbng1ZU8vazFOc3BtS3dSL3JKS0U1MXhrK0kvalJIOFNjRDdyQUEKYWdNR3dqQzY5QkYxK2M0YzlObGUrZVdWWkQwOHlXcmVGVXI1UDRHaTBmU3Z5VDZnTm45NUE1TDFLbU51TUNNdwpqdmFQc29UYS9pbzM1SEc1dkQwV2V6WXhZNlVyTm1LcFNMR2dLMmQ4eGIxKzJVR25HUUtDQVFFQTFOKzl5RllBCm1mcHlHWEZmUWI2b1F4WWpHVkc4UG9wWTV2aXdSTU05Q05pcDBzdUpjMnBZSTFRazc3UkcwTUtSSDNNSjA4VVgKaUxXOEhJRmx0ZnMxMVZQVS8wRERVL1dKNGFLb3lpUkpLOHNpSG5HT2dXUFNJOTliWjhlZE1aNldiQ3hPQmg2UwpnQlUzSHVQRlN2Y25rK2J3ak9objFuem5CSkZpTktJUXBET3B2NHpwSnh3UFlCSWJZWHVveS9nRjNtMnM3RXJBCkdWWW9OQnladVNpazQwVnJ6VklNUWR5cUlseVBack9vaHVkd1NmUFJkdDFUTnlSZk9UY2VnckZBVnRKemQ5R2kKT2gzRS9BYkF5MXZJZEhONDJ1R3dSdmhiRnczTnZxOGZsNVMrbmhGTkRhckdGb0FxWk5oUzhYVGx5czNRSy9Nawo3SnFreDd5ekdPOFZOd0tDQVFFQS83ZERraVpFZ1dHMEZNQlg0aWtJVDlhQ0puS2NlZGZ0dzNvYTk5aFQ5QTAyCjhDTE5sclViQ09penBJM3UrK1JRbkN5bGlrR0tFWHY5bmNaaGhKQldabkx6aUZrOW9tRjRJWG0vT1g4bnpCNloKWU1GdkhnZUh6RjRhYmNlYU55ZmlpczFVbCsvYzhUREl4MldSUWZqSWpZL3kwcXJsejFiQVFzYkhGNHMrRk1jRAoxcExGZzZUeFR5NitkU1lIVW1WLzJ0QW0rUE96dzgzc1UzNWYzaFl0SG4zYXJQeTIwemllcUZLTnJyN3JKWWdJCldqejlOV0FqWEQ2bjVGZ1lsYXE5NWY0S3FSam0xRzNCc3l0ZVNoT0ZDUHZOeXpRRmZZRXlJWEVDeFpZQkVRenUKQ1JCbjVjZG1PWjRXSmFUL0pzd1grblRnUklJUEkwREJjbmxYa0R0Z1V3S0NBUUFaVjVHR1dnYTBUZ1pyVlAzYwpHOUI0UEJodG1UZHAwcHFHMUxCWFgwN1MwTWhXMmZoQkR6WHk3cjkrOGQxRVdRVmgweFltYWQ1RlhpMUl6M2JHClZXT3hROHVsbjVZaFZxZlZmc0hOWHNoL09DMlZwanNxMkRGYUorci96ZG0rNEh4VDRHcGhmQjVBdFVYY25ZME4KUWFNcWptR3d4TEluN0xLcjdvcmNiVGJCOVl5Tnl6NnVjejY1Vnk1L1NuTnI1TmorQTl5RVBObmxxa1lhL2hTbQo0Rm5RM0tEYXpwdTY4NFFsbHhOVFRLd1JjMWdBMWMvbjhLMUpjVUVNMUswRExnclV5elVIM0tNTmZDSEpSeHlJCm1TS2lDbVVtMlp0Y3Q1QlFqRW9rRzBFTmtKMm92N0tHbi8vNUNjVUNRR2FQYkRVM0VZMW96Z2RsUzN1MmM1WjIKcjIrOUFvSUJBUUNWMWN0NUdvVXZqcEZYUzNEemF2bWMxbU5DcGd0NzlZTXk5QnhUTjJYUjdlQlFDd1NPRnlaMQpMT3orTWRCanRsOXBjMXU0VERqYmo5eUdrMVJXdWNCMm5VcUhqVXJwRjlXdFA4cEZwWFVyVEk2d3ZBY2hBR2FZCjRGYjZGbWdOZzRoaHJuaXY0bk9DdkFRWm1qRG9DQjl6bTNJNzhMbGhxVUpVbm1iUUs5Mi9qUEY1ekZ5Qmk2ZDkKcnpVWUxhVkNxWWltTFN0NDJrdHVJdjRqMmp2UVJReEEvcHVnbXgrQlduN1V3REtXdnZYSDh4SjUxWnpFcHNWeAphcUV6MGs3dGU3Tnp6VXh2MHRDR2pwMWVINzVMQjI3L1daUTNTZzhoZ0E5Z3V2aFYwRlJscWo3Yi9zbnlRTWxzClgyNDR0cHB2SUUyNGlyMVNSeWNaai9zSjJZSHVXR3hUQW9JQkFHS0RPSUVkbld3OFlkUGl0SUlRSk14T2JES3YKVHI0MXhydFNrNlpOR0dyOGpEQm9VYXVVeHlIVVlXbXdXVTl2WU53QlViSE1tNzU1bWE1a0VoRzNQTmF4RG03aApCZHo0NVNLRnNEMzRUcWFyTGJIbVZITmFEb0FBWjBtd1VNaFlPY2NGZVFvbTVQNXpwVzAvaWRNNUhvb0hBTDNFCmk2clJ6bG1VRjZEaVowRkw5aU9vZThqNFpjZVU3WHpqSzMwamNyT3ZqYkVSb0dCYTY5N3pTbFkreWRxVVE5VHcKSW1IVnAya2hVWno3bzdkWS8vK0QxV0JISHFvem1vNUpGQk9ESW9IdDhyS3RQWDdRQ3RiUGJXZHBxa3lrSXJRMQozdXpxd00ybFBXYkhtOVVTdk1GbnM1MnpOY29PRFJpZXpSaFlQSm0vdzcxL3U2Z0dlRmRzOFVrMHlNQT0KLS0tLS1FTkQgUlNBIFBSSVZBVEUgS0VZLS0tLS0K
+---
+# Source: deepspeed/templates/client/hostfile-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-deepspeed-hosts
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: client
+data:
+  hostfile: |
+    
+    my-release-deepspeed-worker-0.my-release-deepspeed-worker-headless slots=1
+    my-release-deepspeed-worker-1.my-release-deepspeed-worker-headless slots=1
+    my-release-deepspeed-worker-2.my-release-deepspeed-worker-headless slots=1
+---
+# Source: deepspeed/templates/client/ssh-client-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-deepspeed-ssh-client
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+data:
+  deepspeed_ssh_client.conf: |
+    
+    Host my-release-deepspeed-worker-0.my-release-deepspeed-worker-headless
+      Port 2222
+      IdentityFile /bitnami/ssh/client-private-key/id_rsa
+      StrictHostKeyChecking no
+    Host my-release-deepspeed-worker-1.my-release-deepspeed-worker-headless
+      Port 2222
+      IdentityFile /bitnami/ssh/client-private-key/id_rsa
+      StrictHostKeyChecking no
+    Host my-release-deepspeed-worker-2.my-release-deepspeed-worker-headless
+      Port 2222
+      IdentityFile /bitnami/ssh/client-private-key/id_rsa
+      StrictHostKeyChecking no
+---
+# Source: deepspeed/templates/worker/ssh-server-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-deepspeed-ssh-server
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+data:
+  deepspeed_ssh_server.conf: |
+    Port 2222
+    PasswordAuthentication no
+    UsePAM no
+    PermitUserEnvironment yes
+---
+# Source: deepspeed/templates/worker/worker-headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-deepspeed-worker-headless
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: worker
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: worker
+---
+# Source: deepspeed/templates/client/client-dep-job.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-deepspeed-client
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: client
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: deepspeed
+      app.kubernetes.io/part-of: deepspeed
+      app.kubernetes.io/component: client
+  strategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/hostfile: 04055ffd58ce2f7b1856a335ae72cec99c1787368ba58aef77169111a34914bf
+        checksum/ssh-private-key: 9a678aac6b8f8a8d3c84f91536e3d6dc0231f898f585b58d2779f44273dddca4
+        checksum/ssh-client-conf: f5ab1388f59d1b50b62eb8f08a2b3b747eebe7df60204fcf0d2eabf53f68058e
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: deepspeed
+        app.kubernetes.io/version: 0.14.2
+        helm.sh/chart: deepspeed-2.2.4
+        app.kubernetes.io/part-of: deepspeed
+        app.kubernetes.io/component: client
+    spec:
+      
+      serviceAccountName: my-release-deepspeed-client
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: deepspeed
+                    app.kubernetes.io/component: client
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+        - name: ssh-client-configure
+          image: docker.io/bitnami/deepspeed:0.14.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+              # HACK: Depending on the OS, the ssh version may not have support for
+              # /etc/ssh/ssh_config.d. Therefore, we need to copy the ssh_config
+              # to a volume and perform modifications to include the configuration
+              # from the ConfigMap, as it will not be read
+              [[ -f "/opt/bitnami/scripts/deepspeed/entrypoint.sh" ]] && source "/opt/bitnami/scripts/deepspeed/entrypoint.sh"
+              cp /etc/ssh/ssh_config /bitnami/ssh/ssh-config
+              if [[ ! -d /etc/ssh/ssh_config.d ]]; then
+                # Older version of ssh, add the include directive
+                echo "Modifying ssh_config with include directive"
+                echo "Include /etc/ssh/ssh_config.d/*.conf" >> /bitnami/ssh/ssh-config/ssh_config
+              fi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /bitnami/ssh/ssh-config
+              subPath: ssh-conf-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+        - name: wait-for-workers
+          image: docker.io/bitnami/deepspeed:0.14.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+              worker_hosts=(
+                my-release-deepspeed-worker-0.my-release-deepspeed-worker-headless
+                my-release-deepspeed-worker-1.my-release-deepspeed-worker-headless
+                my-release-deepspeed-worker-2.my-release-deepspeed-worker-headless
+              )
+        
+              check_worker() {
+                  local -r worker_host="${1:-?missing host}"
+                  if ssh "$worker_host" "echo OK"; then
+                     return 0
+                  else
+                     return 1
+                  fi
+              }
+        
+              [[ -f "/opt/bitnami/scripts/deepspeed/entrypoint.sh" ]] && source "/opt/bitnami/scripts/deepspeed/entrypoint.sh"
+        
+              for host in "${worker_hosts[@]}"; do
+                  echo "Checking connection to $host"
+                  if retry_while "check_worker $host"; then
+                      echo "Connected to $host"
+                  else
+                      echo "Error connecting to $host"
+                      exit 1
+                  fi
+              done
+        
+              echo "Connection success"
+              exit 0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: ssh-client-config
+              mountPath: /etc/ssh/ssh_config.d/deepspeed_ssh_client.conf
+              subPath: deepspeed_ssh_client.conf
+            - name: empty-dir
+              mountPath: /etc/ssh/ssh_config
+              subPath: ssh-conf-dir/ssh_config
+            - name: ssh-client-private-key
+              mountPath: /bitnami/ssh/client-private-key
+            - name: empty-dir
+              mountPath: /home/deepspeed/.ssh
+              subPath: app-ssh-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+      containers:
+        - name: deepspeed
+          image: docker.io/bitnami/deepspeed:0.14.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+              [[ -f "/opt/bitnami/scripts/deepspeed/entrypoint.sh" ]] && source "/opt/bitnami/scripts/deepspeed/entrypoint.sh"
+              sleep infinity
+          env:
+            - name: HOME
+              value: /home/deepspeed
+          envFrom:
+          resources:
+            limits:
+              cpu: 750m
+              ephemeral-storage: 1024Mi
+              memory: 768Mi
+            requests:
+              cpu: 500m
+              ephemeral-storage: 50Mi
+              memory: 512Mi
+          livenessProbe:
+            failureThreshold: 5
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 20
+            exec:
+              command:
+                - deepspeed
+                - --help
+          readinessProbe:
+            failureThreshold: 5
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 30
+            exec:
+              command:
+                - python
+                - -c
+                - import deepspeed; deepspeed.__version__
+          volumeMounts:
+            - name: source
+              mountPath: /app
+            - name: empty-dir
+              mountPath: /etc/ssh/ssh_config
+              subPath: ssh-conf-dir/ssh_config
+            - name: ssh-client-config
+              mountPath: /etc/ssh/ssh_config.d
+            - name: hostfile
+              mountPath: /job
+            - name: empty-dir
+              mountPath: /home/deepspeed/.local
+              subPath: app-local-dir
+            - name: empty-dir
+              mountPath: /home/deepspeed/.ssh
+              subPath: app-ssh-dir
+            - name: ssh-client-private-key
+              mountPath: /bitnami/ssh/client-private-key
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /home/deepspeed/.cache
+              subPath: app-cache-dir
+            - name: data
+              mountPath: /bitnami/deepspeed/data
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        # SSH client settings for connecting to the worker nodes
+        - name: ssh-client-config
+          configMap:
+            name: my-release-deepspeed-ssh-client
+        - name: ssh-client-private-key
+          secret:
+            secretName: my-release-deepspeed-ssh-key
+        # Source code of the application
+        - name: source
+          emptyDir: {}
+        # hostfile for connecting to the worker nodes
+        - name: hostfile
+          configMap:
+            name: my-release-deepspeed-hosts
+        # These folders are necessary for building and pip install operations
+        # Optional data folder in case the application requires storing data
+        - name: data
+          emptyDir: {}
+        # Temporary folders: /tmp and .ssh
+---
+# Source: deepspeed/templates/worker/worker-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-deepspeed-worker
+  namespace: "deepspeed"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deepspeed
+    app.kubernetes.io/version: 0.14.2
+    helm.sh/chart: deepspeed-2.2.4
+    app.kubernetes.io/part-of: deepspeed
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 3
+  podManagementPolicy: "Parallel"
+  serviceName: my-release-deepspeed-worker-headless
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: deepspeed
+      app.kubernetes.io/part-of: deepspeed
+      app.kubernetes.io/component: worker
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/ssh-private-key: 4ba7d986c0fedf4c714cb109cef52b291f534a2c4c6a60edd34f496df9c41074
+        checksum/ssh-server-conf: ba5e5fb47b53731b904b6a0d3a282df8e72a9e28f75369f841dc779646cb8121
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: deepspeed
+        app.kubernetes.io/version: 0.14.2
+        helm.sh/chart: deepspeed-2.2.4
+        app.kubernetes.io/part-of: deepspeed
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: my-release-deepspeed-worker
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: deepspeed
+                    app.kubernetes.io/component: worker
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+        - name: ssh-server-configure
+          image: docker.io/bitnami/deepspeed:0.14.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+              [[ -f "/opt/bitnami/scripts/deepspeed/entrypoint.sh" ]] && source "/opt/bitnami/scripts/deepspeed/entrypoint.sh"
+              echo "Obtaining public key and generating authorized_keys file"
+              mkdir -p /home/deepspeed/.ssh
+              ssh-keygen -y -f /bitnami/ssh/client-private-key/id_rsa > /home/deepspeed/.ssh/authorized_keys
+              # Create user environment file so the container env vars are included
+              echo "C_INCLUDE_PATH=$C_INCLUDE_PATH" >> /home/deepspeed/.ssh/environment
+              echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> /home/deepspeed/.ssh/environment
+              echo "PATH=$PATH" >> /home/deepspeed/.ssh/environment
+              echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> /home/deepspeed/.ssh/environment
+              echo "CFLAGS=$CFLAGS" >> /home/deepspeed/.ssh/environment
+              echo "CPPFLAGS=$CPPFLAGS" >> /home/deepspeed/.ssh/environment
+              echo "LDFLAGS=$LDFLAGS" >> /home/deepspeed/.ssh/environment
+              chmod 700 /home/deepspeed/.ssh
+              chmod 600 /home/deepspeed/.ssh/authorized_keys
+              ssh-keygen -A -f /bitnami/ssh/server-private-key/
+        
+              replace_in_file() {
+                  local filename="${1:?filename is required}"
+                  local match_regex="${2:?match regex is required}"
+                  local substitute_regex="${3:?substitute regex is required}"
+                  local posix_regex=${4:-true}
+        
+                  local result
+        
+                  # We should avoid using 'sed in-place' substitutions
+                  # 1) They are not compatible with files mounted from ConfigMap(s)
+                  # 2) We found incompatibility issues with Debian10 and "in-place" substitutions
+                  local -r del=$'\001' # Use a non-printable character as a 'sed' delimiter to avoid issues
+                  if [[ $posix_regex = true ]]; then
+                      result="$(sed -E "s${del}${match_regex}${del}${substitute_regex}${del}g" "$filename")"
+                  else
+                      result="$(sed "s${del}${match_regex}${del}${substitute_regex}${del}g" "$filename")"
+                  fi
+                  echo "$result" > "$filename"
+              }
+        
+              # HACK: Depending on the OS, the ssh version may not have support for
+              # /etc/ssh/sshd_config.d. Therefore, we need to copy the sshd_config
+              # to a volume and perform modifications to include the configuration
+              # from the ConfigMap. The sshd_config file does not allow the
+              # Include directive, so we need to append the configuration
+              cp /etc/ssh/sshd_config /bitnami/ssh/sshd-config
+              if [[ ! -d /etc/ssh/sshd_config.d ]]; then
+                # Older version of ssh, merge the contents
+                while read -r line; do
+                  read -a entry <<< $line
+                  key="${entry[0]}"
+                  value="${entry[1]}"
+                  if grep -q "${entry[0]}" /bitnami/ssh/sshd-config/sshd_config; then
+                    echo "Replacing ${entry[*]} in sshd_config file"
+                    replace_in_file /bitnami/ssh/sshd-config/sshd_config "^[#]*${entry[0]}.*" "${entry[*]}"
+                  else
+                    echo "Adding ${entry[*]} in sshd_config file"
+                    echo "${entry[*]}" >> /bitnami/ssh/sshd-config/sshd_config
+                  fi
+                done < /bitnami/ssh/server-configmap/*.conf
+              fi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: ssh-client-private-key
+              mountPath: /bitnami/ssh/client-private-key
+            # ssh-keygen -A forces /etc/ssh in the prefix path
+            - name: empty-dir
+              mountPath: /bitnami/ssh/server-private-key/etc/ssh
+              subPath: app-worker-private-key-dir
+            - name: ssh-server-config
+              mountPath: /bitnami/ssh/server-configmap
+            - name: empty-dir
+              mountPath: /bitnami/ssh/sshd-config
+              subPath: sshd-conf-dir
+            - name: empty-dir
+              mountPath: /home
+              subPath: home-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+      containers:
+        - name: deepspeed
+          image: docker.io/bitnami/deepspeed:0.14.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+              [[ -f "/opt/bitnami/scripts/deepspeed/entrypoint.sh" ]] && source "/opt/bitnami/scripts/deepspeed/entrypoint.sh"
+              ## sshd requires the absolute path
+              SSHD_PATH="$(command -v sshd)"
+              exec "$SSHD_PATH" -D -h "/bitnami/ssh/server-private-key/ssh_host_rsa_key" -e
+          ports:
+            - name: tcp-ssh
+              containerPort: 2222
+              protocol: TCP
+          env:
+            - name: HOME
+              value: /home/deepspeed
+          envFrom:
+          resources:
+            limits:
+              cpu: 750m
+              ephemeral-storage: 1024Mi
+              memory: 768Mi
+            requests:
+              cpu: 500m
+              ephemeral-storage: 50Mi
+              memory: 512Mi
+          livenessProbe:
+            failureThreshold: 5
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - pgrep
+                - -f
+                - sshd
+          readinessProbe:
+            failureThreshold: 5
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+            tcpSocket:
+              port: tcp-ssh
+          volumeMounts:
+            - name: ssh-server-config
+              mountPath: /etc/ssh/sshd_config.d
+            - name: empty-dir
+              mountPath: /etc/ssh/sshd_config
+              subPath: sshd-conf-dir/sshd_config
+            # As we are disabling host key verification from the client, we can
+            # auto-generate the worker private key
+            - name: empty-dir
+              mountPath: /bitnami/ssh/server-private-key
+              subPath: app-worker-private-key-dir
+            # We need to use /home because of the permission
+            # limitations of sshd
+            - name: empty-dir
+              mountPath: /home
+              subPath: home-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /run
+              subPath: run-dir
+            - name: empty-dir
+              mountPath: /home/deepspeed/.cache
+              subPath: app-cache-dir
+            - name: empty-dir
+              mountPath: /home/deepspeed/.local
+              subPath: app-local-dir
+            - name: source
+              mountPath: /app
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        # Depending on the application, the source needs to be in the worker host
+        - name: source
+          emptyDir: {}
+        # We need the client private key for generating the public key and updating the authorized_keys file
+        - name: ssh-client-private-key
+          secret:
+            secretName: my-release-deepspeed-ssh-key
+        # SSH Server configuration
+        - name: ssh-server-config
+          configMap:
+            name: my-release-deepspeed-ssh-server
+        - name: data
+          emptyDir: {}

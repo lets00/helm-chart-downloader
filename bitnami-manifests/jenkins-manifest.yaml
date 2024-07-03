@@ -1,0 +1,309 @@
+---
+# Source: jenkins/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-jenkins
+  namespace: "jenkins"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/version: 2.452.2
+    helm.sh/chart: jenkins-13.4.6
+    app.kubernetes.io/component: jenkins-controller
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: jenkins
+      app.kubernetes.io/component: jenkins-controller
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 8080
+        - port: 8443
+---
+# Source: jenkins/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-jenkins
+  namespace: "jenkins"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/version: 2.452.2
+    helm.sh/chart: jenkins-13.4.6
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: jenkins
+---
+# Source: jenkins/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-jenkins
+  namespace: "jenkins"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/version: 2.452.2
+    helm.sh/chart: jenkins-13.4.6
+automountServiceAccountToken: false
+---
+# Source: jenkins/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-jenkins
+  namespace: "jenkins"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/version: 2.452.2
+    helm.sh/chart: jenkins-13.4.6
+type: Opaque
+data:
+  jenkins-password: "VktZVk5tVmt1bQ=="
+---
+# Source: jenkins/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-jenkins
+  namespace: "jenkins"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/version: 2.452.2
+    helm.sh/chart: jenkins-13.4.6
+  annotations:
+    volume.alpha.kubernetes.io/storage-class: default
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: jenkins/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-jenkins
+  namespace: "jenkins"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/version: 2.452.2
+    helm.sh/chart: jenkins-13.4.6
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-jenkins
+subjects:
+  - kind: ServiceAccount
+    name: my-release-jenkins
+    namespace: "jenkins"
+---
+# Source: jenkins/templates/controller-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jenkins
+  namespace: "jenkins"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/version: 2.452.2
+    helm.sh/chart: jenkins-13.4.6
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: "Cluster"
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/component: jenkins-controller
+---
+# Source: jenkins/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-jenkins
+  namespace: "jenkins"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/version: 2.452.2
+    helm.sh/chart: jenkins-13.4.6
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: jenkins
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: jenkins
+        app.kubernetes.io/version: 2.452.2
+        helm.sh/chart: jenkins-13.4.6
+        app.kubernetes.io/component: jenkins-controller
+      annotations:
+        checksum/secrets: 9400bd9020c98e97eb09b75e2d44876933f7168230b23e08861ec9e1d307cc1a
+    spec:
+      serviceAccountName: my-release-jenkins
+      
+      automountServiceAccountToken: true
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: jenkins
+                    app.kubernetes.io/component: jenkins-controller
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      containers:
+        - name: jenkins
+          image: docker.io/bitnami/jenkins:2.452.2-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: JENKINS_USERNAME
+              value: "user"
+            - name: JENKINS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jenkins
+                  key: jenkins-password
+            - name: JENKINS_HOME
+              value: "/bitnami/jenkins/home"
+            - name: JENKINS_SKIP_BOOTSTRAP
+              value: "no"
+            - name: JENKINS_HOST
+              value: ""
+            - name: JENKINS_EXTERNAL_HTTP_PORT_NUMBER
+              value: "80"
+            - name: JENKINS_EXTERNAL_HTTPS_PORT_NUMBER
+              value: "443"
+            - name: JENKINS_PLUGINS_LATEST
+              value: "true"
+            - name: JENKINS_PLUGINS_LATEST_SPECIFIED
+              value: "false"
+            - name: JENKINS_SKIP_IMAGE_PLUGINS
+              value: "false"
+            - name: JENKINS_OVERRIDE_PLUGINS
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            limits:
+              cpu: 750m
+              ephemeral-storage: 1024Mi
+              memory: 1536Mi
+            requests:
+              cpu: 500m
+              ephemeral-storage: 50Mi
+              memory: 1024Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/jenkins/plugins
+              subPath: app-plugins-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/jenkins/tmp
+              subPath: app-tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/jenkins/logs
+              subPath: app-logs-dir
+            - name: jenkins-data
+              mountPath: /bitnami/jenkins
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: jenkins-data
+          persistentVolumeClaim:
+            claimName: my-release-jenkins

@@ -1,0 +1,980 @@
+---
+# Source: redmine/charts/mariadb/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-mariadb
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/version: 11.3.2
+      helm.sh/chart: mariadb-18.2.3
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 3306
+        - port: 3306
+---
+# Source: redmine/charts/postgresql/templates/primary/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-postgresql
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.6
+    app.kubernetes.io/component: primary
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 5432
+---
+# Source: redmine/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-redmine
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redmine
+    app.kubernetes.io/version: 5.1.3
+    helm.sh/chart: redmine-28.2.6
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redmine
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 3000
+        - port:
+---
+# Source: redmine/charts/mariadb/templates/primary/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-mariadb
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/component: primary
+---
+# Source: redmine/charts/postgresql/templates/primary/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-postgresql
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.6
+    app.kubernetes.io/component: primary
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+---
+# Source: redmine/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-redmine
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redmine
+    app.kubernetes.io/version: 5.1.3
+    helm.sh/chart: redmine-28.2.6
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redmine
+      app.kubernetes.io/component: redmine
+---
+# Source: redmine/charts/mariadb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mariadb
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+automountServiceAccountToken: false
+---
+# Source: redmine/charts/postgresql/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-postgresql
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.6
+automountServiceAccountToken: false
+---
+# Source: redmine/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-redmine
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redmine
+    app.kubernetes.io/version: 5.1.3
+    helm.sh/chart: redmine-28.2.6
+    app.kubernetes.io/component: redmine
+automountServiceAccountToken: false
+---
+# Source: redmine/charts/mariadb/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mariadb
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+type: Opaque
+data:
+  mariadb-root-password: "WUl3UkFJUkRlWA=="
+  mariadb-password: "WUNTaW5QM0tPUQ=="
+---
+# Source: redmine/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.6
+type: Opaque
+data:
+  postgres-password: "VTlyeXQ3REppSw=="
+  password: "U1NkeWZWVmZIQQ=="
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: redmine/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-redmine
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redmine
+    app.kubernetes.io/version: 5.1.3
+    helm.sh/chart: redmine-28.2.6
+    app.kubernetes.io/component: redmine
+type: Opaque
+data:
+  redmine-password: "WXNRaTNwS01zdw=="
+  smtp-password: ""
+---
+# Source: redmine/charts/mariadb/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mariadb
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+data:
+  my.cnf: |-
+    [mysqld]
+    skip-name-resolve
+    explicit_defaults_for_timestamp
+    basedir=/opt/bitnami/mariadb
+    datadir=/bitnami/mariadb/data
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    tmpdir=/opt/bitnami/mariadb/tmp
+    max_allowed_packet=16M
+    bind-address=*
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+    log-error=/opt/bitnami/mariadb/logs/mysqld.log
+    character-set-server=UTF8
+    collation-server=utf8_general_ci
+    slow_query_log=0
+    long_query_time=10.0
+    
+    [client]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    default-character-set=UTF8
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    
+    [manager]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+---
+# Source: redmine/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-redmine
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redmine
+    app.kubernetes.io/version: 5.1.3
+    helm.sh/chart: redmine-28.2.6
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: redmine/charts/mariadb/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mariadb
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: mysql
+      port: 3306
+      protocol: TCP
+      targetPort: mysql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/component: primary
+---
+# Source: redmine/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-hl
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.6
+    app.kubernetes.io/component: primary
+  annotations:
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary
+---
+# Source: redmine/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.6
+    app.kubernetes.io/component: primary
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary
+---
+# Source: redmine/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redmine
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redmine
+    app.kubernetes.io/version: 5.1.3
+    helm.sh/chart: redmine-28.2.6
+    app.kubernetes.io/component: redmine
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: "Cluster"
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: redmine
+    app.kubernetes.io/component: redmine
+---
+# Source: redmine/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-redmine
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redmine
+    app.kubernetes.io/version: 5.1.3
+    helm.sh/chart: redmine-28.2.6
+    app.kubernetes.io/component: redmine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redmine
+      app.kubernetes.io/component: redmine
+  strategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: redmine
+        app.kubernetes.io/version: 5.1.3
+        helm.sh/chart: redmine-28.2.6
+        app.kubernetes.io/component: redmine
+    spec:
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: redmine
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      serviceAccountName: my-release-redmine
+      securityContext:
+        fsGroup: 0
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:        
+      containers:
+        - name: my-release-redmine
+          image: docker.io/bitnami/redmine:5.1.3-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+              - CHOWN
+              - SYS_CHROOT
+              - FOWNER
+              - SETGID
+              - SETUID
+              - DAC_OVERRIDE
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsGroup: 0
+            runAsNonRoot: false
+            runAsUser: 0
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "no"
+            - name: REDMINE_DATABASE_TYPE
+              value: "mariadb"
+            - name: REDMINE_DATABASE_HOST
+              value: "my-release-mariadb"
+            - name: REDMINE_DATABASE_NAME
+              value: "my_database"
+            - name: REDMINE_DATABASE_USER
+              value: "bn_redmine"
+            - name: REDMINE_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: REDMINE_DATABASE_PORT_NUMBER
+              value: "3306"
+            - name: REDMINE_USERNAME
+              value: "user"
+            - name: REDMINE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-redmine
+                  key: redmine-password
+            - name: REDMINE_EMAIL
+              value: "user@example.com"
+            - name: REDMINE_LANG
+              value: "en"
+          envFrom:
+          ports:
+            - name: http
+              containerPort: 3000
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 300
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            tcpSocket:
+              port: http
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /
+              port: http
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          volumeMounts:            
+            - name: redmine-data
+              mountPath: /bitnami/redmine
+      volumes:        
+        - name: redmine-data
+          persistentVolumeClaim:
+            claimName: my-release-redmine
+---
+# Source: redmine/charts/mariadb/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-mariadb
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/component: primary
+  serviceName: my-release-mariadb
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configuration: fade34932795cc0e001e95dde90d845c89d75a9eb9bd886a18cd85888bd728de
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: mariadb
+        app.kubernetes.io/version: 11.3.2
+        helm.sh/chart: mariadb-18.2.3
+        app.kubernetes.io/component: primary
+    spec:
+      
+      automountServiceAccountToken: false
+      serviceAccountName: my-release-mariadb
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: mariadb
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+        - name: preserve-logs-symlinks
+          image: docker.io/bitnami/mariadb:11.3.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+
+              . /opt/bitnami/scripts/libfs.sh
+              # We copy the logs folder because it has symlinks to stdout and stderr
+              if ! is_dir_empty /opt/bitnami/mariadb/logs; then
+                cp -r /opt/bitnami/mariadb/logs /emptydir/app-logs-dir
+              fi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /emptydir
+      containers:
+        - name: mariadb
+          image: docker.io/bitnami/mariadb:11.3.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-root-password
+            - name: MARIADB_USER
+              value: "bn_redmine"
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: MARIADB_DATABASE
+              value: "my_database"
+          ports:
+            - name: mysql
+              containerPort: 3306
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin ping -uroot -p"${password_aux}"
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mariadb
+            - name: config
+              mountPath: /opt/bitnami/mariadb/conf/my.cnf
+              subPath: my.cnf
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/tmp
+              subPath: app-tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/logs
+              subPath: app-logs-dir
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: my-release-mariadb
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: mariadb
+          app.kubernetes.io/component: primary
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: redmine/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  namespace: "redmine"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.6
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  serviceName: my-release-postgresql-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: postgresql
+        app.kubernetes.io/version: 16.3.0
+        helm.sh/chart: postgresql-15.5.6
+        app.kubernetes.io/component: primary
+    spec:
+      serviceAccountName: my-release-postgresql
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      hostNetwork: false
+      hostIPC: false
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:16.3.0-debian-12-r14
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "bn_redmine"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: password
+            - name: POSTGRES_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgres-password
+            - name: POSTGRES_DATABASE
+              value: "bitnami_redmine"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "bn_redmine" -d "dbname=bitnami_redmine" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "bn_redmine" -d "dbname=bitnami_redmine" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/postgresql/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/postgresql/tmp
+              subPath: app-tmp-dir
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"

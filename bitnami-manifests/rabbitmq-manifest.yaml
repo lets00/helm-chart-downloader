@@ -1,0 +1,473 @@
+---
+# Source: rabbitmq/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-rabbitmq
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: rabbitmq
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # Allow inbound connections to RabbitMQ
+    - ports:
+        - port: 4369
+        - port: 5672
+        - port: 5671
+        - port: 25672
+        - port: 15672
+---
+# Source: rabbitmq/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-rabbitmq
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: rabbitmq
+---
+# Source: rabbitmq/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-rabbitmq
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+automountServiceAccountToken: false
+secrets:
+  - name: my-release-rabbitmq
+---
+# Source: rabbitmq/templates/config-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-rabbitmq-config
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+type: Opaque
+data:
+  rabbitmq.conf: |-
+    IyMgVXNlcm5hbWUgYW5kIHBhc3N3b3JkCmRlZmF1bHRfdXNlciA9IHVzZXIKIyMgQ2x1c3RlcmluZwojIwpjbHVzdGVyX25hbWUgPSBteS1yZWxlYXNlLXJhYmJpdG1xCmNsdXN0ZXJfZm9ybWF0aW9uLnBlZXJfZGlzY292ZXJ5X2JhY2tlbmQgID0gcmFiYml0X3BlZXJfZGlzY292ZXJ5X2s4cwpjbHVzdGVyX2Zvcm1hdGlvbi5rOHMuaG9zdCA9IGt1YmVybmV0ZXMuZGVmYXVsdApjbHVzdGVyX2Zvcm1hdGlvbi5rOHMuYWRkcmVzc190eXBlID0gaG9zdG5hbWUKY2x1c3Rlcl9mb3JtYXRpb24uazhzLnNlcnZpY2VfbmFtZSA9IG15LXJlbGVhc2UtcmFiYml0bXEtaGVhZGxlc3MKY2x1c3Rlcl9mb3JtYXRpb24uazhzLmhvc3RuYW1lX3N1ZmZpeCA9IC5teS1yZWxlYXNlLXJhYmJpdG1xLWhlYWRsZXNzLnJhYmJpdG1xLnN2Yy5jbHVzdGVyLmxvY2FsCmNsdXN0ZXJfZm9ybWF0aW9uLm5vZGVfY2xlYW51cC5pbnRlcnZhbCA9IDEwCmNsdXN0ZXJfZm9ybWF0aW9uLm5vZGVfY2xlYW51cC5vbmx5X2xvZ193YXJuaW5nID0gdHJ1ZQpjbHVzdGVyX3BhcnRpdGlvbl9oYW5kbGluZyA9IGF1dG9oZWFsCgojIHF1ZXVlIG1hc3RlciBsb2NhdG9yCnF1ZXVlX21hc3Rlcl9sb2NhdG9yID0gbWluLW1hc3RlcnMKIyBlbmFibGUgbG9vcGJhY2sgdXNlcgpsb29wYmFja191c2Vycy51c2VyID0gZmFsc2UKI2RlZmF1bHRfdmhvc3QgPSByYWJiaXRtcS12aG9zdAojZGlza19mcmVlX2xpbWl0LmFic29sdXRlID0gNTBNQgojIyBQcm9tZXRoZXVzIG1ldHJpY3MKIyMKcHJvbWV0aGV1cy50Y3AucG9ydCA9IDk0MTk=
+---
+# Source: rabbitmq/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-rabbitmq
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+type: Opaque
+data:
+  rabbitmq-password: "azU0WEo2cnZWcWxNOU1URw=="
+  rabbitmq-erlang-cookie: "ZnNCb2xORzZuUllQbzlCY1lqcUxrdFJVbVk1MTRNREw="
+---
+# Source: rabbitmq/templates/role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-rabbitmq-endpoint-reader
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
+---
+# Source: rabbitmq/templates/rolebinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-rabbitmq-endpoint-reader
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+subjects:
+  - kind: ServiceAccount
+    name: my-release-rabbitmq
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-rabbitmq-endpoint-reader
+---
+# Source: rabbitmq/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-rabbitmq-headless
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+spec:
+  clusterIP: None
+  ports:
+    - name: epmd
+      port: 4369
+      targetPort: epmd
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+    - name: dist
+      port: 25672
+      targetPort: dist
+    - name: http-stats
+      port: 15672
+      targetPort: stats
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: rabbitmq
+  publishNotReadyAddresses: true
+---
+# Source: rabbitmq/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-rabbitmq
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+      nodePort: null
+    - name: epmd
+      port: 4369
+      targetPort: epmd
+      nodePort: null
+    - name: dist
+      port: 25672
+      targetPort: dist
+      nodePort: null
+    - name: http-stats
+      port: 15672
+      targetPort: stats
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: rabbitmq
+---
+# Source: rabbitmq/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-rabbitmq
+  namespace: "rabbitmq"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/version: 3.13.3
+    helm.sh/chart: rabbitmq-14.4.4
+spec:
+  serviceName: my-release-rabbitmq-headless
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: rabbitmq
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: rabbitmq
+        app.kubernetes.io/version: 3.13.3
+        helm.sh/chart: rabbitmq-14.4.4
+      annotations:
+        checksum/config: 713da27c80f139239f0fdf51e972de176b9e7bc81b01a2a63418d95a3a24294f
+        checksum/secret: 8cb99b442e6aae85c833aec7f4d401f42fbddcfc0eb75f0623c6686c95a428f1
+    spec:
+      
+      serviceAccountName: my-release-rabbitmq
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: rabbitmq
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      terminationGracePeriodSeconds: 120
+      enableServiceLinks: true
+      initContainers:
+        - name: prepare-plugins-dir
+          image: docker.io/bitnami/rabbitmq:3.13.3-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: null
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+
+              . /opt/bitnami/scripts/liblog.sh
+
+              info "Copying plugins dir to empty dir"
+              # In order to not break the possibility of installing custom plugins, we need
+              # to make the plugins directory writable, so we need to copy it to an empty dir volume
+              cp -r --preserve=mode /opt/bitnami/rabbitmq/plugins/ /emptydir/app-plugins-dir
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /emptydir
+      containers:
+        - name: rabbitmq
+          image: docker.io/bitnami/rabbitmq:3.13.3-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: null
+            seccompProfile:
+              type: RuntimeDefault
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - |
+                    if [[ -f /opt/bitnami/scripts/rabbitmq/nodeshutdown.sh ]]; then
+                        /opt/bitnami/scripts/rabbitmq/nodeshutdown.sh -t "120" -d "false"
+                    else
+                        rabbitmqctl stop_app
+                    fi
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RABBITMQ_FORCE_BOOT
+              value: "no"
+            - name: RABBITMQ_NODE_NAME
+              value: "rabbit@$(MY_POD_NAME).my-release-rabbitmq-headless.$(MY_POD_NAMESPACE).svc.cluster.local"
+            - name: RABBITMQ_MNESIA_DIR
+              value: "/opt/bitnami/rabbitmq/.rabbitmq/mnesia/$(RABBITMQ_NODE_NAME)"
+            - name: RABBITMQ_LDAP_ENABLE
+              value: "no"
+            - name: RABBITMQ_LOGS
+              value: "-"
+            - name: RABBITMQ_ULIMIT_NOFILES
+              value: "65535"
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+            - name: RABBITMQ_ERL_COOKIE
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-rabbitmq
+                  key: rabbitmq-erlang-cookie
+            - name: RABBITMQ_LOAD_DEFINITIONS
+              value: "no"
+            - name: RABBITMQ_DEFINITIONS_FILE
+              value: "/app/load_definition.json"
+            - name: RABBITMQ_SECURE_PASSWORD
+              value: "yes"
+            - name: RABBITMQ_USERNAME
+              value: "user"
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-rabbitmq
+                  key: rabbitmq-password
+            - name: RABBITMQ_PLUGINS
+              value: "rabbitmq_management, rabbitmq_peer_discovery_k8s, rabbitmq_auth_backend_ldap"
+          envFrom:
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: dist
+              containerPort: 25672
+            - name: stats
+              containerPort: 15672
+            - name: epmd
+              containerPort: 4369
+            - name: metrics
+              containerPort: 9419
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 20
+            exec:
+              command:
+                - sh
+                - -ec
+                - curl -f --user user:$RABBITMQ_PASSWORD 127.0.0.1:15672/api/health/checks/virtual-hosts
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 20
+            exec:
+              command:
+                - sh
+                - -ec
+                - curl -f --user user:$RABBITMQ_PASSWORD 127.0.0.1:15672/api/health/checks/local-alarms
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          volumeMounts:
+            - name: configuration
+              mountPath: /bitnami/rabbitmq/conf
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/rabbitmq/etc/rabbitmq
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/rabbitmq/var/lib/rabbitmq
+              subPath: app-tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/rabbitmq/.rabbitmq/
+              subPath: app-erlang-cookie
+            - name: empty-dir
+              mountPath: /opt/bitnami/rabbitmq/var/log/rabbitmq
+              subPath: app-logs-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/rabbitmq/plugins
+              subPath: app-plugins-dir
+            - name: data
+              mountPath: /opt/bitnami/rabbitmq/.rabbitmq/mnesia
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: configuration
+          projected:
+            sources:
+              - secret:
+                  name: my-release-rabbitmq-config
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+        labels:
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: rabbitmq
+      spec:
+        accessModes:
+            - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"

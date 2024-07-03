@@ -1,0 +1,288 @@
+---
+# Source: logstash/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-logstash
+  namespace: "logstash"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/version: 8.14.1
+    helm.sh/chart: logstash-6.2.8
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: logstash
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 8080
+        - port: 9600
+---
+# Source: logstash/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-logstash
+  namespace: "logstash"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/version: 8.14.1
+    helm.sh/chart: logstash-6.2.8
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: logstash
+---
+# Source: logstash/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-logstash
+  namespace: "logstash"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/version: 8.14.1
+    helm.sh/chart: logstash-6.2.8
+automountServiceAccountToken: false
+---
+# Source: logstash/templates/configuration-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-logstash
+  namespace: "logstash"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/version: 8.14.1
+    helm.sh/chart: logstash-6.2.8
+data:
+  logstash.conf: |-
+    input {
+      # udp {
+      #   port => 1514
+      #   type => syslog
+      # }
+      # tcp {
+      #   port => 1514
+      #   type => syslog
+      # }
+      http { port => 8080 }
+    }
+    output {
+      # elasticsearch {
+      #   hosts => ["${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"]
+      #   manage_template => false
+      #   index => "%{[@metadata][beat]}-%{+YYYY.MM.dd}"
+      # }
+      # gelf {
+      #   host => "${GRAYLOG_HOST}"
+      #   port => ${GRAYLOG_PORT}
+      # }
+      stdout {}
+    }
+---
+# Source: logstash/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-logstash-headless
+  namespace: "logstash"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/version: 8.14.1
+    helm.sh/chart: logstash-6.2.8
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    -
+      name: http
+      port: 8080
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: logstash
+---
+# Source: logstash/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-logstash
+  namespace: "logstash"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/version: 8.14.1
+    helm.sh/chart: logstash-6.2.8
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: logstash
+---
+# Source: logstash/templates/sts.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-logstash
+  namespace: "logstash"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/version: 8.14.1
+    helm.sh/chart: logstash-6.2.8
+spec:
+  serviceName: my-release-logstash-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: logstash
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: logstash
+        app.kubernetes.io/version: 8.14.1
+        helm.sh/chart: logstash-6.2.8
+      annotations:
+        checksum/configuration: 088e4a9b39f0891b3c81adf52c7d7a5a9ea9239beeb63926908731e75560c9a8
+    spec:
+      
+      serviceAccountName: my-release-logstash
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: logstash
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+      containers:
+        - name: logstash
+          image: docker.io/bitnami/logstash:8.14.1-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: LOGSTASH_CONF_FILENAME
+              value: "logstash.conf"
+            - name: LOGSTASH_ENABLE_MULTIPLE_PIPELINES
+              value: "false"
+            - name: LOGSTASH_EXPOSE_API
+              value: "yes"
+            - name: LOGSTASH_API_PORT_NUMBER
+              value: "9600"
+          envFrom:
+          ports: 
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 9600
+              name: monitoring
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            tcpSocket:
+              port: monitoring
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /
+              port: monitoring
+          resources:
+            limits:
+              cpu: 750m
+              ephemeral-storage: 1024Mi
+              memory: 768Mi
+            requests:
+              cpu: 500m
+              ephemeral-storage: 50Mi
+              memory: 512Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/logstash/config
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/logstash/pipeline
+              subPath: app-pipeline-dir
+            - name: data
+              mountPath: /bitnami/logstash/data
+            - name: configurations
+              mountPath: /bitnami/logstash/config
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: configurations
+          configMap:
+            name: my-release-logstash
+        - name: data
+          emptyDir: {}

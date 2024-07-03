@@ -1,0 +1,1283 @@
+---
+# Source: seaweedfs/charts/mariadb/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-mariadb
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/version: 11.3.2
+      helm.sh/chart: mariadb-18.2.3
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 3306
+        - port: 3306
+---
+# Source: seaweedfs/templates/filer/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-seaweedfs-filer
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: filer
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: filer
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 8888
+        - port: 18888
+---
+# Source: seaweedfs/templates/master/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-seaweedfs-master
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: master
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: master
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 9333
+        - port: 19333
+---
+# Source: seaweedfs/templates/volume/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-seaweedfs-volume
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: volume
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: volume
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 8080
+        - port: 18080
+---
+# Source: seaweedfs/charts/mariadb/templates/primary/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-mariadb
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/component: primary
+---
+# Source: seaweedfs/templates/filer/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-seaweedfs-filer
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: filer
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: filer
+---
+# Source: seaweedfs/templates/master/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-seaweedfs-master
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: master
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: master
+---
+# Source: seaweedfs/templates/volume/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-seaweedfs-volume
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: volume
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: volume
+---
+# Source: seaweedfs/charts/mariadb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mariadb
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+automountServiceAccountToken: false
+---
+# Source: seaweedfs/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-seaweedfs
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+automountServiceAccountToken: true
+---
+# Source: seaweedfs/charts/mariadb/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mariadb
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+type: Opaque
+data:
+  mariadb-root-password: "c29IMzRSR1pnbQ=="
+  mariadb-password: "WDVEb3NycUhONQ=="
+---
+# Source: seaweedfs/charts/mariadb/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mariadb
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+data:
+  my.cnf: |-
+    [mysqld]
+    skip-name-resolve
+    explicit_defaults_for_timestamp
+    basedir=/opt/bitnami/mariadb
+    datadir=/bitnami/mariadb/data
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    tmpdir=/opt/bitnami/mariadb/tmp
+    max_allowed_packet=16M
+    bind-address=*
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+    log-error=/opt/bitnami/mariadb/logs/mysqld.log
+    character-set-server=UTF8
+    collation-server=utf8_general_ci
+    slow_query_log=0
+    long_query_time=10.0
+    
+    [client]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    default-character-set=UTF8
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    
+    [manager]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+---
+# Source: seaweedfs/charts/mariadb/templates/primary/initialization-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mariadb-init-scripts
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+data:
+  create_table.sql: |
+    USE bitnami_seaweedfs;
+    CREATE TABLE IF NOT EXISTS `filemeta` (
+      `dirhash`   BIGINT NOT NULL       COMMENT 'first 64 bits of MD5 hash value of directory field',
+      `name`      VARCHAR(766) NOT NULL COMMENT 'directory or file name',
+      `directory` TEXT NOT NULL         COMMENT 'full path to parent directory',
+      `meta`      LONGBLOB,
+      PRIMARY KEY (`dirhash`, `name`)
+    ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+---
+# Source: seaweedfs/templates/filer/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-seaweedfs-filer
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: filer
+data:
+  filer.toml: |-
+    [leveldb2]
+    enabled = false
+---
+# Source: seaweedfs/charts/mariadb/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mariadb
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: mysql
+      port: 3306
+      protocol: TCP
+      targetPort: mysql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/component: primary
+---
+# Source: seaweedfs/templates/filer/headless-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-seaweedfs-filer-headless
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: filer
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 8888
+      protocol: TCP
+    - name: grpc
+      port: 18888
+      protocol: TCP
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/component: filer
+---
+# Source: seaweedfs/templates/filer/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-seaweedfs-filer
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: filer
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 8888
+      targetPort: http
+      protocol: TCP
+      nodePort: null
+    - name: grpc
+      port: 18888
+      targetPort: grpc
+      protocol: TCP
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/component: filer
+---
+# Source: seaweedfs/templates/master/headless-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-seaweedfs-master-headless
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 9333
+      protocol: TCP
+    - name: grpc
+      port: 19333
+      protocol: TCP
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/component: master
+---
+# Source: seaweedfs/templates/master/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-seaweedfs-master
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 9333
+      targetPort: http
+      protocol: TCP
+      nodePort: null
+    - name: grpc
+      port: 19333
+      targetPort: grpc
+      protocol: TCP
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/component: master
+---
+# Source: seaweedfs/templates/volume/headless-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-seaweedfs-volume-headless
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: volume
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+    - name: grpc
+      port: 18080
+      protocol: TCP
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/component: volume
+---
+# Source: seaweedfs/templates/volume/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-seaweedfs-volume
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: volume
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+      nodePort: null
+    - name: grpc
+      port: 18080
+      targetPort: grpc
+      protocol: TCP
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/component: volume
+---
+# Source: seaweedfs/charts/mariadb/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-mariadb
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.3
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/component: primary
+  serviceName: my-release-mariadb
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configuration: 06fed796f50086ce789f772f8388d8a426b7268e439d619374e7698fc2ff87bf
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: mariadb
+        app.kubernetes.io/version: 11.3.2
+        helm.sh/chart: mariadb-18.2.3
+        app.kubernetes.io/component: primary
+    spec:
+      
+      automountServiceAccountToken: false
+      serviceAccountName: my-release-mariadb
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: mariadb
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+        - name: preserve-logs-symlinks
+          image: docker.io/bitnami/mariadb:11.3.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+
+              . /opt/bitnami/scripts/libfs.sh
+              # We copy the logs folder because it has symlinks to stdout and stderr
+              if ! is_dir_empty /opt/bitnami/mariadb/logs; then
+                cp -r /opt/bitnami/mariadb/logs /emptydir/app-logs-dir
+              fi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /emptydir
+      containers:
+        - name: mariadb
+          image: docker.io/bitnami/mariadb:11.3.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-root-password
+            - name: MARIADB_USER
+              value: "bn_seaweedfs"
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: MARIADB_DATABASE
+              value: "bitnami_seaweedfs"
+          ports:
+            - name: mysql
+              containerPort: 3306
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin ping -uroot -p"${password_aux}"
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mariadb
+            - name: custom-init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+            - name: config
+              mountPath: /opt/bitnami/mariadb/conf/my.cnf
+              subPath: my.cnf
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/tmp
+              subPath: app-tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/logs
+              subPath: app-logs-dir
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: my-release-mariadb
+        - name: custom-init-scripts
+          configMap:
+            name: my-release-mariadb-init-scripts
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: mariadb
+          app.kubernetes.io/component: primary
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: seaweedfs/templates/filer/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-seaweedfs-filer
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: filer
+spec:
+  replicas: 1
+  podManagementPolicy: "Parallel"
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: filer
+  serviceName: my-release-seaweedfs-filer-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/config: 4e878b4a3d4cf2e20d7ff457c7f4a553dbb1d4e00811d13978f6e783ecf490d3
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: seaweedfs
+        app.kubernetes.io/version: 3.68.0
+        helm.sh/chart: seaweedfs-0.4.2
+        app.kubernetes.io/component: filer
+    spec:
+      
+      serviceAccountName: my-release-seaweedfs
+      automountServiceAccountToken: false
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: seaweedfs
+                    app.kubernetes.io/component: filer
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+        - name: wait-for-db
+          image: docker.io/bitnami/mariadb:11.3.2-debian-12-r6
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+        
+              set -o errexit
+              set -o nounset
+              set -o pipefail
+        
+              . /opt/bitnami/scripts/liblog.sh
+              . /opt/bitnami/scripts/libvalidations.sh
+              . /opt/bitnami/scripts/libmariadb.sh
+              . /opt/bitnami/scripts/mariadb-env.sh
+        
+              info "Waiting for host $DATABASE_HOST"
+              mariadb_is_ready() {
+                  if ! echo "select 1" | mysql_remote_execute "$DATABASE_HOST" "$DATABASE_PORT_NUMBER" "$DATABASE_NAME" "$DATABASE_USER" "$DATABASE_PASSWORD"; then
+                     return 1
+                  fi
+                  return 0
+              }
+              if ! retry_while "mariadb_is_ready"; then
+                  error "Database not ready"
+                  exit 1
+              fi
+              info "Database is ready"
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: DATABASE_HOST
+              value: "my-release-mariadb"
+            - name: DATABASE_PORT_NUMBER
+              value: "3306"
+            - name: DATABASE_NAME
+              value: "bitnami_seaweedfs"
+            - name: DATABASE_USER
+              value: "bn_seaweedfs"
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+      containers:
+        - name: seaweedfs
+          image: docker.io/bitnami/seaweedfs:3.68.0-debian-12-r0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          args:
+            - -logtostderr=true
+            - -v=1
+            - -config_dir=/etc/seaweedfs
+            - filer
+            - -ip.bind=0.0.0.0
+            - -ip=$(POD_NAME).my-release-seaweedfs-filer-headless.$(NAMESPACE).svc.cluster.local
+            - -port=8888
+            - -port.grpc=18888
+            - -master=my-release-seaweedfs-master-0.my-release-seaweedfs-master-headless.$(NAMESPACE).svc.cluster.local:9333
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: WEED_CLUSTER_DEFAULT
+              value: "sw"
+            - name: WEED_MYSQL_ENABLED
+              value: "true"
+            - name: WEED_MYSQL_HOSTNAME
+              value: "my-release-mariadb"
+            - name: WEED_MYSQL_PORT
+              value: "3306"
+            - name: WEED_MYSQL_DATABASE
+              value: "bitnami_seaweedfs"
+            - name: WEED_MYSQL_USERNAME
+              value: "bn_seaweedfs"
+            - name: WEED_MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: WEED_MYSQL_CONNECTION_MAX_IDLE
+              value: "5"
+            - name: WEED_MYSQL_CONNECTION_MAX_OPEN
+              value: "75"
+            - name: WEED_MYSQL_CONNECTION_MAX_LIFETIME_SECONDS
+              value: "600"
+            - name: WEED_MYSQL_INTERPOLATEPARAMS
+              value: "true"
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          ports:
+            - name: http
+              containerPort: 8888
+            - name: grpc
+              containerPort: 18888
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+            tcpSocket:
+              port: http
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: config
+              mountPath: /etc/seaweedfs/filer.toml
+              subPath: filer.toml
+              readOnly: true
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: my-release-seaweedfs-filer
+---
+# Source: seaweedfs/templates/master/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-seaweedfs-master
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  podManagementPolicy: "Parallel"
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: master
+  serviceName: my-release-seaweedfs-master-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: seaweedfs
+        app.kubernetes.io/version: 3.68.0
+        helm.sh/chart: seaweedfs-0.4.2
+        app.kubernetes.io/component: master
+    spec:
+      
+      serviceAccountName: my-release-seaweedfs    
+      automountServiceAccountToken: false
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: seaweedfs
+                    app.kubernetes.io/component: master
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      containers:
+        - name: seaweedfs
+          image: docker.io/bitnami/seaweedfs:3.68.0-debian-12-r0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          args:
+            - -logtostderr=true
+            - -v=1
+            - master
+            - -mdir=/data
+            - -ip.bind=0.0.0.0
+            - -ip=$(POD_NAME).my-release-seaweedfs-master-headless.$(NAMESPACE).svc.cluster.local
+            - -port=9333
+            - -port.grpc=19333
+            - -peers=my-release-seaweedfs-master-0.my-release-seaweedfs-master-headless.$(NAMESPACE).svc.cluster.local:9333
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: WEED_CLUSTER_DEFAULT
+              value: "sw"
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          ports:
+            - name: http
+              containerPort: 9333
+            - name: grpc
+              containerPort: 19333
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+            tcpSocket:
+              port: http
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+            httpGet:
+              path: /cluster/status
+              port: http
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: seaweedfs/templates/volume/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-seaweedfs-volume
+  namespace: "seaweedfs"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/version: 3.68.0
+    helm.sh/chart: seaweedfs-0.4.2
+    app.kubernetes.io/component: volume
+spec:
+  replicas: 1
+  podManagementPolicy: "Parallel"
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/component: volume
+  serviceName: my-release-seaweedfs-volume-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: seaweedfs
+        app.kubernetes.io/version: 3.68.0
+        helm.sh/chart: seaweedfs-0.4.2
+        app.kubernetes.io/component: volume
+    spec:
+      
+      serviceAccountName: my-release-seaweedfs    
+      automountServiceAccountToken: false
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: seaweedfs
+                    app.kubernetes.io/component: volume
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      containers:
+        - name: seaweedfs
+          image: docker.io/bitnami/seaweedfs:3.68.0-debian-12-r0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          args:
+            - -logtostderr=true
+            - -v=1
+            - volume
+            - -dir=/data-0
+            - -ip.bind=0.0.0.0
+            - -ip=$(POD_NAME).my-release-seaweedfs-volume-headless.$(NAMESPACE).svc.cluster.local
+            - -port=8080
+            - -port.grpc=18080
+            - -port.public=8080
+            - -publicUrl=127.0.0.1:8080
+            - -mserver=my-release-seaweedfs-master-0.my-release-seaweedfs-master-headless.$(NAMESPACE).svc.cluster.local:9333
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: WEED_CLUSTER_DEFAULT
+              value: "sw"
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc
+              containerPort: 18080
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+            tcpSocket:
+              port: http
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+            httpGet:
+              path: /status
+              port: http
+          volumeMounts:
+            - name: data-0
+              mountPath: /data-0
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data-0
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
