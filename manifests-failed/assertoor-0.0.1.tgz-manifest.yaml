@@ -1,0 +1,195 @@
+---
+# Source: assertoor/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-assertoor
+  labels:
+    helm.sh/chart: assertoor-0.0.1
+    app.kubernetes.io/name: assertoor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: assertoor-0.0.1.tgz
+---
+# Source: assertoor/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-assertoor-ranges
+  labels:
+    helm.sh/chart: assertoor-0.0.1
+    app.kubernetes.io/name: assertoor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  ranges.yaml: |
+    0-1: test
+---
+# Source: assertoor/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-assertoor-config
+  labels:
+    helm.sh/chart: assertoor-0.0.1
+    app.kubernetes.io/name: assertoor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  assertoor-config.yaml: |
+    web:
+      server:
+        host: "0.0.0.0"
+        port: 8080
+      frontend:
+        enabled: true
+      api:
+        enabled: true
+    
+    # Endpoints
+    endpoints:
+      - executionUrl: "http://execution-node:8545"
+        consensusUrl: "http://beacon-node:5052"
+        name: "default-endpoint"
+        consensusHeaders:
+          "X-Test": "test"
+          "Y-Test": "test2"
+        executionHeaders:
+          "X-Test": "test"
+          "Y-Test": "test2"
+    
+    # Validator names
+    validatorNames:
+      inventoryYaml: "/data/ranges.yaml"
+      inventoryUrl: ""
+    
+    globalVars:
+      null
+    
+    # Test definitions
+    externalTests:
+---
+# Source: assertoor/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-assertoor
+  labels:
+    helm.sh/chart: assertoor-0.0.1
+    app.kubernetes.io/name: assertoor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: assertoor
+    app.kubernetes.io/instance: my-release
+---
+# Source: assertoor/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-assertoor
+  labels:
+    helm.sh/chart: assertoor-0.0.1
+    app.kubernetes.io/name: assertoor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: assertoor
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: assertoor
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: bf8b2afd403bccde759ddd5031902d38e37735e3c5a89a18b2296bcd4f250ec9
+    spec:
+      serviceAccountName: my-release-assertoor
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+        - name: assertoor
+          image: "ethpandaops/assertoor:latest"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config=/data/assertoor-config.yaml
+          securityContext:
+            {}
+          volumeMounts:
+            - name: config
+              mountPath: "/data/assertoor-config.yaml"
+              subPath: assertoor-config.yaml
+              readOnly: true
+            - name: ranges
+              mountPath: "/data/ranges.yaml"
+              subPath: ranges.yaml
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {}
+          env:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-assertoor-config
+        - name: ranges
+          configMap:
+            name: my-release-assertoor-ranges
+---
+# Source: assertoor/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-assertoor-test-connection"
+  labels:
+    helm.sh/chart: assertoor-0.0.1
+    app.kubernetes.io/name: assertoor
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl
+      command: ['curl']
+      args:
+       - --location
+       - --request
+       - GET
+       - 'my-release-assertoor:8080/'
+  restartPolicy: Never

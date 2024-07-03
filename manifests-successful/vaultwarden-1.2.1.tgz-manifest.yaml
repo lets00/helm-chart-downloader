@@ -1,0 +1,120 @@
+---
+# Source: vaultwarden/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-vaultwarden
+  labels:
+    helm.sh/chart: vaultwarden-1.2.1
+    app.kubernetes.io/name: vaultwarden
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.30.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: vaultwarden
+    app.kubernetes.io/instance: my-release
+---
+# Source: vaultwarden/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-vaultwarden
+  labels:
+    helm.sh/chart: vaultwarden-1.2.1
+    app.kubernetes.io/name: vaultwarden
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.30.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vaultwarden
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vaultwarden
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 65534
+      containers:
+        - name: vaultwarden
+          securityContext:
+            runAsGroup: 65534
+            runAsUser: 65534
+          image: "vaultwarden/server:1.30.5"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ROCKET_PORT
+              value: "8080"
+            - name: SIGNUPS_ALLOWED
+              value: "true"
+            - name: SIGNUPS_VERIFY
+              value: "false"
+            - name: REQUIRE_DEVICE_EMAIL
+              value: "false"
+            - name: INVITATIONS_ALLOWED
+              value: "true"
+            - name: SHOW_PASSWORD_HINT
+              value: "false"
+            - name: WEB_VAULT_ENABLED
+              value: "true"
+            - name: SENDS_ALLOWED
+              value: "true"
+            - name: ORG_CREATION_USERS
+              value: "all"
+            - name: ENABLE_DB_WAL
+              value: "true"
+            - name: EMERGENCY_ACCESS_ALLOWED
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+          - name: my-release-vaultwarden
+            mountPath: /data
+          resources:
+            {}
+      volumes:
+      - name: my-release-vaultwarden
+        emptyDir: {}
+---
+# Source: vaultwarden/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-vaultwarden-test-connection"
+  labels:
+    helm.sh/chart: vaultwarden-1.2.1
+    app.kubernetes.io/name: vaultwarden
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.30.5"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-vaultwarden:80']
+  restartPolicy: Never

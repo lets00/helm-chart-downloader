@@ -1,0 +1,316 @@
+---
+# Source: holoinsight-agent/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: holoinsight-agent-secret
+  namespace: holoinsight-agent-0.2.5.tgz
+  labels:        
+        helm.sh/chart: holoinsight-agent-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+stringData:
+  apikey: default
+---
+# Source: holoinsight-agent/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: holoinsight-agent-cm
+  namespace: holoinsight-agent-0.2.5.tgz
+  labels:        
+        helm.sh/chart: holoinsight-agent-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+data:
+  registryAddr: registry.holoinsight-server:7202
+  gatewayAddr: gateway.holoinsight-server:19610
+  grpcSecure: "false"
+  workspace: "default"
+  cluster: "default"
+  daemonagent_agent.yaml:    ""
+  centralagent_agent.yaml:    ""
+---
+# Source: holoinsight-agent/templates/clusterroles.yaml
+apiVersion: "rbac.authorization.k8s.io/v1"
+kind: ClusterRole
+metadata:
+  labels: { }
+  name: holoinsight-agent-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - nodes
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Source: holoinsight-agent/templates/clusterrolebindings.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: holoinsight-agent-clusterrolebinding
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: holoinsight-agent-0.2.5.tgz
+roleRef:
+  kind: ClusterRole
+  name: holoinsight-agent-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: holoinsight-agent/templates/cadvisor.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cadvisor
+  namespace: holoinsight-agent-0.2.5.tgz
+  annotations:
+    seccomp.security.alpha.kubernetes.io/pod: 'docker/default'
+spec:
+  selector:
+    matchLabels:
+      app: cadvisor
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: cadvisor
+        app.kubernetes.io/name: cadvisor        
+        helm.sh/chart: holoinsight-agent-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+    spec:
+      containers:
+      - name: cadvisor
+        image: registry.cn-shanghai.aliyuncs.com/holoinsight/cadvisor:v0.44.0
+        args:
+        - --allow_dynamic_housekeeping=false
+        #- --global_housekeeping_interval=1m0s
+        - --housekeeping_interval=5s                           # kubernetes default args
+        - --max_housekeeping_interval=5s
+        #- --max_procs=0
+        - --storage_duration=2m
+        #        - --event_storage_event_limit=default=0
+        #        - --event_storage_age_limit=default=0
+        #- --enable_metrics=cpu,memory,network,disk,diskIO,tcp,cpuLoad,app,process,advtcp
+        - --enable_metrics=cpu,memory,network,tcp,disk,diskIO,cpuLoad
+        - --enable_load_reader=true
+        #- --enable_metrics=app,cpu,disk,diskIO,memory,network,process
+        # disable docker_only, We need pod cgroup stats
+        #- --docker_only
+        - --store_container_labels=false
+        #- --whitelisted_container_labels=io.kubernetes.container.name,io.kubernetes.pod.name,io.kubernetes.pod.namespace
+
+        
+        resources:
+          limits:
+            cpu: "0.25"
+            memory: 256Mi
+          requests:
+            cpu: "0"
+            memory: "0"
+
+        volumeMounts:
+        - name: rootfs
+          mountPath: /rootfs
+          readOnly: true
+        - name: var-run
+          mountPath: /var/run
+          readOnly: true
+        - name: sys
+          mountPath: /sys
+          readOnly: true
+        - name: docker
+          mountPath: /var/lib/docker
+          readOnly: true
+        - name: disk
+          mountPath: /dev/disk
+          readOnly: true
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: rootfs
+        hostPath:
+          path: /
+      - name: var-run
+        hostPath:
+          path: /var/run
+      - name: sys
+        hostPath:
+          path: /sys
+      - name: docker
+        hostPath:
+          path: /var/lib/docker
+      - name: disk
+        hostPath:
+          path: /dev/disk
+---
+# Source: holoinsight-agent/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: daemonagent
+  namespace: holoinsight-agent-0.2.5.tgz
+spec:
+  selector:
+    matchLabels:
+      app: daemonagent
+  minReadySeconds: 10
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: daemonagent
+        app.kubernetes.io/name: daemonagent        
+        helm.sh/chart: holoinsight-agent-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+        hi_common_version: "0"
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: data
+        hostPath:
+          path: /usr/local/holoinsight/agent/data
+      - name: logs
+        hostPath:
+          path: /usr/local/holoinsight/agent/logs
+      - name: hostfs
+        hostPath:
+          path: /
+      - name: holoinsight-agent-cm
+        configMap:
+          name: holoinsight-agent-cm
+          defaultMode: 0644
+      hostPID: true
+      hostNetwork: false
+      containers:
+      - name: daemonagent        
+        image: holoinsight/agent:latest
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+          procMount: Default
+        env:
+        - name: HI_APP
+          value: daemonagent
+        - name: HI_AGENT_MODE
+          value: "daemonset"
+        - name: HOSTFS
+          value: "/hostfs"        
+        - name: HI_APIKEY
+          valueFrom:
+            secretKeyRef:
+              name: holoinsight-agent-secret
+              key: apikey
+        - name: HI_REGISTRY_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: holoinsight-agent-cm
+              key: registryAddr
+        - name: HI_GATEWAY_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: holoinsight-agent-cm
+              key: gatewayAddr
+        - name: HI_REGISTRY_SECURE
+          valueFrom:
+            configMapKeyRef:
+              name: holoinsight-agent-cm
+              key: grpcSecure
+        - name: HI_GATEWAY_SECURE
+          valueFrom:
+            configMapKeyRef:
+              name: holoinsight-agent-cm
+              key: grpcSecure
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: HI_WORKSPACE
+          valueFrom:
+            configMapKeyRef:
+              name: holoinsight-agent-cm
+              key: workspace
+        - name: HI_CLUSTER
+          valueFrom:
+            configMapKeyRef:
+              name: holoinsight-agent-cm
+              key: cluster
+        - name: USESUPERVISOR
+          value: "true"
+        - name: K8S_RESOURCES_LIMIT_CPU
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: K8S_RESOURCES_LIMIT_MEMORY
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.memory
+        - name: IMAGE
+          value: holoinsight/agent:latest
+
+                
+        readinessProbe:
+          exec:
+            command: [ "curl", "localhost:9117" ]
+
+        volumeMounts:
+        - mountPath: /hostfs
+          name: hostfs
+          mountPropagation: HostToContainer
+        - mountPath: /usr/local/holoinsight/agent/data
+          name: data
+        - mountPath: /usr/local/holoinsight/agent/logs
+          name: logs
+        - mountPath: /usr/local/holoinsight/agent/agent.yaml
+          name: holoinsight-agent-cm
+          subPath: daemonagent_agent.yaml
+
+        
+        resources:
+          limits:
+            cpu: "0.25"
+            memory: 256Mi
+          requests:
+            cpu: "0"
+            memory: "0"

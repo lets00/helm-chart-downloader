@@ -1,0 +1,96 @@
+---
+# Source: jellyfin/templates/common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/service: my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/version: 10.9.6
+    helm.sh/chart: jellyfin-10.9.6
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8096
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+---
+# Source: jellyfin/templates/common.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/version: 10.9.6
+    helm.sh/chart: jellyfin-10.9.6
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release
+        app.kubernetes.io/instance: my-release
+    spec:
+      
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      containers:
+        - name: my-release
+          image: loeken/jellyfin:10.9.6
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: UTC
+          ports:
+            - name: http
+              containerPort: 8096
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            tcpSocket:
+              port: 8096
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            tcpSocket:
+              port: 8096
+            timeoutSeconds: 1
+          startupProbe:
+            failureThreshold: 30
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            tcpSocket:
+              port: 8096
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: 2
+              memory: 4096Mi
+            requests:
+              cpu: 200m
+              memory: 256Mi

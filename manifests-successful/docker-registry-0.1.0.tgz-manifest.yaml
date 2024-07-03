@@ -1,0 +1,75 @@
+---
+# Source: docker-registry/templates/efs-service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: helm-efs-csi-controller-sa
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: aws-efs-csi-driver
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::578621839246:role/AmazonEKS_EFS_CSI_DriverRole
+---
+# Source: docker-registry/templates/pvdockerregistry.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: helm-efs-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: efs-sc
+  csi:
+    driver: efs.csi.aws.com
+    volumeHandle: fs-364d7fe7
+---
+# Source: docker-registry/templates/pvcdockerregistry.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: helm-efs-claim
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: docker-registry/templates/docker-registry-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: registry
+  name: helm-dockerrepository
+spec:
+  ports:
+  - port: 5000
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    app: registry
+---
+# Source: docker-registry/templates/dockerregistry.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: helm-docker-registry-pod
+  labels:
+    app: registry
+spec:
+  containers:
+  - name: registry
+    image: registry:latest
+    volumeMounts:
+    - name: persistent-storage
+      mountPath: "/var/lib/registry"
+  volumes:
+  - name: persistent-storage
+    persistentVolumeClaim:
+      claimName: efs-claim

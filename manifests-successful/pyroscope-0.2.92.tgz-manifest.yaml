@@ -1,0 +1,121 @@
+---
+# Source: pyroscope/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pyroscope
+  labels:
+    helm.sh/chart: pyroscope-0.2.92
+    app.kubernetes.io/name: pyroscope
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: pyroscope/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-pyroscope
+  labels:
+    helm.sh/chart: pyroscope-0.2.92
+    app.kubernetes.io/name: pyroscope
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    {}
+---
+# Source: pyroscope/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pyroscope
+  labels:
+    helm.sh/chart: pyroscope-0.2.92
+    app.kubernetes.io/name: pyroscope
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4040
+      targetPort: api
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: pyroscope
+    app.kubernetes.io/instance: my-release
+---
+# Source: pyroscope/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pyroscope
+  labels:
+    helm.sh/chart: pyroscope-0.2.92
+    app.kubernetes.io/name: pyroscope
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.37.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pyroscope
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        checksum/config: a549db2d8b04490de8a14d89c57346a428150c904339613d933ac42cc95a13d0
+      labels:
+        app.kubernetes.io/name: pyroscope
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-pyroscope
+      securityContext:
+        fsGroup: 101
+      containers:
+        - name: pyroscope
+          args:
+            - "server"
+            - "-config"
+            - "/tmp/config.yaml"
+          securityContext:
+            {}
+          image: "apecloud/pyroscope:0.37.2"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: api
+              containerPort: 4040
+              protocol: TCP
+          readinessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 4040
+          livenessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 4040
+          resources:
+            {}
+          volumeMounts:
+            - name: config
+              mountPath: /tmp/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-pyroscope

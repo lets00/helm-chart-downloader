@@ -1,0 +1,537 @@
+---
+# Source: hive-metastore/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    helm.sh/chart: hive-metastore-0.1.2
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.0.0
+---
+# Source: hive-metastore/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-10.15.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  namespace: hive-metastore-0.1.2.tgz
+type: Opaque
+data:
+  postgresql-password: "c3AyZGhHTUw5aQ=="
+---
+# Source: hive-metastore/templates/configmaps.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    helm.sh/chart: hive-metastore-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.0.0
+    app.kubernetes.io/managed-by: Helm
+data:
+  metastore-site.xml.template: |-
+    <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+        <property>
+            <name>fs.s3.impl</name>
+            <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+        </property>
+        <property>
+            <name>fs.s3.aws.credentials.provider</name>
+            <value>org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider,com.amazonaws.auth.EnvironmentVariableCredentialsProvider</value>
+        </property>
+        <property>
+            <name>fs.s3.connection.ssl.enabled</name>
+            <value>true</value>
+        </property>
+        <property>
+            <name>fs.s3.path.style.access</name>
+            <value>true</value>
+        </property>
+        <property>
+            <name>fs.s3.access.key</name>
+            <value>$AWS_ACCESS_KEY</value>
+        </property>
+        <property>
+            <name>fs.s3.secret.key</name>
+            <value>$AWS_SECRET_KEY</value>
+        </property>
+        <property>
+            <name>fs.s3a.aws.credentials.provider</name>
+            <value>org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider,com.amazonaws.auth.EnvironmentVariableCredentialsProvider</value>
+        </property>
+        <property>
+            <name>fs.s3a.connection.ssl.enabled</name>
+            <value>true</value>
+        </property>
+        <property>
+            <name>fs.s3a.path.style.access</name>
+            <value>true</value>
+        </property>
+        <property>
+            <name>fs.s3a.access.key</name>
+            <value>$AWS_ACCESS_KEY</value>
+        </property>
+        <property>
+            <name>fs.s3a.secret.key</name>
+            <value>$AWS_SECRET_KEY</value>
+        </property>
+        <property>
+            <name>hive.metastore.event.db.notification.api.auth</name>
+            <value>false</value>
+        </property>
+        <property>
+            <name>metastore.thrift.uris</name>
+            <value>thrift://localhost:9083</value>
+            <description>Thrift URI for the remote metastore. Used by metastore client to connect to remote metastore.</description>
+        </property>
+        <property>
+            <name>metastore.task.threads.always</name>
+            <value>org.apache.hadoop.hive.metastore.events.EventCleanerTask</value>
+        </property>
+        <property>
+            <name>metastore.expression.proxy</name>
+            <value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value>
+        </property>
+        <property>
+            <name>javax.jdo.option.ConnectionDriverName</name>
+            <value>org.postgresql.Driver</value>
+        </property>
+        <property>
+            <name>metastore.warehouse.dir</name>
+            <value>/tmp/warehouse</value>
+        </property>
+        <property>
+            <name>javax.jdo.option.ConnectionURL</name>
+            <value>jdbc:postgresql://:5432/metastore_db</value>
+        </property>
+        <property>
+            <name>javax.jdo.option.ConnectionUserName</name>
+            <value>$REMOTE_METASTORE_USERNAME</value>
+        </property>
+        <property>
+            <name>javax.jdo.option.ConnectionPassword</name>
+            <value>$REMOTE_METASTORE_PASSWORD</value>
+        </property>
+    </configuration>
+---
+# Source: hive-metastore/charts/postgresql/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-headless
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-10.15.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  namespace: hive-metastore-0.1.2.tgz
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+---
+# Source: hive-metastore/charts/postgresql/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-10.15.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+  namespace: hive-metastore-0.1.2.tgz
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    role: primary
+---
+# Source: hive-metastore/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: server
+    helm.sh/chart: hive-metastore-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.0.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9083
+      targetPort: thrift
+      protocol: TCP
+      name: thrift
+  selector:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: server
+    helm.sh/chart: hive-metastore-0.1.2
+---
+# Source: hive-metastore/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: server
+    helm.sh/chart: hive-metastore-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: 3.0.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hive-metastore
+      app.kubernetes.io/component: server
+      helm.sh/chart: hive-metastore-0.1.2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hive-metastore
+        app.kubernetes.io/component: server
+        helm.sh/chart: hive-metastore-0.1.2
+    spec:
+      serviceAccountName: hive-metastore
+      securityContext:
+        null
+      initContainers:
+      - name: init-config
+        image: cirocosta/alpine-envsubst
+        command: ["sh", "-c", "cat /metastore-site.xml.template | envsubst > /conf/metastore-site.xml"]
+        env:
+          - name: REMOTE_METASTORE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: REMOTE_METASTORE_USERNAME
+          - name: REMOTE_METASTORE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: REMOTE_METASTORE_PASSWORD
+          - name: AWS_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: AWS_ACCESS_KEY
+          - name: AWS_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: AWS_SECRET_KEY
+        volumeMounts:
+          - name: config-templates
+            mountPath: /metastore-site.xml.template
+            subPath: metastore-site.xml.template
+          - name: config-dir
+            mountPath: /conf/
+      containers:
+        - name: hive-metastore-server
+          securityContext:
+            {}
+          image: ghcr.io/khwj/data-platform-containers/hive-metastore:3.0.0-hadoop3.3.1
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "/opt/hive-metastore/bin/start-metastore"]
+          ports:
+            - name: thrift
+              containerPort: 9083
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 9083
+          readinessProbe:
+            tcpSocket:
+              port: 9083
+          resources:
+            null
+          volumeMounts:
+            - name: config-dir
+              mountPath: /opt/hive-metastore/conf/
+      volumes:
+        - name: config-templates
+          configMap:
+            name: hive-metastore
+        - name: config-dir
+          emptyDir: {}
+---
+# Source: hive-metastore/charts/postgresql/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-10.15.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+  namespace: hive-metastore-0.1.2.tgz
+spec:
+  serviceName: my-release-postgresql-headless
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: my-release
+      role: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/name: postgresql
+        helm.sh/chart: postgresql-10.15.1
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        role: primary
+        app.kubernetes.io/component: primary
+    spec:      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: primary
+                namespaces:
+                  - "hive-metastore-0.1.2.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      automountServiceAccountToken: false
+      containers:
+        - name: my-release-postgresql
+          image: docker.io/bitnami/postgresql:11.14.0-debian-10-r24
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgresql-password
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "postgres" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "postgres" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+              subPath: 
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: hive-metastore/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-hive-metastore-test-connection"
+  labels:
+    helm.sh/chart: hive-metastore-0.1.2
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-hive-metastore:9083']
+  restartPolicy: Never
+---
+# Source: hive-metastore/templates/init-database-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-init-db
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: init-database-job
+    helm.sh/chart: hive-metastore-0.1.2
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 3.0.0
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "1"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hive-metastore
+        app.kubernetes.io/component: init-database-job
+        helm.sh/chart: hive-metastore-0.1.2
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:          null
+      affinity:
+        null
+      tolerations:
+        null
+      serviceAccountName: hive-metastore
+      initContainers:
+      - name: init-config
+        image: cirocosta/alpine-envsubst
+        command: ["sh", "-c", "cat /metastore-site.xml.template | envsubst > /conf/metastore-site.xml"]
+        env:
+          - name: REMOTE_METASTORE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: REMOTE_METASTORE_USERNAME
+          - name: REMOTE_METASTORE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: REMOTE_METASTORE_PASSWORD
+          - name: AWS_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: AWS_ACCESS_KEY
+          - name: AWS_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: 
+                key: AWS_SECRET_KEY
+        volumeMounts:
+          - name: config-templates
+            mountPath: /metastore-site.xml.template
+            subPath: metastore-site.xml.template
+          - name: config-dir
+            mountPath: /conf
+      containers:
+        - name: run-init-db
+          image: ghcr.io/khwj/data-platform-containers/hive-metastore:3.0.0-hadoop3.3.1
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "/opt/hive-metastore/bin/schematool -dbType postgres -initSchema --verbose"]
+          resources:
+            {}
+          volumeMounts:
+            - name: config-dir
+              mountPath: /opt/hive-metastore/conf
+      volumes:
+        - name: config-templates
+          configMap:
+            name: hive-metastore
+        - name: config-dir
+          emptyDir: {}

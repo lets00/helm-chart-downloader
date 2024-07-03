@@ -1,0 +1,41 @@
+---
+# Source: generic-app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  selector:
+    app: my-release
+  ports:
+  - targetPort: 80
+    port: 80
+---
+# Source: generic-app/templates/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+    spec:
+      containers:
+        - name: my-release
+          imagePullPolicy: Always
+          image: "containous/whoami:latest"
+          ports:
+          - containerPort: 80
+          resources:
+            requests:
+            limits:

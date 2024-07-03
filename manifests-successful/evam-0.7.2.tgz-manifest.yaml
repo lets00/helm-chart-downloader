@@ -1,0 +1,153 @@
+---
+# Source: evam/templates/mqtt-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evam-config-map
+  labels:
+    app: evam
+data:
+  mosquitto.conf: |
+    listener 1883 0.0.0.0
+    allow_anonymous true
+---
+# Source: evam/templates/evam-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-evam-deployment
+  labels:
+    helm.sh/chart: evam-0.7.2
+    app.kubernetes.io/name: evam
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.2"
+    app.kubernetes.io/managed-by: Helm
+
+spec:
+  type: NodePort
+  ports:
+  - name: api-port
+    port: 8080
+    targetPort: 8080
+    nodePort: 30007
+  - name: rtsp-port
+    port: 8554
+    targetPort: 8554
+  selector:
+    app.kubernetes.io/name: evam
+    app.kubernetes.io/instance: my-release
+---
+# Source: evam/templates/mqtt-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqtt-svc
+  labels:
+    app: mqtt
+spec:
+  type: NodePort
+  ports:
+    - port: 1883
+      targetPort: 1883
+      #nodePort: 31020
+      protocol: TCP
+      name: mqtt-port
+  selector:
+    app: mqtt
+---
+# Source: evam/templates/evam-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-evam-deployment
+  labels:
+    helm.sh/chart: evam-0.7.2
+    app.kubernetes.io/name: evam
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: evam
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: evam
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+      - image: "intel/edge_video_analytics_microservice:0.7.2"
+        name: deployment
+        env:
+        - name: ENABLE_RTSP
+          value: "true"
+        - name: RTSP_PORT
+          value: "8554"
+        - name:  RUN_MODE
+          value: "EVA"
+        - name: ENABLE_WEBRTC
+          value: "true"
+        - name: WEBRTC_SIGNALING_SERVER
+          value: "ws://<HOST-IP>:30006"
+        ports:
+        - containerPort: 8080
+          name: api-port
+        - containerPort: 8554
+          name: rtsp-port
+        volumeMounts:
+        - name: evam-models
+          mountPath: /home/pipeline-server/models
+        - name: evam-pipelines
+          mountPath: /home/pipeline-server/pipelines
+        - name: evam-resources
+          mountPath: /home/pipeline-server/resources
+      volumes:
+        - name: evam-models
+          hostPath:
+            path: /opt/intel/evam/models/
+            type: DirectoryOrCreate
+        - name: evam-pipelines
+          hostPath:
+            path: /opt/intel/evam/pipelines/
+            type: DirectoryOrCreate
+        - name: evam-resources
+          hostPath:
+            path: /opt/intel/evam/resources/
+            # this field is optional
+            type: DirectoryOrCreate
+---
+# Source: evam/templates/mqtt-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mqtt-deployment
+  labels:
+    app: mqtt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mqtt
+  template:
+    metadata:
+      labels:
+        app: mqtt
+    spec:
+      containers:
+      - image: "eclipse-mosquitto:1.6"
+        name: mqtt
+        ports:
+        - containerPort: 1883
+          name: mqtt-port
+        volumeMounts:
+        - name: mqtt-config-file
+          mountPath: /mosquitto/config/mosquitto.conf
+          subPath: mosquitto.conf
+      volumes:
+      - name: mqtt-config-file
+        configMap:
+            name: evam-config-map

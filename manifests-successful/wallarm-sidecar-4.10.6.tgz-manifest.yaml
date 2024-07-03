@@ -1,0 +1,911 @@
+---
+# Source: wallarm-sidecar/templates/controller-pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-wallarm-sidecar-controller
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wallarm-sidecar
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: controller
+  maxUnavailable: 1
+---
+# Source: wallarm-sidecar/templates/postanalytics-pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-wallarm-sidecar-postanalytics
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: postanalytics
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wallarm-sidecar
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: postanalytics
+  maxUnavailable: 1
+---
+# Source: wallarm-sidecar/templates/controller-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-wallarm-sidecar-controller
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: controller
+---
+# Source: wallarm-sidecar/templates/postanalytics-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-wallarm-sidecar-postanalytics
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: postanalytics
+---
+# Source: wallarm-sidecar/templates/shared-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-wallarm-sidecar-credentials
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+type: Opaque
+data:
+  WALLARM_API_TOKEN: ""
+  WALLARM_API_HOST: "YXBpLndhbGxhcm0uY29t"
+  WALLARM_API_PORT: "NDQz"
+  WALLARM_API_USE_SSL: "dHJ1ZQ=="
+  WALLARM_API_CA_VERIFY: "dHJ1ZQ=="
+  WALLARM_LABELS: "Z3JvdXA9ZGVmYXVsdFNpZGVjYXJHcm91cA=="
+---
+# Source: wallarm-sidecar/templates/controller-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-wallarm-sidecar-controller
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: controller
+data:
+  config.yaml: |-
+    settings:
+      annotationPrefix: sidecar.wallarm.io
+      injectionStrategy:
+        iptablesEnable: true
+        schema: single
+      nginx:
+        applicationPort: 80
+        healthPath: /health
+        listenPort: 26001
+        realIpHeader: X-Forwarded-For
+        setRealIpFrom:
+        - 10.0.0.0/8
+        - 192.168.0.0/16
+        - 172.16.0.0/12
+        - 127.0.0.0/8
+        - fd00::/8
+        statusPath: /status
+        statusPort: 10246
+        tarantoolUpstream:
+          keepalive: 16
+          keepaliveRequests: 100
+          server:
+            failTimeout: 0
+            maxConns: 16
+            maxFails: 0
+        wallarmMetricsPath: /wallarm-metrics
+        wallarmMetricsPort: 18080
+        wallarmStatusPath: /wallarm-status
+      profiles:
+        example:
+          nginx:
+            servers:
+            - include:
+              - server_name example.io www.example.io
+              - ssl_protocols TLSv1.2 TLSv1.3
+              - ssl_certificate /etc/nginx/certs/example.io/tls.crt
+              - ssl_certificate_key /etc/nginx/certs/example.io/tls.key
+              listen: ssl
+            - include:
+              - server_name example.com www.example.com
+              - ssl_protocols TLSv1.3
+              - ssl_certificate /etc/nginx/certs/example.com/tls.crt
+              - ssl_certificate_key /etc/nginx/certs/example.com/tls.key
+              - ssl_ciphers ECDHE-ECDSA-AES256-GCM-SHA384
+              - ssl_conf_command Ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+              listen: ssl http2
+          sidecar:
+            volumeMounts:
+            - mountPath: /etc/nginx/certs/example.com
+              name: nginx-certs-example-com
+              readOnly: true
+            - mountPath: /etc/nginx/certs/example.io
+              name: nginx-certs-example-io
+              readOnly: true
+            volumes:
+            - name: nginx-certs-example-com
+              secret:
+                secretName: example-com-certs
+            - name: nginx-certs-example-io
+              secret:
+                secretName: example-io-certs
+      sidecar:
+        containers:
+          helper:
+            resources: {}
+          proxy:
+            livenessProbe:
+              failureThreshold: 3
+              httpGet:
+                path: /healthz
+                port: status
+              initialDelaySeconds: 60
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 1
+            livenessProbeEnable: true
+            readinessProbe:
+              failureThreshold: 3
+              httpGet:
+                path: /healthz
+                port: status
+              initialDelaySeconds: 60
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 1
+            readinessProbeEnable: true
+            resources: {}
+        image:
+          image: wallarm/sidecar
+          pullPolicy: IfNotPresent
+          registry: docker.io
+          tag: 4.10.6-1
+        initContainers:
+          helper:
+            resources: {}
+          iptables:
+            resources: {}
+            securityContext:
+              capabilities:
+                add:
+                - NET_ADMIN
+                drop:
+                - ALL
+              privileged: true
+              runAsNonRoot: false
+              runAsUser: 0
+        securityContext:
+          capabilities:
+            add:
+            - NET_BIND_SERVICE
+            drop:
+            - ALL
+          runAsUser: 101
+      wallarm:
+        aclExportEnable: "on"
+        api:
+          caVerify: true
+          existingSecret:
+            enabled: false
+            secretKey: token
+            secretName: wallarm-api-token
+          host: api.wallarm.com
+          nodeGroup: defaultSidecarGroup
+          port: 443
+          token: ""
+          useSSL: true
+        apiFirewallMode: "on"
+        enableLibDetection: "on"
+        fallback: "on"
+        mode: monitoring
+        modeAllowOverride: "on"
+        parseResponse: "on"
+        parseWebsocket: "off"
+        unpackResponse: "on"
+        upstream:
+          connectAttempts: 10
+          reconnectInterval: 15s
+      tarantool:
+        host: my-release-wallarm-sidecar-postanalytics.wallarm-sidecar-4.10.6.tgz.svc
+        port: 3313
+      component:
+        name: wallarm-sidecar-proxy
+        version: 4.10.6
+---
+# Source: wallarm-sidecar/templates/postanalytics-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-wallarm-sidecar-postanalytics
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: postanalytics
+data:
+  supervisord.conf: |-
+    [supervisord]
+    nodaemon=true
+    loglevel=warn
+    logfile=/dev/stdout
+    logfile_maxbytes=0
+    pidfile=/opt/wallarm/run/supervisor/pid
+    # export-attacks
+    [program:export-attacks]
+    command=/opt/wallarm/usr/share/wallarm-common/export-attacks -r -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+
+    # export-counters
+    [program:export-counters]
+    command=/opt/wallarm/usr/share/wallarm-common/export-counters -l STDOUT -L ERROR
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+
+    # export-environment
+    [program:export-environment]
+    command=/opt/wallarm/usr/share/wallarm-common/export-environment -w -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+
+    # brute-detect
+    [program:brute-detect]
+    command=/opt/wallarm/usr/share/wallarm-common/brute-detect -w -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+
+    # sync-markers
+    [program:sync-markers]
+    command=/opt/wallarm/usr/share/wallarm-common/sync-markers -w -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+
+    # weak-jwt-detect
+    [program:weak-jwt-detect]
+    command=/opt/wallarm/usr/share/wallarm-common/weak-jwt-detect -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+
+    # sync-node
+    [program:sync-node]
+    command=/opt/wallarm/usr/share/wallarm-common/syncnode -f -p -r 120 -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+
+    # export-blocked-stats
+    [program:export-blocked-stats]
+    command=/opt/wallarm/usr/share/wallarm-common/export-blocked-stats -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+
+    # detect-cred-stuffing
+    [program:detect-cred-stuffing]
+    command=/opt/wallarm/usr/share/wallarm-common/detect-cred-stuffing -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+---
+# Source: wallarm-sidecar/templates/controller-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-wallarm-sidecar-controller
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: controller
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: controller
+  ports:
+  - name: https
+    port: 443
+    targetPort: https
+    protocol: TCP
+    appProtocol: https
+---
+# Source: wallarm-sidecar/templates/postanalytics-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-wallarm-sidecar-postanalytics
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: postanalytics
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: postanalytics
+  ports:
+  - name: tarantool
+    port: 3313
+    targetPort: tarantool
+    protocol: TCP
+---
+# Source: wallarm-sidecar/templates/controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-wallarm-sidecar-controller
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: controller
+spec:
+  replicas: 1
+  strategy: 
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wallarm-sidecar
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      annotations:
+        checksum/config: 5555a92e13643339dbcc92168b9e6b22b6fc37d0a59a46cf27f7cd7a7de1448f
+        
+      labels:
+        app.kubernetes.io/name: wallarm-sidecar
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: my-release-wallarm-sidecar-controller
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: controller
+          image: docker.io/wallarm/sidecar-controller:1.3.7
+          imagePullPolicy: "IfNotPresent"
+          args:
+          - --listen=:8443
+          - --template=/etc/controller/template.yaml.tpl
+          - --config=/etc/controller/config.yaml
+          - --tls-cert-file=/etc/controller/tls/tls.crt
+          - --tls-key-file=/etc/controller/tls/tls.key
+          - --log-level=info
+          env:
+          - name: WALLARM_API_HOST
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_HOST
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_PORT
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_PORT
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_USE_SSL
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_USE_SSL
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_CA_VERIFY
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_CA_VERIFY
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_LABELS
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_LABELS
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_TOKEN
+                name: my-release-wallarm-sidecar-credentials
+          ports:
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+          livenessProbe: 
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe: 
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          securityContext:
+            privileged: false
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+            - name: config
+              mountPath: /etc/controller/config.yaml
+              subPath: config.yaml
+            - name: tls
+              mountPath: /etc/controller/tls
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: my-release-wallarm-sidecar-admission-tls
+        - name: config
+          configMap:
+            name: my-release-wallarm-sidecar-controller
+---
+# Source: wallarm-sidecar/templates/postanalytics-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-wallarm-sidecar-postanalytics
+  annotations:
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: postanalytics
+spec:
+  replicas: 1
+  strategy: 
+    rollingUpdate:
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wallarm-sidecar
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: postanalytics
+  template:
+    metadata:
+      annotations:
+        checksum/config: 04738a7213465a5b1f8b13608c86cb9e492b2ccde3cd7f44afe2fac3eb9bd212
+        checksum/secret: ebe6808559fa8ffa825d3bfcc40d120b5a7d699ac72bd6d9f600cef2026bc9c2
+        
+      labels:
+        app.kubernetes.io/name: wallarm-sidecar
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: postanalytics
+    spec:
+      serviceAccountName: my-release-wallarm-sidecar-postanalytics
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: init
+          image: docker.io/wallarm/node-helpers:4.10.6-1
+          imagePullPolicy: "IfNotPresent"
+          args: [ "register", "fallback" ]
+          env:
+          - name: WALLARM_API_HOST
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_HOST
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_PORT
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_PORT
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_USE_SSL
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_USE_SSL
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_CA_VERIFY
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_CA_VERIFY
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_LABELS
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_LABELS
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_TOKEN
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_COMPONENT_NAME
+            value: wallarm-sidecar-proxy
+          - name: WALLARM_COMPONENT_VERSION
+            value: "4.10.6"
+          securityContext:
+            privileged: false
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+          - mountPath: /opt/wallarm/etc/wallarm
+            name: wallarm
+          - mountPath: /opt/wallarm/var/lib/wallarm-acl
+            name: wallarm-acl
+      containers:
+        - name: supervisord
+          image: docker.io/wallarm/node-helpers:4.10.6-1
+          imagePullPolicy: "IfNotPresent"
+          args: ["supervisord"]
+          env:
+          - name: WALLARM_API_HOST
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_HOST
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_PORT
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_PORT
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_USE_SSL
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_USE_SSL
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_CA_VERIFY
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_CA_VERIFY
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_LABELS
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_LABELS
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_TOKEN
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_COMPONENT_NAME
+            value: wallarm-sidecar-proxy
+          - name: WALLARM_COMPONENT_VERSION
+            value: "4.10.6"
+          securityContext:
+            privileged: false
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+          - mountPath: /opt/wallarm/etc/wallarm
+            name: wallarm
+          - mountPath: /opt/wallarm/var/lib/wallarm-acl
+            name: wallarm-acl
+          - mountPath: /opt/supervisord/supervisord.conf
+            name: wallarm-supervisord
+            subPath: supervisord.conf
+            readOnly: true
+        - name: tarantool
+          image: docker.io/wallarm/node-helpers:4.10.6-1
+          imagePullPolicy: "IfNotPresent"
+          args: ["tarantool"]
+          env:
+          - name: WALLARM_API_HOST
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_HOST
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_PORT
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_PORT
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_USE_SSL
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_USE_SSL
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_CA_VERIFY
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_CA_VERIFY
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_LABELS
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_LABELS
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_TOKEN
+                name: my-release-wallarm-sidecar-credentials
+          - name: SLAB_ALLOC_ARENA
+            value: "2.0"
+          ports:
+            - name: tarantool
+              containerPort: 3313
+              protocol: TCP
+          livenessProbe: 
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 3313
+            timeoutSeconds: 1
+          securityContext:
+            privileged: false
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+              add:
+              - NET_BIND_SERVICE
+        - name: appstructure
+          image: docker.io/wallarm/node-helpers:4.10.6-1
+          imagePullPolicy: "IfNotPresent"
+          args: ["appstructure"]
+          env:
+          - name: WALLARM_API_HOST
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_HOST
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_PORT
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_PORT
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_USE_SSL
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_USE_SSL
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_CA_VERIFY
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_CA_VERIFY
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_LABELS
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_LABELS
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_TOKEN
+                name: my-release-wallarm-sidecar-credentials
+          securityContext:
+            privileged: false
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+          - mountPath: /opt/wallarm/etc/wallarm
+            name: wallarm
+        - name: antibot
+          image: docker.io/wallarm/node-helpers:4.10.6-1
+          imagePullPolicy: "IfNotPresent"
+          args: ["antibot"]
+          env:
+          - name: WALLARM_API_HOST
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_HOST
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_PORT
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_PORT
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_USE_SSL
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_USE_SSL
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_CA_VERIFY
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_CA_VERIFY
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_LABELS
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_LABELS
+                name: my-release-wallarm-sidecar-credentials
+          - name: WALLARM_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: WALLARM_API_TOKEN
+                name: my-release-wallarm-sidecar-credentials
+          securityContext:
+            privileged: false
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+          - mountPath: /opt/wallarm/etc/wallarm
+            name: wallarm
+      volumes:
+        - name: wallarm
+          emptyDir: {}
+        - name: wallarm-acl
+          emptyDir: {}
+        - name: wallarm-supervisord
+          configMap:
+            name: my-release-wallarm-sidecar-postanalytics
+---
+# Source: wallarm-sidecar/templates/controller-webhook.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-wallarm-sidecar-admission-tls
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/resource-policy: keep
+    helm.sh/hook-delete-policy: before-hook-creation
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: admission-webhook
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVKVENDQXcyZ0F3SUJBZ0lRVHltL1dKWndXa01CcTBuTUFpa0NuakFOQmdrcWhraUc5dzBCQVFzRkFEQXIKTVNrd0p3WURWUVFERENBcUxuZGhiR3hoY20wdGMybGtaV05oY2kwMExqRXdMall1ZEdkNkxuTjJZekFlRncweQpOREEyTWpBeE5EVTVNRGRhRncwek5EQTJNVGd4TkRVNU1EZGFNRTh4VFRCTEJnTlZCQU1UUkcxNUxYSmxiR1ZoCmMyVXRkMkZzYkdGeWJTMXphV1JsWTJGeUxXTnZiblJ5YjJ4c1pYSXVkMkZzYkdGeWJTMXphV1JsWTJGeUxUUXUKTVRBdU5pNTBaM291YzNaak1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBeWRMVQpNaEpPbFU4eFJ6TlBoWWNQV0gvemkxMnFDWVhWRHptcjErTTFGNmxkQWRjNmM1Rmg2eGV3ekpGN3RBL0I4UERwCmVYbUd6bGRhdm5pTWk2alFDNUJPV2ZKVk5YTDdLUUw5WXR5NTJ1OHlTVXd0bVp2aEJNR0dlemlpQVVsRjhSdUkKOXJ3eGlWVVhONm43WnlrMmZtOGZhT3JtZVRsd0VqUXpORDlGSWlnQlJldktNOHU0ejd2R3BqRkZFWjN1YlBYUApxcHB3cEF2TEhKVy9iNVVFZFpyRVRjNkMzODN2Q3RMd3pEZm8zS2RQTTNUbTlEREJLNnA2RUpmbm1lTHJVT2NZCmtrMkJCSFhTaHBCc1hWRlZoM3V0ZVRRUkNjL3ZKNGExR1J1VDVpZVU2RWpjdVVEZFY2OFA5VXdLSUVTMlZYRHUKdEYxZkExditqdjk4bWRlbmZ3SURBUUFCbzRJQkh6Q0NBUnN3RGdZRFZSMFBBUUgvQkFRREFnV2dNQjBHQTFVZApKUVFXTUJRR0NDc0dBUVVGQndNQkJnZ3JCZ0VGQlFjREFqQU1CZ05WSFJNQkFmOEVBakFBTUI4R0ExVWRJd1FZCk1CYUFGQS9Uei84MUpUL3NBYzN1VGdxZnM3WURURGRiTUlHNkJnTlZIUkVFZ2JJd2dhK0NSRzE1TFhKbGJHVmgKYzJVdGQyRnNiR0Z5YlMxemFXUmxZMkZ5TFdOdmJuUnliMnhzWlhJdWQyRnNiR0Z5YlMxemFXUmxZMkZ5TFRRdQpNVEF1Tmk1MFozb3VjM1pqZ2tCdGVTMXlaV3hsWVhObExYZGhiR3hoY20wdGMybGtaV05oY2kxamIyNTBjbTlzCmJHVnlMbmRoYkd4aGNtMHRjMmxrWldOaGNpMDBMakV3TGpZdWRHZDZnaVZ0ZVMxeVpXeGxZWE5sTFhkaGJHeGgKY20wdGMybGtaV05oY2kxamIyNTBjbTlzYkdWeU1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRRFJiMjNMSmFsUgo5T1kvbVRjUEZwUytHSUYrK0VGYmZFSGtUZHpkalZjSVc5NTIvZS9WSUVSdUp4TVd6QzlLL3BMeXQ3MitINFIwCkJNTWwwbURHSVNIT3lrMnlpSDRRNDdpMTFVc01Fa0MrRUUzdlBzZHdlZVI3bDJ6Q3FVcFMzRk9FZ3NHcTJ2S2MKY0ppSitGM0hpQkVNWDhOUi9mSURKWHpScDlnWWtYT3dIVUxCQnZoVTBGdllwZm54Wk9LOHBVZGRTd0p2cUdZKwpGNk1tRm1CaEUwVThRTWZtazZHYitCVDNCVitiVTROalNZaTk0eFN6OGhuaEx3SENUQlMzaGhobFFhVGdRRzhHCnNHMjZWR2pLNmNheVM0OEdSL0NnVW1SRkxoNlF1aDhSQ0JXNDRlY3dyd201UW5nQnQvOXNCU0lwRmx0dkVGZGcKbWNhZlNtQkRCK2hQCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBeWRMVU1oSk9sVTh4UnpOUGhZY1BXSC96aTEycUNZWFZEem1yMStNMUY2bGRBZGM2CmM1Rmg2eGV3ekpGN3RBL0I4UERwZVhtR3psZGF2bmlNaTZqUUM1Qk9XZkpWTlhMN0tRTDlZdHk1MnU4eVNVd3QKbVp2aEJNR0dlemlpQVVsRjhSdUk5cnd4aVZVWE42bjdaeWsyZm04ZmFPcm1lVGx3RWpRek5EOUZJaWdCUmV2SwpNOHU0ejd2R3BqRkZFWjN1YlBYUHFwcHdwQXZMSEpXL2I1VUVkWnJFVGM2QzM4M3ZDdEx3ekRmbzNLZFBNM1RtCjlEREJLNnA2RUpmbm1lTHJVT2NZa2syQkJIWFNocEJzWFZGVmgzdXRlVFFSQ2Mvdko0YTFHUnVUNWllVTZFamMKdVVEZFY2OFA5VXdLSUVTMlZYRHV0RjFmQTF2K2p2OThtZGVuZndJREFRQUJBb0lCQUZJcVEvdFNtcTJNdlJvbwptSkpiQnZOWHZCWWIvdEs3cXA3MU1ySEVyV1BCcnJ6R0crVGE1a3RvckxETDlkbTdwSkJyOUJGaFdYRjkvTktZCmoxZDRWYUt2a0Vac015WjhkaVlmTW50aU0wUWZwNUJSdENyYVhFU3NhUXlYWk5Vek9JZE5WM2hqNjZMbWducEYKK0xUcUFXWjk1UUs0eHpYSkhZZzd1akRtSlVZZTNEUnRQVlB5UU5CQnJVbERsQTZudEV2U2tBTXdQckRVbG5wWQpjc0t6eENWc2Z6bzVwNjZnSnZncHJxdHVvVjIweEZHNk5WRU5Ibml5OFZ2UnNjNFl5aUVpbXFZbUVFMDZGQ1FhCnRHZ0NNQ2gzSzdYZTdYOUZCWDhkRWp1eENEbUltbmF6NVhxS3NKMkZzMjNmbGgrYmlXR01jMXVzU1FYby80MVkKME9zRnF5a0NnWUVBNEFBSk05YVFiNGYvVU9QNXdoay8zdWhZc3JZd3A5NnU4bzJRSlN6YllyWlVObjdRNGJwcAphTUVJeDIvSysyVnFjS3BjeU14aG9rTjU3VXJIZzlPbkxBYlZtb1RmNGVmdzgwR1ZEeDZWajAxaGZRdjI3bkphClptUVAyZjR6dlhRNXh1T0pBcjN0WmQwNTBBMEJMajQxQlRkY1pmL0l6UWNGaVNhZlhrZDAydlVDZ1lFQTVxZkUKZGorYlVzWXplcE5xSEptKzBNTkFEZWNmTkdlNVUrRy8wKzhObEJ4dmMxUlhTMDdUSmJ0NUJRUEJ0YVk3WnFtVAp5UW1EazFVaWxyNTVOSHUrTDl0VHhCdFZlZ0ZmSDF4N0xCZnFxYWdtNlFXQXVpMjgrRmMxdHBINW5pTVcrZXZ2CkJ4Qk83N3A5cnhpMU5VdW40cWVrb1ZnQXpaRmE0eExPSEhaRDJDTUNnWUJvd1h1TVE2YnVrZUprT1FtZnJXRkMKWk5TK1Z4ZndHZU1sU2ZFRWdiTGp1ak10L1NiQXVnWDcySEs3bWx1S01FYVVCQWc2VytLNUdPZFhndVpGajJFWgo1T1JXVEJmTHRVWG83VjNCWVdNK1RranVTdjhqU2xWZWx5TVdwcHdaMk5ZQVhuNi95b1RRWTZKYTJ3b1hUejVLCmZ6WjErU1kyUkRkaGlhOTBUdVNtVlFLQmdCNTJBNFVXUzEzNEhPNVFMNUJOWVp6U1hGQTV1SzVFRUg2YWJxbi8KaFF5TllNNmJVZGY1TmZ0aXNjM092RE5RRzhJb0hRTk14VnFjd0srbHdmNERaWStPYUphYWdZUldVQWlsUHdNSQp1WTNrVGhjeUNka01sMHM0d1RnMk9RQUFaRlZuS2k4Rm9WY1ppdVduM3E2R0trck5sdmxUMU85UkJlNjlHZ2s2Ck9TVi9Bb0dBRE4reThrNXA1TmgxdHJpMVcvbXlCS0U1TEtJcVZPcU83RnlZanllZDFTR002cnNBeFRvNHZWa0kKZWVmWEJ2Y09UWFlNS3NCZm1tWXRDUS9Ja3Qrek8vT3J4Y3ZSYUpVYU9mOFlGOHdzRkhKYlZ2d0E0MkViYUxHVwpVV0JTMzJSaU40QmJVb3ZPak1RUWNSREswazg0cmUwNFJrM2xpNWV3YmtnTnN0aGIvOUU9Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURRVENDQWltZ0F3SUJBZ0lRQ2cvRzdkOU5JV0RSRFR1bTh3bU11akFOQmdrcWhraUc5dzBCQVFzRkFEQXIKTVNrd0p3WURWUVFERENBcUxuZGhiR3hoY20wdGMybGtaV05oY2kwMExqRXdMall1ZEdkNkxuTjJZekFlRncweQpOREEyTWpBeE5EVTVNRGRhRncwek5EQTJNVGd4TkRVNU1EZGFNQ3N4S1RBbkJnTlZCQU1NSUNvdWQyRnNiR0Z5CmJTMXphV1JsWTJGeUxUUXVNVEF1Tmk1MFozb3VjM1pqTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEEKTUlJQkNnS0NBUUVBMUFwM01zaXBsWGwxMGhWRVQzeE0rU0s4YW03R2NVd0NOR2pjZFRqMmNwcVROMUpmQmRaMgpUTkxwcnVFdXJNWnZsb1BUMU96NWREV2ZBNDJOcTZWOUswNGdtOGVmVjd2bVNsNEJWcFQyNkZDMzRKQWhNR0NuClJZSytOMUVpMnVIalRBWUJxYnlvK2ZNUG9saGI5Yis1bnh1NDZLdTNKQlk5djZjenNaRkRqY2IxOUg1emJidTcKRzFDU0UzKytud2tBVUczQ1ZNbktJdDZnRE81YzF0L1k4YVRSZi9iczYrcjB2aXBHOGdkcmxzaFltREpESVpTKwpBcVFnekljd1VXd0J6eWs4bmNBdTdKczFBcm4wSDB0dTNiYTFsbTNTTlU2cmg0azNneEtsOVhYR2NmWG1ISVpUCmE1disrQUlXb21VOHJJamZ6cHkzQjhWV1N3VnR6TDhjVndJREFRQUJvMkV3WHpBT0JnTlZIUThCQWY4RUJBTUMKQXFRd0hRWURWUjBsQkJZd0ZBWUlLd1lCQlFVSEF3RUdDQ3NHQVFVRkJ3TUNNQThHQTFVZEV3RUIvd1FGTUFNQgpBZjh3SFFZRFZSME9CQllFRkEvVHovODFKVC9zQWMzdVRncWZzN1lEVERkYk1BMEdDU3FHU0liM0RRRUJDd1VBCkE0SUJBUUN3RkpycnErS2luZlBOMkpFQ1pXNXR5V0p2QkZVclk1U2U4S1B0YzFkeWRYUXFXQ1k0NmVqaHRNdm0KQm9obXhKcjJvVVRYTERTbWwzWUpneFdwQ2t5SGJuV2VoWWwyWUlQOUsvMjFndkh6U2ErUCtVRTZLL1FxRFM3VgpNTGpsdE5HejU1WE1QRUpCSXVDYTlGdStYd2JtUGd3bzJnbUNndzh3SFoyVTdWTXdHRmtSS0RDZXhCZTByVWswCmhnazZiR2FoYmpIZHRBbVFMK3JTZHl0Um9uekxtMTE4cTNScTJZeldFOUUydDRueGlKSkI1eXY5N1h1enZNQjUKNDJWanRrNkVzNzRhMnU0TklZdHpKN0FWOE83S1llMEUxU0ViMVZoaG02V2c5SmQxOXhKNW4xRzRrUFN0b0lHRwpzN05tVE4wVThLeiszV1AyNkRReVYxaVR1WW90Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+---
+# Source: wallarm-sidecar/templates/controller-webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: my-release-wallarm-sidecar
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/resource-policy: keep
+    helm.sh/hook-delete-policy: before-hook-creation
+    
+  labels:
+    app.kubernetes.io/name: wallarm-sidecar
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/app: wallarm-sidecar
+    app.kubernetes.io/version: "4.10.6-1"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/component: admission-webhook
+webhooks:
+  - name: injector.sidecar.wallarm.io
+    admissionReviewVersions: ["v1"]
+    matchPolicy: Equivalent
+    rules:
+      - apiGroups: ["*"]
+        apiVersions: ["v1"]
+        operations:
+          - CREATE
+        resources:
+          - pods
+    objectSelector:
+      matchLabels:
+        wallarm-sidecar: enabled
+    failurePolicy: Fail
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURRVENDQWltZ0F3SUJBZ0lRQ2cvRzdkOU5JV0RSRFR1bTh3bU11akFOQmdrcWhraUc5dzBCQVFzRkFEQXIKTVNrd0p3WURWUVFERENBcUxuZGhiR3hoY20wdGMybGtaV05oY2kwMExqRXdMall1ZEdkNkxuTjJZekFlRncweQpOREEyTWpBeE5EVTVNRGRhRncwek5EQTJNVGd4TkRVNU1EZGFNQ3N4S1RBbkJnTlZCQU1NSUNvdWQyRnNiR0Z5CmJTMXphV1JsWTJGeUxUUXVNVEF1Tmk1MFozb3VjM1pqTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEEKTUlJQkNnS0NBUUVBMUFwM01zaXBsWGwxMGhWRVQzeE0rU0s4YW03R2NVd0NOR2pjZFRqMmNwcVROMUpmQmRaMgpUTkxwcnVFdXJNWnZsb1BUMU96NWREV2ZBNDJOcTZWOUswNGdtOGVmVjd2bVNsNEJWcFQyNkZDMzRKQWhNR0NuClJZSytOMUVpMnVIalRBWUJxYnlvK2ZNUG9saGI5Yis1bnh1NDZLdTNKQlk5djZjenNaRkRqY2IxOUg1emJidTcKRzFDU0UzKytud2tBVUczQ1ZNbktJdDZnRE81YzF0L1k4YVRSZi9iczYrcjB2aXBHOGdkcmxzaFltREpESVpTKwpBcVFnekljd1VXd0J6eWs4bmNBdTdKczFBcm4wSDB0dTNiYTFsbTNTTlU2cmg0azNneEtsOVhYR2NmWG1ISVpUCmE1disrQUlXb21VOHJJamZ6cHkzQjhWV1N3VnR6TDhjVndJREFRQUJvMkV3WHpBT0JnTlZIUThCQWY4RUJBTUMKQXFRd0hRWURWUjBsQkJZd0ZBWUlLd1lCQlFVSEF3RUdDQ3NHQVFVRkJ3TUNNQThHQTFVZEV3RUIvd1FGTUFNQgpBZjh3SFFZRFZSME9CQllFRkEvVHovODFKVC9zQWMzdVRncWZzN1lEVERkYk1BMEdDU3FHU0liM0RRRUJDd1VBCkE0SUJBUUN3RkpycnErS2luZlBOMkpFQ1pXNXR5V0p2QkZVclk1U2U4S1B0YzFkeWRYUXFXQ1k0NmVqaHRNdm0KQm9obXhKcjJvVVRYTERTbWwzWUpneFdwQ2t5SGJuV2VoWWwyWUlQOUsvMjFndkh6U2ErUCtVRTZLL1FxRFM3VgpNTGpsdE5HejU1WE1QRUpCSXVDYTlGdStYd2JtUGd3bzJnbUNndzh3SFoyVTdWTXdHRmtSS0RDZXhCZTByVWswCmhnazZiR2FoYmpIZHRBbVFMK3JTZHl0Um9uekxtMTE4cTNScTJZeldFOUUydDRueGlKSkI1eXY5N1h1enZNQjUKNDJWanRrNkVzNzRhMnU0TklZdHpKN0FWOE83S1llMEUxU0ViMVZoaG02V2c5SmQxOXhKNW4xRzRrUFN0b0lHRwpzN05tVE4wVThLeiszV1AyNkRReVYxaVR1WW90Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+      service:
+        namespace: "wallarm-sidecar-4.10.6.tgz"
+        name: my-release-wallarm-sidecar-controller
+        port: 443
+        path: "/inject"
+    sideEffects: None

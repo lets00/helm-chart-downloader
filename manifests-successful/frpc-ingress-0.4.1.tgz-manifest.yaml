@@ -1,0 +1,143 @@
+---
+# Source: frpc-ingress/templates/aio.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frpc-ingress-operator
+---
+# Source: frpc-ingress/templates/aio.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frpc-ingress-account
+  namespace: frpc-ingress-operator
+---
+# Source: frpc-ingress/templates/aio.yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: frpc-ingresses.crds.dosk.host
+spec:
+  group: crds.dosk.host
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - kind
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - Config
+                    - Rule
+                service:
+                  type: object
+                  required:
+                    - name
+                    - port
+                    - targetConfig
+                  properties:
+                    targetConfig:
+                      type: string
+                    namespace:
+                      type: string
+                    name:
+                      type: string
+                    port:
+                      type: integer
+                    remotePort:
+                      type: integer
+                    customDomains:
+                      type: string
+                    subdomain:
+                      type: string
+                    protocol:
+                      type: string
+                      enum:
+                        - TCP
+                        - UDP
+                        - HTTP
+                        - HTTPS
+                    extraConfig:
+                      type: array
+                      items:
+                        type: string
+                config:
+                  type: array
+                  items:
+                    type: string
+  scope: Namespaced
+  names:
+    plural: frpc-ingresses
+    singular: frpc-ingress
+    kind: FRPCIngress
+---
+# Source: frpc-ingress/templates/aio.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: frpc-ingress-role
+  namespace: frpc-ingress-operator
+rules:
+  - apiGroups:
+      - "crds.dosk.host"
+    resources:
+      - "frpc-ingresses"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "patch"
+      - "create"
+      - "delete"
+      - "update"
+---
+# Source: frpc-ingress/templates/aio.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: frpc-ingress-binding
+  namespace: frpc-ingress-operator
+subjects:
+  - kind: ServiceAccount
+    name: frpc-ingress-account
+    namespace: frpc-ingress-operator
+roleRef:
+  kind: ClusterRole
+  name: frpc-ingress-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: frpc-ingress/templates/aio.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frpc-ingress
+  namespace: frpc-ingress-operator
+  labels:
+    app: frpc-ingress
+spec:
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      app: frpc-ingress
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: frpc-ingress
+    spec:
+      serviceAccountName: frpc-ingress-account
+      containers:
+        - image: springhack/frpc_ingress:latest
+          imagePullPolicy: IfNotPresent
+          name: frpc-ingress
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"

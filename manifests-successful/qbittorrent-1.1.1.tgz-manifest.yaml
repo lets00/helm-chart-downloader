@@ -1,0 +1,174 @@
+---
+# Source: qbittorrent/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-qbittorrent
+  labels:
+    helm.sh/chart: qbittorrent-1.1.1
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.6.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: qbittorrent/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-qbittorrent
+  labels:
+    helm.sh/chart: qbittorrent-1.1.1
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.6.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    volume.alpha.kubernetes.io/storage-class: default
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "800Mi"
+---
+# Source: qbittorrent/templates/service-bt.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-qbittorrent-bt
+  labels:
+    helm.sh/chart: qbittorrent-1.1.1
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.6.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6881
+      targetPort: bittorrent-tcp
+      protocol: TCP
+      name: bittorrent-tcp
+    - port: 6881
+      targetPort: bittorrent-udp
+      protocol: UDP
+      name: bittorrent-udp
+  selector:
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/instance: my-release
+---
+# Source: qbittorrent/templates/service-webui.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-qbittorrent-webui
+  labels:
+    helm.sh/chart: qbittorrent-1.1.1
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.6.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/instance: my-release
+---
+# Source: qbittorrent/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-qbittorrent
+  labels:
+    helm.sh/chart: qbittorrent-1.1.1
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.6.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    vpn-config-version: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: qbittorrent
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: qbittorrent
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-qbittorrent
+      securityContext:
+        {}
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: my-release-qbittorrent
+      containers:
+        - name: qbittorrent
+          env:
+            - name: PGID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+            - name: TZ
+              value: "Europe/London"
+          securityContext:
+            {}
+          image: "ghcr.io/alekc/hotio-qbittorrent-noipv6:4.6.2"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /config
+              name: config
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: bittorrent-tcp
+              containerPort: 6881
+              protocol: TCP
+            - name: bittorrent-udp
+              containerPort: 6881
+              protocol: UDP
+
+
+
+
+
+
+
+
+          resources:
+            {}
+---
+# Source: qbittorrent/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-qbittorrent-test-connection"
+  labels:
+    helm.sh/chart: qbittorrent-1.1.1
+    app.kubernetes.io/name: qbittorrent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.6.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-qbittorrent:80']
+  restartPolicy: Never

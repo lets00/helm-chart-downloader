@@ -1,0 +1,336 @@
+---
+# Source: fpga-cloud/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud
+  namespace: fpga-cloud-1.2.2.tgz
+---
+# Source: fpga-cloud/templates/cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["mutatingwebhookconfigurations"]
+  verbs: ["get", "update"]
+- apiGroups: ["kubevirt.io"]
+  resources: ["kubevirts"]
+  verbs: ["get"]
+- apiGroups: ["kubevirt.io"]
+  resources: ["virtualmachines"]
+  verbs: ["get", "list", "update", "watch"]
+---
+# Source: fpga-cloud/templates/cluster-role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fpga-cloud
+subjects:
+- kind: ServiceAccount
+  name: fpga-cloud
+  namespace: fpga-cloud-1.2.2.tgz
+---
+# Source: fpga-cloud/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: cloud-init
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud-cloud-init
+  namespace: fpga-cloud-1.2.2.tgz
+spec:
+  ports:
+  - port: 443
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/component: cloud-init
+    kind: Deployment
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+---
+# Source: fpga-cloud/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: kubevirt-hack
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud-kubevirt-hack
+  namespace: fpga-cloud-1.2.2.tgz
+spec:
+  ports:
+  - port: 443
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/component: kubevirt-hack
+    kind: Deployment
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+---
+# Source: fpga-cloud/templates/daemon-set.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud
+  namespace: fpga-cloud-1.2.2.tgz
+spec:
+  selector:
+    matchLabels:
+      kind: DaemonSet
+      app.kubernetes.io/name: fpga-cloud
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: device-selector
+      labels:
+        kind: DaemonSet
+        helm.sh/chart: fpga-cloud-1.2.2
+        app.kubernetes.io/name: fpga-cloud
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+      - args:
+        - --debug=false
+        env:
+        - name: KUBE_VIRT_NAME
+          value: kubevirt
+        - name: KUBE_VIRT_NAMESPACE
+          value: harvester-system
+        image: inaccel/device-selector:latest
+        name: device-selector
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /lib/modules
+          name: modules
+        - mountPath: /sys
+          name: sys
+        - mountPath: /var/lib/kubelet/plugins_registry
+          name: kubelet
+          subPath: plugins_registry
+        - mountPath: /var/run/kubevirt-hooks
+          name: kubevirt-hooks
+      hostAliases:
+      - hostnames:
+        - device-selector
+        ip: 127.0.0.1
+      priorityClassName: system-node-critical
+      serviceAccountName: fpga-cloud
+      volumes:
+      - hostPath:
+          path: /var/lib/kubelet
+        name: kubelet
+      - hostPath:
+          path: /var/run/kubevirt-hooks
+          type: DirectoryOrCreate
+        name: kubevirt-hooks
+      - hostPath:
+          path: /lib/modules
+        name: modules
+      - hostPath:
+          path: /sys
+        name: sys
+---
+# Source: fpga-cloud/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: cloud-init
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud-cloud-init
+  namespace: fpga-cloud-1.2.2.tgz
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: cloud-init
+      kind: Deployment
+      app.kubernetes.io/name: fpga-cloud
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: cloud-init
+      labels:
+        app.kubernetes.io/component: cloud-init
+        kind: Deployment
+        helm.sh/chart: fpga-cloud-1.2.2
+        app.kubernetes.io/name: fpga-cloud
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+      - args:
+        - --debug=false
+        - --enable-virtualmachine-controller
+        image: inaccel/cloud-init:latest
+        name: cloud-init
+        volumeMounts:
+        - mountPath: /etc/inaccel
+          name: config-root
+          readOnly: true
+      hostAliases:
+      - hostnames:
+        - cloud-init
+        ip: 127.0.0.1
+      initContainers:
+      - args:
+        - init
+        env:
+        - name: MUTATING_WEBHOOK_CONFIGURATION_NAME
+          value: fpga-cloud-cloud-init
+        image: inaccel/cloud-init:latest
+        name: cloud-init-init
+        volumeMounts:
+        - mountPath: /etc/inaccel
+          name: config-root
+      priorityClassName: system-cluster-critical
+      serviceAccountName: fpga-cloud
+      volumes:
+      - emptyDir: {}
+        name: config-root
+---
+# Source: fpga-cloud/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: kubevirt-hack
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud-kubevirt-hack
+  namespace: fpga-cloud-1.2.2.tgz
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kubevirt-hack
+      kind: Deployment
+      app.kubernetes.io/name: fpga-cloud
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: kubevirt-hack
+      labels:
+        app.kubernetes.io/component: kubevirt-hack
+        kind: Deployment
+        helm.sh/chart: fpga-cloud-1.2.2
+        app.kubernetes.io/name: fpga-cloud
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+      - args:
+        - --debug=false
+        image: inaccel/kubevirt-hack:latest
+        name: kubevirt-hack
+        volumeMounts:
+        - mountPath: /etc/inaccel
+          name: config-root
+          readOnly: true
+      hostAliases:
+      - hostnames:
+        - kubevirt-hack
+        ip: 127.0.0.1
+      initContainers:
+      - args:
+        - init
+        env:
+        - name: MUTATING_WEBHOOK_CONFIGURATION_NAME
+          value: fpga-cloud-kubevirt-hack
+        image: inaccel/kubevirt-hack:latest
+        name: kubevirt-hack-init
+        volumeMounts:
+        - mountPath: /etc/inaccel
+          name: config-root
+      priorityClassName: system-cluster-critical
+      serviceAccountName: fpga-cloud
+      volumes:
+      - emptyDir: {}
+        name: config-root
+---
+# Source: fpga-cloud/templates/mutating-webhook-configuration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  labels:
+    app.kubernetes.io/component: cloud-init
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud-cloud-init
+webhooks:
+- admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: fpga-cloud-cloud-init
+      namespace: fpga-cloud-1.2.2.tgz
+  name: cloud-init.inaccel.com
+  sideEffects: None
+---
+# Source: fpga-cloud/templates/mutating-webhook-configuration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  labels:
+    app.kubernetes.io/component: kubevirt-hack
+    helm.sh/chart: fpga-cloud-1.2.2
+    app.kubernetes.io/name: fpga-cloud
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  name: fpga-cloud-kubevirt-hack
+webhooks:
+- admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: fpga-cloud-kubevirt-hack
+      namespace: fpga-cloud-1.2.2.tgz
+  name: kubevirt-hack.inaccel.com
+  objectSelector:
+    matchLabels:
+      kubevirt.io: virt-launcher
+  sideEffects: None

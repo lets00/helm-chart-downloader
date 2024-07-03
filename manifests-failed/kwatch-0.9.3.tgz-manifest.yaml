@@ -1,0 +1,91 @@
+---
+# Source: kwatch/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release
+  namespace: kwatch-0.9.3.tgz
+---
+# Source: kwatch/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release
+  namespace: kwatch-0.9.3.tgz
+data:
+  config.yaml: |
+    {}
+---
+# Source: kwatch/templates/rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log", "events", "nodes"]
+  verbs: ["get", "watch", "list"]
+---
+# Source: kwatch/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release
+subjects:
+  - kind: ServiceAccount
+    name: my-release
+    namespace: kwatch-0.9.3.tgz
+---
+# Source: kwatch/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kwatch
+  namespace: kwatch-0.9.3.tgz
+  labels:
+    helm.sh/chart: kwatch-0.9.3
+    app.kubernetes.io/name: kwatch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.9.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kwatch
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kwatch
+        app.kubernetes.io/instance: my-release
+    spec:
+      restartPolicy: Always
+      serviceAccountName:  my-release
+      containers:
+        - name: kwatch
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsGroup: 101
+            runAsNonRoot: true
+            runAsUser: 101
+          image: "ghcr.io/abahmed/kwatch:v0.9.3"
+          imagePullPolicy: Always
+          volumeMounts:
+          - name: config-volume
+            mountPath: /config
+          env:
+            - name: CONFIG_FILE
+              value: "/config/config.yaml"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-release

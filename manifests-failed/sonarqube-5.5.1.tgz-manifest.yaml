@@ -1,0 +1,202 @@
+---
+# Source: sonarqube/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-sonarqube
+  namespace: sonarqube-5.5.1.tgz
+  labels:
+    helm.sh/chart: sonarqube-5.5.1
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.5.1"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: false
+---
+# Source: sonarqube/templates/configmap-commands.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-sonarqube-commands
+  namespace: sonarqube-5.5.1.tgz
+  labels:
+    helm.sh/chart: sonarqube-5.5.1
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.5.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  update-ca-certs.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    mkdir -p /opt/sonarqube/certs
+
+    cp -f "${JAVA_HOME}/lib/security/cacerts" /opt/sonarqube/certs/cacerts
+
+    for f in /opt/secrets/ca-certs/*
+    do
+      keytool -importcert -file "${f}" -alias "$(basename "${f}")" -keystore /opt/sonarqube/certs/cacerts -storepass changeit -trustcacerts -noprompt
+    done
+
+  concat-properties.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    awk 1 /opt/props/sonar.properties /opt/props/sonar-secret.properties > /opt/result/sonar.properties
+
+  download-plugins.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    mkdir -p /opt/sonarqube/extensions/cache
+    rm -f /opt/sonarqube/extensions/cache/*
+
+  install-plugins.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    mkdir -p /opt/sonarqube/extensions/plugins
+    rm -f /opt/sonarqube/extensions/plugins/*
+
+    /opt/sonarqube/docker/entrypoint.sh
+---
+# Source: sonarqube/templates/configmap-properties.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-sonarqube-config
+  namespace: sonarqube-5.5.1.tgz
+  labels:
+    helm.sh/chart: sonarqube-5.5.1
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.5.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  sonar.properties: |
+    sonar.es.bootstrap.checks.disable=true
+---
+# Source: sonarqube/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-sonarqube
+  namespace: sonarqube-5.5.1.tgz
+  labels:
+    helm.sh/chart: sonarqube-5.5.1
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.5.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/instance: my-release
+---
+# Source: sonarqube/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-sonarqube
+  namespace: sonarqube-5.5.1.tgz
+  labels:
+    helm.sh/chart: sonarqube-5.5.1
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.5.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sonarqube
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sonarqube
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/commands: 97ae2e52587c782d0707ac796adfe4bf191157187092322cda03ee45f65f535a
+        checksum/properties: 3eaf7e3f8b26a2b2729580931491bc7cd0abbc8c771dddf0b69468a2f1978904
+    spec:
+      serviceAccountName: my-release-sonarqube
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: sonarqube
+          securityContext:
+            runAsGroup: 0
+            runAsUser: 1000
+          image: sonarqube:10.5.1-community
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SONAR_WEB_JAVAOPTS
+              value: ""
+            - name: SONAR_WEB_JAVAADDITIONALOPTS
+              value: ""
+            - name: SONAR_CE_JAVAOPTS
+              value: ""
+            - name: SONAR_CE_JAVAADDITIONALOPTS
+              value: ""
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /api/system/status
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /api/system/status
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 1
+          volumeMounts:
+            - mountPath: /opt/sonarqube/conf
+              name: config
+            - mountPath: /opt/sonarqube/data
+              name: sonarqube
+              subPath: data
+            - mountPath: /opt/sonarqube/extensions
+              name: sonarqube
+              subPath: extensions
+            - mountPath: /opt/sonarqube/certs
+              name: sonarqube
+              subPath: certs
+            - mountPath: /opt/sonarqube/logs
+              name: sonarqube
+              subPath: logs
+            - mountPath: /opt/sonarqube/temp
+              name: sonarqube
+              subPath: temp
+            - mountPath: /tmp
+              name: tmp-dir
+      volumes:
+        - name: sonarqube
+          emptyDir: {}
+        - name: commands
+          configMap:
+            name: my-release-sonarqube-commands
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: my-release-sonarqube-config
+        - name : tmp-dir
+          emptyDir: {}

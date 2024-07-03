@@ -1,0 +1,85 @@
+---
+# Source: baler-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-baler-operator
+  labels:
+    helm.sh/chart: baler-operator-0.0.1-dev
+    app.kubernetes.io/name: baler-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.1-dev"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: baler-operator/templates/cluster_role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-baler-operator
+subjects:
+- kind: ServiceAccount
+  name: my-release-baler-operator
+  namespace: baler-operator-0.0.1-dev.tgz # Ensure this matches the namespace of the service account
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: baler-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-baler-operator
+  labels:
+    helm.sh/chart: baler-operator-0.0.1-dev
+    app.kubernetes.io/name: baler-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.1-dev"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: baler-operator
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: baler-operator
+        app.kubernetes.io/instance: my-release
+    spec:
+      imagePullSecrets:
+        - name: dockerhub
+      serviceAccountName: my-release-baler-operator
+      securityContext:
+        {}
+      containers:
+        - name: baler-operator
+          securityContext:
+            {}
+          image: "gatecastle/baler-operator:0.16.1-dev"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi
+          env:
+            - name: OPERATOR_REPOSITORY
+              value: "gatecastle/baler-operator"
+            - name: OPERATOR_TAG
+              value: "0.16.1-dev"

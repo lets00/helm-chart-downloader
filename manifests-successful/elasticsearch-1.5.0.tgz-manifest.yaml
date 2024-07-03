@@ -1,0 +1,203 @@
+---
+# Source: elasticsearch/templates/configmap.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+data:
+  users_roles: |-
+    kibana_admin:logging
+    logstash_admin:logging
+    superuser:logging
+  users: |-
+    logging:$2a$10$rJB8uIS8lQL0z1QCDNUDyeqCCl3Ir2zmhvoeFeJvOXeIR0SEgi7Gy
+---
+# Source: elasticsearch/templates/service.yml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release
+  clusterIP: None
+  ports:
+    - name: http
+      protocol: TCP
+      port: 9200
+      targetPort: http
+    - name: communication
+      protocol: TCP
+      port: 9300
+      targetPort: communication
+---
+# Source: elasticsearch/templates/service.yml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release-external-0
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release-external-0
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release-cluster-0
+  type: NodePort
+  publishNotReadyAddresses: true
+  ports:
+    - protocol: TCP
+      port: 9200
+      nodePort: 32200
+---
+# Source: elasticsearch/templates/service.yml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release-external-1
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release-external-1
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release-cluster-1
+  type: NodePort
+  publishNotReadyAddresses: true
+  ports:
+    - protocol: TCP
+      port: 9200
+      nodePort: 32201
+---
+# Source: elasticsearch/templates/service.yml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release-external-2
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release-external-2
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release-cluster-2
+  type: NodePort
+  publishNotReadyAddresses: true
+  ports:
+    - protocol: TCP
+      port: 9200
+      nodePort: 32202
+---
+# Source: elasticsearch/templates/statefulset.yml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: helm
+spec:
+  serviceName: my-release
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      name: my-release
+      labels:
+        app: my-release
+        app.kubernetes.io/name: elasticsearch
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "7.17.8"
+        app.kubernetes.io/component: database
+        app.kubernetes.io/managed-by: helm
+    spec:
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: fix-permissions
+          image: busybox:1.36.0
+          command: [ "sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data" ]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: elasticsearch-data-volume
+              mountPath: /usr/share/elasticsearch/data
+
+        - name: increase-vm-max-map
+          image: busybox:1.36.0
+          command: [ "sysctl", "-w", "vm.max_map_count=262144" ]
+          securityContext:
+            privileged: true
+
+        - name: increase-fd-ulimit
+          image: busybox:1.36.0
+          command: [ "sh", "-c", "ulimit -n 65536" ]
+          securityContext:
+            privileged: true
+
+      containers:
+        - name: my-release
+          imagePullPolicy: IfNotPresent
+          image: "elasticsearch:7.17.8"
+          ports:
+            - name: http
+              containerPort: 9200
+            - name: communication
+              containerPort: 9300
+          resources:
+            requests:
+              memory: 1024Mi
+              cpu: 200m
+            limits:
+              memory: 1024Mi
+              cpu: 200m
+          volumeMounts:
+            - name: elasticsearch-configmap-volume
+              mountPath: /usr/share/elasticsearch/config/users
+              subPath: users
+            - name: elasticsearch-configmap-volume
+              mountPath: /usr/share/elasticsearch/config/users_roles
+              subPath: users_roles
+            - name: elasticsearch-data-volume
+              mountPath: /usr/share/elasticsearch/data
+          env:
+            - name: cluster.name
+              value: logs
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: xpack.security.enabled
+              value: "true"
+            - name: discovery.seed_hosts
+              value: "my-release-0.my-release, my-release-1.my-release, my-release-2.my-release"
+            - name: cluster.initial_master_nodes
+              value: "my-release-0, my-release-1, my-release-2"
+      volumes:
+        - name: elasticsearch-data-volume
+        - name: elasticsearch-configmap-volume
+          configMap:
+            name: my-release

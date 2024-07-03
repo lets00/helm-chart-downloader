@@ -1,0 +1,460 @@
+---
+# Source: prometheus-operator-admission-webhook/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-prometheus-operator-admission-webhook
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+---
+# Source: prometheus-operator-admission-webhook/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-prometheus-operator-admission-webhook
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+  labels:
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+---
+# Source: prometheus-operator-admission-webhook/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-prometheus-operator-admission-webhook
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+  labels:
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-prometheus-operator-admission-webhook
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-operator-admission-webhook
+---
+# Source: prometheus-operator-admission-webhook/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-prometheus-operator-admission-webhook
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+  selector:
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+---
+# Source: prometheus-operator-admission-webhook/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-prometheus-operator-admission-webhook
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-operator-admission-webhook
+      app.kubernetes.io/instance: my-release
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+        app.kubernetes.io/name: prometheus-operator-admission-webhook
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.74.0"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Always
+      serviceAccountName: my-release-prometheus-operator-admission-webhook
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: prometheus-operator-admission-webhook
+          args:
+            - --web.enable-tls=true
+            - --web.cert-file=/etc/tls/private/tls.crt
+            - --web.key-file=/etc/tls/private/tls.key
+            - --web.listen-address=:10250
+            - --web.tls-min-version=VersionTLS13
+          image: "quay.io/prometheus-operator/admission-webhook:v0.74.0"
+          imagePullPolicy: Always
+          livenessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            tcpSocket:
+              port: https
+          ports:
+            - containerPort: 10250
+              name: https
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+            periodSeconds: 10
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+            - name: tls-certificates
+              mountPath: /etc/tls/private
+              readOnly: true
+      volumes:
+        - name: tls-certificates
+          secret:
+            secretName: my-release-prometheus-operator-admission-webhook
+            defaultMode: 420
+---
+# Source: prometheus-operator-admission-webhook/templates/mutatingWebhookConfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook
+  labels:
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: prometheusrulemutate.monitoring.coreos.com
+    failurePolicy: Fail
+    rules:
+      - apiGroups:
+          - monitoring.coreos.com
+        apiVersions:
+          - "*"
+        resources:
+          - prometheusrules
+        operations:
+          - CREATE
+          - UPDATE
+    clientConfig:
+      service:
+        namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+        name: my-release-prometheus-operator-admission-webhook
+        path: /admission-prometheusrules/mutate
+    timeoutSeconds: 10
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
+---
+# Source: prometheus-operator-admission-webhook/templates/validatingWebhookConfiguration.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook
+  labels:
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+webhooks:
+  - name: prometheusrulevalidate.monitoring.coreos.com
+    failurePolicy: Fail
+    rules:
+      - apiGroups:
+          - monitoring.coreos.com
+        apiVersions:
+          - "*"
+        resources:
+          - prometheusrules
+        operations:
+          - CREATE
+          - UPDATE
+    clientConfig:
+      service:
+        namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+        name: my-release-prometheus-operator-admission-webhook
+        path: /admission-prometheusrules/validate
+    timeoutSeconds: 10
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
+  - name: alertmanagerconfigsvalidate.monitoring.coreos.com
+    failurePolicy: Fail
+    rules:
+      - apiGroups:
+          - monitoring.coreos.com
+        apiVersions:
+          - v1alpha1
+        resources:
+          - alertmanagerconfigs
+        operations:
+          - CREATE
+          - UPDATE
+    clientConfig:
+      service:
+        namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+        name: my-release-prometheus-operator-admission-webhook
+        path: /admission-alertmanagerconfigs/validate
+    timeoutSeconds: 10
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
+---
+# Source: prometheus-operator-admission-webhook/templates/hooks/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook-aux
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: my-release-prometheus-operator-admission-webhook-aux
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prometheus-operator-admission-webhook/templates/hooks/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook-aux
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: my-release-prometheus-operator-admission-webhook-aux
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+      - mutatingwebhookconfigurations
+    verbs:
+      - get
+      - update
+---
+# Source: prometheus-operator-admission-webhook/templates/hooks/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook-aux
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: my-release-prometheus-operator-admission-webhook-aux
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-prometheus-operator-admission-webhook-aux
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-operator-admission-webhook-aux
+    namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+---
+# Source: prometheus-operator-admission-webhook/templates/hooks/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook-aux
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: my-release-prometheus-operator-admission-webhook-aux
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+---
+# Source: prometheus-operator-admission-webhook/templates/hooks/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook-aux
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: my-release-prometheus-operator-admission-webhook-aux
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-prometheus-operator-admission-webhook-aux
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-operator-admission-webhook-aux
+    namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+---
+# Source: prometheus-operator-admission-webhook/templates/hooks/job-createSecret.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook-create
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: my-release-prometheus-operator-admission-webhook-aux
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  template:
+    metadata:
+      name:  my-release-prometheus-operator-admission-webhook-create
+      labels:
+        app: my-release-prometheus-operator-admission-webhook-aux
+        helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+        app.kubernetes.io/name: prometheus-operator-admission-webhook
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.74.0"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: create
+          image: "registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6"
+          imagePullPolicy: Always
+          args:
+            - create
+            - --host=my-release-prometheus-operator-admission-webhook,my-release-prometheus-operator-admission-webhook.prometheus-operator-admission-webhook-0.13.0.tgz.svc
+            - --namespace=prometheus-operator-admission-webhook-0.13.0.tgz
+            - --secret-name=my-release-prometheus-operator-admission-webhook
+            - --cert-name=tls.crt
+            - --key-name=tls.key
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000
+            seccompProfile:
+              type: RuntimeDefault
+      restartPolicy: OnFailure
+      serviceAccountName: my-release-prometheus-operator-admission-webhook-aux
+---
+# Source: prometheus-operator-admission-webhook/templates/hooks/job-patchWebhook.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name:  my-release-prometheus-operator-admission-webhook-patch
+  namespace: prometheus-operator-admission-webhook-0.13.0.tgz
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    app: my-release-prometheus-operator-admission-webhook-aux
+    helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+    app.kubernetes.io/name: prometheus-operator-admission-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.74.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  template:
+    metadata:
+      name:  my-release-prometheus-operator-admission-webhook-patch
+      labels:
+        app: my-release-prometheus-operator-admission-webhook-aux
+        helm.sh/chart: prometheus-operator-admission-webhook-0.13.0
+        app.kubernetes.io/name: prometheus-operator-admission-webhook
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.74.0"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: patch
+          image: "registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20221220-controller-v1.5.1-58-g787ea74b6"
+          imagePullPolicy: Always
+          args:
+            - patch
+            - --namespace=prometheus-operator-admission-webhook-0.13.0.tgz
+            - --secret-name=my-release-prometheus-operator-admission-webhook
+            - --webhook-name=my-release-prometheus-operator-admission-webhook
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000
+            seccompProfile:
+              type: RuntimeDefault
+      restartPolicy: OnFailure
+      serviceAccountName: my-release-prometheus-operator-admission-webhook-aux

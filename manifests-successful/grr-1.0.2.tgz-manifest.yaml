@@ -1,0 +1,644 @@
+---
+# Source: grr/templates/serviceaccount/sa-grr-client.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grr-client-sa
+---
+# Source: grr/templates/serviceaccount/sa-grr.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grr-sa
+---
+# Source: grr/templates/database/mysql.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sec-mysql
+stringData:
+  fleetspeak-password: fleetspeak-password
+  grr-password: grr-password
+  mysql-password: password
+---
+# Source: grr/templates/secret/sec-fleetspeak-admin-components.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sec-fleetspeak-admin-components
+stringData:
+  admin.components.textproto: |
+    mysql_data_source_name: "fleetspeak-user:fleetspeak-password@tcp(mysql:3306)/fleetspeak"
+    admin_config: <
+      listen_address: "0.0.0.0:4444"
+    >
+    notification_use_http_notifier: true
+    stats_config: <
+      address: "0.0.0.0:19090"
+    >
+---
+# Source: grr/templates/secret/sec-fleetspeak-frontend-components.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sec-fleetspeak-frontend-components
+stringData:
+  frontend.components.textproto: |
+    mysql_data_source_name: "fleetspeak-user:fleetspeak-password@tcp(mysql:3306)/fleetspeak"
+    https_config: <
+      listen_address: "0.0.0.0:4443"
+      certificates: "-----BEGIN CERTIFICATE-----\nMIIDJTCCAg2gAwIBAgIQI3r5CNyNHifMZSqwsTnK2TANBgkqhkiG9w0BAQsFADAe\nMRwwGgYDVQQDExNmbGVldHNwZWFrLWZyb250ZW5kMB4XDTI0MDYyMDE0NTY1MloX\nDTM0MDYxODE0NTY1MlowHjEcMBoGA1UEAxMTZmxlZXRzcGVhay1mcm9udGVuZDCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM4FcoRb20z4Ls1NWn5xezME\nC9WsVzoIVVtywlOKMOeg0iHT7vFSdKUyXnauE0ePtW38J0WP+6EWCOHzuhVHiHMZ\nhZRfJXcU+oZ5Ca0PzcgImmSf4FmkG4p55bM0t4aBdy7zjLJUEwh/QSZAClxBqMQq\njqwzwc5rL+ydYR2Jvz+rdlFe6vnMZlU9u/yg6oDEPBKFt/i/68SFZZmAvz4x9eGh\n0f4A/GDLjVypk9RBYR4wg0WPdk+vckVp4KTWXHVukNeXiF412E94Bbc6JBZC/2sS\nILG3o4HcByQyvQCGLj+JRlypFO1QN6LncjpLg1i5KJ1uqK9KJNn2vAGDSCLcYuUC\nAwEAAaNfMF0wDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggr\nBgEFBQcDAjAMBgNVHRMBAf8EAjAAMB4GA1UdEQQXMBWCE2ZsZWV0c3BlYWstZnJv\nbnRlbmQwDQYJKoZIhvcNAQELBQADggEBACOEXWzLSUoBmcEI0I+b2SqphI+n+z2n\ni8HQly0TtFTwILcfWKZL+0zVMDtmijx1AntQmuSLh/ANrWEjZvBMVfQSQGMUcLUp\nvJAKBcKJZgBlA3Td0ofgCxPh32ryecX/P0DxrT9dYxaIAZrIxLLd0SqLyLKN3dkH\nkKYy7AXF9VB8WScjmvlbWszTq3g1Me6AbPL0ATc7LRquDVY4uOxWenH2TMQBqLbS\nG122KVEGLDCkMdK+qaSib9GKBmKPw6wh575B0XlSR994fSc/R7ijEb19dzgAuXE0\nLbSz7Bz0KF9gDMkL6fun++YDZKry801vwzwnxoqSIX4rhoTuUwcoAmQ=\n-----END CERTIFICATE-----\n"
+      key: "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAzgVyhFvbTPguzU1afnF7MwQL1axXOghVW3LCU4ow56DSIdPu\n8VJ0pTJedq4TR4+1bfwnRY/7oRYI4fO6FUeIcxmFlF8ldxT6hnkJrQ/NyAiaZJ/g\nWaQbinnlszS3hoF3LvOMslQTCH9BJkAKXEGoxCqOrDPBzmsv7J1hHYm/P6t2UV7q\n+cxmVT27/KDqgMQ8EoW3+L/rxIVlmYC/PjH14aHR/gD8YMuNXKmT1EFhHjCDRY92\nT69yRWngpNZcdW6Q15eIXjXYT3gFtzokFkL/axIgsbejgdwHJDK9AIYuP4lGXKkU\n7VA3oudyOkuDWLkonW6or0ok2fa8AYNIItxi5QIDAQABAoIBAA9UAG0wmGRlorXL\np4v4zX3CM082f1bl/9PJ+gNVKMZTBM9XgVObGuqfkL+ru+t7GbiRJirax5H4nbiR\n9apXpCNMJtAfNB5kBS+0GbAymNDlMveBnaONvi7TWu+2YGE1iLSJklJCRxg+v44k\n/aBXkkLmF69gOm8tMmecXflgokYOTYeQvwMQS8tYf5dcOPmaFb3qSRs2MotFCcAH\n/M3XolLSUmK70A8ruqmU4ASrYEU4L/IynAu+r3WcgjMEbU33K7BtULl0xRs4jzO/\nqeqrxXOdZ5HZiYz27lUNzuN5+5IsELpvvdp1Iv15znkl+SGVvff4kpg5L7dnz1PC\nkZ/f+RECgYEA2HiD1g32DwB9vajDgSk5zU+qFWulWP/DxXPoXMd07VlSvGnWAWTc\nwAonzZOUIgVC1cY1QOShkV3ymPq47bpIOpeNzBFIQrSwAVN9NIodB9/7Xtg4Rrtb\nxdtz7Tucdqk2btBCDVhvoYuADZ8sg9ZZvslIOv9QECxYBYMWKUtsUhcCgYEA86Rx\nu3e9Mzp7y+7cWAaG5aA0hRJJGltaqwLaSIln+KclcHT4pE3Y3WySfbf+QqLhOd4k\nVCpwNEMH/EvktqNk1R3BAyNEmm9uou37pAgsrkhdyGYlFyGeiHpMx7ivzgzJjeoK\nnFyl6wHw83dlcO/YnI+N0+trssiGoOK1665m/GMCgYEAtZ+wJcpC+GVWGupdVqKL\nX+sGbsCJ0/mMfb/5ZtbnETnPxEwchcDlwq8CpGa9dCnr4MdT6SWrNfeYU6iRvsx8\nS8Ta8SxS770Aq6wsMgfrwa65DuPlm9sZbhHp21MXvSvOgv1zXhUkXGtaPpOd2uPf\nGsdxNib/OwKpu743uuAQe3MCgYBFVIEMoIkVP8okgObwoYLXatwnFcn5lw9Y5Gnr\nBDay2hVcR9zNHF3evFt/LNFMcv72MZFS5fSh2oU2NP5zPlGeF2ZqFyoZbCYmdOQL\njEvymCMfuHlLeMSc/3hDyPk2AAuGt5enYPHRyu6eyVXzajzQaEUqja5K5KbytzCf\nTTR/EwKBgEw5ec3BPv2bUJ3ph0H2TL31gfNwv7edceEhPrSK5CuwfRQ0tW16k5Gf\n9kRt+CmFdfLqXkTg8el29/UAx6J8jKcYxfnO207bTaoHCab8zfkzx/R5Ep++q1jG\nHLFPfYOYcdjJRF3BzM2oVIVAtmo1j3MtpkLFNFXYUl7rDJ3R3G2S\n-----END RSA PRIVATE KEY-----\n"
+    >
+    health_check_config: <
+      listen_address: "0.0.0.0:8080"
+    >
+    notification_listen_address: "0.0.0.0:12000"
+    notification_public_address: "FLEETSPEAK_FRONTEND_IP:12000"
+    stats_config: <
+      address: "0.0.0.0:19090"
+    >
+---
+# Source: grr/templates/secret/sec-grr-executable-cert.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sec-grr-executable-signing-cert
+  labels:
+    chart: "grr-1.0.2"
+    release: "my-release"
+    heritage: "Helm"
+type: Opaque
+data:
+    executable-signing.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMvekNDQWVlZ0F3SUJBZ0lRTzFIeVlsaTFleXk0YlVla0pybm00ekFOQmdrcWhraUc5dzBCQVFzRkFEQWIKTVJrd0Z3WURWUVFERXhCbmNuSXRjbVZ6Y0c5dWMyVXVZMjl0TUI0WERUSTBNRFl5TURFME5UWTFNbG9YRFRNMApNRFl4T0RFME5UWTFNbG93R3pFWk1CY0dBMVVFQXhNUVozSnlMWEpsYzNCdmJuTmxMbU52YlRDQ0FTSXdEUVlKCktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCQU5kVUdEZUExMmx6NXVudVBZNHdVVDM2dWRPd0pyU2oKUHRWdTlzQkpnSmZJSHBkMDN3Q2JNUmorQVhMdlJnS0M5WGsrL0hBcWQ3dDZGZUtzTGZ3RFRqUkhwR1FlSVlFYQpOZlBjdzY0RHBNQ3VYOExYSWszNEh3bjZxY3VXWkVma3BScjd6UEx3ZHgvdWtXZmhxWlNHMWRsSlV4cUxQN2xVCldVY0FWa21FMlRFNkc0aE0rOTJ6SWtYeGlsOURBVjArRTNjRTFNSGVHNXFvM1hwd041VnBQREthY3Rxb2VlZ3gKblBwc0k0bW1POHZtY1NBN01kME1SNzVHNWx4WGxRVS9udllsWFBkOTZsc3dnZXl6VnhBeU9naWpFSjhxMk9VbwpTczYrVVpIOHB3dUFXY0FubUVzZmx0OFVUVjdCNjdlZVRFZFlTRlNvZ1pGSlV5SHllekNPbFFFQ0F3RUFBYU0vCk1EMHdEZ1lEVlIwUEFRSC9CQVFEQWdXZ01CMEdBMVVkSlFRV01CUUdDQ3NHQVFVRkJ3TUJCZ2dyQmdFRkJRY0QKQWpBTUJnTlZIUk1CQWY4RUFqQUFNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUNrWExGbmVxUjluUHUrbTQ5SQo3TU94RFNHYk8yejFMUkhXbmZ2VWhnYlNhSkZRZHFHK2ZqYTl0WWFPZ016c2phYjRaQTRxS3Zick5kdU0zYkRICmc0VVg0MkQ3b09QVEhGczZLSGE1Y2RnM3lOUk4xdDhqTGRMQnVhN3ViNEZDcnl3MkR2bmNMN1ZPQ1NEK3NGOTIKL1JOK3ZhTkxVaUJBd1gzRW01WW5uQUwyQUFSQXRIQ3JrcmxzbE9CSEtYWHdOTVlXQi9LV1o4dExNSVVzMkZpTQpjOTVsdUk5eG5TY1B2TnJYdVo1SXZDeU9HOVRObWRJc2lGNXJxbytKMmVqOTRvcUVIOTY3cVU3VGNxZmFLdVBsCkw1NkFvV3FmUmFLZ1ZMYTBxL3QxRGtOTnVtOU0vY2FHVGp3NTBOMDFFZ3J5dWVXVkRIQlVvUTk1VEozR0lrZloKTFJXSQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    executable-signing.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBMTFRWU40RFhhWFBtNmU0OWpqQlJQZnE1MDdBbXRLTSsxVzcyd0VtQWw4Z2VsM1RmCkFKc3hHUDRCY3U5R0FvTDFlVDc4Y0NwM3Uzb1Y0cXd0L0FOT05FZWtaQjRoZ1JvMTg5ekRyZ09rd0s1Znd0Y2kKVGZnZkNmcXB5NVprUitTbEd2dk04dkIzSCs2UlorR3BsSWJWMlVsVEdvcy91VlJaUndCV1NZVFpNVG9iaUV6NwozYk1pUmZHS1gwTUJYVDRUZHdUVXdkNGJtcWpkZW5BM2xXazhNcHB5MnFoNTZER2MrbXdqaWFZN3krWnhJRHN4CjNReEh2a2JtWEZlVkJUK2U5aVZjOTMzcVd6Q0I3TE5YRURJNkNLTVFueXJZNVNoS3pyNVJrZnluQzRCWndDZVkKU3grVzN4Uk5Yc0hydDU1TVIxaElWS2lCa1VsVElmSjdNSTZWQVFJREFRQUJBb0lCQUFWU210YWtaSzdDb3E2ZApxUC9leWVOU1UwMmNTUmltQUdPZVBwTTZQZWVDbHQ3L2tKT2ZRbk52cy9GM1lLK25OUkl1TUdkRlpYaEk2RW1XCkgvemV5QXdheVVHQVRTdTN6aVdkQzJrOXhkRE5mcWgrVU9iRWYxL3J4azYyQlB5UjlsTFlicFNDeFM4UTRwOUMKd01KZkl1SWdJZUhDRjIwcFhKdVlzb2xXczFlNElGNDkyQktFcUhFeER2RG9jNVduaXl4cm1DelZ0ZnQwTGd3RgpLaW5GSWRjU1BJTmZCcEpUV1dmVDZ0NTBqUzY4Q2pGNnNNRm1CZkQzTXBjQlpjc3ZRUUZzbjhyTFplbnNqL2g5Ck04S2J3NXhoVFgzUXU1MGlmMExQNUdUZWpIcG9pQ0VSVUZwL1Nnd0xFZjBFZGRoRjZ3UnpLSnlxSDc1blFwdEcKcnlpUmNjRUNnWUVBOTlwOTRXWk1NNGJycU1lR1dSODAwK3k2dHkrSHFPTm9EMjd6Z01kSksyejFBMnJuSjNWdAp2RTk0Rk9jeEcvc2gyNjMwZ3RGbGhueFdweDZIWURteHBoZjF2OS9nVzdOWDBhM3JzYVl5dzkzRTZmT0ora1laCll1eFNXb3QxRzFoRGlmWm5OR0Zpb2srODF3dmVaaGdTWXR5elBHbzduZjdOSHp4OXJEOVVjMVVDZ1lFQTNtZnQKdGVmTTNXTWhyQytKWVIxT0JDRHNlSWFwY0tLdkwxdEJsWGpuUFB5Z2NiWDlzbEJVQ2VKZWRLamV2ZlA0NXI5QQpwRWtvY0lJN2lYc2cvUlFVbEVITTBHSlV3UU85MTBUcVgwZndrcGJQOHZwS0M5WlpibENLYmw4d3ZEaHpaejB5CmsxbXRFUndmaERkU1VhemJxeGpDbGwrUU9OSjhDd3FMejdGS012MENnWUF5LzYwNUxPQnZGY3IxdnFCaFJDK04Kajc5WHBCc0k0RW53S3dkRnJ6dmFDS0JkcEtpTmtQY1VjVkduRTI4aWI4a210Nk9CSzI3MWZpNGlVd0RPQnZFTAoyUkJDKytEaFhZU3JhMXI5QWRLZVJNcVl6UGpPRzVCcnIyNituTVZxNi8xeHJOYk5pMkJOUDVUK3RyMTdTbWEyCkd1MXlkL1Z1YkJodTNmYUo4N24veFFLQmdRQ3hvS096NHR3MS9OU0o1clY4QUtHc25uYitrOTZEL1FxWmNmTGgKWkZ5YTB0RjV2L1pORWVic3RnVG1lM0RhbVI0emZKQXVKZGZNYzljRktIZmlhTVUrMjRhdTc3bnRKZ1hiQmttQgpxNzB4OW8xQzdDOXpZTkN3VUZjZmE1dEsySE1qQXpkL2crRzdocENOVW5uR2paNHIrbXgvR1BmZ3lnc1Q3bXBYCmlLdFFLUUtCZ1FDeis1T0ROUFJtNWRlQ2l5QjNoVmtOZGlIeWhpNzdXeW1PcHk3Znl0T29tQ3c5SEdDR2JWRHcKMGt6LzlETXJMVG1wcDdrY1R2VUhtNWVUbitMTDU2S05YQzJONHI2QXRkYjdxU1kzdVgwTVFPNW1EYXZNTDUrOQpkQjl4U00vUlI5RnNlOUE2WTRqNkRuZXNzQk9neHE3VmtoNnhKbGpLdXpMUnNCWHdGN1ZQY0E9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+# Source: grr/templates/secret/sec-grr-server-local.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sec-grr-server-local
+stringData:
+  server.local.yaml: |
+    Database.implementation: MysqlDB
+    Blobstore.implementation: DbBlobStore
+    Mysql.host: mysql
+    Mysql.port: 3306
+    Mysql.database: grr
+    Mysql.username: grr-user
+    Mysql.password: grr-password
+    Mysql.flow_processing_threads_max: 20
+    AdminUI.csrf_secret_key: KPK,_0a_xY&DTeiaokEdsH1uXGobNIhfrr67BTSLlPPv64_UE0nyn8QsD6
+    AdminUI.url: http://localhost:8000
+    AdminUI.bind: 0.0.0.0
+    AdminUI.use_precompiled_js: true
+    API.DefaultRouter: ApiCallRouterWithoutChecks
+
+    Logging.domain: localhost
+    Logging.verbose: true
+    Logging.engines: file,stderr
+    Logging.path: /grr
+    Logging.filename: /grr/grr-server.log
+    Monitoring.alert_email: grr-monitoring@localhost
+    Monitoring.emergency_access_email: grr-emergency@localhost
+    Monitoring.http_address: 0.0.0.0
+    Monitoring.http_port: 19090
+
+    Client.executable_signing_public_key: "%(/grr/certs/executable-signing.pub|file)"
+    PrivateKeys.executable_signing_private_key: "%(/grr/certs/executable-signing.key|file)"
+
+    Server.initialized: true
+    Server.fleetspeak_enabled: true
+    Server.fleetspeak_server: svc-fleetspeak-admin:4444
+    Server.fleetspeak_message_listen_address: 0.0.0.0:11111
+---
+# Source: grr/templates/configmap/cfm-fleetspeak-services.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cfm-fleetspeak-services
+data:
+  services.textproto: |
+    services {
+      name: "GRR"
+      factory: "GRPC"
+      config {
+        [type.googleapis.com/fleetspeak.grpcservice.Config] {
+          target: "svc-grr-frontend:11111"
+          insecure: true
+        }
+      }
+    }
+    broadcast_poll_time {
+      seconds: 1
+    }
+---
+# Source: grr/templates/database/mysql.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cfm-mysql-init
+data:
+  init.sh: |
+    #!/bin/bash
+    set -ex
+    echo "** Creating default DB for GRR and fleetspeak"
+    mariadb -u root -p"$MYSQL_ROOT_PASSWORD" --execute \
+    "CREATE USER'grr-user'@'%' IDENTIFIED BY '$GRR_PASSWORD';
+     CREATE DATABASE grr;
+     GRANT ALL ON grr.* TO 'grr-user'@'%';
+     CREATE USER 'fleetspeak-user'@'%' IDENTIFIED BY '$FLEETSPEAK_PASSWORD';
+     CREATE DATABASE fleetspeak;
+     GRANT ALL ON fleetspeak.* TO 'fleetspeak-user'@'%';
+     FLUSH PRIVILEGES;"
+    echo "** Finished creating DBs and users"
+---
+# Source: grr/templates/database/mysql.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: mysql
+  clusterIP: None
+---
+# Source: grr/templates/service/svc-fleetspeak-admin.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-fleetspeak-admin
+spec:
+  selector:
+    app.kubernetes.io/name: fleetspeak-admin
+  ports:
+    - protocol: TCP
+      name: admin
+      port: 4444
+      targetPort: 4444
+---
+# Source: grr/templates/service/svc-fleetspeak-frontend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-fleetspeak-frontend
+spec:
+  selector:
+    app.kubernetes.io/name: fleetspeak-frontend
+  ports:
+    - protocol: TCP
+      name: frontend
+      port: 4443
+      targetPort: 4443
+---
+# Source: grr/templates/service/svc-fleetspeak-frontend.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: fleetspeak-frontend
+spec:
+  type: ExternalName
+  externalName: svc-fleetspeak-frontend.default.svc.cluster.local
+  ports:
+  - port: 4443
+---
+# Source: grr/templates/service/svc-grr-admin.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-grr-admin
+spec:
+  selector:
+    app.kubernetes.io/name: grr-admin
+  ports:
+    - protocol: TCP
+      name: admin
+      port: 8000
+      targetPort: 8000
+---
+# Source: grr/templates/service/svc-grr-frontend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-grr-frontend
+spec:
+  selector:
+    app.kubernetes.io/name: grr-frontend
+  ports:
+    - protocol: TCP
+      name: frontend
+      port: 11111
+      targetPort: 11111
+---
+# Source: grr/templates/daemonset/dst-grr.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: grr
+  labels:
+    app: grr
+spec:
+  selector:
+    matchLabels:
+      app: grr
+  template:
+    metadata:
+      labels:
+        app: grr
+    spec:
+      # Only deploying GRR to nodes with the label 'grrclient=installed'.
+      nodeSelector:
+        grrclient: installed
+      serviceAccountName: grr-client-sa
+      # Uses the host network rather than the container network. This way
+      # the hostname that shows up in GRR will contain the cluster name too.
+      hostNetwork: true
+      # Allows us to list all processes on the host rather than just those
+      # from the container.
+      hostPID: true
+      # Labeling volumes from the root file system so they can be exposed to
+      # our container.
+      volumes:
+      - name: root
+        hostPath:
+          path: /
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: grr
+        image: grr-daemon:v0.1
+        imagePullPolicy: Never
+        # Making it a privileged container. This way the processes within
+        # the container get almost the same privileges as those outside the
+        # container (e.g. manipulating the network stack or accessing devices).
+        securityContext:
+          privileged: true
+        # Exposing the machine's file system to the container (read-only).
+        volumeMounts:
+        - mountPath: /hostroot
+          name: root
+          readOnly: true
+---
+# Source: grr/templates/database/mysql.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mariadb:11.3.2
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sec-mysql
+              key: mysql-password
+        - name: GRR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sec-mysql
+              key: grr-password
+        - name: FLEETSPEAK_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sec-mysql
+              key: fleetspeak-password
+        args: ["--max_allowed_packet=40M", "--log_bin_trust_function_creators=ON"]
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-init
+          mountPath: /docker-entrypoint-initdb.d/
+      volumes:
+      - name: mysql-init
+        configMap:
+          name: cfm-mysql-init
+          items:
+          - key: init.sh
+            path: init.sh
+---
+# Source: grr/templates/deployment/dpl-fleetspeak-admin.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpl-fleetspeak-admin
+  labels:
+    app: fleetspeak-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fleetspeak-admin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fleetspeak-admin
+        prometheus: fleetspeak-admin
+    spec:
+      serviceAccountName: grr-sa
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - grr
+      containers:
+      - name: fleetspeak-admin
+        image: ghcr.io/google/fleetspeak:v0.1.15
+        ports:
+        - containerPort: 4444
+          name: admin
+        - containerPort: 19090
+          name: metrics
+        command: ["/fleetspeak/bin/server"]
+        args: ["-alsologtostderr"]
+        volumeMounts:
+        - name: fleetspeak-admin-components
+          mountPath: /etc/fleetspeak-server/server.components.config
+          subPath: server.components.config
+        - name: fleetspeak-services
+          mountPath: /etc/fleetspeak-server/server.services.config
+          subPath: server.services.config
+      volumes:
+      - name: fleetspeak-admin-components
+        secret:
+          secretName: sec-fleetspeak-admin-components
+          items:
+          - key: admin.components.textproto
+            path: server.components.config
+      - name: fleetspeak-services
+        configMap:
+          name: cfm-fleetspeak-services
+          items:
+          - key: services.textproto
+            path: server.services.config
+---
+# Source: grr/templates/deployment/dpl-fleetspeak-frontend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpl-fleetspeak-frontend
+  labels:
+    app: fleetspeak-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fleetspeak-frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fleetspeak-frontend
+        prometheus: fleetspeak-frontend
+    spec:
+      serviceAccountName: grr-sa
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - grr
+      initContainers:
+      - name: init-fleetspeak-frontend
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: busybox:1.36
+        command: ['sh', '-c', "cp /stage/fleetspeak-server/server.*.config /etc/fleetspeak-server/; sed -i \"s/FLEETSPEAK_FRONTEND_IP/$POD_IP/g\" /etc/fleetspeak-server/server.components.config"]
+        volumeMounts:
+        - name: fleetspeak-config-volume
+          mountPath: /etc/fleetspeak-server
+        - name: fleetspeak-frontend-components
+          mountPath: /stage/fleetspeak-server/server.components.config
+          subPath: server.components.config
+        - name: fleetspeak-services
+          mountPath: /stage/fleetspeak-server/server.services.config
+          subPath: server.services.config
+      containers:
+      - name: fleetspeak-frontend
+        image: ghcr.io/google/fleetspeak:v0.1.15
+        ports:
+        - containerPort: 4443
+          name: frontend
+        - containerPort: 8080
+          name: healthz
+        - containerPort: 12000
+          name: notification
+        - containerPort: 19090
+          name: metrics
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        command: ["/fleetspeak/bin/server"]
+        args: ["-alsologtostderr"]
+        volumeMounts:
+        - name: fleetspeak-config-volume
+          mountPath: /etc/fleetspeak-server
+      volumes:
+      - name: fleetspeak-config-volume
+        emptyDir:
+          sizeLimit: 5Mi
+      - name: fleetspeak-frontend-components
+        secret:
+          secretName: sec-fleetspeak-frontend-components
+          items:
+          - key: frontend.components.textproto
+            path: server.components.config
+      - name: fleetspeak-services
+        configMap:
+          name: cfm-fleetspeak-services
+          items:
+          - key: services.textproto
+            path: server.services.config
+---
+# Source: grr/templates/deployment/dpl-grr-admin.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpl-grr-admin
+  labels:
+    app: grr-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grr-admin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grr-admin
+        prometheus: grr-admin
+    spec:
+      serviceAccountName: grr-sa
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - grr
+      containers:
+      - name: grr-admin
+        image: ghcr.io/google/grr:v3.4.7.4-release
+        ports:
+        - containerPort: 8000
+          name: admin
+        - containerPort: 19090
+          name: metrics
+        args: ["-component", "admin_ui", "-config", "/usr/src/grr/grr/core/install_data/etc/server.local.yaml", "--logtostderr"]
+        volumeMounts:
+        - name: grr-admin-config
+          mountPath: /usr/src/grr/grr/core/install_data/etc/server.local.yaml
+          subPath: server.local.yaml
+        - name: cert-volume
+          readOnly: true
+          mountPath: "/grr/certs"
+      volumes:
+      - name: grr-admin-config
+        secret:
+          secretName: sec-grr-server-local
+          items:
+          - key: server.local.yaml
+            path: server.local.yaml
+      - name: cert-volume
+        secret:
+          secretName: sec-grr-executable-signing-cert
+---
+# Source: grr/templates/deployment/dpl-grr-frontend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpl-grr-frontend
+  labels:
+    app: grr-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grr-frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grr-frontend
+        prometheus: grr-frontend
+    spec:
+      serviceAccountName: grr-sa
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - grr
+      containers:
+      - name: grr-frontend
+        image: ghcr.io/google/grr:v3.4.7.4-release
+        ports:
+        - containerPort: 11111
+          name: frontend
+        - containerPort: 19090
+          name: metrics
+        args: ["-component", "frontend", "-config", "/usr/src/grr/grr/core/install_data/etc/server.local.yaml", "--logtostderr"]
+        volumeMounts:
+        - name: grr-frontend-config
+          mountPath: /usr/src/grr/grr/core/install_data/etc/server.local.yaml
+          subPath: server.local.yaml
+        - name: cert-volume
+          readOnly: true
+          mountPath: "/grr/certs"
+      volumes:
+      - name: grr-frontend-config
+        secret:
+          secretName: sec-grr-server-local
+          items:
+          - key: server.local.yaml
+            path: server.local.yaml
+      - name: cert-volume
+        secret:
+          secretName: sec-grr-executable-signing-cert
+---
+# Source: grr/templates/deployment/dpl-grr-worker.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpl-grr-worker
+  labels:
+    app: grr-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grr-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grr-worker
+        prometheus: grr-worker
+    spec:
+      serviceAccountName: grr-sa
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - grr
+      containers:
+      - name: grr-worker
+        image: ghcr.io/google/grr:v3.4.7.4-release
+        ports:
+        - containerPort: 19090
+          name: metrics
+        args: ["-component", "worker", "-config", "/usr/src/grr/grr/core/install_data/etc/server.local.yaml", "--logtostderr"]
+        volumeMounts:
+        - name: grr-worker-config
+          mountPath: /usr/src/grr/grr/core/install_data/etc/server.local.yaml
+          subPath: server.local.yaml
+        - name: cert-volume
+          readOnly: true
+          mountPath: "/grr/certs"
+      volumes:
+      - name: grr-worker-config
+        secret:
+          secretName: sec-grr-server-local
+          items:
+          - key: server.local.yaml
+            path: server.local.yaml
+      - name: cert-volume
+        secret:
+          secretName: sec-grr-executable-signing-cert

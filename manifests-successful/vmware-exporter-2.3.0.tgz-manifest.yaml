@@ -1,0 +1,90 @@
+---
+# Source: vmware-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-vmware-exporter-secret
+  labels:
+    app: vmware-exporter
+    chart: vmware-exporter-2.3.0
+    release: my-release
+    heritage: Helm
+type: Opaque
+data:
+  VSPHERE_PASSWORD: "bmE="
+---
+# Source: vmware-exporter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-vmware-exporter-config
+  labels:
+    app: vmware-exporter
+    chart: vmware-exporter-2.3.0
+    release: my-release
+    heritage: Helm
+data:
+  VSPHERE_USER: "user"
+  VSPHERE_HOST: "vcenter"
+  VSPHERE_IGNORE_SSL: "true"
+  VSPHERE_SPECS_SIZE: "5000"
+  VSPHERE_FETCH_CUSTOM_ATTRIBUTES: "true"
+  VSPHERE_FETCH_TAGS: "true"
+  VSPHERE_FETCH_ALARMS: "true"
+  VSPHERE_COLLECT_HOSTS: "true"
+  VSPHERE_COLLECT_DATASTORES: "true"
+  VSPHERE_COLLECT_VMS: "true"
+  VSPHERE_COLLECT_VMGUESTS: "true"
+  VSPHERE_COLLECT_SNAPSHOTS: "true"
+---
+# Source: vmware-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-vmware-exporter
+  labels:
+    app: vmware-exporter
+    chart: vmware-exporter-2.3.0
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vmware-exporter
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: vmware-exporter
+        release: my-release
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9272"
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+        - name: vmware-exporter
+          image: "pryorda/vmware_exporter:v0.18.4"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9272
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: my-release-vmware-exporter-config
+            - secretRef:
+                name: my-release-vmware-exporter-secret
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /healthz
+              port: 9272
+            initialDelaySeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9272
+          resources:
+            {}

@@ -1,0 +1,176 @@
+---
+# Source: cloudflare-tunnel/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-cloudflare-tunnel
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.2.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflare-tunnel
+      app.kubernetes.io/instance: my-release
+  minAvailable: 1
+---
+# Source: cloudflare-tunnel/templates/serviceaccount.yaml
+# Here we create a service account with no privileges to run the
+# deployment - just in case the default service account is different.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-cloudflare-tunnel
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.2.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: cloudflare-tunnel/templates/secret.yaml
+# This credentials secret allows cloudflared to authenticate itself
+# to the Cloudflare infrastructure.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-cloudflare-tunnel
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.2.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  credentials.json: |-
+    {
+      "AccountTag": "",
+      "TunnelID": "",
+      "TunnelName": "",
+      "TunnelSecret": ""
+    }
+---
+# Source: cloudflare-tunnel/templates/configmap.yaml
+# This configmap stores the configuration used by cloudflared.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-cloudflare-tunnel
+data:
+  config.yaml: |
+    # Name of the tunnel you want to run
+    tunnel: 
+    # The location of the secret containing the tunnel credentials
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    # General purpose TCP routing for the network
+    warp-routing:
+      enabled: false
+    # Serves the metrics server under /metrics and the readiness server under /ready
+    metrics: 0.0.0.0:2000
+    # Autoupdates applied in a k8s pod will be lost when the pod is removed or restarted, so
+    # autoupdate doesn't make sense in Kubernetes. However, outside of Kubernetes, we strongly
+    # recommend using autoupdate.
+    no-autoupdate: true
+    # The `ingress` block tells cloudflared which local service to route incoming
+    # requests to. For more about ingress rules, see
+    # https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/configuration/ingress
+    ingress:
+      # This rule matches any traffic which didn't match a previous rule, and responds with HTTP 404.
+      - service: http_status:404
+---
+# Source: cloudflare-tunnel/templates/deployment.yaml
+# Here we deploy cloudflared images. The tunnel credentials are stored in
+# a k8s secret, and the configuration is stored in a k8s configmap.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-cloudflare-tunnel
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.2.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflare-tunnel
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        # These are here so the deployment rolls when the config or secret change.
+        checksum/configmap: 2b8aecdcfe03aba70f15bab2052489def51f2b5bef9b36ff8a4f458b6215e6f2
+        checksum/secret: 0279e3f3ebf8beaa72daefb1f918fa7f00ebe03d4d20d443876b438cc4c8c63a
+      labels:
+        app.kubernetes.io/name: cloudflare-tunnel
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-cloudflare-tunnel
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: cloudflare-tunnel
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          image: "cloudflare/cloudflared:latest"
+          imagePullPolicy: IfNotPresent
+          args:
+            - tunnel
+            # Points cloudflared to the config file, which configures what
+            # cloudflared will actually do. This file is created by a ConfigMap.
+            - --config
+            - /etc/cloudflared/config/config.yaml
+            - run
+          livenessProbe:
+            httpGet:
+              # Cloudflared has a /ready endpoint which returns 200 if and only if
+              # it has an active connection to the edge.
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared/config
+              readOnly: true
+            # Each tunnel has an associated "credentials file" which authorizes machines
+            # to run the tunnel. cloudflared will read this file from its local filesystem,
+            # and it'll be stored in a k8s secret.
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+          resources:
+            {}
+      volumes:
+        - name: creds
+          secret:
+            secretName: my-release-cloudflare-tunnel
+        - name: config
+          configMap:
+            name: my-release-cloudflare-tunnel
+            items:
+              - key: config.yaml
+                path: config.yaml
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 10
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/instance
+                      operator: In
+                      values:
+                        - my-release
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - cloudflare-tunnel

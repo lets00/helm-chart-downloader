@@ -1,0 +1,84 @@
+---
+# Source: airflow/templates/releases/airflow.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: my-release-release
+  labels:
+    app.kubernetes.io/name: airflow
+    helm.sh/chart: airflow-1.8.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: airflow
+      version: "1.8.0"
+      sourceRef:
+        apiVersion: source.toolkit.fluxcd.io/v1beta1
+        kind: HelmRepository
+        name: apache-airflow
+  install:
+    disableWait: true
+  values:
+    defaultAirflowRepository: "apache/airflow"
+    defaultAirflowTag: "2.5.1"
+    airflowVersion: "2.5.1"
+    images:
+      airflow:
+        pullPolicy: "IfNotPresent"
+      pod_template:
+        pullPolicy: "IfNotPresent"
+      flower:
+        pullPolicy: "IfNotPresent"
+      statsd:
+        pullPolicy: "IfNotPresent"
+      redis:
+        pullPolicy: "IfNotPresent"
+      pgbouncer:
+        pullPolicy: "IfNotPresent"
+      pgbouncerExporter:
+        pullPolicy: "IfNotPresent"
+      gitSync:
+        pullPolicy: "IfNotPresent"
+    executor: "CeleryExecutor"
+    data:
+      metadataConnection:
+        user: postgres
+        pass: postgres
+        protocol: postgresql
+        host: ~
+        port: 5432
+        db: postgres
+        sslmode: disable
+    workers:
+      replicas: 1
+    webserver:
+      defaultUser:
+        enabled: true
+        role: Admin
+        username: "admin"
+        email: admin@example.com
+        firstName: admin
+        lastName: user
+        password: "P@ssw0rd"
+    pgbouncer:
+      enabled: false
+    logs:
+      persistence:
+        enabled: false
+---
+# Source: airflow/templates/releases/airflow.yaml
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: HelmRepository
+metadata:
+  name: apache-airflow
+  labels:
+    app.kubernetes.io/name: airflow
+    helm.sh/chart: airflow-1.8.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  interval: 5m
+  url: https://airflow.apache.org

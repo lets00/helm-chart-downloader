@@ -1,0 +1,126 @@
+---
+# Source: http-webhook/templates/serviceaccount.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-http-webhook
+  labels:
+    helm.sh/chart: http-webhook-4.5.0
+    app.kubernetes.io/name: http-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: http-webhook/templates/service.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-http-webhook
+  labels:
+    helm.sh/chart: http-webhook-4.5.0
+    app.kubernetes.io/name: http-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: http-webhook
+    app.kubernetes.io/instance: my-release
+---
+# Source: http-webhook/templates/deployment.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-http-webhook
+  labels:
+    helm.sh/chart: http-webhook-4.5.0
+    app.kubernetes.io/name: http-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: http-webhook
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: http-webhook
+        app.kubernetes.io/instance: my-release
+
+    spec:
+      serviceAccountName: my-release-http-webhook
+      securityContext:
+        {}
+      containers:
+        - name: http-webhook
+          securityContext:
+            {}
+          image: "docker.io/mendhak/http-https-echo:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {}
+---
+# Source: http-webhook/templates/hpa.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+---
+# Source: http-webhook/templates/ingress.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+---
+# Source: http-webhook/templates/tests/test-connection.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-http-webhook-test-connection"
+  labels:
+    helm.sh/chart: http-webhook-4.5.0
+    app.kubernetes.io/name: http-webhook
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-http-webhook:80']
+  restartPolicy: Never

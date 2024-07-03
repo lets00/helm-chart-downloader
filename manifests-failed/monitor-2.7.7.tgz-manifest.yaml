@@ -1,0 +1,78 @@
+---
+# Source: monitor/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: neuvector-prometheus-exporter-pod-secret
+  namespace: monitor-2.7.7.tgz
+  labels:
+    chart: monitor-2.7.7
+    release: my-release
+    heritage: Helm
+type: Opaque
+data:
+  CTRL_USERNAME: "YWRtaW4="
+  CTRL_PASSWORD: "YWRtaW4="
+---
+# Source: monitor/templates/exporter-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: neuvector-prometheus-exporter
+  namespace: monitor-2.7.7.tgz
+  labels:
+    chart: monitor-2.7.7
+    release: my-release
+    heritage: Helm
+    app: neuvector-prometheus-exporter
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8068
+      name: metrics
+      targetPort: 8068
+      protocol: TCP
+      appProtocol: http
+  selector:
+    app: neuvector-prometheus-exporter-pod
+---
+# Source: monitor/templates/exporter-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neuvector-prometheus-exporter-pod
+  namespace: monitor-2.7.7.tgz
+  labels:
+    chart: monitor-2.7.7
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neuvector-prometheus-exporter-pod
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8068"
+        prometheus.io/scrape: "true"
+        checksum/secret: 54af68ac9c309c5cfdd8a8a2f9b8c1f05fbfbe5703919773fc7f57e9db4c6a24
+      labels:
+        app: neuvector-prometheus-exporter-pod
+        release: my-release
+    spec:
+      containers:
+        - name: neuvector-prometheus-exporter-pod
+          
+          image: "docker.io/neuvector/prometheus-exporter:latest"
+          imagePullPolicy: Always
+          env:
+            - name: CTRL_API_SERVICE
+              value: neuvector-svc-controller-api:10443
+            - name: EXPORTER_PORT
+              value: "8068"
+          envFrom:
+            - secretRef:
+                name: neuvector-prometheus-exporter-pod-secret
+      restartPolicy: Always

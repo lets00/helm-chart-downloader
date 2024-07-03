@@ -1,0 +1,112 @@
+---
+# Source: eth-faucet/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-eth-faucet-env
+  labels:
+    helm.sh/chart: eth-faucet-0.1.1
+    app.kubernetes.io/name: eth-faucet
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  PRIVATE_KEY: NTJmODFkMThmZDdjNTFlYzE1MWE3MmI3ZGZkMTNjZGRjMzllMDFlZjc1YjcyNGNlMDA5MmMzNDk2MmU1OWQ1Yg==
+---
+# Source: eth-faucet/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-eth-faucet
+  labels:
+    helm.sh/chart: eth-faucet-0.1.1
+    app.kubernetes.io/name: eth-faucet
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: eth-faucet
+    app.kubernetes.io/instance: my-release
+---
+# Source: eth-faucet/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-eth-faucet
+  labels:
+    helm.sh/chart: eth-faucet-0.1.1
+    app.kubernetes.io/name: eth-faucet
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eth-faucet
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eth-faucet
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/secrets: 154d87cc9d6c0264190fdad9c949f9d2dcc75e6094f4cd805abe54531a257427
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+      - name: eth-faucet
+        image: "chainflag/eth-faucet:latest"
+        imagePullPolicy: IfNotPresent
+        command:
+            - /app/eth-faucet
+            - -httpport=8080
+        securityContext:
+            {}
+        volumeMounts:
+        ports:
+          - name: http
+            containerPort: 8080
+            protocol: TCP
+        livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http
+        readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http
+        resources:
+            {}
+        env:
+            - name: PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-eth-faucet-env
+                  key: PRIVATE_KEY
+            - name: WEB3_PROVIDER
+              value: http://rpc-provider:8545
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:

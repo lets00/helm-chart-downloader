@@ -1,0 +1,149 @@
+---
+# Source: checkpointz/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-checkpointz-env
+  labels:
+    helm.sh/chart: checkpointz-0.1.3
+    app.kubernetes.io/name: checkpointz
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: checkpointz/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-checkpointz
+  labels:
+    helm.sh/chart: checkpointz-0.1.3
+    app.kubernetes.io/name: checkpointz
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |-
+    
+    beacon:
+      upstreams:
+      - address: http://192.168.0.100:5052
+        dataProvider: true
+        name: upstream1
+    checkpointz:
+      caches:
+        blocks:
+          max_items: 100
+        states:
+          max_items: 5
+      historical_epoch_count: 20
+    global:
+      listenAddr: :5555
+      logging: info
+      metricsAddr: :9090
+---
+# Source: checkpointz/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-checkpointz
+  labels:
+    helm.sh/chart: checkpointz-0.1.3
+    app.kubernetes.io/name: checkpointz
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5555
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9090
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: checkpointz
+    app.kubernetes.io/instance: my-release
+---
+# Source: checkpointz/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-checkpointz
+  labels:
+    helm.sh/chart: checkpointz-0.1.3
+    app.kubernetes.io/name: checkpointz
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: checkpointz
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: checkpointz
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: b2504b471fd1a4f946a06be145cf43ce05f834b2b96fe66a8a4fb91aadb86045
+        checksum/secrets: 71e40acb37a38f7073ac745ad2faa99bd9195eaab86a8bc58e0558186cd9bae4
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+      - name: checkpointz
+        image: "samcm/checkpointz:latest"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/checkpointz"
+          - --config=/config.yaml
+        securityContext:
+            {}
+        volumeMounts:
+          - name: config
+            mountPath: "/config.yaml"
+            subPath: config.yaml
+            readOnly: true
+        ports:
+          - name: http
+            containerPort: 5555
+            protocol: TCP
+          - name: metrics
+            containerPort: 9090
+            protocol: TCP
+        livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http
+        readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http
+        resources:
+            {}
+        env:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-checkpointz

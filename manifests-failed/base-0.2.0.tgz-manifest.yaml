@@ -1,0 +1,115 @@
+---
+# Source: base/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release
+  labels:
+    helm.sh/chart: base-0.2.0
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 0.2.0
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: base/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    helm.sh/chart: base-0.2.0
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 0.2.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/instance: my-release
+---
+# Source: base/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  labels:
+    helm.sh/chart: base-0.2.0
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 0.2.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        configmap: "44136fa3"
+      labels:
+        app.kubernetes.io/name: my-release
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release
+      securityContext:
+        {}
+      containers: 
+        - name: my-release
+          securityContext:
+            {}
+          image: "nginx:1.21"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {}
+          envFrom:
+            - secretRef:
+                name: my-release
+                optional: true
+---
+# Source: base/templates/external-secrets.yaml
+apiVersion: external-secrets.io/v1alpha1
+kind: ExternalSecret
+metadata:
+  name: my-release
+spec:
+  refreshInterval: 1m
+  secretStoreRef:
+    name: application-dev
+    kind: SecretStore
+  target:
+    name: my-release
+    creationPolicy: Owner
+  data:
+---
+# Source: base/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-test-connection"
+  labels:
+    helm.sh/chart: base-0.2.0
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 0.2.0
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release:80']
+  restartPolicy: OnFailure

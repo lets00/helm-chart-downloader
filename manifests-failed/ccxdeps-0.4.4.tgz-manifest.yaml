@@ -1,0 +1,1236 @@
+---
+# Source: ccxdeps/charts/postgres-operator/templates/postgres-pod-priority-class.yaml
+apiVersion: scheduling.k8s.io/v1
+description: 'Use only for databases controlled by Postgres operator'
+kind: PriorityClass
+metadata:
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.11.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  name: my-release-postgres-operator-pod
+  namespace: ccxdeps-0.4.4.tgz
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+value: 1e+06
+---
+# Source: ccxdeps/charts/nats/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-ccx-nats
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    helm.sh/chart: nats-0.19.16
+    app.kubernetes.io/name: ccx-nats
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.9.19"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ccx-nats
+      app.kubernetes.io/instance: my-release
+---
+# Source: ccxdeps/charts/mysql-innodbcluster/templates/service_account_cluster.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-sa
+  namespace: ccxdeps-0.4.4.tgz
+---
+# Source: ccxdeps/charts/nats/templates/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-ccx-nats
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    helm.sh/chart: nats-0.19.16
+    app.kubernetes.io/name: ccx-nats
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.9.19"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: ccxdeps/charts/oracle-mysql-operator/templates/service_account_operator.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mysql-operator-sa
+  namespace: ccxdeps-0.4.4.tgz
+---
+# Source: ccxdeps/charts/postgres-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-postgres-operator
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.11.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+---
+# Source: ccxdeps/charts/mysql-innodbcluster/templates/cluster_secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-cluster-secret
+  namespace: ccxdeps-0.4.4.tgz
+stringData:
+  rootUser: "cmon"
+  rootHost: "%"
+  rootPassword: "Super$3cr3t"
+---
+# Source: ccxdeps/charts/nats/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-ccx-nats-config
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    helm.sh/chart: nats-0.19.16
+    app.kubernetes.io/name: ccx-nats
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.9.19"
+    app.kubernetes.io/managed-by: Helm
+data:
+  nats.conf: |
+    # NATS Clients Port
+    port: 4222
+
+    # PID file shared with configuration reloader.
+    pid_file: "/var/run/nats/nats.pid"
+
+    ###############
+    #             #
+    # Monitoring  #
+    #             #
+    ###############
+    http: 8222
+    server_name:$POD_NAME
+    ###################################
+    #                                 #
+    # NATS JetStream                  #
+    #                                 #
+    ###################################
+    jetstream {
+      max_mem: 1Gi
+      store_dir: /data
+
+      max_file:10Gi
+    }
+    lame_duck_grace_period: 10s
+    lame_duck_duration: 30s
+---
+# Source: ccxdeps/charts/oracle-mysql-operator/templates/cluster_role_operator.yaml
+# The main role for the operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mysql-operator
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["get", "patch", "update", "watch"]
+    # Kopf needs patch on secrets or the sidecar will throw
+    # The operator needs this verb to be able to pass it to the sidecar
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "create", "update", "list", "watch", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "create", "list", "update", "delete", "patch"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "create", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["rolebindings"]
+    verbs: ["get", "create"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "create"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create"]
+  - apiGroups: ["batch"]
+    resources: ["cronjobs"]
+    verbs: ["get", "create", "update", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "create", "patch", "update", "watch", "delete"]
+  - apiGroups: ["mysql.oracle.com"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["zalando.org"]
+    resources: ["*"]
+    verbs: ["get", "patch", "list", "watch"]
+  # Kopf: runtime observation of namespaces & CRDs (addition/deletion).
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [list, watch]
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [list, watch]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors"]
+    verbs: ["get", "create", "patch", "update", "delete"]
+---
+# Source: ccxdeps/charts/oracle-mysql-operator/templates/cluster_role_sidecar.yaml
+# role for the server sidecar
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mysql-sidecar
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["get", "patch", "update", "watch"]
+  # Kopf needs patch on secrets or the sidecar will throw
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "create", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "create", "list", "update"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+  - apiGroups: ["mysql.oracle.com"]
+    resources: ["innodbclusters"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["mysql.oracle.com"]
+    resources: ["mysqlbackups"]
+    verbs: ["create", "get", "list", "patch", "update", "watch", "delete"]
+  - apiGroups: ["mysql.oracle.com"]
+    resources: ["mysqlbackups/status"]
+    verbs: ["get", "patch", "update", "watch"]
+---
+# Source: ccxdeps/charts/postgres-operator/templates/clusterrole-postgres-pod.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: postgres-pod
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.11.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+rules:
+# Patroni needs to watch and manage config maps or endpoints
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# Patroni needs to watch pods
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# to let Patroni create a headless service
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+---
+# Source: ccxdeps/charts/postgres-operator/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-postgres-operator
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.11.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+rules:
+# all verbs allowed for custom operator resources
+- apiGroups:
+  - acid.zalan.do
+  resources:
+  - postgresqls
+  - postgresqls/status
+  - operatorconfigurations
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# operator only reads PostgresTeams
+- apiGroups:
+  - acid.zalan.do
+  resources:
+  - postgresteams
+  verbs:
+  - get
+  - list
+  - watch
+# all verbs allowed for event streams
+# to create or get/update CRDs when starting up
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - create
+  - patch
+  - update
+# to send events to the CRs
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# to manage endpoints/configmaps which are also used by Patroni
+# to read configuration from ConfigMaps
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# to CRUD secrets for database access
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+# to check nodes for node readiness label
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+# to read or delete existing PVCs. Creation via StatefulSet
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+ # to read existing PVs. Creation should be done via dynamic provisioning
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+# to watch Spilo pods and do rolling updates. Creation via StatefulSet
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# to resize the filesystem in Spilo pods when increasing volume size
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+# to CRUD services to point to Postgres cluster instances
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+# to CRUD the StatefulSet which controls the Postgres cluster instances
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+# to CRUD cron jobs for logical backups
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+# to get namespaces operator resources can run in
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+# to define PDBs. Update happens via delete/create
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+# to create ServiceAccounts in each namespace the operator watches
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - create
+# to create role bindings to the postgres-pod service account
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  verbs:
+  - get
+  - create
+---
+# Source: ccxdeps/charts/oracle-mysql-operator/templates/cluster_role_binding_operator.yaml
+# Give access to the operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mysql-operator-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: mysql-operator-sa
+    namespace: ccxdeps-0.4.4.tgz
+  # TODO The following entry is for dev purposes only and must be deleted
+  #- kind: Group
+  #  name: system:serviceaccounts
+  #  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: mysql-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: ccxdeps/charts/postgres-operator/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-postgres-operator
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.11.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-postgres-operator
+subjects:
+- kind: ServiceAccount
+  name: my-release-postgres-operator
+  namespace: ccxdeps-0.4.4.tgz
+---
+# Source: ccxdeps/charts/nats/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ccx-nats
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    helm.sh/chart: nats-0.19.16
+    app.kubernetes.io/name: ccx-nats
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.9.19"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    app.kubernetes.io/name: ccx-nats
+    app.kubernetes.io/instance: my-release
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+  - name: client
+    port: 4222
+    appProtocol: tcp
+  - name: cluster
+    port: 6222
+    appProtocol: tcp
+  - name: monitor
+    port: 8222
+    appProtocol: http
+  - name: metrics
+    port: 7777
+    appProtocol: http
+  - name: leafnodes
+    port: 7422
+    appProtocol: tcp
+  - name: gateways
+    port: 7522
+    appProtocol: tcp
+---
+# Source: ccxdeps/charts/oracle-mysql-operator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-operator
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    name: mysql-operator
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9443
+    protocol: TCP
+  selector:
+    name: mysql-operator
+---
+# Source: ccxdeps/charts/postgres-operator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.11.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  name: my-release-postgres-operator
+  namespace: ccxdeps-0.4.4.tgz
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgres-operator
+---
+# Source: ccxdeps/charts/nats/templates/nats-box.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-ccx-nats-box
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    app: my-release-ccx-nats-box
+    chart: nats-0.19.16
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-ccx-nats-box
+  template:
+    metadata:
+      labels:
+        app: my-release-ccx-nats-box
+    spec:
+      volumes:
+      containers:
+      - name: nats-box
+        image: natsio/nats-box:0.13.8
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        env:
+        - name: NATS_URL
+          value: my-release-ccx-nats
+        command:
+        - "tail"
+        - "-f"
+        - "/dev/null"
+        volumeMounts:
+---
+# Source: ccxdeps/charts/oracle-mysql-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-operator
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    version: "8.4.0-2.1.3"
+    app.kubernetes.io/name: mysql-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.4.0-2.1.3"
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: helm
+    app.kubernetes.io/created-by: helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: mysql-operator
+  template:
+    metadata:
+      labels:
+        name: mysql-operator
+    spec:
+      containers:
+        - name: mysql-operator
+          image: container-registry.oracle.com/mysql/community-operator:8.4.0-2.1.3
+          imagePullPolicy: IfNotPresent
+          args: ["mysqlsh", "--log-level=@INFO", "--pym", "mysqloperator", "operator"]
+          env:
+          - name: MYSQLSH_USER_CONFIG_HOME
+            value: /mysqlsh
+          - name: MYSQLSH_CREDENTIAL_STORE_SAVE_PASSWORDS
+            value: never
+          
+          - name: MYSQL_OPERATOR_IMAGE_PULL_POLICY
+            value: IfNotPresent
+          
+          readinessProbe:
+            exec:
+              command:
+              - cat
+              - /tmp/mysql-operator-ready
+            initialDelaySeconds: 1
+            periodSeconds: 3
+          volumeMounts:
+            - name: mysqlsh-home
+              mountPath: /mysqlsh
+            - name: tmpdir
+              mountPath: /tmp
+          securityContext:
+            runAsUser: 2
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: mysqlsh-home
+          emptyDir: {}
+        - name: tmpdir
+          emptyDir: {}
+      serviceAccountName: mysql-operator-sa
+---
+# Source: ccxdeps/charts/postgres-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.11.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  name: my-release-postgres-operator
+  namespace: ccxdeps-0.4.4.tgz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-operator
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 64b4aafa1007a4835ca4675dbad30ddfe27528f9b133d1db5072e48b397d0c5d
+      labels:
+        app.kubernetes.io/name: postgres-operator
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-postgres-operator
+      containers:
+      - name: postgres-operator
+        image: "registry.opensource.zalan.do/acid/postgres-operator:v1.11.0"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: POSTGRES_OPERATOR_CONFIGURATION_OBJECT
+          value: my-release-postgres-operator
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 100m
+            memory: 250Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      affinity:
+        {}
+      nodeSelector:
+        {}
+      tolerations:
+        []
+---
+# Source: ccxdeps/charts/nats/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-ccx-nats
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    helm.sh/chart: nats-0.19.16
+    app.kubernetes.io/name: ccx-nats
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.9.19"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ccx-nats
+      app.kubernetes.io/instance: my-release
+  replicas: 1
+  serviceName: my-release-ccx-nats
+
+  podManagementPolicy: Parallel
+
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "7777"
+        prometheus.io/scrape: "true"
+        checksum/config: d2e9471e70795c605e2fa0c9a93c21cae89de118aec7dadb80fbb4ebb597dadc
+      labels:
+        app.kubernetes.io/name: ccx-nats
+        app.kubernetes.io/instance: my-release
+    spec:
+      dnsPolicy: ClusterFirst
+      # Common volumes for the containers.
+      volumes:
+      - name: config-volume
+        configMap:
+          name: my-release-ccx-nats-config
+
+      # Local volume shared with the reloader.
+      - name: pid
+        emptyDir: {}
+
+      #################
+      #               #
+      #  TLS Volumes  #
+      #               #
+      #################
+
+      serviceAccountName: my-release-ccx-nats
+
+      # Required to be able to HUP signal and apply config
+      # reload to the server without restarting the pod.
+      shareProcessNamespace: true
+
+      #################
+      #               #
+      #  NATS Server  #
+      #               #
+      #################
+      terminationGracePeriodSeconds: 60
+      containers:
+      - name: nats
+        image: nats:2.9.19-alpine
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        ports:
+        - containerPort: 4222
+          name: client
+        - containerPort: 6222
+          name: cluster
+        - containerPort: 8222
+          name: monitor
+
+        command:
+        - "nats-server"
+        - "--config"
+        - "/etc/nats-config/nats.conf"
+
+        # Required to be able to define an environment variable
+        # that refers to other environment variables.  This env var
+        # is later used as part of the configuration file.
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: SERVER_NAME
+          value: $(POD_NAME)
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: CLUSTER_ADVERTISE
+          value: $(POD_NAME).my-release-ccx-nats.$(POD_NAMESPACE).svc.cluster.local
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/nats-config
+        - name: pid
+          mountPath: /var/run/nats
+        - name: my-release-ccx-nats-js-pvc
+          mountPath: /data
+        
+
+        #######################
+        #                     #
+        # Healthcheck Probes  #
+        #                     #
+        #######################
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8222
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8222
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        startupProbe:
+          # for NATS server versions >=2.7.1, /healthz will be enabled
+          # startup probe checks that the JS server is enabled, is current with the meta leader,
+          # and that all streams and consumers assigned to this JS server are current
+          failureThreshold: 90
+          httpGet:
+            path: /healthz
+            port: 8222
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+
+        # Gracefully stop NATS Server on pod deletion or image upgrade.
+        #
+        lifecycle:
+          preStop:
+            exec:
+              # send the lame duck shutdown signal to trigger a graceful shutdown
+              # nats-server will ignore the TERM signal it receives after this
+              #
+              command:
+              - "nats-server"
+              - "-sl=ldm=/var/run/nats/nats.pid"
+
+      #################################
+      #                               #
+      #  NATS Configuration Reloader  #
+      #                               #
+      #################################
+      - name: reloader
+        image: natsio/nats-server-config-reloader:0.10.1
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        command:
+        - "nats-server-config-reloader"
+        - "-pid"
+        - "/var/run/nats/nats.pid"
+        - "-config"
+        - "/etc/nats-config/nats.conf"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/nats-config
+        - name: pid
+          mountPath: /var/run/nats
+        
+
+      ##############################
+      #                            #
+      #  NATS Prometheus Exporter  #
+      #                            #
+      ##############################
+      - name: metrics
+        image: natsio/prometheus-nats-exporter:0.11.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        args:
+        - -connz
+        - -routez
+        - -subz
+        - -varz
+        - -prefix=nats
+        - -use_internal_server_id
+        - -jsz=all
+        - http://localhost:8222/
+        ports:
+        - containerPort: 7777
+          name: metrics
+
+  volumeClaimTemplates:
+  #####################################
+  #                                   #
+  #  Jetstream New Persistent Volume  #
+  #                                   #
+  #####################################
+    - metadata:
+        name: my-release-ccx-nats-js-pvc
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+---
+# Source: ccxdeps/charts/oracle-mysql-operator/templates/cluster_kopf_keepering.yaml
+apiVersion: zalando.org/v1
+kind: ClusterKopfPeering
+metadata:
+  name: mysql-operator
+---
+# Source: ccxdeps/charts/mysql-innodbcluster/templates/deployment_cluster.yaml
+apiVersion: mysql.oracle.com/v2
+kind: InnoDBCluster
+metadata:
+  name: my-release
+  namespace: ccxdeps-0.4.4.tgz
+spec:
+  instances: 1
+  tlsUseSelfSigned: true
+  router:
+    instances: 1
+
+
+  secretName: my-release-cluster-secret
+  imagePullPolicy : IfNotPresent
+  baseServerId: 1000
+  version: 8.4.0
+  serviceAccountName: my-release-sa
+  # mycnf
+  # datadirVolumeClaimTemplate
+  datadirVolumeClaimTemplate:
+    resources:
+      requests:
+        storage: "20Gi"
+  # Keyring
+  # Init DB
+  # Backup Profiles
+  # Backup Schedules
+  # Pod Spec
+  # Pod Labels
+  # Pod Annotations
+  # Logs
+  # Service
+  # Metrics
+  # Read Replicas
+---
+# Source: ccxdeps/charts/postgres-operator/templates/operatorconfiguration.yaml
+apiVersion: "acid.zalan.do/v1"
+kind: OperatorConfiguration
+metadata:
+  name: my-release-postgres-operator
+  namespace: ccxdeps-0.4.4.tgz
+  labels:
+    app.kubernetes.io/name: postgres-operator
+    helm.sh/chart: postgres-operator-1.11.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+configuration:
+  crd_categories:
+  - all
+  docker_image: ghcr.io/zalando/spilo-16:3.2-p2
+  enable_crd_registration: true
+  enable_lazy_spilo_upgrade: false
+  enable_pgversion_env_var: true
+  enable_shm_volume: true
+  enable_spilo_wal_path_compat: false
+  enable_team_id_clustername_prefix: false
+  etcd_host: ""
+  max_instances: -1
+  min_instances: -1
+  repair_period: 5m
+  resync_period: 30m
+  workers: 8
+  users:
+    enable_password_rotation: false
+    password_rotation_interval: 90
+    password_rotation_user_retention: 180
+    replication_username: standby
+    super_username: postgres
+  major_version_upgrade:
+    major_version_upgrade_mode: "off"
+    minimal_major_version: "12"
+    target_major_version: "16"
+  kubernetes:
+    pod_service_account_name: postgres-pod
+    oauth_token_secret_name: my-release-postgres-operator
+    cluster_domain: cluster.local
+    cluster_labels:
+      application: spilo
+    cluster_name_label: cluster-name
+    enable_cross_namespace_secret: false
+    enable_finalizers: false
+    enable_init_containers: true
+    enable_persistent_volume_claim_deletion: true
+    enable_pod_antiaffinity: false
+    enable_pod_disruption_budget: true
+    enable_readiness_probe: false
+    enable_sidecars: true
+    pdb_master_label_selector: true
+    pdb_name_format: postgres-{cluster}-pdb
+    persistent_volume_claim_retention_policy:
+      when_deleted: retain
+      when_scaled: retain
+    pod_antiaffinity_preferred_during_scheduling: false
+    pod_antiaffinity_topology_key: kubernetes.io/hostname
+    pod_management_policy: ordered_ready
+    pod_role_label: spilo-role
+    pod_terminate_grace_period: 5m
+    secret_name_template: '{username}.{cluster}.credentials.{tprkind}.{tprgroup}'
+    share_pgsocket_with_sidecars: false
+    spilo_allow_privilege_escalation: true
+    spilo_privileged: false
+    storage_resize_mode: pvc
+    watched_namespace: '*'
+  postgres_pod_resources:
+    default_cpu_limit: "1"
+    default_cpu_request: 100m
+    default_memory_limit: 500Mi
+    default_memory_request: 100Mi
+    min_cpu_limit: 250m
+    min_memory_limit: 250Mi
+  timeouts:
+    patroni_api_check_interval: 1s
+    patroni_api_check_timeout: 5s
+    pod_deletion_wait_timeout: 10m
+    pod_label_wait_timeout: 10m
+    ready_wait_interval: 3s
+    ready_wait_timeout: 30s
+    resource_check_interval: 3s
+    resource_check_timeout: 10m
+  load_balancer:
+    db_hosted_zone: db.example.com
+    enable_master_load_balancer: false
+    enable_master_pooler_load_balancer: false
+    enable_replica_load_balancer: false
+    enable_replica_pooler_load_balancer: false
+    external_traffic_policy: Cluster
+    master_dns_name_format: '{cluster}.{namespace}.{hostedzone}'
+    master_legacy_dns_name_format: '{cluster}.{team}.{hostedzone}'
+    replica_dns_name_format: '{cluster}-repl.{namespace}.{hostedzone}'
+    replica_legacy_dns_name_format: '{cluster}-repl.{team}.{hostedzone}'
+  aws_or_gcp:
+    aws_region: eu-central-1
+    enable_ebs_gp3_migration: false
+  logical_backup:
+    logical_backup_cronjob_environment_secret: ""
+    logical_backup_docker_image: registry.opensource.zalan.do/acid/logical-backup:v1.11.0
+    logical_backup_job_prefix: logical-backup-
+    logical_backup_provider: s3
+    logical_backup_s3_access_key_id: ""
+    logical_backup_s3_bucket: my-bucket-url
+    logical_backup_s3_endpoint: ""
+    logical_backup_s3_region: ""
+    logical_backup_s3_retention_time: ""
+    logical_backup_s3_secret_access_key: ""
+    logical_backup_s3_sse: AES256
+    logical_backup_schedule: 30 00 * * *
+  debug:
+    debug_logging: true
+    enable_database_access: true
+  teams_api:
+    enable_admin_role_for_users: true
+    enable_postgres_team_crd: false
+    enable_postgres_team_crd_superusers: false
+    enable_team_member_deprecation: false
+    enable_team_superuser: false
+    enable_teams_api: false
+    pam_role_name: zalandos
+    postgres_superuser_teams:
+    - postgres_superusers
+    protected_role_names:
+    - admin
+    - cron_admin
+    role_deletion_suffix: _deleted
+    team_admin_role: admin
+    team_api_role_configuration:
+      log_statement: all
+  logging_rest_api:
+    api_port: 8080
+    cluster_history_entries: 1000
+    ring_log_lines: 100
+  connection_pooler:
+    connection_pooler_default_cpu_limit: "1"
+    connection_pooler_default_cpu_request: 500m
+    connection_pooler_default_memory_limit: 100Mi
+    connection_pooler_default_memory_request: 100Mi
+    connection_pooler_image: registry.opensource.zalan.do/acid/pgbouncer:master-32
+    connection_pooler_max_db_connections: 60
+    connection_pooler_mode: transaction
+    connection_pooler_number_of_instances: 2
+    connection_pooler_schema: pooler
+    connection_pooler_user: pooler
+  patroni:
+    enable_patroni_failsafe_mode: false
+---
+# Source: ccxdeps/templates/db/ccx-db.yaml
+kind: "postgresql"
+apiVersion: "acid.zalan.do/v1"
+
+metadata:
+  name: "acid-ccx"
+
+spec:
+  teamId: "acid"
+  postgresql:
+    version: "14"
+  numberOfInstances: 1
+  volume:
+    size: 10Gi
+  users:
+    ccx:
+      - superuser
+      - createdb
+  databases:
+    ccx: ccx
+    ccx_deployer: ccx
+    ccx_backup: ccx
+    userdb: ccx
+    ccx_notification: ccx
+    ccx_projects: ccx
+    ccx_rbac: ccx
+    ccx_vpc: ccx
+    ccx_stores: ccx
+    ccx_cloud: ccx
+
+  patroni:
+    initdb:
+      encoding: "UTF8"
+      locale: "en_US.UTF-8"
+      data-checksums: "true"
+    pg_hba:
+      - local all all trust
+      - local replication all trust
+      - host  all all all md5
+      - host  replication all all md5
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100Mi
+    limits:
+      cpu: 500m
+      memory: 500Mi
+  enableLogicalBackup: false
+---
+# Source: ccxdeps/charts/nats/templates/tests/test-request-reply.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-ccx-nats-test-request-reply"
+  labels:
+    chart: nats-0.19.16
+    app: my-release-ccx-nats-test-request-reply
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+  - name: nats-box
+    image: natsio/nats-box:0.13.8
+    env:
+    - name: NATS_HOST
+      value: my-release-ccx-nats
+    command:
+    - /bin/sh
+    - -ec
+    - |
+      nats reply -s nats://$NATS_HOST:4222 'name.>' --command "echo 1" &
+    - |
+      "&&"
+    - |
+      name=$(nats request -s nats://$NATS_HOST:4222 name.test '' 2>/dev/null)
+    - |
+      "&&"
+    - |
+      [ $name = test ]
+
+  restartPolicy: Never

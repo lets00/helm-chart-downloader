@@ -1,0 +1,266 @@
+---
+# Source: phonebook-chart/templates/mysql-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: myapp-secret
+type: Opaque
+data:
+  mysql_password: UGF1bF8xMjM0NTY3ODk=  #Paul_123456789
+  mysql_root_password: UGF1bEtlbGxlcm1hbl8xMjM0NTY3ODk=  #PaulKellerman_123456789
+---
+# Source: phonebook-chart/templates/database_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myapp-dbconfigmap
+data:
+  # property-like keys; each key maps to a simple value
+  mysql_database: phonebook
+  mysql_user: pauls
+  mysql_database_host: mysql-service
+---
+# Source: phonebook-chart/templates/servers_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myapp-serverconfigmap
+data:
+  # property-like keys; each key maps to a simple value
+  mysql_database: phonebook
+  mysql_user: pauls
+  mysql_database_host: mysql-service
+---
+# Source: phonebook-chart/templates/persistent_volume.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv-vol
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+---
+# Source: phonebook-chart/templates/persistent_volume_claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: phonebook-chart/templates/mysql_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  labels:
+    app: mysql-service
+spec:
+  type: ClusterIP  
+  ports:
+  - port: 3306  
+    targetPort: 3306
+  selector:
+    app: mysql-pod
+---
+# Source: phonebook-chart/templates/result_server_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: result-server-service
+  labels:
+    app: result-server-service
+spec:
+  type: NodePort 
+  ports:
+  - port: 80  
+    targetPort: 80
+    nodePort: 30002
+    protocol: TCP
+  selector:
+    app: result-server-pod
+---
+# Source: phonebook-chart/templates/web_server_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-server-service
+  labels:
+    app: web-server-service
+spec:
+  type: NodePort 
+  ports:
+  - port: 80  
+    targetPort: 80
+    nodePort: 30001
+    protocol: TCP
+  selector:
+    app: web-server-pod
+---
+# Source: phonebook-chart/templates/mysql_deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqlapp-deploy
+  labels:
+    app: mysqlapp-deploy
+
+spec:
+  selector:
+    matchLabels:
+      app: mysql-pod
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: mysql-pod
+    spec:
+      containers:
+      - image: mysql:5.7
+        name: mysql
+        ports:
+        - containerPort: 3306
+          name: mysql
+        env:
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: myapp-secret
+              key: mysql_password
+              optional: false 
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: myapp-secret
+              key: mysql_root_password
+              optional: false 
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: myapp-dbconfigmap
+              key: mysql_database
+        - name: MYSQL_USER
+          valueFrom:
+            configMapKeyRef:
+              name: myapp-dbconfigmap
+              key: mysql_user
+        volumeMounts:
+        - mountPath: "/var/lib/mysql"
+          name: paul-pv-storage
+      volumes:
+        - name: paul-pv-storage
+          persistentVolumeClaim:
+            claimName: mysql-pv-claim
+---
+# Source: phonebook-chart/templates/result_server_deployment.yaml
+apiVersion: apps/v1 
+kind: Deployment 
+metadata:
+  name: result-server-deploy
+spec:
+  replicas: 3 
+  selector:  
+    matchLabels:
+      app: result-server-pod
+  minReadySeconds: 10 
+  strategy:
+    type: RollingUpdate 
+    rollingUpdate:
+      maxUnavailable: 1 
+      maxSurge: 1 
+  template: 
+    metadata:
+      name: result-server-pod
+      labels:
+        app: result-server-pod
+    spec:
+      containers:
+      - name: result-server
+        image: paulkellerman/resultserver-app:1.0 #paulkellerman/resultserver-app:1.0 
+        ports:
+          - containerPort: 80
+        env:
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: myapp-secret
+              key: mysql_password
+              optional: false 
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: myapp-serverconfigmap
+              key: mysql_database
+        - name: MYSQL_USER
+          valueFrom:
+            configMapKeyRef:
+              name: myapp-serverconfigmap
+              key: mysql_user
+        - name: MYSQL_DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: myapp-serverconfigmap
+              key: mysql_database_host
+---
+# Source: phonebook-chart/templates/web_server_deployment.yaml
+apiVersion: apps/v1 
+kind: Deployment 
+metadata:
+  name: web-server-deploy
+spec:
+  replicas: 3 
+  selector:  
+    matchLabels:
+      app: web-server-pod
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate 
+    rollingUpdate:
+      maxUnavailable: 1 
+      maxSurge: 1 
+  template: 
+    metadata:
+      name: web-server-pod
+      labels:
+        app: web-server-pod
+    spec:
+      containers:
+      - name: web-server
+        image: paulkellerman/webserver-app:latest #paulkellerman/webserver-app:latest 
+        ports:
+          - containerPort: 80
+        env:
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: myapp-secret
+              key: mysql_password
+              optional: false 
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: myapp-serverconfigmap
+              key: mysql_database
+        - name: MYSQL_USER
+          valueFrom:
+            configMapKeyRef:
+              name: myapp-serverconfigmap
+              key: mysql_user
+        - name: MYSQL_DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: myapp-serverconfigmap
+              key: mysql_database_host

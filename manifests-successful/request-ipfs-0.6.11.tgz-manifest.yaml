@@ -1,0 +1,142 @@
+---
+# Source: request-ipfs/templates/ipfs-api-service.yaml
+# Service to expose the IPFS node API
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-request-ipfs-api
+  labels:
+    app.kubernetes.io/name: request-ipfs
+    helm.sh/chart: request-ipfs-0.6.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.26"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5001
+    targetPort: 5001
+    protocol: TCP
+    name: api-http
+  selector:
+    app.kubernetes.io/name: request-ipfs
+    helm.sh/chart: request-ipfs-0.6.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.26"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: request-ipfs/templates/ipfs-swarm-load-balancer.yaml
+# Load balancer to expose the IPFS node swarm port
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: request-ipfs
+    helm.sh/chart: request-ipfs-0.6.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.26"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-request-ipfs-swarm
+spec:
+  ports:
+  - name: swarm
+    port: 4001
+    protocol: TCP
+    targetPort: 4001
+  loadBalancerIP: 
+  selector:
+    app.kubernetes.io/name: request-ipfs
+    helm.sh/chart: request-ipfs-0.6.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.26"
+    app.kubernetes.io/managed-by: Helm
+  sessionAffinity: None
+  type: LoadBalancer
+---
+# Source: request-ipfs/templates/statefulSet.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-request-ipfs
+  labels:
+    app.kubernetes.io/name: request-ipfs
+    helm.sh/chart: request-ipfs-0.6.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.26"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: request-ipfs
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: request-ipfs
+      helm.sh/chart: request-ipfs-0.6.11
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/version: "0.4.26"
+      app.kubernetes.io/managed-by: Helm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: request-ipfs
+        helm.sh/chart: request-ipfs-0.6.11
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.4.26"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      securityContext:
+        # The image runs as uid 1000 by default, and needs to be able to write to the persistent volume to be able to start.
+        fsGroup: 1000
+        # Shorten the time it takes to change ownership and permission of files on boot.
+        fsGroupChangePolicy: "OnRootMismatch"
+        runAsUser: 1000
+
+      containers:
+      - name: ipfs
+        image: "requestnetwork/request-ipfs:0.4.26"
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          tcpSocket:
+            port: swarm
+          initialDelaySeconds: 
+          periodSeconds: 
+          timeoutSeconds: 
+          successThreshold: 
+          failureThreshold: 
+        readinessProbe:
+          tcpSocket:
+            port: swarm
+          initialDelaySeconds: 15
+          periodSeconds: 3
+          timeoutSeconds: 
+          successThreshold: 
+          failureThreshold: 
+        ports:
+        - containerPort: 4001
+          name: swarm
+        - containerPort: 5001
+          name: api
+        volumeMounts:
+        - name: ipfs-storage
+          mountPath: /data/ipfs
+        env:
+        # Forces the IPFS node to connect to the Request dedicated network
+        - name: LIBP2P_FORCE_PNET
+          value: "1"
+        - name: SWARM_PORT
+          value: "4001"
+        resources:
+          {}
+      
+  volumeClaimTemplates:
+  # IPFS storage volume
+  - metadata:
+      name: ipfs-storage
+      labels:
+        app.kubernetes.io/name: request-ipfs
+        app.kubernetes.io/instance: my-release
+    spec:
+      accessModes:
+        - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: "8Gi"

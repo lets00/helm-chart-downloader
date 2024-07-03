@@ -1,0 +1,177 @@
+---
+# Source: gravity-init/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-gravity-init
+  labels:
+    helm.sh/chart: gravity-init-v1.0.9
+    app.kubernetes.io/name: gravity-init
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.9"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: gravity-init/templates/rbac/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-gravity-init
+  labels:
+    helm.sh/chart: gravity-init-v1.0.9
+    app.kubernetes.io/name: gravity-init
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.9"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - verbs:
+      - '*'
+    apiGroups:
+      - '*'
+    resources:
+      - '*'
+  - verbs:
+      - '*'
+    nonResourceURLs:
+      - '*'
+---
+# Source: gravity-init/templates/rbac/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-gravity-init
+  labels:
+    helm.sh/chart: gravity-init-v1.0.9
+    app.kubernetes.io/name: gravity-init
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.9"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-gravity-init
+subjects:
+- kind: ServiceAccount
+  name: my-release-gravity-init
+  namespace: gravity-init-v1.0.9.tgz
+---
+# Source: gravity-init/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gravity-init
+  labels:
+    helm.sh/chart: gravity-init-v1.0.9
+    app.kubernetes.io/name: gravity-init
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.9"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+  selector:
+    app.kubernetes.io/name: gravity-init
+    app.kubernetes.io/instance: my-release
+---
+# Source: gravity-init/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-gravity-init
+  labels:
+    helm.sh/chart: gravity-init-v1.0.9
+    app.kubernetes.io/name: gravity-init
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.9"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gravity-init
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gravity-init
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-gravity-init
+      securityContext:
+        {}
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: gravity-init
+          securityContext:
+            {}
+          image: "invisibl/gravity-init:v1.0.9"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GRAVITY_PROFILE
+              value: "management"
+            - name: GRAVITY_LICENSE
+              value: 
+            - name: GRAVITY_INIT_IMAGE
+              value: "invisibl/gravity-init:v1.0.9"
+            - name: GRAVITY_HTTPS_ENABLED
+              value: "true"
+            - name: GRAVITY_HTTPS_CERT
+              value: /app/tls/tls.crt
+            - name: GRAVITY_HTTPS_KEY
+              value: /app/tls/tls.key
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          resources:
+            limits:
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /app/tls
+              name: tls
+      volumes:
+        - name: tls
+          secret:
+            defaultMode: 420
+            secretName: my-release-gravity-init-tls
+---
+# Source: gravity-init/templates/secret-tls.yaml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: my-release-gravity-init-tls
+  labels:
+    helm.sh/chart: gravity-init-v1.0.9
+    app.kubernetes.io/name: gravity-init
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.9"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURJRENDQWdpZ0F3SUJBZ0lSQUorTkxNSjNYQzVpdjRKWEpzMjRWWlF3RFFZSktvWklodmNOQVFFTEJRQXcKR2pFWU1CWUdBMVVFQXhNUFozSmhkbWwwZVMxcGJtbDBMV05oTUI0WERUSTBNRFl5TURFME5UWTFNVm9YRFRNMApNRFl4T0RFME5UWTFNVm93R2pFWU1CWUdBMVVFQXhNUFozSmhkbWwwZVMxcGJtbDBMV05oTUlJQklqQU5CZ2txCmhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBMWZ4c0lQYmVnYnVudkx5Q2VCZ2ZsajA0dElaQUhRQ2gKMUdVRDYrNm16L292UUtqbnFBMzM4dmE4QWhJZ2NjUTltdi95YjNYMlNTV2JDNnpjSVZ5SUFqMDBNbzExSnl3SQprVHhKR1d0SWVTUzg0dkl3bG1BaW9tc21mbWk2b2lPRVNqNnlNUllCZE1lZ01ER3pHS1E5K0k2K0tJaG9KUkh5CitPV1RPd1pjSzNoeXNGSU9OSVJIeWY0RmhJOG9NT2NrMHVJeEJtT3ZOMjVLajNlT3NYQ09xT2NsWHNoaDJob2kKN00zUW90MnJ0WG1TMGg3TmE0U3IzRlVsdjhFdUR3YmlyRnRtT0ZaN1J3bUZnUi9ITGZiSDYwaDF0QndjalNZRgo4WHJ2V2JmMTdHNE90UGJaUGoxZGZwcWt2b3ZYVlhXRW5zRjdaM2ZjZlYxWDFaR0Q3bXRqdVFJREFRQUJvMkV3Clh6QU9CZ05WSFE4QkFmOEVCQU1DQXFRd0hRWURWUjBsQkJZd0ZBWUlLd1lCQlFVSEF3RUdDQ3NHQVFVRkJ3TUMKTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3SFFZRFZSME9CQllFRktsWElWY2d2a1ZPYzJlK0dnNU5hU1dkUDhoMQpNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUNmUnZjSk9YSGtnd2kyRWdNTm1oNEVZT3J1OHVDVUN5N2U5VzB2CmU1MGRjZHlScWhvdmsrN204ZjB2R0ZoSnJMNDBkNzB4TUwxbzRZZW5ocXJPMVg5MEFRRDdlczhnakxlNUJUa0wKWlR1Z1Z1ck41NnhrYVhVYlRCSWR2bnZ1VFFJbFFaY05ZMWwxZFRyR1FKcTF1SFdvbWxnYmRONmFibFFUbnI3eQpQNm85OUROVmRMb3FmbFN1MUpBbDFFcDhBeGxmOWMyVWw2QUFvbUxHckQraGY4LzBRZE5ETE54RUhKc0dRdWQ3CmVRWTFCbzZOcjU4djY0QlZ3ZldQWXN5SUF0MWljK3FSd2l6OHM5aUR6ekhkV0gxMkRKaVlHQ1UrNmdYRVQrOFMKRjFucXJkRnRRY1NmSjJOTThrSU5JMUQwUUY0azNwWE55N1dwQWc1blFIVEZxcGdLCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURlVENDQW1HZ0F3SUJBZ0lSQU5SdGw3azR1MkVxdEJtZnA0Ykx6aFl3RFFZSktvWklodmNOQVFFTEJRQXcKR2pFWU1CWUdBMVVFQXhNUFozSmhkbWwwZVMxcGJtbDBMV05oTUI0WERUSTBNRFl5TURFME5UWTFNVm9YRFRNMApNRFl4T0RFME5UWTFNVm93RnpFVk1CTUdBMVVFQXhNTVozSmhkbWwwZVMxcGJtbDBNSUlCSWpBTkJna3Foa2lHCjl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF5Tyt5bFpDSTc2TDdMVXVCRnRpRTIwcW92UlBuZjN2SDFRRnAKYStyOFk5SEVUNGI1YnZVUWhvVDFtaUpmQUFTeEhQVSs5emhUQm9xR3poSDZ1enJXL0tPb25wMWI2R1VmcE9RSAo5S3VDd0RJZTdGd3hmQUtXNm16bWR4aEc0bU9aMVZUamkyVDNYWUkwMmpIRVo5a2E2UnFzMVZBUW5FQ2RLVWlvCmg1Mm15YUtYSFVQdXlGS0lpL3hpSW1iUFpUazRuN1B1djIrYXRVQVQvbUEyLzhhZHBTOExkRGlrZkxTeEp0eWIKODJqRGljNkRaOXRKaDNaeGxLZXBVekRXQWY2MTZpelFXWE0yZG8vS3BRVFd1NDlEZzczQ2U1MmVyQTIvSEptWApYdEJUTmIrc0F5a2hiK2dQZE9HZEMzR3M0YUJKYm9EaW9mV2FGSWZkY0NnYmJ2WWE0UUlEQVFBQm80RzhNSUc1Ck1BNEdBMVVkRHdFQi93UUVBd0lGb0RBZEJnTlZIU1VFRmpBVUJnZ3JCZ0VGQlFjREFRWUlLd1lCQlFVSEF3SXcKREFZRFZSMFRBUUgvQkFJd0FEQWZCZ05WSFNNRUdEQVdnQlNwVnlGWElMNUZUbk5udmhvT1RXa2xuVC9JZFRCWgpCZ05WSFJFRVVqQlFnaVJuY21GMmFYUjVMV2x1YVhRdVozSmhkbWwwZVMxcGJtbDBMWFl4TGpBdU9TNTBaM3FDCktHZHlZWFpwZEhrdGFXNXBkQzVuY21GMmFYUjVMV2x1YVhRdGRqRXVNQzQ1TG5SbmVpNXpkbU13RFFZSktvWkkKaHZjTkFRRUxCUUFEZ2dFQkFIWDk5SHVaNFZRakVzazVWSEFBbFl0emVST1duV1NVazJ6a25GU2VBQmxlc2tySgppTVNkMWpPcmVzbll1K1MweGhYZFoySXNoMFIwSGwzNGsyeFFiVXo5VXVqMGdIS3JHR21ZbVBPbmpJbE1hVVhXCm9mbTZaK3gxQ3pKT3FhVkpPOGczcFNSa0dTL1JhQmkzWldNeVU5dExPRnpMNnZ5eG5GcWFQb0ZEelN5bUNQWDIKeFRBWjJwOHdNUC9ickZzekd4K2Y3dFJYVG9vOHhoZWNsOXEzSXg2clgzQThBMHlEOVRUcFV0SjUvemZTb0d6WApZL054SlNpT0RmdmtpdTc3MnVVb0JpUThXYUg1dWM4Q0FZeWhwV0VJaFRYemtaOUJGMjdUM0NoK3FMV1A1UTJ5Cm40QWNJRzNhN21WQkNEN3ZIWnpDeC9FTGZxbzdQSndoYmFwcThobz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBeU8reWxaQ0k3Nkw3TFV1QkZ0aUUyMHFvdlJQbmYzdkgxUUZwYStyOFk5SEVUNGI1CmJ2VVFob1QxbWlKZkFBU3hIUFUrOXpoVEJvcUd6aEg2dXpyVy9LT29ucDFiNkdVZnBPUUg5S3VDd0RJZTdGd3gKZkFLVzZtem1keGhHNG1PWjFWVGppMlQzWFlJMDJqSEVaOWthNlJxczFWQVFuRUNkS1Vpb2g1Mm15YUtYSFVQdQp5RktJaS94aUltYlBaVGs0bjdQdXYyK2F0VUFUL21BMi84YWRwUzhMZERpa2ZMU3hKdHliODJqRGljNkRaOXRKCmgzWnhsS2VwVXpEV0FmNjE2aXpRV1hNMmRvL0twUVRXdTQ5RGc3M0NlNTJlckEyL0hKbVhYdEJUTmIrc0F5a2gKYitnUGRPR2RDM0dzNGFCSmJvRGlvZldhRklmZGNDZ2JidllhNFFJREFRQUJBb0gvWDhIYldXdUgxcXZWQjhEegp3KzlyWVJZelUrZ29hcGlTb3ZBSlRXU3U0dU1VcXRHb0RUaThwMTYxckw2MGgwMjFHaGZGNmdydGhqQitEYmFECnhyWkR2aUpBT1ZiRWRmdTdHTm1TOFFiTFNNeVo4QW4vaXhtdzBnY1R6YTNFR2g5ZE1FMUVJeW42dUpWVW1xY2MKOG1DRWNwSkR5MlJjaGhwRXkyZlU2TXc0cjkzenBSTlZkTjM1RnkycC92L3dlQ2twa09nbWI3MFBiNVdkUUVTUAplalhnZi8wenBmSDVmdmJNS3E2bzhSN1phSFZmVlRvckJqN2hXaXgwUHdrT1NjdzFlb2ZEc1R1d3kyS0xPSmZPCjFtbTJkVmVwRlNuMjV5UlVvSUVtNDdTZWpKbHVoQ2VyRXUrRUlpdFhKTHdJelFYTWozOG01V0dXV2w2bXluVzMKS1p5SkFvR0JBTys0enBmUERqaEVQUmtKMEQreDdsbE5DYm5OckVSWG13ZSs0TzNENnl5N200T0NLRnloS3drUQplenBnMHBxenYwdHVEdjkyYVpjdEUxZmM0clFuczhLSk80dXBnMjBJR0tHZ3pKU3luMVl1MXlMdlg1L2FFUWlNCndvUFRacEVxQTBRR25OOHN6b2l4U290Y2d2Rm9WSEdWdmM3UndVOEEzOXFveFd2cE5uZWpBb0dCQU5hVXFkZjAKcGdrR1lWL1AyZGdvbHkraVFlSmpUdUtYQzhNbWtIZnVzdFFrbkl6blEyN00rbG9zZEtGUDVsWGtHaXZTeFBGbwpVRE5oSzg1N2tyNk05ZmtZREFsM1NUWjgvdGdCMVpMM3I5SlNyOUVFTjVuMWI2SVFMNnZsOFJWeUdNWXJsRVBoClR0aDBnekNBbklYa01XZG83YVhmMzFnNWhGUkhKdDU2a2h1ckFvR0FSRmlmWmo3ZFlnTnFuQUhsUXRPN0RmRGQKN2dDS3RlMTRRT3dWK3hRWnIrWkpQMlJUbDUxSHhNelRKV0RIaXQzbWsxM3NucjhtK2JnYlJMaXdWZ2JmeEg0Vgo0UXJTY3JxVk16ZkNQRDcxR01CQURERE5SYWtKcERObG5lb2UyeEpzWGUrNHVCUnhTaDJxRURPdkRaN2VQSWdoCjFwNk5DN1pISEhOejNnRmV5eHNDZ1lFQWdzSVV2WVJYcVNnNkxpaDZsejRrNHVIOVEvZEFHdFB3VnZzcERleG4KRE45Q2hwcG1mUjVyY0llbWlxWWx0akZKd1dxdW1HejRjbGJFV3c3eVhTdUl1RUh2RTlXY3g1ZGp0RDFwNkNVRwoveU5qLy9xUjV6K294eGtWODZvclB1WklNbnBiM3dGdENubjFkNWpueUs5RmE3NkZFbzlaaW1tQ09ka2gxbkRhCm1BRUNnWUVBa1lObDlLa09NN2N6RGVQZkUyY3ZZT2hnZUFMR3VYQzFNd3phK3hvSTlVd1BoNTdyWVoyQmk4WkMKTlpiNktWdXQ4cVZpMDFmL2VHR1BTME9mWjIrd3hsSEdaT3JZSmJxNFhhZGkyMUlueVUyb2JjNENlVkZ3SGFVagpROVc5Ry9RWlE5RlM3VlcrUUJOODZuRVJQbk5pY1Y5QmdFM25tVWlmV1VzeEpYQlpwb2c9Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==

@@ -1,0 +1,106 @@
+---
+# Source: base-dep/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-base-dep
+  labels:
+    helm.sh/chart: base-dep-1.0.1
+    app.kubernetes.io/name: base-dep
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: base-dep/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-base-dep
+  labels:
+    helm.sh/chart: base-dep-1.0.1
+    app.kubernetes.io/name: base-dep
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: base-dep
+    app.kubernetes.io/instance: my-release
+---
+# Source: base-dep/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-base-dep
+  labels:
+    helm.sh/chart: base-dep-1.0.1
+    app.kubernetes.io/name: base-dep
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: base-dep
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: base-dep-1.0.1
+        app.kubernetes.io/name: base-dep
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.1.1"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-base-dep
+      securityContext:
+        {}
+      containers:
+        - name: base-dep
+          securityContext:
+            {}
+          image: "flofree/base-project:2.1.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: base-dep/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-base-dep-test-connection"
+  labels:
+    helm.sh/chart: base-dep-1.0.1
+    app.kubernetes.io/name: base-dep
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-base-dep:8080']
+  restartPolicy: Never

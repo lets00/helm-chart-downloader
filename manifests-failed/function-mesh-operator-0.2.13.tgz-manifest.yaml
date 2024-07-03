@@ -1,0 +1,37 @@
+---
+# Source: function-mesh-operator/templates/function-mesh-operator.yaml
+apiVersion: plugins.kubegems.io/v1beta1
+kind: Plugin
+metadata:
+  name: function-mesh-operator
+  namespace: function-mesh
+spec:
+  kind: helm
+  url: http://charts.functionmesh.io/
+  chart: function-mesh-operator
+  version: 0.2.13
+  values:
+    rbac:
+      create: true
+    operatorImage: streamnative/function-mesh:v0.11.0
+    imagePullPolicy: IfNotPresent
+    imagePullSecrets: []
+    controllerManager:
+      create: true
+      serviceAccount: function-mesh-controller-manager
+      replicas: 1
+      resources:
+        requests:
+          cpu: 80m
+          memory: 50Mi
+      metrics:
+        port: 8080
+      healthProbe:
+        port: 8000
+      pprof:
+        enable: false
+        port: 8090
+      enableInitContainers: false
+      grpcurlPersistentVolumeClaim: ""
+    admissionWebhook:
+      enabled: true

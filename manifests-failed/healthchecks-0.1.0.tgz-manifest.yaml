@@ -1,0 +1,355 @@
+---
+# Source: healthchecks/charts/mariadb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mariadb
+  namespace: "healthchecks-0.1.0.tgz"
+  labels:
+    app.kubernetes.io/name: mariadb
+    helm.sh/chart: mariadb-11.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+automountServiceAccountToken: false
+---
+# Source: healthchecks/charts/mariadb/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mariadb
+  namespace: "healthchecks-0.1.0.tgz"
+  labels:
+    app.kubernetes.io/name: mariadb
+    helm.sh/chart: mariadb-11.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  mariadb-root-password: "WHlhbzdDRzVJRA=="
+  mariadb-password: "cGFzc3dvcmQ="
+---
+# Source: healthchecks/charts/mariadb/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mariadb
+  namespace: "healthchecks-0.1.0.tgz"
+  labels:
+    app.kubernetes.io/name: mariadb
+    helm.sh/chart: mariadb-11.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+data:
+  my.cnf: |-
+    [mysqld]
+    skip-name-resolve
+    explicit_defaults_for_timestamp
+    basedir=/opt/bitnami/mariadb
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    tmpdir=/opt/bitnami/mariadb/tmp
+    max_allowed_packet=16M
+    bind-address=*
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+    log-error=/opt/bitnami/mariadb/logs/mysqld.log
+    character-set-server=UTF8
+    collation-server=utf8_general_ci
+    slow_query_log=0
+    slow_query_log_file=/opt/bitnami/mariadb/logs/mysqld.log
+    long_query_time=10.0
+    
+    [client]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    default-character-set=UTF8
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    
+    [manager]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+---
+# Source: healthchecks/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-config
+  namespace: healthchecks
+data:
+  ALLOWED_HOSTS: ""
+  APPRISE_ENABLED: "True"
+  DB: mysql
+  DEBUG: "False"
+  DEFAULT_FROM_EMAIL: healthchecks@example.org
+  EMAIL_PORT: "587"
+  EMAIL_USE_TLS: "True"
+  EMAIL_USE_VERIFICATION: "True"
+  INTEGRATIONS_ALLOW_PRIVATE_IPS: "False"
+  MASTER_BADGE_LABEL: Mychecks
+  MATTERMOST_ENABLED: "False"
+  MSTEAMS_ENABLED: "False"
+  OPSGENIE_ENABLED: "False"
+  PAGERTREE_ENABLED: "False"
+  PD_ENABLED: "False"
+  PING_BODY_LIMIT: "10000"
+  PING_EMAIL_DOMAIN: localhost
+  PING_ENDPOINT: http://healthchecks.prod.stargazer.lan/ping/
+  PROMETHEUS_ENABLED: "True"
+  REGISTRATION_OPEN: "True"
+  S3_TIMEOUT: "60"
+  SECRET_KEY: DLPbeSxih8Xb4gtVz3ibmHKGkQjBStNd
+  SHELL_ENABLED: "False"
+  SITE_NAME: Healthchecks Monitoring
+  SITE_ROOT: http://healthchecks.prod.stargazer.lan
+  SMTPD_PORT: "61111"
+  USE_PAYMENTS: "False"
+  VICTOROPS_ENABLED: "False"
+  WEBHOOKS_ENABLED: "True"
+  ZULIP_ENABLED: "False"
+---
+# Source: healthchecks/charts/mariadb/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mariadb
+  namespace: "healthchecks-0.1.0.tgz"
+  labels:
+    app.kubernetes.io/name: mariadb
+    helm.sh/chart: mariadb-11.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: mysql
+      port: 3306
+      protocol: TCP
+      targetPort: mysql
+      nodePort: null
+  selector: 
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: healthchecks/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  namespace: healthchecks
+  labels:
+    app: my-release
+spec:
+  ports:
+    - port: 8000
+  selector:
+    app: my-release
+---
+# Source: healthchecks/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  namespace: healthchecks
+  labels:
+    app: my-release 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release 
+  template:
+    metadata:
+      labels:
+        app: my-release 
+    spec:
+      containers:
+      - name: my-release
+        image: healthchecks/healthchecks:v2.8.1
+        envFrom:
+        - configMapRef:
+            name: my-release-config
+        ports:
+          - containerPort: 8000 
+        env:
+            - name: DB_HOST
+              value: my-release-mariadb:3306
+            - name: DB_NAME
+              value: "healthchecks"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: mariadb-password
+                  name: "my-release-mariadb"
+            - name: DB_USER
+              value: "healthchecks"
+---
+# Source: healthchecks/charts/mariadb/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-mariadb
+  namespace: "healthchecks-0.1.0.tgz"
+  labels:
+    app.kubernetes.io/name: mariadb
+    helm.sh/chart: mariadb-11.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: primary
+  serviceName: my-release-mariadb
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configuration: ff6914e050b2582e24c843541550dbaa91b28ee366954791b3f1b751f6d4e211
+      labels:
+        app.kubernetes.io/name: mariadb
+        helm.sh/chart: mariadb-11.0.14
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+    spec:
+      
+      serviceAccountName: my-release-mariadb
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: mariadb
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: primary
+                namespaces:
+                  - "healthchecks-0.1.0.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: mariadb
+          image: docker.io/bitnami/mariadb:10.6.8-debian-11-r9
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-root-password
+            - name: MARIADB_USER
+              value: "healthchecks"
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: MARIADB_DATABASE
+              value: "healthchecks"
+          ports:
+            - name: mysql
+              containerPort: 3306
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          resources: 
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mariadb
+            - name: config
+              mountPath: /opt/bitnami/mariadb/conf/my.cnf
+              subPath: my.cnf
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-mariadb
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels: 
+          app.kubernetes.io/name: mariadb
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/component: primary
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: healthchecks/templates/ingress.yaml
+apiVersion:  networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - "healthchecks.example.com"
+      secretName: healthchecks-domain-tls
+  rules:
+    - host: "healthchecks.example.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release
+                port:
+                  number: 8000

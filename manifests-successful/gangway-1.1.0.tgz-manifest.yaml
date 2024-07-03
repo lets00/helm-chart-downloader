@@ -1,0 +1,176 @@
+---
+# Source: gangway/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-gangway
+  labels:
+
+    helm.sh/chart: gangway-1.1.0
+    app.kubernetes.io/name: gangway
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.2.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: gangway/templates/config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-gangway
+  labels:
+    helm.sh/chart: gangway-1.1.0
+    app.kubernetes.io/name: gangway
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  GANGWAY_CLIENT_SECRET: "Z2FuZ3dheQ=="
+  SESSION_SECURITY_KEY: "dmVyeVNlY3VyZUtleQ=="
+---
+# Source: gangway/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-gangway-env
+  labels:
+    helm.sh/chart: gangway-1.1.0
+    app.kubernetes.io/name: gangway
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  GANGWAY_CLUSTER_NAME: "k8s"
+  GANGWAY_AUTHORIZE_URL: "http://example.com/auth"
+  GANGWAY_TOKEN_URL: "http://example.com/token"
+  GANGWAY_AUDIENCE: "http://example.com/userinfo"
+  GANGWAY_REDIRECT_URL: "https://chart-example.local/callback"
+  GANGWAY_CLIENT_ID: "gangway"
+  GANGWAY_USERNAME_CLAIM: "name"
+  GANGWAY_EMAIL_CLAIM: "email"
+  GANGWAY_APISERVER_URL: "http://example.com:6443"
+---
+# Source: gangway/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-gangway
+  labels:
+    helm.sh/chart: gangway-1.1.0
+    app.kubernetes.io/name: gangway
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  gangway.yaml: |- 
+    apiServerURL: ${GANGWAY_APISERVER_URL}
+    audience: ${GANGWAY_AUDIENCE}
+    authorizeURL: ${GANGWAY_AUTHORIZE_URL}
+    clientID: ${GANGWAY_CLIENT_ID}
+    clientSecret: ${GANGWAY_CLIENT_SECRET}
+    clusterName: ${GANGWAY_CLUSTER_NAME}
+    emailClaim: ${GANGWAY_EMAIL_CLAIM}
+    host: 0.0.0.0
+    port: 8080
+    redirectURL: ${GANGWAY_REDIRECT_URL}
+    scopes:
+    - openid
+    - email
+    - profile
+    - offline_access
+    tokenURL: ${GANGWAY_TOKEN_URL}
+    usernameClaim: ${GANGWAY_USERNAME_CLAIM}
+---
+# Source: gangway/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gangway
+  labels:
+    helm.sh/chart: gangway-1.1.0
+    app.kubernetes.io/name: gangway
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: gangway
+    app.kubernetes.io/instance: my-release
+---
+# Source: gangway/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-gangway
+  labels:
+    helm.sh/chart: gangway-1.1.0
+    app.kubernetes.io/name: gangway
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gangway
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        kubernetes.io/configuration-checksum: 1eca368cefd570fb8d8fad8fe0f30a3d
+      labels:
+        app.kubernetes.io/name: gangway
+        app.kubernetes.io/instance: my-release
+    spec:
+      enableServiceLinks: false
+      serviceAccountName: my-release-gangway
+      securityContext:
+        {}
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-gangway
+      containers:
+        - name: gangway
+          securityContext:
+            {}
+          image: "gcr.io/heptio-images/gangway:v3.2.0"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/gangway
+          args:
+            - --config
+            - /etc/gangway/config/gangway.yaml
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: my-release-gangway-env
+            - secretRef:
+                name: my-release-gangway
+          volumeMounts:
+            - name: config
+              mountPath: /etc/gangway/config
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: http
+              httpHeaders:
+                - name: X-K8S-HEALTH-CHECK
+                  value: live
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: http
+              httpHeaders:
+                - name: X-K8S-HEALTH-CHECK
+                  value: ready
+          resources:
+            {}

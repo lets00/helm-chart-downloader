@@ -1,0 +1,199 @@
+---
+# Source: clustercontrol/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clustercontrol
+  labels:
+    helm.sh/chart: clustercontrol-0.6.1
+    app: clustercontrol
+    app.kubernetes.io/instance: clustercontrol
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+---
+# Source: clustercontrol/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clustercontrol
+  labels:
+    helm.sh/chart: clustercontrol-0.6.1
+    app: clustercontrol
+    app.kubernetes.io/instance: clustercontrol
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+data:
+  application.yaml: |
+    logging:
+      level:
+        com.sqream: INFO
+---
+# Source: clustercontrol/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: clustercontrol
+  labels:
+    helm.sh/chart: clustercontrol-0.6.1
+    app: clustercontrol
+    app.kubernetes.io/instance: clustercontrol
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: clustercontrol
+    app.kubernetes.io/instance: clustercontrol
+---
+# Source: clustercontrol/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clustercontrol
+  labels:
+    helm.sh/chart: clustercontrol-0.6.1
+    app: clustercontrol
+    app.kubernetes.io/instance: clustercontrol
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clustercontrol
+      app.kubernetes.io/instance: clustercontrol
+  template:
+    metadata:
+      labels:
+        app: clustercontrol
+        app.kubernetes.io/instance: clustercontrol
+    spec:
+      serviceAccountName: clustercontrol
+      securityContext:
+        {}
+      containers:
+        - name: clustercontrol
+          securityContext:
+            {}
+          image: "nexus.sq.l:16000/repository/container-replace-repo/clustercontrol:replace_tag"
+          imagePullPolicy: IfNotPresent
+          ports:
+          - name: http
+            containerPort: 8080
+            protocol: TCP
+          envFrom:
+            - secretRef:
+                name: 'clustercontrol-secret'
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xmx750m -Xms512m"
+          command:
+            - sh
+            - -c
+            - java $JAVA_OPTS -jar app.jar --spring.config.additional-location=file:/app/application.yaml
+          args:
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: actuator/health/liveness
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 1
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: actuator/health/liveness
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: "1.5"
+              memory: 1000Mi
+            requests:
+              cpu: "0.5"
+              memory: 512Mi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: clustercontrol
+---
+# Source: clustercontrol/templates/secret.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: clustercontrol-secret
+  labels:
+    helm.sh/chart: clustercontrol-0.6.1
+    app: clustercontrol
+    app.kubernetes.io/instance: clustercontrol
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: local-secrets
+    kind: ClusterSecretStore
+  target:
+    name: clustercontrol-secret
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      metadata:
+        annotations:
+          {}
+        labels:
+          helm.sh/chart: clustercontrol-0.6.1
+          app: clustercontrol
+          app.kubernetes.io/instance: clustercontrol
+          app.kubernetes.io/version: "1.16.0"
+          app.kubernetes.io/managed-by: Helm
+          monitor: "true"
+      data:
+        REDIS_HOST: '{{ .REDIS_IP_ADDRESS }}'
+        REDIS_PORT: '{{ .REDIS_PORT }}'
+  dataFrom:
+    - extract:
+        key: redis-managed-instance
+---
+# Source: clustercontrol/templates/servicePodMonitor.yaml
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: clustercontrol
+  labels:
+    helm.sh/chart: clustercontrol-0.6.1
+    app: clustercontrol
+    app.kubernetes.io/instance: clustercontrol
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  selector:
+    matchLabels:
+      app: clustercontrol
+      app.kubernetes.io/instance: clustercontrol
+  endpoints:
+  - port: http
+    path: /actuator/prometheus
+    interval: 30s

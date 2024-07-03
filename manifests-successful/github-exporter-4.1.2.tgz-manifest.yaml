@@ -1,0 +1,158 @@
+---
+# Source: github-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-github-exporter
+  labels:
+    helm.sh/chart: github-exporter-4.1.2
+    app.kubernetes.io/name: github-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.1.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: github-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-github-exporter
+  labels:
+    helm.sh/chart: github-exporter-4.1.2
+    app.kubernetes.io/name: github-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.1.2"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  token: ""
+---
+# Source: github-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-github-exporter
+  labels:
+    helm.sh/chart: github-exporter-4.1.2
+    app.kubernetes.io/name: github-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.1.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9504
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: github-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: github-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-github-exporter
+  labels:
+    helm.sh/chart: github-exporter-4.1.2
+    app.kubernetes.io/name: github-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.1.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/secret: 51773e6af59592acbb4d4bfdc656bf6d0026bcec336110d18e6ce9147fde90dc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: github-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: github-exporter-4.1.2
+        app.kubernetes.io/name: github-exporter
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "3.1.2"
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        checksum/secret: 51773e6af59592acbb4d4bfdc656bf6d0026bcec336110d18e6ce9147fde90dc
+    spec:
+      serviceAccountName: my-release-github-exporter
+      securityContext:
+        fsGroup: 10000
+      containers:
+        - name: github-exporter
+          image: "quay.io/promhippie/github-exporter:3.1.2"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - all
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000
+          env:
+            - name: GITHUB_EXPORTER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-github-exporter
+                  key: token
+            - name: GITHUB_EXPORTER_COLLECTOR_ADMIN
+              value: "false"
+            - name: GITHUB_EXPORTER_COLLECTOR_ORGS
+              value: "true"
+            - name: GITHUB_EXPORTER_COLLECTOR_REPOS
+              value: "true"
+            - name: GITHUB_EXPORTER_COLLECTOR_BILLING
+              value: "false"
+            - name: GITHUB_EXPORTER_COLLECTOR_RUNNERS
+              value: "false"
+            - name: GITHUB_EXPORTER_COLLECTOR_WORKFLOWS
+              value: "false"
+            - name: GITHUB_EXPORTER_WORKFLOWS_WINDOW
+              value: "24h"
+          ports:
+            - name: http
+              containerPort: 9504
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          volumeMounts:
+            - name: exporter
+              mountPath: /var/lib/exporter
+      volumes:
+        - name: exporter
+          emptyDir: {}
+---
+# Source: github-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-github-exporter-test-connection"
+  labels:
+    helm.sh/chart: github-exporter-4.1.2
+    app.kubernetes.io/name: github-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "3.1.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  restartPolicy: Never
+  containers:
+    - name: wget
+      image: busybox
+      command:
+        - wget
+      args:
+        - --spider
+        - http://my-release-github-exporter:9504

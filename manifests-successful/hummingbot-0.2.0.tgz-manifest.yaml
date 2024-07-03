@@ -1,0 +1,105 @@
+---
+# Source: hummingbot/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-hummingbot
+  labels:
+    helm.sh/chart: hummingbot-0.2.0
+    app.kubernetes.io/name: hummingbot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: hummingbot/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-hummingbot
+  labels:
+    helm.sh/chart: hummingbot-0.2.0
+    app.kubernetes.io/name: hummingbot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: my-release-hummingbot
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hummingbot
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hummingbot
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-hummingbot
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: hummingbot
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "coinalpha/hummingbot:latest"
+          imagePullPolicy: IfNotPresent
+          tty: true
+          stdin: true
+          volumeMounts:
+            - mountPath: /data
+              name: my-release-hummingbot-config
+              subPath: data
+            - mountPath: /conf
+              name: my-release-hummingbot-config
+              subPath: conf
+            - mountPath: /scripts
+              name: my-release-hummingbot-config
+              subPath: scripts
+            - mountPath: /logs
+              name: my-release-hummingbot-logs
+          resources:
+            {}
+  volumeClaimTemplates:
+    - metadata:
+        name: my-release-hummingbot-config
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+    - metadata:
+        name: my-release-hummingbot-logs
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+# Source: hummingbot/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-hummingbot-test-connection"
+  labels:
+    helm.sh/chart: hummingbot-0.2.0
+    app.kubernetes.io/name: hummingbot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-hummingbot:7681']
+  restartPolicy: Never

@@ -1,0 +1,121 @@
+---
+# Source: imaginary/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    app: my-release-imaginary
+  name: my-release-imaginary-pdb
+  namespace: imaginary-0.2.3.tgz
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: my-release-imaginary
+---
+# Source: imaginary/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-imaginary-secret
+  namespace: imaginary-0.2.3.tgz
+  labels:
+    app: my-release-imaginary
+    chart: "imaginary-0.2.3"
+    release: "my-release"
+    heritage: "Helm"
+type: Opaque
+data:
+  apikey: "PG5pbD4="
+---
+# Source: imaginary/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-imaginary
+  namespace: imaginary-0.2.3.tgz
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "imaginary-0.2.3"
+    app: "my-release"
+  annotations:
+    service.kubernetes.io/topology-aware-hints: "auto"
+spec:
+  selector:
+    app: my-release-imaginary
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+  type: ClusterIP
+---
+# Source: imaginary/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-imaginary
+  namespace: imaginary-0.2.3.tgz
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "imaginary-0.2.3"
+    app: my-release-imaginary
+spec:
+  selector:
+    matchLabels:
+      app: my-release-imaginary
+  template:
+    metadata:
+      labels:
+        app: my-release-imaginary
+      annotations:
+        {}
+    spec:
+      containers:
+      - name: "imaginary"
+        image: "h2non/imaginary:1.2.4"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: PORT
+          value: "8080"
+        args:
+        resources:
+          {}
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sleep","10"]
+---
+# Source: imaginary/templates/hpa.yaml
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    app: my-release-imaginary
+  name: my-release-imaginary
+  namespace: imaginary-0.2.3.tgz
+spec:
+  maxReplicas: 2
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-release-imaginary
+  targetCPUUtilizationPercentage: 80

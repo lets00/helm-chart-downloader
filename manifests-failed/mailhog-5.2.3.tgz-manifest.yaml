@@ -1,0 +1,107 @@
+---
+# Source: mailhog/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mailhog
+  labels:
+    helm.sh/chart: mailhog-5.2.3
+    app.kubernetes.io/name: mailhog
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+  namespace: "mailhog-5.2.3.tgz"
+imagePullSecrets:
+    []
+---
+# Source: mailhog/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mailhog
+  labels:
+    helm.sh/chart: mailhog-5.2.3
+    app.kubernetes.io/name: mailhog
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+  namespace: "mailhog-5.2.3.tgz"
+spec:
+  type: "ClusterIP"
+  ports:
+    - name: http
+      port: 8025
+      protocol: TCP
+      targetPort: http
+    - name: tcp-smtp
+      port: 1025
+      protocol: TCP
+      targetPort: tcp-smtp
+  selector:
+    app.kubernetes.io/name: mailhog
+    app.kubernetes.io/instance: my-release
+---
+# Source: mailhog/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mailhog
+  labels:
+    helm.sh/chart: mailhog-5.2.3
+    app.kubernetes.io/name: mailhog
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.1"
+    app.kubernetes.io/managed-by: Helm
+  namespace: "mailhog-5.2.3.tgz"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mailhog
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mailhog
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-mailhog
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: mailhog
+          image: "docker.io/mailhog/mailhog:v1.0.1"
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: MH_HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: http
+              containerPort: 8025
+              protocol: TCP
+            - name: tcp-smtp
+              containerPort: 1025
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 1025
+            initialDelaySeconds: 10
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 1025
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+          resources:
+            {}

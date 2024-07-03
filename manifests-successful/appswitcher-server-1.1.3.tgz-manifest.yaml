@@ -1,0 +1,135 @@
+---
+# Source: appswitcher-server/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-appswitcher-server
+  labels:
+    helm.sh/chart: appswitcher-server-1.1.3
+    app.kubernetes.io/name: appswitcher-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  application.yml: |
+    appswitcher:
+      apps:
+        {}
+
+
+    logging:
+      level:
+        "[de.muenchen.oss.appswitcher-server]": INFO
+---
+# Source: appswitcher-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-appswitcher-server
+  labels:
+    helm.sh/chart: appswitcher-server-1.1.3
+    app.kubernetes.io/name: appswitcher-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: appswitcher-server
+    app.kubernetes.io/instance: my-release
+---
+# Source: appswitcher-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-appswitcher-server
+  labels:
+    helm.sh/chart: appswitcher-server-1.1.3
+    app.kubernetes.io/name: appswitcher-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: appswitcher-server
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: de35915ff5903dabffd8967a5daf59a48c9990ef5346d41945ab2ddca28e9e4e
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+      labels:
+        app.kubernetes.io/name: appswitcher-server
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-appswitcher-server
+            defaultMode: 420
+      initContainers:
+      containers:
+        - name: appswitcher-server
+          securityContext:
+            {}
+          image: "itatm/appswitcher-server:1.0.3"
+          imagePullPolicy: IfNotPresent
+          env:
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /workspace/config
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            timeoutSeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 20
+          resources:
+            {}
+---
+# Source: appswitcher-server/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-appswitcher-server-test-connection"
+  labels:
+    helm.sh/chart: appswitcher-server-1.1.3
+    app.kubernetes.io/name: appswitcher-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-appswitcher-server:8080']
+  restartPolicy: Never

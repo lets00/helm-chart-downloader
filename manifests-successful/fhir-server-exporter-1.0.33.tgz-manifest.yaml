@@ -1,0 +1,134 @@
+---
+# Source: fhir-server-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-fhir-server-exporter
+  labels:
+    helm.sh/chart: fhir-server-exporter-1.0.33
+    app.kubernetes.io/name: my-release-fhir-server-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.x"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 9797
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: my-release-fhir-server-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: fhir-server-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-fhir-server-exporter
+  labels:
+    helm.sh/chart: fhir-server-exporter-1.0.33
+    app.kubernetes.io/name: my-release-fhir-server-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.x"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: fhir-server-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-fhir-server-exporter
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: fhir-server-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-fhir-server-exporter
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: fhir-server-exporter
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: fhir-server-exporter
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          image: "ghcr.io/chgl/fhir-server-exporter:v2.3.3@sha256:f9d99b9103843e7b28cf9e9c54e728a52239432688a3ce876a344d9c0fd5406a"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: metrics
+              containerPort: 9797
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 20
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 20
+            successThreshold: 1
+            failureThreshold: 5
+          resources:
+            {}
+          env:
+            - name: COMPlus_EnableDiagnostics
+              value: "0"
+            - name: FhirServerUrl
+              value: 
+            - name: FhirServerName
+              value: 
+            - name: FetchIntervalSeconds
+              value: "300"
+---
+# Source: fhir-server-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-fhir-server-exporter-test-metrics-endpoint"
+  labels:
+    app.kubernetes.io/name: "my-release-fhir-server-exporter-test-metrics-endpoint"
+  annotations:
+    "helm.sh/hook": test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: probe-metrics-endpoint
+      image: "docker.io/curlimages/curl:8.8.0@sha256:73e4d532ea62d7505c5865b517d3704966ffe916609bedc22af6833dc9969bcd"
+      imagePullPolicy: IfNotPresent
+      command: ["curl", "--fail-with-body"]
+      args: ['http://my-release-fhir-server-exporter:8080/metrics']
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      livenessProbe:
+        exec:
+          command: ["true"]
+      readinessProbe:
+        exec:
+          command: ["true"]

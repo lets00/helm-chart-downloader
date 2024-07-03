@@ -1,0 +1,210 @@
+---
+# Source: sematext-agent/templates/priority.yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: sematext-priority
+  labels:
+    app: sematext-agent
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+value: 1
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: "Sematext priority: used for Sematext Agent and Vector logshipper"
+---
+# Source: sematext-agent/templates/serviceaccount-vector.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-sematext-agent-vector
+  namespace: sematext-agent-1.3.0.tgz
+  labels:
+    app: sematext-agent-vector
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+---
+# Source: sematext-agent/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-sematext-agent
+  namespace: sematext-agent-1.3.0.tgz
+  labels:
+    app: sematext-agent
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+---
+# Source: sematext-agent/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-sematext-agent
+  labels:
+    app: sematext-agent
+    chart: sematext-agent-1.3.0
+    release: my-release
+type: Opaque
+data:
+  infra-token: ""
+  logs-token: ""
+---
+# Source: sematext-agent/templates/configmap-agent.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-sematext-agent-agent
+  labels:
+    app: sematext-agent-agent
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+data:
+  REGION: "US"
+  API_SERVER_HOST: "0.0.0.0"
+  AUTODISCO_ALLOWED_NAMESPACES: "default"
+  LOGGING_LEVEL: "info"
+  LOGGING_REQUEST_TRACKING: "false"
+  LOGGING_WRITE_EVENTS: "false"
+  PIPELINE_CONSOLE_OUTPUT: "false"
+  PIPELINE_NULL_OUTPUT: "false"
+  API_SERVER_PORT: "8675"
+---
+# Source: sematext-agent/templates/configmap-logagent.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-sematext-agent-logagent
+  labels:
+    app: sematext-agent-logagent
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+data:
+  REGION: "US"
+  LOGSENE_BULK_SIZE: "1000"
+  LOGSENE_LOG_INTERVAL: "10000"
+---
+# Source: sematext-agent/templates/clusterrole-vector.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-sematext-agent-vector
+  labels:
+    app: sematext-agent-vector
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - namespaces
+  verbs:
+  - watch
+  - list
+---
+# Source: sematext-agent/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-sematext-agent
+  labels:
+    app: sematext-agent
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  - pods
+  - pods/log
+  - pods/exec
+  verbs:
+  - list
+  - get
+  - watch
+- apiGroups:
+  - scheduling.k8s.io
+  resources:
+  - priorityclasses
+  verbs:
+  - list
+  - get
+  - watch
+- apiGroups:
+    - batch
+  resources:
+    - cronjobs
+    - jobs
+  verbs:
+    - list
+---
+# Source: sematext-agent/templates/clusterrolebinding-vector.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-sematext-agent-vector
+  namespace: sematext-agent-1.3.0.tgz
+  labels:
+    app: sematext-agent-vector
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-sematext-agent-vector
+subjects:
+- kind: ServiceAccount
+  name: my-release-sematext-agent-vector
+  namespace: sematext-agent-1.3.0.tgz
+---
+# Source: sematext-agent/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-sematext-agent
+  namespace: sematext-agent-1.3.0.tgz
+  labels:
+    app: sematext-agent
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-sematext-agent
+subjects:
+- kind: ServiceAccount
+  name: my-release-sematext-agent
+  namespace: sematext-agent-1.3.0.tgz
+---
+# Source: sematext-agent/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-sematext-agent
+  namespace: sematext-agent-1.3.0.tgz
+  labels:
+    app: sematext-agent
+    chart: sematext-agent-1.3.0
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8675
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: sematext-agent
+    release: my-release

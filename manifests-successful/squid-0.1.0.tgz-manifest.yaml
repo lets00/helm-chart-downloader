@@ -1,0 +1,102 @@
+---
+# Source: squid/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-squid
+  labels:
+    helm.sh/chart: squid-0.1.0
+    app.kubernetes.io/name: squid
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2-22.04_beta"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: squid/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-squid
+  labels:
+    helm.sh/chart: squid-0.1.0
+    app.kubernetes.io/name: squid
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2-22.04_beta"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3128
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: squid
+    app.kubernetes.io/instance: my-release
+---
+# Source: squid/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-squid
+  labels:
+    helm.sh/chart: squid-0.1.0
+    app.kubernetes.io/name: squid
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2-22.04_beta"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: squid
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: squid
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-squid
+      securityContext:
+        {}
+      containers:
+        - name: squid
+          securityContext:
+            {}
+          image: "ubuntu/squid:5.2-22.04_beta"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3128
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: http
+          readinessProbe:
+            tcpSocket:
+              port: http
+          volumeMounts:
+          resources:
+            {}
+      volumes:
+---
+# Source: squid/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-squid-test-connection"
+  labels:
+    helm.sh/chart: squid-0.1.0
+    app.kubernetes.io/name: squid
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.2-22.04_beta"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-squid:3128']
+  restartPolicy: Never

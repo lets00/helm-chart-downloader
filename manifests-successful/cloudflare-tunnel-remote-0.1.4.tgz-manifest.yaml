@@ -1,0 +1,124 @@
+---
+# Source: cloudflare-tunnel-remote/templates/serviceaccount.yaml
+# Here we create a service account with no privileges to run the
+# deployment - just in case the default service account is different.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-cloudflare-tunnel-remote
+  labels:
+    helm.sh/chart: cloudflare-tunnel-remote-0.1.4
+    app.kubernetes.io/name: cloudflare-tunnel-remote
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: cloudflare-tunnel-remote/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-cloudflare-tunnel-remote
+  labels:
+    helm.sh/chart: cloudflare-tunnel-remote-0.1.4
+    app.kubernetes.io/name: cloudflare-tunnel-remote
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 2000
+      targetPort: 2000
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: cloudflare-tunnel-remote
+    app.kubernetes.io/instance: my-release
+---
+# Source: cloudflare-tunnel-remote/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-cloudflare-tunnel-remote
+  labels:
+    helm.sh/chart: cloudflare-tunnel-remote-0.1.4
+    app.kubernetes.io/name: cloudflare-tunnel-remote
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflare-tunnel-remote
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      creationTimestamp: null
+      annotations:
+        # These are here so the deployment rolls when the config or secret change.
+        checksum/secret: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: cloudflare-tunnel-remote
+        app.kubernetes.io/instance: my-release
+    spec:
+
+      serviceAccountName: my-release-cloudflare-tunnel-remote
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+
+      containers:
+        - name: cloudflared
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          image: "cloudflare/cloudflared:latest"
+          imagePullPolicy: IfNotPresent
+          command:
+            - cloudflared
+            - tunnel
+            # We can regulate the cloudflared version via an image tag.
+            - --no-autoupdate
+            # In a k8s environment, the metrics server needs to listen outside the pod it runs on.
+            # The address 0.0.0.0:2000 allows any pod in the namespace.
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+          env:
+          - name: TUNNEL_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: my-release-cloudflare-tunnel-remote
+                key: tunnelToken
+          resources:
+            {}
+          livenessProbe:
+            httpGet:
+              # Cloudflared has a /ready endpoint which returns 200 if and only if
+              # it has an active connection to the edge.
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 10
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/instance
+                      operator: In
+                      values:
+                        - my-release
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - cloudflare-tunnel-remote

@@ -1,0 +1,193 @@
+---
+# Source: plex/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-plex
+  labels:
+    helm.sh/chart: plex-1.0.1
+    app.kubernetes.io/name: plex
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: plex/templates/configmap-liveness.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: plex-health 
+data:
+  liveness.sh: |
+    #!/bin/bash
+    DIR=/media
+    numFiles=`ls $DIR | wc -l`
+    echo "Numero de ficheros encontrados en la carpeta" $numFiles
+    if [[ $numFiles -gt 1 ]]  && [[ "$(curl -sL -w '%{http_code}' http://localhost:32400/identity -o /dev/null)" = "200"  ]];
+    #if [[ $numFiles -gt 1 ]];
+    then
+      echo 0
+    else
+      echo "Liveness failed!" 1>&2
+      exit 1
+    fi
+---
+# Source: plex/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-plex
+  labels:
+    helm.sh/chart: plex-1.0.1
+    app.kubernetes.io/name: plex
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}  
+spec:
+  type: NodePort
+  ports:
+    - port: 32400
+      targetPort: 32400
+      nodePort: 32400
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: plex
+    app.kubernetes.io/instance: my-release
+---
+# Source: plex/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-plex
+  labels:
+    helm.sh/chart: plex-1.0.1
+    app.kubernetes.io/name: plex
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: plex
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-plex 
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: plex
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-plex
+      securityContext:
+        {}
+      initContainers:           
+        - name: liveneness-init
+          image: "busybox"
+          command:
+            - cp
+          args:
+            - -v
+            - /in/liveness.sh
+            - /out/liveness.sh
+          volumeMounts:
+          - name: health-data
+            mountPath: /in
+          - name: health
+            mountPath: /out   
+        - name: permission-fix
+          image: busybox
+          command: ['sh', '-c']
+          args: ['chmod -R 655 /out']
+          volumeMounts:
+          - name: health
+            mountPath: /out                      
+      containers:
+        - name: plex
+          securityContext:
+            {}
+          image: "ghcr.io/linuxserver/plex:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 32400
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /config
+              name: plex-config-volume
+            - mountPath: /media
+              name: plex-media-volume          
+            - mountPath: /health
+              name: health                    
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: VERSION
+              value: "docker"     
+          livenessProbe:
+            exec:
+              command:
+                - bin/bash
+                - -c
+                - /health/liveness.sh
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3                 
+          readinessProbe:
+            exec:
+              command:
+                - bin/bash
+                - -c
+                - /health/liveness.sh
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            null  
+      volumes:
+        - name: plex-media-volume
+          nfs:
+            server: 10.0.0.2 
+            path: /mnt/rclone-reader                
+        - name: health-data
+          configMap:
+            name: plex-health  
+            items:
+              - key: liveness.sh
+                path: liveness.sh
+        - name: health
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: plex-config-volume
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: 
+        resources:
+          requests:
+            storage: 70Gi
+---
+# Source: plex/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-plex-test-connection"
+  labels:
+    helm.sh/chart: plex-1.0.1
+    app.kubernetes.io/name: plex
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-plex:32400']
+  restartPolicy: Never

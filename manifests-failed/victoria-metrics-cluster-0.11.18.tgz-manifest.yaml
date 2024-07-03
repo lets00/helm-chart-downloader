@@ -1,0 +1,367 @@
+---
+# Source: victoria-metrics-cluster/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-victoria-metrics-cluster
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+---
+# Source: victoria-metrics-cluster/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-victoria-metrics-cluster-clusterrole
+  labels:
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+rules: []
+---
+# Source: victoria-metrics-cluster/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-victoria-metrics-cluster-clusterrolebinding
+  labels:
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: my-release-victoria-metrics-cluster
+    namespace: victoria-metrics-cluster-0.11.18.tgz
+roleRef:
+  kind: ClusterRole
+  name: my-release-victoria-metrics-cluster-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: victoria-metrics-cluster/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-victoria-metrics-cluster
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+  labels:
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+rules: []
+---
+# Source: victoria-metrics-cluster/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-victoria-metrics-cluster
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+  labels:
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-victoria-metrics-cluster
+subjects:
+- kind: ServiceAccount
+  name: my-release-victoria-metrics-cluster
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+---
+# Source: victoria-metrics-cluster/templates/vminsert-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: vminsert
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-victoria-metrics-cluster-vminsert
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+spec:
+  ports:
+    - name: http
+      port: 8480
+      protocol: TCP
+      targetPort: http
+
+  selector:
+    app: vminsert
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+  type: "ClusterIP"
+---
+# Source: victoria-metrics-cluster/templates/vmselect-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: vmselect
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-victoria-metrics-cluster-vmselect
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+spec:
+  ports:
+    - name: http
+      port: 8481
+      protocol: TCP
+      targetPort: http
+  selector:
+    app: vmselect
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+  type: "ClusterIP"
+---
+# Source: victoria-metrics-cluster/templates/vmstorage-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: vmstorage
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-victoria-metrics-cluster-vmstorage
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+spec:
+  clusterIP: None
+  ports:
+    - port: 8482
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 8401
+      targetPort: vmselect
+      protocol: TCP
+      name: vmselect
+    - port: 8400
+      targetPort: vminsert
+      protocol: TCP
+      name: vminsert
+  selector:
+    app: vmstorage
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+---
+# Source: victoria-metrics-cluster/templates/vminsert-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vminsert
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-victoria-metrics-cluster-vminsert
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+spec:
+  selector:
+    matchLabels:
+      app: vminsert
+      app.kubernetes.io/name: victoria-metrics-cluster
+      app.kubernetes.io/instance: my-release
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: vminsert
+        app.kubernetes.io/name: victoria-metrics-cluster
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      automountServiceAccountToken: true
+      containers:
+        - name: victoria-metrics-cluster-vminsert
+          image: "victoriametrics/vminsert:v1.101.0-cluster"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --storageNode=my-release-victoria-metrics-cluster-vmstorage-0.my-release-victoria-metrics-cluster-vmstorage.victoria-metrics-cluster-0.11.18.tgz.svc.cluster.local:8400
+            - --storageNode=my-release-victoria-metrics-cluster-vmstorage-1.my-release-victoria-metrics-cluster-vmstorage.victoria-metrics-cluster-0.11.18.tgz.svc.cluster.local:8400
+            
+            - --envflag.enable=true
+            - --envflag.prefix=VM_
+            - --loggerFormat=json
+          ports:
+            - name: "http"
+              containerPort: 8480
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            
+          resources:
+            {}
+      serviceAccountName: my-release-victoria-metrics-cluster
+---
+# Source: victoria-metrics-cluster/templates/vmselect-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vmselect
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-victoria-metrics-cluster-vmselect
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+spec:
+  selector:
+    matchLabels:
+      app: vmselect
+      app.kubernetes.io/name: victoria-metrics-cluster
+      app.kubernetes.io/instance: my-release
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: vmselect
+        app.kubernetes.io/name: victoria-metrics-cluster
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      automountServiceAccountToken: true
+      containers:
+        - name: victoria-metrics-cluster-vmselect
+          image: "victoriametrics/vmselect:v1.101.0-cluster"
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            {}
+          args:
+            - "--cacheDataPath=/cache"
+            - --storageNode=my-release-victoria-metrics-cluster-vmstorage-0.my-release-victoria-metrics-cluster-vmstorage.victoria-metrics-cluster-0.11.18.tgz.svc.cluster.local:8401
+            - --storageNode=my-release-victoria-metrics-cluster-vmstorage-1.my-release-victoria-metrics-cluster-vmstorage.victoria-metrics-cluster-0.11.18.tgz.svc.cluster.local:8401
+            
+            - --envflag.enable=true
+            - --envflag.prefix=VM_
+            - --loggerFormat=json
+          ports:
+            - name: "http" 
+              containerPort: 8481
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - mountPath: /cache
+              name: cache-volume
+            
+          resources:
+      securityContext:
+        {}
+      serviceAccountName: my-release-victoria-metrics-cluster
+      volumes:
+        - name: cache-volume
+          emptyDir: {}
+---
+# Source: victoria-metrics-cluster/templates/vmstorage-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: vmstorage
+    app.kubernetes.io/name: victoria-metrics-cluster
+    app.kubernetes.io/instance: my-release
+    helm.sh/chart: victoria-metrics-cluster-0.11.18
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-victoria-metrics-cluster-vmstorage
+  namespace: victoria-metrics-cluster-0.11.18.tgz
+spec:
+  serviceName: my-release-victoria-metrics-cluster-vmstorage
+  selector:
+    matchLabels:
+      app: vmstorage
+      app.kubernetes.io/name: victoria-metrics-cluster
+      app.kubernetes.io/instance: my-release
+  replicas: 2
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: vmstorage
+        app.kubernetes.io/name: victoria-metrics-cluster
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      automountServiceAccountToken: true
+      containers:
+        - name: victoria-metrics-cluster-vmstorage
+          image: "victoriametrics/vmstorage:v1.101.0-cluster"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - "--retentionPeriod=1"
+            - "--storageDataPath=/storage"
+            - --envflag.enable=true
+            - --envflag.prefix=VM_
+            - --loggerFormat=json
+          ports:
+            - name: "http" 
+              containerPort: 8482
+            - name: vminsert
+              containerPort: 8400
+            - name: vmselect
+              containerPort: 8401
+          livenessProbe:
+            failureThreshold: 10
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            tcpSocket:
+              port: http
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources: 
+            {}
+          volumeMounts:
+            - name: vmstorage-volume
+              mountPath: /storage
+              subPath: 
+            
+      serviceAccountName: my-release-victoria-metrics-cluster
+      terminationGracePeriodSeconds: 60
+      volumes:
+        
+  volumeClaimTemplates:
+    - metadata:
+        name: vmstorage-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "8Gi"

@@ -1,0 +1,115 @@
+---
+# Source: lorax/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: lorax-my-release
+    app.kubernetes.io/name: lorax-my-release
+    
+  name: lorax
+  namespace: lorax-0.2.1.tgz
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  selector:
+    app: lorax-my-release
+  # sessionAffinity: None
+  type: ClusterIP
+---
+# Source: lorax/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: lorax-my-release
+  name: lorax-my-release
+  namespace: lorax-0.2.1.tgz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lorax-my-release
+  template:
+    metadata:
+      labels:
+        app: lorax-my-release
+    spec:
+      containers:
+      - args:
+        - --model-id
+        - mistralai/Mistral-7B-Instruct-v0.1
+        - --max-input-length
+        - "512"
+        - --max-total-tokens
+        - "1024"
+        - --max-batch-total-tokens
+        - "4096"
+        - --max-batch-prefill-tokens
+        - "2048"
+        - --sharded
+        - "false"
+        env:
+        - name: PORT
+          value: "8000"
+        - name: HUGGING_FACE_HUB_TOKEN
+          value: ""
+        - name: LORAX_ENABLED_MODEL_TYPES
+          value: "llama,mistral"
+        image: ghcr.io/predibase/lorax:latest
+        imagePullPolicy: IfNotPresent
+        livenessProbe: 
+          failureThreshold: 240
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: lorax
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        readinessProbe: 
+          failureThreshold: 600
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources: 
+          limits:
+            cpu: "8"
+            ephemeral-storage: 100Gi
+            memory: 27041Mi
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: "8"
+            ephemeral-storage: 100Gi
+            memory: 27041Mi
+            nvidia.com/gpu: "1"
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /dev/shm
+          name: shm
+      nodeSelector: 
+        {}
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir:
+          medium: Memory
+        name: shm
+      - emptyDir:
+        name: data

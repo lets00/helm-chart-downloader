@@ -1,0 +1,169 @@
+---
+# Source: geoserver/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-geoserver
+  labels:
+    helm.sh/chart: geoserver-1.1.0
+    app.kubernetes.io/name: geoserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.23.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: geoserver/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-geoserver
+  labels:
+    helm.sh/chart: geoserver-1.1.0
+    app.kubernetes.io/name: geoserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.23.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  geoserver_admin_password: "Z2Vvc2VydmVy"
+---
+# Source: geoserver/templates/persistence.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-geoserver
+  labels:
+    helm.sh/chart: geoserver-1.1.0
+    app.kubernetes.io/name: geoserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.23.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "10Gi"
+---
+# Source: geoserver/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-geoserver
+  labels:
+    helm.sh/chart: geoserver-1.1.0
+    app.kubernetes.io/name: geoserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.23.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: geoserver
+      protocol: TCP
+      name: geoserver
+  selector:
+    app.kubernetes.io/name: geoserver
+    app.kubernetes.io/instance: my-release
+---
+# Source: geoserver/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-geoserver
+  labels:
+    helm.sh/chart: geoserver-1.1.0
+    app.kubernetes.io/name: geoserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.23.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: geoserver
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: geoserver
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-geoserver
+      securityContext:
+        {}
+      containers:
+        - name: geoserver
+          securityContext:
+            {}
+          image: "docker.osgeo.org/geoserver:2.23.1"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: INSTALL_EXTENSIONS
+              value: "false"
+            - name: STABLE_EXTENSIONS
+              value: ""
+            - name: CORS_ENABLED
+              value: "true"
+            - name: GEOSERVER_CSRF_WHITELIST
+              value: ""
+            - name: SKIP_DEMO_DATA
+              value: "true"
+            - name: EXTRA_JAVA_OPTS
+              value: "-Xms512m -Xmx2g"
+            - name: GEOSERVER_ADMIN_USER
+              value: admin
+            - name: GEOSERVER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-geoserver
+                  key: geoserver_admin_password
+          ports:
+            - name: geoserver
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: my-release-geoserver
+              mountPath: /opt/geoserver_data
+          startupProbe:
+            httpGet:
+              path: /geoserver/web
+              port: geoserver
+            failureThreshold: 10
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /geoserver/web
+              port: geoserver
+          readinessProbe:
+            httpGet:
+              path: /geoserver/web
+              port: geoserver
+          resources:
+            {}
+      volumes:
+        - name: my-release-geoserver
+          persistentVolumeClaim:
+            claimName: my-release-geoserver
+---
+# Source: geoserver/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-geoserver-test-connection"
+  labels:
+    helm.sh/chart: geoserver-1.1.0
+    app.kubernetes.io/name: geoserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.23.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-geoserver:8080']
+  restartPolicy: Never

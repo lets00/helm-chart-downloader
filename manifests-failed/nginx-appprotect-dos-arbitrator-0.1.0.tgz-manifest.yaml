@@ -1,0 +1,59 @@
+---
+# Source: nginx-appprotect-dos-arbitrator/templates/controller-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-appprotect-dos-arb
+  namespace:  nginx-appprotect-dos-arbitrator-0.1.0.tgz
+  labels:
+    app.kubernetes.io/name: my-release-nginx-appprotect-dos-arbitrator
+    helm.sh/chart: nginx-appprotect-dos-arbitrator-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+spec:
+  selector:
+    app: my-release-nginx-appprotect-dos-arbitrator
+  ports:
+    - name: arb
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+  clusterIP: None
+---
+# Source: nginx-appprotect-dos-arbitrator/templates/controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-nginx-appprotect-dos-arbitrator
+  namespace: nginx-appprotect-dos-arbitrator-0.1.0.tgz
+  labels:
+    app.kubernetes.io/name: my-release-nginx-appprotect-dos-arbitrator
+    helm.sh/chart: nginx-appprotect-dos-arbitrator-0.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-nginx-appprotect-dos-arbitrator
+  template:
+    metadata:
+      labels:
+        app: my-release-nginx-appprotect-dos-arbitrator
+    spec:
+      containers:
+      - name: my-release-nginx-appprotect-dos-arbitrator
+        image: "docker-registry.nginx.com/nap-dos/app_protect_dos_arb:1.1.0"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+        ports:
+          - containerPort: 3000
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1001
+          capabilities:
+            drop:
+              - ALL

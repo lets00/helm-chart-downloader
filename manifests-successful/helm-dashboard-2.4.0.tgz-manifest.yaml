@@ -1,0 +1,203 @@
+---
+# Source: helm-dashboard/templates/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-helm-dashboard
+  labels:
+    app.kubernetes.io/name: helm-dashboard
+    helm.sh/chart: helm-dashboard-2.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: helm-dashboard/templates/storage.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-helm-dashboard-data
+  labels:
+    app.kubernetes.io/name: helm-dashboard
+    helm.sh/chart: helm-dashboard-2.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec: 
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100M
+---
+# Source: helm-dashboard/templates/rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-helm-dashboard
+  labels:
+    app.kubernetes.io/name: helm-dashboard
+    helm.sh/chart: helm-dashboard-2.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: helm-dashboard/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-helm-dashboard
+  labels:
+    app.kubernetes.io/name: helm-dashboard
+    helm.sh/chart: helm-dashboard-2.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-helm-dashboard
+subjects:
+  - kind: ServiceAccount
+    namespace: helm-dashboard-2.4.0.tgz
+    name: my-release-helm-dashboard
+---
+# Source: helm-dashboard/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-helm-dashboard
+  labels:
+    app.kubernetes.io/name: helm-dashboard
+    helm.sh/chart: helm-dashboard-2.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: web
+      port: 8080
+      targetPort: web
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: helm-dashboard
+    app.kubernetes.io/instance: my-release
+---
+# Source: helm-dashboard/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-helm-dashboard
+  labels:
+    app.kubernetes.io/name: helm-dashboard
+    helm.sh/chart: helm-dashboard-2.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: helm-dashboard
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: helm-dashboard
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-helm-dashboard
+      securityContext:
+        fsGroup: 65463
+        runAsGroup: 65463
+        runAsNonRoot: true
+        runAsUser: 65463
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: helm-dashboard
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 65463
+            runAsNonRoot: true
+            runAsUser: 65463
+          image: ghcr.io/beluga-cloud/helm-dashboard/dashboard:1.3.3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HELM_CACHE_HOME
+              value: /opt/dashboard/helm/cache
+            - name: HELM_CONFIG_HOME
+              value: /opt/dashboard/helm/config
+            - name: HELM_DATA_HOME
+              value: /opt/dashboard/helm/data
+          ports:
+            - name: web
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: web
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: web
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /opt/dashboard/helm
+            - name: cache
+              mountPath: /.cache
+            - name: tempdir
+              mountPath: /tmp
+      nodeSelector:
+        kubernetes.io/os: linux
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-helm-dashboard-data
+        - name: cache
+          emptyDir: {}
+        - name: tempdir
+          emptyDir: {}
+---
+# Source: helm-dashboard/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-helm-dashboard-test-connection"
+  labels:
+    app.kubernetes.io/name: helm-dashboard
+    helm.sh/chart: helm-dashboard-2.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      args: ['--timeout=5', '-O/dev/null', 'my-release-helm-dashboard:8080']
+      command: ['wget']
+      image: busybox:musl
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault

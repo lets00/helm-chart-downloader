@@ -1,0 +1,592 @@
+---
+# Source: evi-test-tool/templates/deployment.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: evi-test-tool
+
+  labels:
+    istio-injection: enabled
+---
+# Source: evi-test-tool/templates/deployment.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-evi-test-tool
+  namespace: evi-test-tool
+  labels:
+    account: evi-test-tool
+---
+# Source: evi-test-tool/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio
+  namespace: evi-test-tool
+  labels:
+    app: minio
+type: Opaque
+data:
+  rootUser: 
+  rootPassword:
+---
+# Source: evi-test-tool/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: evi-test-tool
+  name: evi-test-tool-cfg
+data:
+  evi-test-tool.json: |+
+    {
+        "version": "1.0",
+        "name": "EVITestTool",
+        "Local": {
+            "storageSDKConfigPath": "/opt/evi_test_tool/configuration/storage-sdk.json",
+            "triAIInferenceConfigDIR": "/opt/evi_test_tool/config-cpu-pipe",
+            "mediaPath": "/opt/data/images",
+            "mediaMetadataPath": "/opt/data/metadata_ms",
+            "mediaType": "image",
+            "mediaSuffix": "jpg",
+            "mediaObjectType":"vehicle",
+            "processStep": "all"
+        },
+  
+        "AIServer": {
+            "address": "evi-ai-inference",
+            "port": "50051"
+        },
+  
+        "ClusteringServer": {
+            "address": "evi-clustering-archiving",
+            "port": "8080",
+            "clusteringReqPath": "/app/clustering/submit"
+        },
+  
+        "TriggerStructure": {
+            "startTimeStamp": "1628569500000",
+            "endTimeStamp": "1628614620000",
+            "mediaReqPath": "/new_query"
+        },
+  
+        "TriggerCluster": {
+            "startTimeStamp": "0",
+            "endTimeStamp": "1800000000000",
+            "dataSources": "[]",
+            "dropHistory": "true"
+        },
+  
+        "DataSource": {
+            "mediaSuffix": [
+                "jpg",
+                "h264",
+                "h265"
+            ],
+            "mediaTypeList": [
+                "image",
+                "video"
+            ],
+            "objectTypeList": [
+                "person",
+                "vehicle"
+            ]
+        }
+    }
+  
+  storage-sdk.json: |
+    {
+        "version": 1,
+        "name": "row data source",
+        "video_image": {
+            "address": "evi-minio-service",
+            "port": "9000",
+            "rootUser": "/opt/evi_test_tool/credential/minio/rootUser",
+            "rootPassword": "/opt/evi_test_tool/credential/minio/rootPassword"
+        },
+        "video_image_attributes": {
+            "flask_server_address": "evi-storage-rest",
+            "flask_server_port": "9900",
+            "prefix": "v1",
+            "media": "/media"
+        },
+        "mediatype": [
+            "image",
+            "video"
+        ],
+        "datasource": [
+            "person",
+            "vehicle"
+        ],
+        "psql": {
+            "host": "evi-postgresql",
+            "port": "5432",
+            "user": "hce",
+            "database": "hce"
+        }
+    }
+---
+# Source: evi-test-tool/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: evi-test-tool
+  name: ai-structuring-cfg
+data:
+  queryPipeline.json: |
+    {
+        "Nodes": [
+            {
+                "Node Class Name": "RawImageInputNode",
+                "Node Name": "Input",
+                "Thread Number": "1",
+                "Is Source Node": "true"
+            },
+            {
+                "Node Class Name": "CPUJpegDecoderNode",
+                "Node Name": "Decoder",
+                "Thread Number": "1",
+                "Is Source Node": "false"
+            },
+            {
+                "Node Class Name": "DetectionNode",
+                "Node Name": "Detection",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];InferBatchSize=(INT)1;ModelPath=(STRING)vehicle-detection-evi-0.0.1/FP16-INT8/vehicle-detection-evi-001.xml;ModelProcConfPath=(STRING)vehicle-detection-evi-0.0.1/vehicle-detection-evi-001.model_proc.json;Threshold=(FLOAT)0.6;MaxROI=(INT)0"
+            },
+            {
+                "Node Class Name": "ClassificationNode",
+                "Node Name": "Attribute",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];ModelPath=(STRING)vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml;ModelProcConfPath=(STRING)vehicle-attributes-recognition-barrier-0039/vehicle-attributes-recognition-barrier-0039.model_proc.json"
+            },
+            {
+                "Node Class Name": "FeatureExtractionNode",
+                "Node Name": "FeatureExtraction",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];PreProcessType=(STRING)opencv;ModelPath=(STRING)fe-pytorch-0.0.1/INT8/fe-pytorch-0.0.1.xml;ModelProcConfPath=(STRING)fe-pytorch-0.0.1/fe-pytorch-0.0.1.model_proc.json"
+            },
+            {
+                "Node Class Name": "LLOutputNode",
+                "Node Name": "Output",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": ""
+            }
+        ],
+        "Links": [
+            {
+                "Previous Node": "Input",
+                "Previous Node Port": "0",
+                "Next Node": "Decoder",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Decoder",
+                "Previous Node Port": "0",
+                "Next Node": "Detection",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Detection",
+                "Previous Node Port": "0",
+                "Next Node": "Attribute",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Attribute",
+                "Previous Node Port": "0",
+                "Next Node": "FeatureExtraction",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "FeatureExtraction",
+                "Previous Node Port": "0",
+                "Next Node": "Output",
+                "Next Node Port": "0"
+            }
+        ]
+    }
+  strucPipeline.json: |
+    {
+        "Nodes": [
+            {
+                "Node Class Name": "StorageImageInputNode",
+                "Node Name": "Input",
+                "Thread Number": "1",
+                "Is Source Node": "true"
+            },
+            {
+                "Node Class Name": "CPUJpegDecoderNode",
+                "Node Name": "Decoder",
+                "Thread Number": "1",
+                "Is Source Node": "false"
+            },
+            {
+                "Node Class Name": "DetectionNode",
+                "Node Name": "Detection",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];InferBatchSize=(INT)1;ModelPath=(STRING)vehicle-detection-evi-0.0.1/FP16-INT8/vehicle-detection-evi-001.xml;ModelProcConfPath=(STRING)vehicle-detection-evi-0.0.1/vehicle-detection-evi-001.model_proc.json;Threshold=(FLOAT)0.6;MaxROI=(INT)0"
+            },
+            {
+                "Node Class Name": "ClassificationNode",
+                "Node Name": "Attribute",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];ModelPath=(STRING)vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml;ModelProcConfPath=(STRING)vehicle-attributes-recognition-barrier-0039/vehicle-attributes-recognition-barrier-0039.model_proc.json"
+            },
+            {
+                "Node Class Name": "FeatureExtractionNode",
+                "Node Name": "FeatureExtraction",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];PreProcessType=(STRING)opencv;ModelPath=(STRING)fe-pytorch-0.0.1/INT8/fe-pytorch-0.0.1.xml;ModelProcConfPath=(STRING)fe-pytorch-0.0.1/fe-pytorch-0.0.1.model_proc.json"
+            },
+            {
+                "Node Class Name": "LLResultSinkNode",
+                "Node Name": "Output",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": ""
+            }
+        ],
+        "Links": [
+            {
+                "Previous Node": "Input",
+                "Previous Node Port": "0",
+                "Next Node": "Decoder",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Decoder",
+                "Previous Node Port": "0",
+                "Next Node": "Detection",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Detection",
+                "Previous Node Port": "0",
+                "Next Node": "Attribute",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Attribute",
+                "Previous Node Port": "0",
+                "Next Node": "FeatureExtraction",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "FeatureExtraction",
+                "Previous Node Port": "0",
+                "Next Node": "Output",
+                "Next Node Port": "0"
+            }
+        ]
+    }
+  videoStrucPipeline.json: |
+    {
+        "Nodes": [
+            {
+                "Node Class Name": "StorageVideoInputNode",
+                "Node Name": "Input",
+                "Thread Number": "1",
+                "Is Source Node": "true"
+            },
+            {
+                "Node Class Name": "VideoDecoderNode",
+                "Node Name": "Decoder",
+                "Thread Number": "1",
+                "Is Source Node": "false"
+            },
+            {
+                "Node Class Name": "DetectionNode",
+                "Node Name": "Detection",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];InferBatchSize=(INT)1;ModelPath=(STRING)vehicle-detection-evi-0.0.1/FP16-INT8/vehicle-detection-evi-001.xml;ModelProcConfPath=(STRING)vehicle-detection-evi-0.0.1/vehicle-detection-evi-001.model_proc.json;Threshold=(FLOAT)0.6;MaxROI=(INT)0"
+            },
+            {
+                "Node Class Name": "TrackerNode_CPU",
+                "Node Name": "Tracker",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "TrackerType=(STRING)zero_term_imageless"
+            },
+            {
+                "Node Class Name": "ObjectQualityNode",
+                "Node Name": "QualityAssess",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "QualityMode=(INT)1;ImageSize=(INT)320;InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];PreProcessType=(STRING)opencv;ModelPath=(STRING)vehicle-qnet-0.0.1/FP16/quality-assess-001.xml;ModelProcConfPath=(STRING)vehicle-qnet-0.0.1/vehicle-qnet-0.0.1.model_proc.json"
+            },
+            {
+                "Node Class Name": "ObjectSelectNode",
+                "Node Name": "Select",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "FrameInterval=(INT)30;TopK=(INT)1"
+            },
+            {
+                "Node Class Name": "StorageImageUploadNode",
+                "Node Name": "UploadImage",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "MediaType=(STRING)video;DataSource=(STRING)vehicle"
+            },
+            {
+                "Node Class Name": "ClassificationNode",
+                "Node Name": "Attribute",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];ModelPath=(STRING)vehicle-attributes-recognition-barrier-0039/FP16-INT8/vehicle-attributes-recognition-barrier-0039.xml;ModelProcConfPath=(STRING)vehicle-attributes-recognition-barrier-0039/vehicle-attributes-recognition-barrier-0039.model_proc.json"
+            },
+            {
+                "Node Class Name": "FeatureExtractionNode",
+                "Node Name": "FeatureExtraction",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": "InferReqNumber=(INT)6;InferConfig=(STRING_ARRAY)[CPU_THROUGHPUT_STREAMS=6,CPU_THREADS_NUM=6,CPU_BIND_THREAD=NUMA];PreProcessType=(STRING)opencv;ModelPath=(STRING)fe-pytorch-0.0.1/INT8/fe-pytorch-0.0.1.xml;ModelProcConfPath=(STRING)fe-pytorch-0.0.1/fe-pytorch-0.0.1.model_proc.json"
+            },
+            {
+                "Node Class Name": "LLResultSinkNode",
+                "Node Name": "Output",
+                "Thread Number": "1",
+                "Is Source Node": "false",
+                "Configure String": ""
+            }
+        ],
+        "Links": [
+            {
+                "Previous Node": "Input",
+                "Previous Node Port": "0",
+                "Next Node": "Decoder",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Decoder",
+                "Previous Node Port": "0",
+                "Next Node": "Detection",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Detection",
+                "Previous Node Port": "0",
+                "Next Node": "Tracker",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Tracker",
+                "Previous Node Port": "0",
+                "Next Node": "QualityAssess",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "QualityAssess",
+                "Previous Node Port": "0",
+                "Next Node": "Select",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Select",
+                "Previous Node Port": "0",
+                "Next Node": "UploadImage",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "UploadImage",
+                "Previous Node Port": "0",
+                "Next Node": "Attribute",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "Attribute",
+                "Previous Node Port": "0",
+                "Next Node": "FeatureExtraction",
+                "Next Node Port": "0"
+            },
+            {
+                "Previous Node": "FeatureExtraction",
+                "Previous Node Port": "0",
+                "Next Node": "Output",
+                "Next Node Port": "0"
+            }
+        ]
+    }
+---
+# Source: evi-test-tool/templates/pv-tools.yaml
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-evi-test-tool
+  labels:
+    app: evi-test-tool
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /home/data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - nodea
+---
+# Source: evi-test-tool/templates/pvc-tools.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-evi-test-tool-data
+  namespace: evi-test-tool
+spec:
+  storageClassName: local-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Source: evi-test-tool/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evi-test-tool
+  namespace: evi-test-tool
+spec:
+  selector:
+    matchLabels:
+      app: evi-test-tool
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: evi-test-tool
+        sidecar.istio.io/inject: "true"
+        version: v1
+    spec:
+      nodeSelector:
+        feature.node.kubernetes.io/cpu-cpuid.AVX512VNNI: 'true'
+        feature.node.kubernetes.io/cpu-cpuid.AVX2: 'true'
+      serviceAccountName: sa-evi-test-tool
+      containers:
+      - name: evi-test-tool
+        image: "evi-test-tool:1.1"
+        imagePullPolicy: IfNotPresent
+        command: [ "/bin/bash", "-ce", "tail -f /dev/null" ]
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        #pod path
+        - name: test-data
+          mountPath: /opt/data
+        - name: config-evi-test-tool
+          mountPath: /opt/evi_test_tool/configuration
+        - name: config-ai
+          mountPath: /opt/evi_test_tool/config-cpu-pipe
+        - name: minio-secret
+          mountPath: "/opt/evi_test_tool/credential/minio/"
+          readOnly: true
+        - name: psql-secret-volume
+          readOnly: true
+          mountPath: "/opt/evi_test_tool/credential/psql"
+        securityContext:
+          # readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        resources:
+          limits:
+            cpu: "8"
+            memory: 10Gi
+          requests:
+            cpu: "1"
+            memory: 1Gi
+      volumes:
+      - name: test-data
+        persistentVolumeClaim:
+          claimName: pvc-evi-test-tool-data
+      - name: config-evi-test-tool
+        configMap:
+          name: evi-test-tool-cfg
+      - name: config-ai
+        configMap:
+          name: ai-structuring-cfg
+      - name: minio-secret
+        secret:
+          secretName: minio
+      - name: psql-secret-volume
+        secret:
+          secretName: sqldbsecret
+---
+# Source: evi-test-tool/templates/configmap.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-test-tool/templates/deployment.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022-2023 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-test-tool/templates/pv-tools.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-test-tool/templates/pvc-tools.yml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.
+---
+# Source: evi-test-tool/templates/secret.yaml
+# INTEL CONFIDENTIAL
+#
+# Copyright (C) 2022 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials, and your use of
+# them is governed by the express license under which they were provided to you (License).
+# Unless the License provides otherwise, you may not use, modify, copy, publish, distribute,
+# disclose or transmit this software or the related documents without Intel's prior written permission.
+#
+# This software and the related documents are provided as is, with no express or implied warranties,
+# other than those that are expressly stated in the License.

@@ -1,0 +1,398 @@
+---
+# Source: mlflow-server/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mlflow-server
+  labels:
+    helm.sh/chart: mlflow-server-0.1.9
+    app.kubernetes.io/name: mlflow-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: mlflow-server/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  namespace: "mlflow-server-0.1.9.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.9.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  postgres-password: "U1JHMFFhWEd4dQ=="
+  password: "bWxmbG93"
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: mlflow-server/templates/secret-env.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mlflow-server-env
+  labels:
+    app: my-release-mlflow-server
+    chart: mlflow-server-0.1.9
+    release: "my-release"
+    heritage: "Helm"
+  namespace: mlflow-server-0.1.9.tgz
+type: Opaque
+stringData:
+    DB_HOST: "abc-postgresql"
+    DB_PORT: "5432"
+    DB_USER: "mlflow"
+    DB_PASS: "mlflow"
+    DB_NAME: "mlflow"
+    DATABASE_URL: "postgresql+psycopg2://mlflow:mlflow@abc-postgresql:5432/mlflow"
+---
+# Source: mlflow-server/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-hl
+  namespace: "mlflow-server-0.1.9.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.9.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: mlflow-server/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  namespace: "mlflow-server-0.1.9.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.9.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: mlflow-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mlflow-server
+  labels:
+    helm.sh/chart: mlflow-server-0.1.9
+    app.kubernetes.io/name: mlflow-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mlflow-server
+    app.kubernetes.io/instance: my-release
+---
+# Source: mlflow-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mlflow-server
+  labels:
+    helm.sh/chart: mlflow-server-0.1.9
+    app.kubernetes.io/name: mlflow-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow-server
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mlflow-server
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-mlflow-server
+      securityContext:
+        {}
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -timeout 120s
+        envFrom:
+        - secretRef:
+            name: 'my-release-mlflow-server-env'
+        image: 'jwilder/dockerize:latest'
+        imagePullPolicy: 'IfNotPresent'
+        name: wait-for-postgres
+      containers:
+        - name: mlflow-server
+          securityContext:
+            {}
+          image: "buntha/mlflow:2.1.1"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: "MLFLOW_PORT"
+              value: "5000"
+            - name: "ARTIFACT_STORE"
+              value: "/tmp/abc"
+          envFrom:
+            - secretRef:
+                name: "my-release-mlflow-server-env"    
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: mlflow-server/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  namespace: "mlflow-server-0.1.9.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.9.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  replicas: 1
+  serviceName: my-release-postgresql-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/name: postgresql
+        helm.sh/chart: postgresql-11.9.6
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+      annotations:
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: primary
+                namespaces:
+                  - "mlflow-server-0.1.9.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      hostNetwork: false
+      hostIPC: false
+      initContainers:
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:14.5.0-debian-11-r21
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "mlflow"
+            - name: POSTGRES_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgres-password
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: password
+            - name: POSTGRES_DB
+              value: "mlflow"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "mlflow" -d "dbname=mlflow" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                
+                - |
+                  exec pg_isready -U "mlflow" -d "dbname=mlflow" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits: {}
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: mlflow-server/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mlflow-server-test-connection"
+  labels:
+    helm.sh/chart: mlflow-server-0.1.9
+    app.kubernetes.io/name: mlflow-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.1.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mlflow-server:5000']
+  restartPolicy: Never

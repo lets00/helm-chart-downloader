@@ -1,0 +1,198 @@
+---
+# Source: etcd/templates/etcdconfig.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: my-release-etcd
+  labels:
+    helm.sh/chart: etcd-1.0.0
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.13"
+    app.kubernetes.io/managed-by: Helm
+data:
+  ETCD_DATA_DIR: "/data/etcd"
+  ETCD_INITIAL_CLUSTER_TOKEN: "etcd-cluster-0"
+  ETCD_INITIAL_CLUSTER_STATE: "new"
+  ETCD_LISTEN_CLIENT_URLS: "http://0.0.0.0:2379"
+  ETCD_LISTEN_PEER_URLS: "http://0.0.0.0:2380"
+  ETCD_INITIAL_CLUSTER: "my-release-etcd-0=http://my-release-etcd-0.my-release-etcd-internal.etcd-1.0.0.tgz.svc.cluster.local:2380"
+---
+# Source: etcd/templates/service-internal.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-etcd-internal
+  labels:
+    helm.sh/chart: etcd-1.0.0
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.13"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: 2379
+      targetPort: client
+      name: client
+    - port: 2380
+      targetPort: peer
+      name: peer
+  selector:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+---
+# Source: etcd/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-etcd
+  labels:
+    helm.sh/chart: etcd-1.0.0
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.13"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 2379
+      targetPort: client
+      name: client
+    - port: 2380
+      targetPort: peer
+      name: peer
+  selector:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+---
+# Source: etcd/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-etcd
+  labels:
+    helm.sh/chart: etcd-1.0.0
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.5.13"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: my-release-etcd-internal
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/etcdconfig: f32bc9b24a1b53ea7e32476b315626f1a4cc0363d4439242c1c0091bd116c20e
+      labels:
+        app.kubernetes.io/name: etcd
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 999
+        supplementalGroups:
+        - 999
+      initContainers:
+        - name: etcd-init
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "docker.io/busybox:latest"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: etcd-data
+              mountPath: /data
+          command: ["/bin/sh"]
+          args: ["-c", "mkdir -p /data/etcd && chmod 700 /data/etcd"]
+      containers:
+        - name: etcd
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "quay.io/coreos/etcd:v3.5.13"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: client
+              containerPort: 2379
+            - name: peer
+              containerPort: 2380
+          startupProbe:
+            exec:
+              command:
+                - /usr/local/bin/etcdctl 
+                - endpoint 
+                - health
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+            periodSeconds: 10              
+          livenessProbe:
+            exec:
+              command:
+                - /usr/local/bin/etcdctl 
+                - endpoint 
+                - health
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /usr/local/bin/etcdctl 
+                - endpoint 
+                - health
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ETCD_NAME
+              value: $(NODE_NAME)
+            - name: ETCD_ADVERTISE_CLIENT_URLS
+              value: "http://$(NODE_NAME).my-release-etcd-internal.etcd-1.0.0.tgz.svc.cluster.local:2379"
+            - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+              value: "http://$(NODE_NAME).my-release-etcd-internal.etcd-1.0.0.tgz.svc.cluster.local:2380"
+          envFrom:
+            - configMapRef:
+                name: my-release-etcd
+          volumeMounts:
+            - name: etcd-data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: etcd-data
+          emptyDir: {}

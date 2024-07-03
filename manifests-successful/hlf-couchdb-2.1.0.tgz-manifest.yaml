@@ -1,0 +1,115 @@
+---
+# Source: hlf-couchdb/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-hlf-couchdb
+  labels:
+    app: hlf-couchdb
+    heritage: "Helm"
+    release: "my-release"
+    chart: hlf-couchdb-2.1.0
+type: Opaque
+data:
+  COUCHDB_USER:  "Y291Y2hkYg=="
+  
+  COUCHDB_PASSWORD: "bFZ4MjU0a1Ywa2hmMVZXUk5VSWdtNFdw"
+---
+# Source: hlf-couchdb/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-hlf-couchdb
+  labels:
+    app: hlf-couchdb
+    heritage: "Helm"
+    release: "my-release"
+    chart: hlf-couchdb-2.1.0
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+---
+# Source: hlf-couchdb/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-hlf-couchdb
+  labels:
+    app: hlf-couchdb
+    heritage: "Helm"
+    release: "my-release"
+    chart: hlf-couchdb-2.1.0
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5984
+      targetPort: couchdb
+      protocol: TCP
+      name: couchdb
+  selector:
+    app: hlf-couchdb
+    release: my-release
+---
+# Source: hlf-couchdb/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-hlf-couchdb
+  labels:
+    app: hlf-couchdb
+    heritage: "Helm"
+    release: "my-release"
+    chart: hlf-couchdb-2.1.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hlf-couchdb
+      release: my-release
+  # Ensure we allow our pod to be unavailable, so we can upgrade
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: hlf-couchdb
+        heritage: "Helm"
+        release: "my-release"
+        chart: hlf-couchdb-2.1.0
+    spec:
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-release-hlf-couchdb
+      containers:
+        - name: hlf-couchdb
+          image: "couchdb:3.1.1"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+          - secretRef:
+              name: my-release-hlf-couchdb
+          volumeMounts:
+          - mountPath: /opt/couchdb/data
+            name: data
+          ports:
+            - name: couchdb
+              containerPort: 5984
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: 5984
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket:
+              port: 5984
+            initialDelaySeconds: 5
+            timeoutSeconds: 3
+            periodSeconds: 5
+          resources:
+            {}

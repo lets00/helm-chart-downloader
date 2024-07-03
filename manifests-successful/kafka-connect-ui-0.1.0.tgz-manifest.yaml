@@ -1,0 +1,64 @@
+---
+# Source: kafka-connect-ui/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kafka-connect-ui
+  labels:
+    app: kafka-connect-ui
+    chart: kafka-connect-ui-0.1.0
+    release: my-release
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: kafka-connect-ui
+    release: my-release
+---
+# Source: kafka-connect-ui/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kafka-connect-ui
+  labels:
+    app: kafka-connect-ui
+    chart: kafka-connect-ui-0.1.0
+    release: my-release
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-connect-ui
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: kafka-connect-ui
+        release: my-release
+    spec:
+      containers:
+        - name: kafka-connect-ui
+          image: "landoop/kafka-connect-ui:0.9.7"
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: CONNECT_URL
+            value: "http://my-release-connect-cluster-connect-api:8083"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}

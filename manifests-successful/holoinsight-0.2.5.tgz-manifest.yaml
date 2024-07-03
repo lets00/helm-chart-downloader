@@ -1,0 +1,562 @@
+---
+# Source: holoinsight/templates/ceresdb.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-cm
+  namespace: 
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+      evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+    remote_write:
+    - url: "http://ceresdb:5440/prom/v1/write"
+    remote_read:
+    - url: "http://ceresdb:5440/prom/v1/read"
+---
+# Source: holoinsight/templates/collector.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  namespace: 
+  name: collector-cm
+data:
+  config.yml: |
+    receivers:
+      holoinsight_skywalking:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:11800
+            auth:
+              authenticator: http_forwarder_auth
+        holoinsight_server:
+          http:
+            endpoint: gateway:8080
+
+    exporters:
+      otlp:
+        endpoint: gateway:11800
+        tls:
+          insecure: true
+
+    processors:
+      batch:
+
+    extensions:
+      health_check:
+      pprof:
+      zpages:
+      http_forwarder_auth:
+        url: http://gateway:8080/internal/api/gateway/apikey/check
+
+    service:
+      extensions: [ pprof, health_check, http_forwarder_auth ]
+      pipelines:
+        traces:
+          receivers: [ holoinsight_skywalking ]
+          exporters: [ otlp ]
+          processors: [ batch ]
+---
+# Source: holoinsight/templates/mysql.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-cm
+  namespace: 
+data:
+  my.cnf: |
+    [mysqld]
+    character_set_server=utf8
+    [mysql]
+    default-character-set = utf8
+    [mysql.server]
+    default-character-set = utf8
+    [mysqld_safe]
+    default-character-set = utf8
+    [client]
+    default-character-set = utf8
+---
+# Source: holoinsight/templates/server.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: server-cm
+  namespace: 
+data:
+  application.yaml:    |
+      spring:
+        datasource:
+          url: jdbc:mysql://mysql:3306/holoinsight?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&rewriteBatchedStatements=true&socketTimeout=15000&connectTimeout=3000&useTimezone=true&serverTimezone=Asia/Shanghai
+          username: holoinsight
+          password: holoinsight
+          driver-class-name: com.mysql.cj.jdbc.Driver
+      holoinsight:
+        roles:
+          active: query,registry,gateway,home,meta,apm
+        metric:
+          storage:
+            type: ceresdbx
+          pql:
+            remote:
+              enabled: true
+              endpoints:
+                default:
+                  host: prometheus
+                  port: 9090
+        meta:
+          db_data_mode: mysql
+          database: holoinsight
+        flyway:
+          enabled: true
+        features:
+          active: trace
+        storage:
+          elasticsearch:
+            enable: true
+            hosts: es
+            port: 9200
+        security:
+          whiteHosts: server,gateway,gateway.holoinsight-server
+---
+# Source: holoinsight/templates/ceresdb.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ceresdb
+  namespace: 
+  labels:
+    name: holoinsight-ceresdb
+spec:
+  clusterIP: None
+  ports:
+  - name: p8831
+    protocol: TCP
+    port: 8831
+    targetPort: 8831
+  - name: p3307
+    protocol: TCP
+    port: 3307
+    targetPort: 3307
+  - name: p5440
+    protocol: TCP
+    port: 5440
+    targetPort: 5440
+  selector:
+    app.kubernetes.io/name: holoinsight-ceresdb
+---
+# Source: holoinsight/templates/ceresdb.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: 
+  labels:
+    name: holoinsight-prometheus
+spec:
+  clusterIP: None
+  ports:
+  - name: p9090
+    protocol: TCP
+    port: 9090
+  selector:
+    app.kubernetes.io/name: holoinsight-prometheus
+---
+# Source: holoinsight/templates/collector.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: 
+  name: collector
+spec:
+  ports:
+  - name: grpc-skywalking
+    port: 11800
+    protocol: TCP
+    targetPort: 11800
+  selector:
+    app.kubernetes.io/name: holoinsight-collector
+---
+# Source: holoinsight/templates/es.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: es
+  namespace: 
+  labels:
+    name: holoinsight-es
+spec:
+  clusterIP: None
+  ports:
+  - name: p9200
+    protocol: TCP
+    port: 9200
+  selector:
+    app.kubernetes.io/name: holoinsight-es
+---
+# Source: holoinsight/templates/mysql.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: 
+  labels:
+    name: holoinsight-mysql
+spec:
+  clusterIP: None
+  ports:
+  - name: mysql
+    protocol: TCP
+    port: 3306
+    targetPort: 3306
+  selector:
+    app.kubernetes.io/name: holoinsight-mysql
+---
+# Source: holoinsight/templates/server.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: 
+  labels:
+    name: registry
+spec:
+  ports:
+  - name: grpc-for-agent
+    protocol: TCP
+    port: 7202
+    targetPort: 7202
+  selector:
+    app.kubernetes.io/name: holoinsight-server
+---
+# Source: holoinsight/templates/server.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: 
+  labels:
+    name: gateway
+spec:
+  ports:
+  - name: grpc-for-agent
+    protocol: TCP
+    port: 19610
+    targetPort: 19610
+  - name: p8080
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  - name: p11800
+    protocol: TCP
+    port: 11800
+    targetPort: 11800
+  selector:
+    app.kubernetes.io/name: holoinsight-server
+---
+# Source: holoinsight/templates/server.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: home
+  namespace: 
+  labels:
+    name: home
+spec:
+  ports:
+  - name: home
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  selector:
+    app.kubernetes.io/name: holoinsight-server
+---
+# Source: holoinsight/templates/ceresdb.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: holoinsight-prometheus
+  namespace: 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: holoinsight-prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: holoinsight-prometheus
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: cm
+        configMap:
+          name: prometheus-cm
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /etc/prometheus/prometheus.yml
+          name: cm
+          subPath: prometheus.yml
+        ports:
+        - containerPort: 9090
+        readinessProbe:
+          tcpSocket:
+            port: 9090
+          failureThreshold: 3
+          successThreshold: 1
+          timeoutSeconds: 10
+          periodSeconds: 10
+          initialDelaySeconds: 10
+        resources:
+          requests:
+            cpu: "0"
+            memory: "0"
+          limits:
+            cpu: "0.25"
+            memory: "256Mi"
+---
+# Source: holoinsight/templates/collector.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: holoinsight-collector
+  namespace: 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: holoinsight-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: holoinsight-collector        
+        helm.sh/chart: holoinsight-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+    spec:
+      restartPolicy: Always
+      volumes:
+      - name: collector-cm
+        configMap:
+          name: collector-cm
+      containers:
+      - name: otel-collector
+        image: "holoinsight/otelcontribcol:latest"
+        env:
+        volumeMounts:
+        - name: collector-cm
+          mountPath: /config/config.yml
+          subPath: config.yml
+        ports:
+        - name: grpc
+          containerPort: 11800
+          protocol: TCP
+        readinessProbe:
+          tcpSocket:
+            port: 11800
+          failureThreshold: 3
+          successThreshold: 1
+          timeoutSeconds: 10
+          periodSeconds: 3
+          initialDelaySeconds: 10
+---
+# Source: holoinsight/templates/ceresdb.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: holoinsight-ceresdb
+  namespace: 
+spec:
+  serviceName: holoinsight-ceresdb
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: holoinsight-ceresdb
+  template:
+    metadata:
+      name: holoinsight-ceresdb
+      labels:
+        app.kubernetes.io/name: holoinsight-ceresdb        
+        helm.sh/chart: holoinsight-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: ceresdb
+        image: ceresdb/ceresdb-server:v1.0.0
+        ports:
+        - containerPort: 8831
+        readinessProbe:
+          tcpSocket:
+            port: 8831
+          failureThreshold: 3
+          successThreshold: 1
+          timeoutSeconds: 10
+          periodSeconds: 3
+          initialDelaySeconds: 10
+---
+# Source: holoinsight/templates/es.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: holoinsight-es
+  namespace: 
+spec:
+  serviceName: holoinsight-es
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: holoinsight-es
+  template:
+    metadata:
+      name: holoinsight-es
+      labels:
+        app.kubernetes.io/name: holoinsight-es        
+        helm.sh/chart: holoinsight-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: es
+        image: elasticsearch:7.16.1
+        env:
+        - name: discovery.type
+          value: single-node
+        - name: ES_JAVA_OPTS
+          value: -Xmx1g
+        ports:
+        - containerPort: 9200
+        readinessProbe:
+          tcpSocket:
+            port: 9200
+          failureThreshold: 3
+          successThreshold: 1
+          timeoutSeconds: 10
+          periodSeconds: 3
+          initialDelaySeconds: 10
+---
+# Source: holoinsight/templates/mysql.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: holoinsight-mysql
+  namespace: 
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: holoinsight-mysql
+  template:
+    metadata:
+      name: holoinsight-mysql
+      labels:
+        app.kubernetes.io/name: holoinsight-mysql        
+        helm.sh/chart: holoinsight-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+    spec:
+      restartPolicy: Always
+      volumes:
+      - name: cm
+        configMap:
+          name: mysql-cm
+      containers:
+      - name: mysql
+        image: mysql:8
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: holoinsight
+        - name: MYSQL_USER
+          value: holoinsight
+        - name: MYSQL_PASSWORD
+          value: holoinsight
+        - name: MYSQL_DATABASE
+          value: holoinsight
+        volumeMounts:
+        - mountPath: /etc/mysql/conf.d/my.cnf
+          name: cm
+          subPath: my.cnf
+        ports:
+        - name: mysql
+          containerPort: 3306
+          protocol: TCP
+        readinessProbe:
+          tcpSocket:
+            port: 3306
+          periodSeconds: 3
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+---
+# Source: holoinsight/templates/server.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: holoinsight-server
+  namespace: 
+spec:
+  serviceName: holoinsight-server
+  replicas: 1
+  minReadySeconds: 10
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: holoinsight-server
+  template:
+    metadata:
+      name: holoinsight-server
+      labels:
+        app.kubernetes.io/name: holoinsight-server        
+        helm.sh/chart: holoinsight-0.2.5
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: 0.2.0
+    spec:
+      restartPolicy: Always
+      volumes:
+      - name: server-cm
+        configMap:
+          name: server-cm
+      containers:
+      - name: server
+        image: holoinsight/server:latest
+        imagePullPolicy: Always
+        env:
+        readinessProbe:
+          exec:
+            command: [ "sh", "/home/admin/bin/health.sh" ]
+          successThreshold: 1
+          failureThreshold: 3
+          timeoutSeconds: 10
+          periodSeconds: 3
+          initialDelaySeconds: 10
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        - name: p19610
+          containerPort: 19610
+          protocol: TCP
+        - name: p7202
+          containerPort: 7202
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /home/admin/application.yaml
+          name: server-cm
+          subPath: application.yaml
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "2"
+            memory: 4Gi

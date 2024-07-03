@@ -1,0 +1,596 @@
+---
+# Source: ace-installer/templates/presets/bootstrap-presets.yaml
+apiVersion: charts.x-helm.dev/v1alpha1
+kind: ClusterChartPreset
+metadata:
+  name: bootstrap-presets
+  labels:
+    ace.appscode.com/managed: "true"
+spec:
+  values:
+    helm:
+      createNamespace: true
+      releases:
+        ace:
+          version: v2024.6.3
+        ace-installer:
+          version: v2024.6.3
+        flux2:
+          version: 2.13.0
+        license-proxyserver:
+          version: v2024.6.3
+        opscenter-features:
+          values:
+            helm:
+              releases:
+                service-presets:
+                  values: {}
+                stash-presets:
+                  values: {}
+          version: v2024.6.3
+        spoke-cluster-addons:
+          values:
+            kubectl:
+              image: ghcr.io/appscode/kubectl-nonroot:1.25
+          version: v2024.5.17
+        vcluster:
+          values:
+            sync:
+              hoststorageclasses:
+                enabled: true
+            telemetry:
+              disabled: "true"
+            vcluster:
+              image: rancher/k3s:v1.29.0-k3s1
+          version: 0.19.5
+      repositories:
+        appscode-charts-oci:
+          url: oci://ghcr.io/appscode-charts
+    image:
+      proxies:
+        appscode: r.appscode.com
+        dockerHub: ""
+        dockerLibrary: ""
+        ghcr: ghcr.io
+        kubernetes: registry.k8s.io
+        quay: quay.io
+    offlineInstaller: false
+    registry:
+      certs: {}
+      credentials: {}
+      imagePullSecrets: []
+---
+# Source: ace-installer/templates/apps/cert-manager/cert-manager-csi-driver-cacerts.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager-csi-driver-cacerts
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: cert-manager-csi-driver-cacerts
+    app.kubernetes.io/part-of: opscenter-security
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: cert-manager-csi-driver-cacerts
+  targetNamespace: cert-manager
+  storageNamespace: cert-manager
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: cert-manager
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: cert-manager-csi-driver-cacerts
+      version: "v2023.10.1"
+      interval: 60m
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    livenessProbe:
+      registry: registry.k8s.io/sig-storage
+    nodeDriverRegistrar:
+      registry: registry.k8s.io/sig-storage
+    registryFQDN: ghcr.io
+---
+# Source: ace-installer/templates/apps/cert-manager/cert-manager-webhook-ace.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager-webhook-ace
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: cert-manager-webhook-ace
+    app.kubernetes.io/part-of: opscenter-security
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: cert-manager-webhook-ace
+  targetNamespace: cert-manager
+  storageNamespace: cert-manager
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: cert-manager
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: cert-manager-webhook-ace
+      version: "v2023.11.14"
+      interval: 60m
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    registryFQDN: ghcr.io
+---
+# Source: ace-installer/templates/apps/cert-manager/cert-manager.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: cert-manager
+    app.kubernetes.io/part-of: opscenter-security
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: cert-manager
+  targetNamespace: cert-manager
+  storageNamespace: cert-manager
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: gateway-api
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: cert-manager
+      version: "v1.15.0"
+      interval: 60m
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    cainjector:
+      image:
+        repository: quay.io/jetstack/cert-manager-cainjector
+    image:
+      repository: quay.io/jetstack/cert-manager-controller
+    installCRDs: true
+    webhook:
+      image:
+        repository: quay.io/jetstack/cert-manager-webhook
+---
+# Source: ace-installer/templates/apps/kubedb/kubedb.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kubedb
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: kubedb
+    app.kubernetes.io/part-of: opscenter-datastore
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: kubedb
+  targetNamespace: kubedb
+  storageNamespace: kubedb
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: license-proxyserver
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: cert-manager
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: panopticon
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: kubedb
+      version: "v2024.6.4"
+      valuesFiles:
+      - values.yaml
+      - ci/ci-values.yaml
+      interval: 60m
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    global:
+      imagePullSecrets: []
+      registryFQDN: ghcr.io
+    kubedb-autoscaler:
+      enabled: true
+    kubedb-catalog:
+      enabled: true
+      proxies:
+        appscode: r.appscode.com
+        dockerHub: ""
+        dockerLibrary: ""
+        ghcr: ghcr.io
+        kubernetes: registry.k8s.io
+        quay: quay.io
+    kubedb-dashboard:
+      enabled: false
+    kubedb-kubestash-catalog:
+      enabled: true
+    kubedb-metrics:
+      enabled: false
+    kubedb-ops-manager:
+      enabled: true
+    kubedb-provisioner:
+      enabled: true
+    kubedb-schema-manager:
+      enabled: false
+    sidekick:
+      enabled: false
+---
+# Source: ace-installer/templates/apps/kubeops/external-dns-operator.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-dns-operator
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: external-dns-operator
+    app.kubernetes.io/part-of: opscenter-networking
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: external-dns-operator
+  targetNamespace: kubeops
+  storageNamespace: kubeops
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: external-dns-operator
+      version: "v2024.4.19"
+      interval: 60m
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    registryFQDN: ghcr.io
+---
+# Source: ace-installer/templates/apps/kubeops/license-proxyserver.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: license-proxyserver
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: license-proxyserver
+    app.kubernetes.io/part-of: opscenter-core
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: license-proxyserver
+  targetNamespace: kubeops
+  storageNamespace: kubeops
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: license-proxyserver
+      version: "v2024.6.3"
+      interval: 60m
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    registryFQDN: ghcr.io
+---
+# Source: ace-installer/templates/apps/kubeops/reloader.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: reloader
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: reloader
+    app.kubernetes.io/part-of: opscenter-secret-management
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: reloader
+  targetNamespace: kubeops
+  storageNamespace: kubeops
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: reloader
+      version: "1.0.79"
+      interval: 60m
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    reloader:
+      deployment:
+        containerSecurityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        image:
+          name: ghcr.io/appscode/reloader
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+      readOnlyRootFileSystem: true
+---
+# Source: ace-installer/templates/apps/networking/gateway-api.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gateway-api
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: gateway-api
+    app.kubernetes.io/part-of: opscenter-networking
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: gateway-api
+  targetNamespace: envoy-gateway-system
+  storageNamespace: envoy-gateway-system
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: gateway-api
+      version: "v1.0.0"
+      interval: 60m
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+---
+# Source: ace-installer/templates/apps/observability/panopticon.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: panopticon
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: panopticon
+    app.kubernetes.io/part-of: opscenter-observability
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: panopticon
+  targetNamespace: monitoring
+  storageNamespace: monitoring
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: license-proxyserver
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: panopticon
+      version: "v2024.5.15"
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    monitoring:
+      agent: prometheus.io/operator
+      enabled: true
+      serviceMonitor:
+        labels:
+          release: kube-prometheus-stack
+    registryFQDN: ghcr.io
+---
+# Source: ace-installer/templates/apps/opscenter-features/opscenter-features.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: opscenter-features
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: opscenter-features
+    app.kubernetes.io/part-of: opscenter-core
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: opscenter-features
+  targetNamespace: kubeops
+  storageNamespace: kubeops
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  chart:
+    spec:
+      chart: opscenter-features
+      version: "v2024.6.3"
+      sourceRef:
+        kind: HelmRepository
+        name: bootstrap
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    helm:
+      createNamespace: true
+      repositories:
+        appscode-charts-oci:
+          url: oci://ghcr.io/appscode-charts
+    image:
+      proxies:
+        appscode: r.appscode.com
+        dockerHub: ""
+        dockerLibrary: ""
+        ghcr: ghcr.io
+        kubernetes: registry.k8s.io
+        quay: quay.io
+    registry:
+      certs: {}
+      credentials: {}
+      imagePullSecrets: []
+---
+# Source: ace-installer/templates/apps/stash/kubestash.yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kubestash
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    app.kubernetes.io/component: kubestash
+    app.kubernetes.io/part-of: opscenter-backup
+spec:
+  interval: 5m
+  timeout: 30m
+  releaseName: kubestash
+  targetNamespace: stash
+  storageNamespace: stash
+  install:
+    createNamespace: true
+    # crds: CreateReplace
+    remediation:
+      retries: -1
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: -1
+  dependsOn:
+  - name: opscenter-features
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: license-proxyserver
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: cert-manager
+    namespace: ace-installer-v2024.6.3.tgz
+  - name: panopticon
+    namespace: ace-installer-v2024.6.3.tgz
+  chart:
+    spec:
+      chart: kubestash
+      version: "v2024.6.4"
+      valuesFiles:
+      - values.yaml
+      - ci/ci-values.yaml
+      sourceRef:
+        kind: HelmRepository
+        name: appscode-charts-oci
+        namespace: ace-installer-v2024.6.3.tgz
+  values:
+    global:
+      registryFQDN: ghcr.io
+---
+# Source: ace-installer/templates/repositories/repositories.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: bootstrap
+  namespace: ace-installer-v2024.6.3.tgz
+  labels:
+    kubernetes.io/metadata.name: bootstrap
+spec:
+  url: oci://ghcr.io/appscode-charts
+  interval: 30m
+  timeout: 1m
+  type: oci

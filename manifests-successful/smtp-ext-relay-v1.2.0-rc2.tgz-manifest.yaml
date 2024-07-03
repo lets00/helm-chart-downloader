@@ -1,0 +1,140 @@
+---
+# Source: smtp-ext-relay/templates/tls-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+    name: smtp-tls
+    labels:
+        helm.sh/chart: smtp-ext-relay-v1.2.0-rc2
+        app.kubernetes.io/name: smtp-ext-relay
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v1.2.0-rc2"
+        app.kubernetes.io/managed-by: Helm
+data:
+    tls.crt: Li4uCg==
+    tls.key: Li4uCg==
+    ca.crt: Li4uCg==
+---
+# Source: smtp-ext-relay/templates/user-account-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+    name: my-release-smtp-ext-relay-users-secret
+    labels:
+        helm.sh/chart: smtp-ext-relay-v1.2.0-rc2
+        app.kubernetes.io/name: smtp-ext-relay
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v1.2.0-rc2"
+        app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: smtp-ext-relay/templates/dkim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: smtp-dkim-pvc
+    labels:
+        helm.sh/chart: smtp-ext-relay-v1.2.0-rc2
+        app.kubernetes.io/name: smtp-ext-relay
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v1.2.0-rc2"
+        app.kubernetes.io/managed-by: Helm
+spec:
+    resources:
+        requests:
+            storage: 5Mi
+    accessModes:
+        - ReadWriteOnce
+    volumeMode: Filesystem
+---
+# Source: smtp-ext-relay/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+    name: my-release-smtp-ext-relay
+    labels:
+        helm.sh/chart: smtp-ext-relay-v1.2.0-rc2
+        app.kubernetes.io/name: smtp-ext-relay
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v1.2.0-rc2"
+        app.kubernetes.io/managed-by: Helm
+spec:
+    type: ClusterIP
+    ports:
+        - port: 2225
+          targetPort: smtp
+          protocol: TCP
+          name: smtp-high
+
+        - port: 25
+          targetPort: smtp
+          protocol: TCP
+          name: smtp
+    selector:
+        app.kubernetes.io/name: smtp-ext-relay
+        app.kubernetes.io/instance: my-release
+---
+# Source: smtp-ext-relay/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: my-release-smtp-ext-relay
+    labels:
+        helm.sh/chart: smtp-ext-relay-v1.2.0-rc2
+        app.kubernetes.io/name: smtp-ext-relay
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v1.2.0-rc2"
+        app.kubernetes.io/managed-by: Helm
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+          app.kubernetes.io/name: smtp-ext-relay
+          app.kubernetes.io/instance: my-release
+    template:
+        metadata:
+            labels:
+                app.kubernetes.io/name: smtp-ext-relay
+                app.kubernetes.io/instance: my-release
+        spec:
+            containers:
+                - name: smtp
+                  imagePullPolicy: Always
+                  image: "ghcr.io/riotkit-org/smtp:v1.2.0-rc2"
+                  args:
+                      - "example.org"
+                  ports:
+                      - containerPort: 2225
+                        name: smtp
+                  env:
+                      - name: SMTP_TLS_CA_FILE
+                        value: /mnt/certs/ca.crt
+                      - name: SMTPD_TLS_CERT_FILE
+                        value: /mnt/certs/tls.crt
+                      - name: SMTPD_TLS_KEY_FILE
+                        value: /mnt/certs/tls.key
+                      - name: SMTPD_USE_TLS
+                        value: "yes"
+                      - name: MYHOSTNAME
+                        value: example.org
+
+                  volumeMounts:
+                      - name: tls
+                        mountPath: "/mnt/certs"
+                        readOnly: true
+                      - name: dkim
+                        mountPath: /etc/postfix/dkim
+                        readOnly: false
+                      - name: users
+                        mountPath: /mnt/users
+
+            volumes:
+                - name: tls
+                  secret:
+                      secretName: smtp-tls
+                - name: dkim
+                  persistentVolumeClaim:
+                      claimName: smtp-dkim-pvc
+                - name: users
+                  secret:
+                      secretName: my-release-smtp-ext-relay-users-secret

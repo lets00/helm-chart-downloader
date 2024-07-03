@@ -1,0 +1,108 @@
+---
+# Source: bamboo-agent/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-bamboo-agent
+  labels:
+    helm.sh/chart: bamboo-agent-1.20.0
+    app.kubernetes.io/name: bamboo-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.6.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: bamboo-agent/templates/config-jvm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-bamboo-agent-jvm-config
+  labels:
+    helm.sh/chart: bamboo-agent-1.20.0
+    app.kubernetes.io/name: bamboo-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.6.2"
+    app.kubernetes.io/managed-by: Helm
+    
+data:
+  max_heap: 512m
+  min_heap: 256m
+---
+# Source: bamboo-agent/templates/deployment-agent.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-bamboo-agent
+  labels:
+    helm.sh/chart: bamboo-agent-1.20.0
+    app.kubernetes.io/name: bamboo-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.6.2"
+    app.kubernetes.io/managed-by: Helm
+    
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bamboo-agent
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config-jvm: 817f095803bf8fbb2049ff0b67d70b7c34c13f034150bd97c5e4c1cb5aff6e42
+        
+      labels:
+        app.kubernetes.io/name: bamboo-agent
+        app.kubernetes.io/instance: my-release
+        
+    spec:
+      serviceAccountName: my-release-bamboo-agent
+      terminationGracePeriodSeconds: 30
+      hostAliases:
+        
+      securityContext:
+        
+        fsGroup: 2005
+      initContainers:
+        
+      containers:
+        - name: bamboo-agent
+          image: "atlassian/bamboo-agent-base:9.6.2"
+          imagePullPolicy: IfNotPresent
+          env:
+            
+            - name: BAMBOO_SERVER
+              value: 
+            - name: WRAPPER_JAVA_INITMEMORY
+              valueFrom:
+                configMapKeyRef:
+                  key: min_heap
+                  name: my-release-bamboo-agent-jvm-config
+            - name: WRAPPER_JAVA_MAXMEMORY
+              valueFrom:
+                configMapKeyRef:
+                  key: max_heap
+                  name: my-release-bamboo-agent-jvm-config
+            
+
+          startupProbe:
+            exec:
+              command: ["sh", "-c", "/probe-startup.sh"]
+            initialDelaySeconds: 1
+            periodSeconds: 1
+            failureThreshold: 120
+
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "/probe-readiness.sh"]
+            initialDelaySeconds: 1
+            periodSeconds: 5
+            failureThreshold: 30
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2G
+          volumeMounts:
+            
+          
+        
+      volumes:

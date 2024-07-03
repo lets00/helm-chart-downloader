@@ -1,0 +1,227 @@
+---
+# Source: pihole-jfwenisch/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pihole-jfwenisch
+  labels:
+    helm.sh/chart: pihole-jfwenisch-0.1.0
+    app.kubernetes.io/name: pihole-jfwenisch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.1.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: pihole-jfwenisch/templates/pihole-dnsmasq-pv.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: my-release-pihole-jfwenisch-dnsmasq-datavolume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 1Gi
+  storageClassName: pihole-jfwenisch-dnsmasq-storage
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /media/raid/kubernetes/piholednsmasqdata
+---
+# Source: pihole-jfwenisch/templates/pihole-pv.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: my-release-pihole-jfwenisch-datavolume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 1Gi
+  storageClassName: pihole-jfwenisch-storage
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /media/raid/kubernetes/piholedata
+---
+# Source: pihole-jfwenisch/templates/pihole-dnsmasq-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-pihole-jfwenisch-pihole-dnsmasq-volumeclaim
+spec:
+  storageClassName: pihole-jfwenisch-dnsmasq-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: pihole-jfwenisch/templates/pihole-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-pihole-jfwenisch-pihole-volumeclaim
+spec:
+  storageClassName: pihole-jfwenisch-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: pihole-jfwenisch/templates/service-dhcp.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pihole-jfwenisch-dhcp
+  labels:
+    helm.sh/chart: pihole-jfwenisch-0.1.0
+    app.kubernetes.io/name: pihole-jfwenisch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.1.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - port: 67
+      targetPort: 67
+      protocol: UDP
+      name: dhcp
+  externalIPs:
+  - 10.0.0.6
+  selector:
+    app.kubernetes.io/name: pihole-jfwenisch
+    app.kubernetes.io/instance: my-release
+---
+# Source: pihole-jfwenisch/templates/service-dns.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pihole-jfwenisch-dns
+  labels:
+    helm.sh/chart: pihole-jfwenisch-0.1.0
+    app.kubernetes.io/name: pihole-jfwenisch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.1.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - port: 53
+      targetPort: 53
+      protocol: TCP
+      name: dns-tcp
+    - port: 53
+      targetPort: 53
+      protocol: UDP
+      name: dns-udp
+  externalIPs:
+  - 10.0.0.6
+  selector:
+    app.kubernetes.io/name: pihole-jfwenisch
+    app.kubernetes.io/instance: my-release
+---
+# Source: pihole-jfwenisch/templates/service-web.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pihole-jfwenisch-web
+  labels:
+    helm.sh/chart: pihole-jfwenisch-0.1.0
+    app.kubernetes.io/name: pihole-jfwenisch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.1.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+      name: https
+  selector:
+    app.kubernetes.io/name: pihole-jfwenisch
+    app.kubernetes.io/instance: my-release
+---
+# Source: pihole-jfwenisch/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pihole-jfwenisch
+  labels:
+    helm.sh/chart: pihole-jfwenisch-0.1.0
+    app.kubernetes.io/name: pihole-jfwenisch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.1.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pihole-jfwenisch
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pihole-jfwenisch
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-pihole-jfwenisch
+      securityContext:
+        {}
+      volumes:
+        - name: pihole
+          persistentVolumeClaim:
+            claimName: my-release-pihole-jfwenisch-pihole-volumeclaim
+        - name: pihole-dnsmasq
+          persistentVolumeClaim:
+            claimName: my-release-pihole-jfwenisch-pihole-dnsmasq-volumeclaim
+      containers:
+        - name: pihole-jfwenisch
+          securityContext:
+            {}
+          image: "pihole/pihole:v5.1.2"
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: "/etc/pihole/"
+              name: pihole
+            - mountPath: "/etc/dnsmasq.d/"
+              name: pihole-dnsmasq
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 120
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 120
+          env:
+            - name: TZ
+              value: Europe/Berlin
+            - name: WEBPASSWORD
+              value: 
+          resources:
+            {}
+---
+# Source: pihole-jfwenisch/templates/ingress.yml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: my-release-pihole-jfwenisch-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      rewrite /(.*) /$1 break;
+spec:
+  rules:
+  - http:
+      paths:
+        - path: /
+          backend:
+            serviceName: my-release-pihole-jfwenisch-web
+            servicePort: http

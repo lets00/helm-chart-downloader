@@ -1,0 +1,150 @@
+---
+# Source: local-path-provisioner/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-local-path-provisioner
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    helm.sh/chart: local-path-provisioner-0.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.14"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: local-path-provisioner/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-local-path-provisioner
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    helm.sh/chart: local-path-provisioner-0.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.14"
+    app.kubernetes.io/managed-by: Helm
+data:
+apiVersion: v1
+data:
+  config.json: |-
+    {
+      "nodePathMap": 
+        [
+          {
+            "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+            "paths": [
+              "/opt/local-path-provisioner"
+            ]
+          }
+        ]
+    }
+---
+# Source: local-path-provisioner/templates/storageclass.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    helm.sh/chart: local-path-provisioner-0.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.14"
+    app.kubernetes.io/managed-by: Helm
+provisioner: cluster.local/my-release-local-path-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+---
+# Source: local-path-provisioner/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-local-path-provisioner
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    helm.sh/chart: local-path-provisioner-0.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.14"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["endpoints", "persistentvolumes", "pods"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+---
+# Source: local-path-provisioner/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-local-path-provisioner
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    helm.sh/chart: local-path-provisioner-0.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.14"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-local-path-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: my-release-local-path-provisioner
+    namespace: local-path-provisioner-0.0.14.tgz
+---
+# Source: local-path-provisioner/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-local-path-provisioner
+  labels:
+    app.kubernetes.io/name: local-path-provisioner
+    helm.sh/chart: local-path-provisioner-0.0.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.14"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: local-path-provisioner
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: local-path-provisioner
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-local-path-provisioner
+      containers:
+        - name: local-path-provisioner
+          image: "rancher/local-path-provisioner:v0.0.14"
+          imagePullPolicy: IfNotPresent
+          command:
+            - local-path-provisioner
+            - --debug
+            - start
+            - --config
+            - /etc/config/config.json
+            - --provisioner-name
+            - cluster.local/my-release-local-path-provisioner
+            - --helper-image
+            - "busybox:latest"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config/
+          env:
+            - name: POD_NAMESPACE
+              value: local-path-provisioner-0.0.14.tgz
+          resources:
+            {}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-release-local-path-provisioner

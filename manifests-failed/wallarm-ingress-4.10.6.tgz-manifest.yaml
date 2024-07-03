@@ -1,0 +1,919 @@
+---
+# Source: wallarm-ingress/templates/controller-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-wallarm-ingress
+  namespace: wallarm-ingress-4.10.6.tgz
+automountServiceAccountToken: true
+---
+# Source: wallarm-ingress/templates/controller-configmap-cron.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-wallarm-ingress-controller-cron
+  namespace: wallarm-ingress-4.10.6.tgz
+data:
+  supervisord.conf: |
+    [supervisord]
+    nodaemon=true
+    loglevel=warn
+    logfile=/dev/stdout
+    logfile_maxbytes=0
+    pidfile=/opt/wallarm/run/supervisor/pid
+    # export-environment
+    [program:export-environment]
+    command=/opt/wallarm/usr/share/wallarm-common/export-environment -w -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # sync-ip-lists
+    [program:sync-ip-lists]
+    command=/opt/wallarm/usr/share/wallarm-common/sync-ip-lists -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # export-metrics
+    [program:export-metrics]
+    command=/opt/wallarm/usr/share/wallarm-common/export-metrics -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # sync-ip-lists-source
+    [program:sync-ip-lists-source]
+    command=/opt/wallarm/usr/share/wallarm-common/sync-ip-lists-source -w -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # sync-node
+    [program:sync-node]
+    command=/opt/wallarm/usr/share/wallarm-common/syncnode -f -p -r 120 -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # sync-api-specs
+    [program:sync-api-specs]
+    command=/opt/wallarm/usr/share/wallarm-common/sync-api-specs -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+---
+# Source: wallarm-ingress/templates/controller-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-wallarm-ingress-controller
+  namespace: wallarm-ingress-4.10.6.tgz
+data:
+  allow-snippet-annotations: "false"
+---
+# Source: wallarm-ingress/templates/tarantool-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller-wallarm-tarantool
+  name: controller-wallarm-tarantool-cron
+  namespace: wallarm-ingress-4.10.6.tgz
+data:
+  supervisord.conf: |
+    [supervisord]
+    nodaemon=true
+    loglevel=warn
+    logfile=/dev/stdout
+    logfile_maxbytes=0
+    pidfile=/opt/wallarm/run/supervisor/pid
+    # export-attacks
+    [program:export-attacks]
+    command=/opt/wallarm/usr/share/wallarm-common/export-attacks -r -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # export-counters
+    [program:export-counters]
+    command=/opt/wallarm/usr/share/wallarm-common/export-counters -l STDOUT -L ERROR
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # export-environment
+    [program:export-environment]
+    command=/opt/wallarm/usr/share/wallarm-common/export-environment -w -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # brute-detect
+    [program:brute-detect]
+    command=/opt/wallarm/usr/share/wallarm-common/brute-detect -w -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # sync-markers
+    [program:sync-markers]
+    command=/opt/wallarm/usr/share/wallarm-common/sync-markers -w -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # weak-jwt-detect
+    [program:weak-jwt-detect]
+    command=/opt/wallarm/usr/share/wallarm-common/weak-jwt-detect -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # sync-node
+    [program:sync-node]
+    command=/opt/wallarm/usr/share/wallarm-common/syncnode -f -p -r 120 -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # export-blocked-stats
+    [program:export-blocked-stats]
+    command=/opt/wallarm/usr/share/wallarm-common/export-blocked-stats -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+    # detect-cred-stuffing
+    [program:detect-cred-stuffing]
+    command=/opt/wallarm/usr/share/wallarm-common/detect-cred-stuffing -l STDOUT -L INFO
+    autorestart=true
+    startretries=4294967295
+    stdout_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stderr_logfile=/dev/stdout
+---
+# Source: wallarm-ingress/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-wallarm-ingress
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+      - namespaces
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+      - get
+---
+# Source: wallarm-ingress/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-wallarm-ingress
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-wallarm-ingress
+subjects:
+  - kind: ServiceAccount
+    name: my-release-wallarm-ingress
+    namespace: wallarm-ingress-4.10.6.tgz
+---
+# Source: wallarm-ingress/templates/controller-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-wallarm-ingress
+  namespace: wallarm-ingress-4.10.6.tgz
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  # Omit Ingress status permissions if `--update-status` is disabled.
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    resourceNames:
+      - my-release-wallarm-ingress-leader
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+      - get
+---
+# Source: wallarm-ingress/templates/controller-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-wallarm-ingress
+  namespace: wallarm-ingress-4.10.6.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-wallarm-ingress
+subjects:
+  - kind: ServiceAccount
+    name: my-release-wallarm-ingress
+    namespace: wallarm-ingress-4.10.6.tgz
+---
+# Source: wallarm-ingress/templates/controller-service-webhook.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-wallarm-ingress-controller-admission
+  namespace: wallarm-ingress-4.10.6.tgz
+spec:
+  type: ClusterIP
+  ports:
+    - name: https-webhook
+      port: 443
+      targetPort: webhook
+      appProtocol: https
+  selector:
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: controller
+---
+# Source: wallarm-ingress/templates/controller-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-wallarm-ingress-controller
+  namespace: wallarm-ingress-4.10.6.tgz
+spec:
+  type: LoadBalancer
+  ipFamilyPolicy: SingleStack
+  ipFamilies: 
+    - IPv4
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+      appProtocol: http
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+      appProtocol: https
+  selector:
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: controller
+---
+# Source: wallarm-ingress/templates/controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-wallarm-ingress-controller
+  namespace: wallarm-ingress-4.10.6.tgz
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wallarm-ingress
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: controller
+  replicas: 1
+  revisionHistoryLimit: 10
+  minReadySeconds: 0
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: wallarm-ingress-4.10.6
+        app.kubernetes.io/name: wallarm-ingress
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "4.10.6"
+        app.kubernetes.io/part-of: wallarm-ingress
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: controller
+    spec:
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: controller
+          image: "docker.io/wallarm/ingress-controller:4.10.6-1"
+          imagePullPolicy: IfNotPresent
+          lifecycle: 
+            preStop:
+              exec:
+                command:
+                - /wait-shutdown
+          args: 
+            - /nginx-ingress-controller
+            - --publish-service=$(POD_NAMESPACE)/my-release-wallarm-ingress-controller
+            - --election-id=my-release-wallarm-ingress-leader
+            - --controller-class=k8s.io/ingress-nginx
+            - --ingress-class=nginx
+            - --configmap=$(POD_NAMESPACE)/my-release-wallarm-ingress-controller
+            - --validating-webhook=:8443
+            - --validating-webhook-certificate=/usr/local/certificates/cert
+            - --validating-webhook-key=/usr/local/certificates/key
+          securityContext: 
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            seccompProfile: 
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+              add:
+              - NET_BIND_SERVICE
+            readOnlyRootFilesystem: false
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LD_PRELOAD
+              value: /usr/local/lib/libmimalloc.so
+          livenessProbe: 
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe: 
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: https
+              containerPort: 443
+              protocol: TCP
+            - name: webhook
+              containerPort: 8443
+              protocol: TCP
+          volumeMounts:
+            - name: webhook-cert
+              mountPath: /usr/local/certificates/
+              readOnly: true
+          resources: 
+            requests:
+              cpu: 100m
+              memory: 90Mi
+      nodeSelector: 
+        kubernetes.io/os: linux
+      serviceAccountName: my-release-wallarm-ingress
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: webhook-cert
+          secret:
+            secretName: my-release-wallarm-ingress-admission
+---
+# Source: wallarm-ingress/templates/controller-ingressclass.yaml
+# We don't support namespaced ingressClass yet
+# So a ClusterRole and a ClusterRoleBinding is required
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: nginx
+spec:
+  controller: k8s.io/ingress-nginx
+---
+# Source: wallarm-ingress/templates/admission-webhooks/validating-webhook.yaml
+# before changing this value, check the required kubernetes version
+# https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#prerequisites
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+  name: my-release-wallarm-ingress-admission
+webhooks:
+  - name: validate.nginx.ingress.kubernetes.io
+    matchPolicy: Equivalent
+    rules:
+      - apiGroups:
+          - networking.k8s.io
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - ingresses
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: my-release-wallarm-ingress-controller-admission
+        namespace: wallarm-ingress-4.10.6.tgz
+        path: /networking/v1/ingresses
+---
+# Source: wallarm-ingress/templates/admission-webhooks/job-patch/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-wallarm-ingress-admission
+  namespace: wallarm-ingress-4.10.6.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+---
+# Source: wallarm-ingress/templates/admission-webhooks/job-patch/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-wallarm-ingress-admission
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+rules:
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - update
+---
+# Source: wallarm-ingress/templates/admission-webhooks/job-patch/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-wallarm-ingress-admission
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-wallarm-ingress-admission
+subjects:
+  - kind: ServiceAccount
+    name: my-release-wallarm-ingress-admission
+    namespace: wallarm-ingress-4.10.6.tgz
+---
+# Source: wallarm-ingress/templates/admission-webhooks/job-patch/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-wallarm-ingress-admission
+  namespace: wallarm-ingress-4.10.6.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+---
+# Source: wallarm-ingress/templates/admission-webhooks/job-patch/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-wallarm-ingress-admission
+  namespace: wallarm-ingress-4.10.6.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-wallarm-ingress-admission
+subjects:
+  - kind: ServiceAccount
+    name: my-release-wallarm-ingress-admission
+    namespace: wallarm-ingress-4.10.6.tgz
+---
+# Source: wallarm-ingress/templates/admission-webhooks/job-patch/job-createSecret.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-wallarm-ingress-admission-create
+  namespace: wallarm-ingress-4.10.6.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+spec:
+  template:
+    metadata:
+      name: my-release-wallarm-ingress-admission-create
+      labels:
+        helm.sh/chart: wallarm-ingress-4.10.6
+        app.kubernetes.io/name: wallarm-ingress
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "4.10.6"
+        app.kubernetes.io/part-of: wallarm-ingress
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: admission-webhook
+    spec:
+      containers:
+        - name: create
+          image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20231011-8b53cabe0@sha256:a7943503b45d552785aa3b5e457f169a5661fb94d82b8a3373bcd9ebaf9aac80
+          imagePullPolicy: IfNotPresent
+          args:
+            - create
+            - --host=my-release-wallarm-ingress-controller-admission,my-release-wallarm-ingress-controller-admission.$(POD_NAMESPACE).svc
+            - --namespace=$(POD_NAMESPACE)
+            - --secret-name=my-release-wallarm-ingress-admission
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext: 
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+      restartPolicy: OnFailure
+      serviceAccountName: my-release-wallarm-ingress-admission
+      nodeSelector: 
+        kubernetes.io/os: linux
+---
+# Source: wallarm-ingress/templates/admission-webhooks/job-patch/job-patchWebhook.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-wallarm-ingress-admission-patch
+  namespace: wallarm-ingress-4.10.6.tgz
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: wallarm-ingress-4.10.6
+    app.kubernetes.io/name: wallarm-ingress
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "4.10.6"
+    app.kubernetes.io/part-of: wallarm-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+spec:
+  template:
+    metadata:
+      name: my-release-wallarm-ingress-admission-patch
+      labels:
+        helm.sh/chart: wallarm-ingress-4.10.6
+        app.kubernetes.io/name: wallarm-ingress
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "4.10.6"
+        app.kubernetes.io/part-of: wallarm-ingress
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: admission-webhook
+    spec:
+      containers:
+        - name: patch
+          image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20231011-8b53cabe0@sha256:a7943503b45d552785aa3b5e457f169a5661fb94d82b8a3373bcd9ebaf9aac80
+          imagePullPolicy: IfNotPresent
+          args:
+            - patch
+            - --webhook-name=my-release-wallarm-ingress-admission
+            - --namespace=$(POD_NAMESPACE)
+            - --patch-mutating=false
+            - --secret-name=my-release-wallarm-ingress-admission
+            - --patch-failure-policy=Fail
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext: 
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+      restartPolicy: OnFailure
+      serviceAccountName: my-release-wallarm-ingress-admission
+      nodeSelector: 
+        kubernetes.io/os: linux

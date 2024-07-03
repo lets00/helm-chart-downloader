@@ -1,0 +1,91 @@
+---
+# Source: jdownloader2/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-jdownloader2
+  labels:
+    helm.sh/chart: jdownloader2-0.6.0
+    app.kubernetes.io/name: jdownloader2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v24.01.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: jdownloader2/templates/service-web.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jdownloader2-web
+  labels:
+    helm.sh/chart: jdownloader2-0.6.0
+    app.kubernetes.io/name: jdownloader2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v24.01.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 5800
+      targetPort: web
+      protocol: TCP
+      name: web
+  selector:
+    app.kubernetes.io/name: jdownloader2
+    app.kubernetes.io/instance: my-release
+---
+# Source: jdownloader2/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-jdownloader2
+  labels:
+    helm.sh/chart: jdownloader2-0.6.0
+    app.kubernetes.io/name: jdownloader2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v24.01.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jdownloader2
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jdownloader2
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-jdownloader2
+      securityContext:
+        {}
+      containers:
+        - name: jdownloader2
+          securityContext:
+            {}
+          image: "jlesage/jdownloader-2:v24.01.1"
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: my-release-jdownloader2-data
+              subPath: config
+              mountPath: /config
+            - name: my-release-jdownloader2-data
+              subPath: downloads
+              mountPath: /output
+          ports:
+            - name: web
+              containerPort: 5800
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: web
+          readinessProbe:
+            httpGet:
+              path: /
+              port: web
+          resources:
+            {}
+      volumes:
+        - name: my-release-jdownloader2-data
+          emptyDir: { }

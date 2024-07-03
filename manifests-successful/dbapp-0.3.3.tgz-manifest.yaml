@@ -1,0 +1,172 @@
+---
+# Source: dbapp/charts/db/templates/mysql-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-mysql-pvc
+  labels:
+    program: helm
+    sample: mysql
+    app.kubernetes.io/name: db
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instace: my-release
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: dbapp/charts/db/templates/mysql-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mysql-svc
+  labels:
+    program: helm
+    sample: mysql
+    app.kubernetes.io/name: db
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instace: my-release
+spec:
+  type: ClusterIP
+  selector:
+    program: helm
+    sample: mysql
+    layer: database
+    app.kubernetes.io/name: db
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instace: my-release
+  ports:
+    - name: mysql
+      port: 3306
+---
+# Source: dbapp/templates/adminer-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-adminer-svc
+  labels:
+    program: helm
+    sample: dbapp
+    app.kubernetes.io/name: dbapp
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instace: my-release
+spec:
+  type: NodePort
+  selector:
+    program: helm
+    sample: dbapp
+    layer: frontend
+    app.kubernetes.io/name: dbapp
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instace: my-release
+  ports:
+    - name: adminer
+      port: 8080
+---
+# Source: dbapp/charts/db/templates/mysql-dep.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mysql-dep
+  labels:
+    program: helm
+    sample: mysql
+    app.kubernetes.io/name: db
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instace: my-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      program: helm
+      sample: mysql
+      layer: database
+      app.kubernetes.io/name: db
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/instace: my-release
+  template:
+    metadata:
+      labels:
+        program: helm
+        sample: mysql
+        layer: database
+        app.kubernetes.io/name: db
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instace: my-release
+    spec:
+      volumes:
+        - name: dbvol
+          persistentVolumeClaim:
+            claimName: my-release-mysql-pvc
+      containers:
+        - name: c1
+          image: mysql:5.7
+          volumeMounts:
+            - name: dbvol
+              mountPath: /var/lib/mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: anything
+---
+# Source: dbapp/templates/adminer-dep.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-adminer-dep
+  labels:
+    program: helm
+    sample: dbapp
+    app.kubernetes.io/name: dbapp
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instace: my-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      program: helm
+      sample: dbapp
+      layer: frontend
+      app.kubernetes.io/name: dbapp
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/instace: my-release
+  template:
+    metadata:
+      labels:
+        program: helm
+        sample: dbapp
+        layer: frontend
+        app.kubernetes.io/name: dbapp
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instace: my-release
+    spec:
+      containers:
+        - name: webserver
+          image: adminer:4.7
+          env:
+            - name: ADMINER_DEFAULT_SERVER
+              value: my-release-mysql-svc
+---
+# Source: dbapp/charts/db/templates/tests/test-mysql-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-release-mysql-tester
+  labels:
+    app.kubernetes.io/name: db
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instace: my-release
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  containers:
+    - name: testc1
+      image: mysql:5.7
+      args:
+        - "mysql"
+        - "-hmy-release-mysql-svc"
+        - "-uroot"
+        - "-panything"
+  restartPolicy: Never

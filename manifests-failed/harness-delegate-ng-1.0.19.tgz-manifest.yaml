@@ -1,0 +1,302 @@
+---
+# Source: harness-delegate-ng/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: harness-delegate-ng
+  namespace: harness-delegate-ng-1.0.19.tgz
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+---
+# Source: harness-delegate-ng/templates/upgrader/upgraderServiceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: harness-delegate-ng-upgrader-cronjob-sa
+  namespace: harness-delegate-ng-1.0.19.tgz
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+---
+# Source: harness-delegate-ng/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harness-delegate-ng
+  namespace: harness-delegate-ng-1.0.19.tgz
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+type: Opaque
+data:
+  # Base 64 encoded account secret
+  DELEGATE_TOKEN: ""
+---
+# Source: harness-delegate-ng/templates/upgrader/upgraderSecret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harness-delegate-ng-upgrader-token
+  namespace: harness-delegate-ng-1.0.19.tgz
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+type: Opaque
+data:
+  UPGRADER_TOKEN: ""
+---
+# Source: harness-delegate-ng/templates/configMap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harness-delegate-ng
+  namespace: harness-delegate-ng-1.0.19.tgz
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+data:
+  ACCOUNT_ID: 
+  MANAGER_HOST_AND_PORT : https://app.harness.io
+  DEPLOY_MODE: KUBERNETES
+  DELEGATE_NAME: "harness-delegate-ng"
+  POLL_FOR_TASKS: "false"
+  NEXT_GEN: "true"
+  DELEGATE_TAGS: ""
+  DELEGATE_DESCRIPTION: ""
+  JAVA_OPTS: -Xms64M
+  DELEGATE_TYPE: HELM_DELEGATE
+  DELEGATE_NAMESPACE: harness-delegate-ng-1.0.19.tgz
+  INIT_SCRIPT: ""
+  CLIENT_TOOLS_DOWNLOAD_DISABLED: "true"
+  LOG_STREAMING_SERVICE_URL: https://app.harness.io/log-service/
+---
+# Source: harness-delegate-ng/templates/upgrader/upgraderConfigMap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harness-delegate-ng-upgrader-config
+  namespace: harness-delegate-ng-1.0.19.tgz
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+data:
+  config.yaml: |
+    mode: Delegate
+    dryRun: false
+    workloadName: harness-delegate-ng
+    namespace: harness-delegate-ng-1.0.19.tgz
+    containerName: delegate
+    delegateConfig:
+      accountId: 
+      managerHost: https://app.harness.io
+---
+# Source: harness-delegate-ng/templates/cluster-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: harness-delegate-ng-cluster-admin
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+subjects:
+  - kind: ServiceAccount
+    name: harness-delegate-ng
+    namespace: harness-delegate-ng-1.0.19.tgz
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: harness-delegate-ng/templates/upgrader/upgraderRole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: harness-delegate-ng-upgrader
+  namespace: harness-delegate-ng-1.0.19.tgz
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+rules:
+  - apiGroups: ["batch", "apps", "extensions"]
+    resources: ["cronjobs"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["extensions", "apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+# Source: harness-delegate-ng/templates/upgrader/upgraderRoleBinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: harness-delegate-ng-upgrader-cronjob
+  namespace: harness-delegate-ng-1.0.19.tgz
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+subjects:
+  - kind: ServiceAccount
+    name: harness-delegate-ng-upgrader-cronjob-sa
+    namespace: harness-delegate-ng-1.0.19.tgz
+roleRef:
+  kind: Role
+  name: harness-delegate-ng-upgrader
+  apiGroup: ""
+---
+# Source: harness-delegate-ng/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+  name: harness-delegate-ng
+  namespace: harness-delegate-ng-1.0.19.tgz
+spec:
+  replicas: 1
+  minReadySeconds: 120
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: harness-delegate-ng
+      app.kubernetes.io/instance: my-release
+      harness.io/name: harness-delegate-ng
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /api/metrics
+        prometheus.io/port: "3460"
+        prometheus.io/scrape: "true"
+        checksum/secret: 92e6c1cd7301e527d69a2c46bb6447f3e069a8c415b380398e1614acddb9fda
+        checksum/configmap: 69bac07eb1af84eed449dee059b15716fa9bc4e83f7de0fb1f357956a89c5ee
+      labels:
+        app.kubernetes.io/name: harness-delegate-ng
+        app.kubernetes.io/instance: my-release
+        harness.io/name: harness-delegate-ng
+    spec:
+      serviceAccountName: harness-delegate-ng
+      terminationGracePeriodSeconds: 600
+      restartPolicy: Always
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: delegate
+          image: harness/delegate:24.04.82603
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+            - name: api
+              containerPort: 3460
+          resources:
+            limits:
+              memory: 2048Mi
+            requests:
+              cpu: 1
+              memory: 2048Mi
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3460
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds:  10
+            failureThreshold: 40
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3460
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+            timeoutSeconds: 1
+          envFrom:
+            - configMapRef:
+                name: harness-delegate-ng
+            - secretRef:
+                name: harness-delegate-ng
+            - configMapRef:
+                name: harness-delegate-ng-proxy
+                optional: true
+            - secretRef:
+                name: harness-delegate-ng-proxy
+                optional: true
+            - configMapRef:
+                name: harness-delegate-ng-shared-certificates
+                optional: true
+          volumeMounts:
+      volumes:
+---
+# Source: harness-delegate-ng/templates/upgrader/upgraderJob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    helm.sh/chart: harness-delegate-ng-1.0.19
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: harness-delegate-ng
+    app.kubernetes.io/instance: my-release
+    harness.io/name: harness-delegate-ng
+  name: harness-delegate-ng-upgrader-job
+  namespace: harness-delegate-ng-1.0.19.tgz
+spec:
+  schedule: "0 */1 * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 20
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: harness-delegate-ng-upgrader-cronjob-sa
+          restartPolicy: Never
+          securityContext:
+            fsGroup: 1001
+          containers:
+            - name: upgrader
+              image: harness/upgrader:latest
+              imagePullPolicy: Always
+              envFrom:
+                - secretRef:
+                    name: harness-delegate-ng-upgrader-token
+              volumeMounts:
+                - name: config-volume
+                  mountPath: /etc/config
+          volumes:
+            - name: config-volume
+              configMap:
+                name: harness-delegate-ng-upgrader-config

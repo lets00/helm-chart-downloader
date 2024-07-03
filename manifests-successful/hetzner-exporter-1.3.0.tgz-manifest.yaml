@@ -1,0 +1,148 @@
+---
+# Source: hetzner-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-hetzner-exporter
+  labels:
+    helm.sh/chart: hetzner-exporter-1.3.0
+    app.kubernetes.io/name: hetzner-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: hetzner-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-hetzner-exporter
+  labels:
+    helm.sh/chart: hetzner-exporter-1.3.0
+    app.kubernetes.io/name: hetzner-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+   username: ""
+   password: ""
+---
+# Source: hetzner-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-hetzner-exporter
+  labels:
+    helm.sh/chart: hetzner-exporter-1.3.0
+    app.kubernetes.io/name: hetzner-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9502
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: hetzner-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: hetzner-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-hetzner-exporter
+  labels:
+    helm.sh/chart: hetzner-exporter-1.3.0
+    app.kubernetes.io/name: hetzner-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/secret: 5c77fd46c750d7b2557a90ba6db382b07eb5cc1fb2cb9f4ec824c03b361477cf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hetzner-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: hetzner-exporter-1.3.0
+        app.kubernetes.io/name: hetzner-exporter
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.2.0"
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        checksum/secret: 5c77fd46c750d7b2557a90ba6db382b07eb5cc1fb2cb9f4ec824c03b361477cf
+    spec:
+      serviceAccountName: my-release-hetzner-exporter
+      containers:
+        - name: hetzner-exporter
+          image: "quay.io/promhippie/hetzner-exporter:1.2.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - all
+            readOnlyRootFilesystem: true
+            runAsGroup: 10000
+            runAsNonRoot: true
+            runAsUser: 10000
+          env:
+            - name: HETZNER_EXPORTER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-hetzner-exporter
+                  key: username
+            - name: HETZNER_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-hetzner-exporter
+                  key: password
+            - name: HETZNER_EXPORTER_COLLECTOR_SERVERS
+              value: "true"
+            - name: HETZNER_EXPORTER_COLLECTOR_SSH_KEYS
+              value: "true"
+            - name: HETZNER_EXPORTER_COLLECTOR_STORAGEBOXES
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 9502
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+---
+# Source: hetzner-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-hetzner-exporter-test-connection"
+  labels:
+    helm.sh/chart: hetzner-exporter-1.3.0
+    app.kubernetes.io/name: hetzner-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  restartPolicy: Never
+  containers:
+    - name: wget
+      image: busybox
+      command:
+        - wget
+      args:
+        - --spider
+        - http://my-release-hetzner-exporter:9502

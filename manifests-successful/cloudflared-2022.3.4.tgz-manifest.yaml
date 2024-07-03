@@ -1,0 +1,90 @@
+---
+# Source: cloudflared/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-cloudflared
+  labels:
+    helm.sh/chart: cloudflared-2022.3.4
+    app.kubernetes.io/name: cloudflared
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2022.3.4"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: cloudflared/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-cloudflared
+  labels:
+    helm.sh/chart: cloudflared-2022.3.4
+    app.kubernetes.io/name: cloudflared
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2022.3.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflared
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudflared
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-cloudflared
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: cloudflared
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "quay.io/giantswarm/cloudflared:2022.3.4"
+          imagePullPolicy: IfNotPresent
+          command:
+            - "cloudflared"
+            - "tunnel"
+            - "--metrics=0.0.0.0:38732"
+            - "--no-autoupdate"
+            - "run"
+            - "--token="
+          ports:
+            - name: metrics
+              containerPort: 38732
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 16Mi
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - cloudflared
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                - blah
+            topologyKey: kubernetes.io/hostname

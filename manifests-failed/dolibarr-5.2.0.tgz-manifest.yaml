@@ -1,0 +1,547 @@
+---
+# Source: dolibarr/charts/mariadb/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-mariadb
+  namespace: "dolibarr-5.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.2.3
+    helm.sh/chart: mariadb-17.0.1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/version: 11.2.3
+      helm.sh/chart: mariadb-17.0.1
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 3306
+        - port: 3306
+---
+# Source: dolibarr/charts/mariadb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mariadb
+  namespace: "dolibarr-5.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.2.3
+    helm.sh/chart: mariadb-17.0.1
+automountServiceAccountToken: false
+---
+# Source: dolibarr/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-dolibarr
+  labels:
+    helm.sh/chart: dolibarr-5.2.0
+    app.kubernetes.io/name: dolibarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "19.0.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: dolibarr/charts/mariadb/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mariadb
+  namespace: "dolibarr-5.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.2.3
+    helm.sh/chart: mariadb-17.0.1
+type: Opaque
+data:
+  mariadb-root-password: "Qld1YzdSVklxRg=="
+  mariadb-password: "ZG9saWJhcnI="
+---
+# Source: dolibarr/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-dolibarr
+  labels:
+    helm.sh/chart: dolibarr-5.2.0
+    app.kubernetes.io/name: dolibarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "19.0.1"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  dolibarr-admin-password: "YWRtaW4="
+---
+# Source: dolibarr/charts/mariadb/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mariadb
+  namespace: "dolibarr-5.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.2.3
+    helm.sh/chart: mariadb-17.0.1
+    app.kubernetes.io/component: primary
+data:
+  my.cnf: |-
+    [mysqld]
+    skip-name-resolve
+    explicit_defaults_for_timestamp
+    basedir=/opt/bitnami/mariadb
+    datadir=/bitnami/mariadb/data
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    tmpdir=/opt/bitnami/mariadb/tmp
+    max_allowed_packet=16M
+    bind-address=*
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+    log-error=/opt/bitnami/mariadb/logs/mysqld.log
+    character-set-server=UTF8
+    collation-server=utf8_general_ci
+    slow_query_log=0
+    long_query_time=10.0
+    
+    [client]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    default-character-set=UTF8
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    
+    [manager]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+---
+# Source: dolibarr/charts/mariadb/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mariadb
+  namespace: "dolibarr-5.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.2.3
+    helm.sh/chart: mariadb-17.0.1
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: mysql
+      port: 3306
+      protocol: TCP
+      targetPort: mysql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/component: primary
+---
+# Source: dolibarr/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-dolibarr
+  labels:
+    helm.sh/chart: dolibarr-5.2.0
+    app.kubernetes.io/name: dolibarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "19.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: dolibarr
+    app.kubernetes.io/instance: my-release
+---
+# Source: dolibarr/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-dolibarr
+  labels:
+    helm.sh/chart: dolibarr-5.2.0
+    app.kubernetes.io/name: dolibarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "19.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dolibarr
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dolibarr
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/secret: d280c09ed606a0f1844dd953e9a4164aea55203d244f52d1c0e138234bfb0445
+    spec:
+      
+      serviceAccountName: my-release-dolibarr
+      securityContext:
+        {}
+      initContainers:
+        - name: wait-mariadb
+          securityContext:
+            {}
+          image: docker.io/atkrad/wait4x:2.14.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              wait4x mysql "${MARIADB_USERNAME}:${MARIADB_PASSWORD}@tcp(${MARIADB_HOST}:${MARIADB_PORT})/${MARIADB_DATABASE}" --timeout 0
+          env:
+            - name: MARIADB_HOST
+              value: "my-release-mariadb"
+            - name: MARIADB_PORT
+              value: "3306"
+            - name: MARIADB_USERNAME
+              value: "dolibarr"
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: MARIADB_DATABASE
+              value: "dolibarr"
+          resources:
+            {}
+        - name: init
+          securityContext:
+            {}
+          image: docker.io/tuxgasy/dolibarr:19.0.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              rm -f /var/www/documents/install.lock
+          resources:
+            {}
+          volumeMounts:
+            - name: data
+              mountPath: /var/www/documents
+      containers:
+        - name: dolibarr
+          securityContext:
+            {}
+          image: docker.io/tuxgasy/dolibarr:19.0.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DOLI_ADMIN_LOGIN
+              value: "admin"
+            - name: DOLI_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-dolibarr
+                  key: dolibarr-admin-password
+            - name: DOLI_DB_HOST
+              value: "my-release-mariadb"
+            - name: DOLI_DB_HOST_PORT
+              value: "3306"
+            - name: DOLI_DB_USER
+              value: "dolibarr"
+            - name: DOLI_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: DOLI_DB_NAME
+              value: "dolibarr"
+            - name: DOLI_URL_ROOT
+              value: "http://dolibarr.local"
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            {}
+          volumeMounts:
+            - name: data
+              mountPath: /var/www/documents
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+# Source: dolibarr/charts/mariadb/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-mariadb
+  namespace: "dolibarr-5.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.2.3
+    helm.sh/chart: mariadb-17.0.1
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/component: primary
+  serviceName: my-release-mariadb
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configuration: 19608b69e435a37b7fdca600530fca0754fb8453052e4ffad6878f7645f518e3
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: mariadb
+        app.kubernetes.io/version: 11.2.3
+        helm.sh/chart: mariadb-17.0.1
+        app.kubernetes.io/component: primary
+    spec:
+      
+      automountServiceAccountToken: false
+      serviceAccountName: my-release-mariadb
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: mariadb
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      containers:
+        - name: mariadb
+          image: docker.io/bitnami/mariadb:11.2.3-debian-12-r4
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-root-password
+            - name: MARIADB_USER
+              value: "dolibarr"
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: MARIADB_DATABASE
+              value: "dolibarr"
+          ports:
+            - name: mysql
+              containerPort: 3306
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mariadb
+            - name: config
+              mountPath: /opt/bitnami/mariadb/conf/my.cnf
+              subPath: my.cnf
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/tmp
+              subPath: app-tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/logs
+              subPath: app-logs-dir
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: my-release-mariadb
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: mariadb
+          app.kubernetes.io/component: primary
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: dolibarr/templates/tests/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-dolibarr-tests
+  labels:
+    helm.sh/chart: dolibarr-5.2.0
+    app.kubernetes.io/name: dolibarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "19.0.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: tests
+  annotations:
+    helm.sh/hook: test
+data:
+  test_all.py: |
+    import requests
+
+
+    def test_service_connection():
+        url = "http://my-release-dolibarr:80/"
+
+        response = requests.get(url)
+
+        assert response.status_code == 200
+---
+# Source: dolibarr/templates/tests/pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-release-dolibarr-tests
+  labels:
+    helm.sh/chart: dolibarr-5.2.0
+    app.kubernetes.io/name: dolibarr
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "19.0.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: tests
+  annotations:
+    helm.sh/hook: test
+spec:
+  
+  containers:
+    - name: tests
+      image: ghcr.io/cowboysysop/pytest:1.0.41
+      imagePullPolicy: IfNotPresent
+      volumeMounts:
+        - name: tests
+          mountPath: /tests
+          readOnly: true
+      workingDir: /tests
+  restartPolicy: Never
+  volumes:
+    - name: tests
+      configMap:
+        name: my-release-dolibarr-tests

@@ -1,0 +1,105 @@
+---
+# Source: dregsy/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-dregsy
+  labels:
+    helm.sh/chart: dregsy-0.1.4
+    kubernetes.io/cluster-service: "true"
+    app.kubernetes.io/name: dregsy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: dregsy/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-dregsy
+  labels:
+    helm.sh/chart: dregsy-0.1.4
+    kubernetes.io/cluster-service: "true"
+    app.kubernetes.io/name: dregsy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.3"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  config.yaml: |-
+    lister:
+      cacheDuration: 24h
+      maxItems: 100
+    relay: skopeo
+    skopeo:
+      binary: skopeo
+      certs-dir: /etc/skopeo/certs.d
+    tasks: []
+---
+# Source: dregsy/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-dregsy
+  labels:
+    helm.sh/chart: dregsy-0.1.4
+    kubernetes.io/cluster-service: "true"
+    app.kubernetes.io/name: dregsy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  LOG_FORCE_COLORS: "false"
+  LOG_METHODS: "false"
+---
+# Source: dregsy/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-dregsy
+  labels:
+    helm.sh/chart: dregsy-0.1.4
+    kubernetes.io/cluster-service: "true"
+    app.kubernetes.io/name: dregsy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.4.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dregsy
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 75b706aea0f157d6e759baf89eeb33b5ac70e960edb88d6dd46f0208d58accda
+        checksum/secret: 4c630b83a0712aec631e5ae0a5e10e27d33f963255fbec2bef275bd4f65d5f99
+      labels:
+        app.kubernetes.io/name: dregsy
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-dregsy
+      securityContext:
+        {}
+      containers:
+        - name: dregsy
+          securityContext:
+            {}
+          image: "xelalex/dregsy:0.4.3"
+          imagePullPolicy: IfNotPresent
+          command: ['dregsy', '-config=/config/config.yaml']
+          resources:
+            {}
+          volumeMounts:
+            - name: my-release-dregsy
+              mountPath: /config
+              readOnly: true
+          envFrom:
+            - configMapRef:
+                name: my-release-dregsy
+      volumes:
+        - name: my-release-dregsy
+          secret:
+            secretName: my-release-dregsy

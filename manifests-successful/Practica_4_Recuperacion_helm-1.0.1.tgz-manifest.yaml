@@ -1,0 +1,393 @@
+---
+# Source: Practica_4_Recuperacion_helm/templates/namespace.yml
+apiVersion: v1
+kind: Namespace
+metadata:
+ labels:
+   name: mca-app
+ name: mca-app
+---
+# Source: Practica_4_Recuperacion_helm/templates/secret.yml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mysql-secret
+  namespace: mca-app
+type: Opaque
+data:
+  password: "U0k2eVpBTjk="
+---
+# Source: Practica_4_Recuperacion_helm/templates/mongo.yml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-release-mongo-pv
+  namespace: mca-app
+  labels:
+    type: local
+    app: mongo
+spec:
+  storageClassName: my-release-mongodb
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/my-release-mongodb-data"
+---
+# Source: Practica_4_Recuperacion_helm/templates/mysql.yml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+ name: my-release-mysql-pv
+ namespace: mca-app
+ labels:
+   app: my-release-mysql
+   type: local
+spec:
+  storageClassName: my-release-mysql
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/db/my-release-mysql"
+  capacity:
+    storage: 3Gi
+---
+# Source: Practica_4_Recuperacion_helm/templates/mongo.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-mongodb-pvc
+  namespace: mca-app
+  labels:
+    app: mongo
+spec:
+  storageClassName: my-release-mongodb
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+---
+# Source: Practica_4_Recuperacion_helm/templates/mysql.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-mysql-pvc
+  namespace: mca-app
+  labels:
+    app: my-release-mysql
+spec:
+  storageClassName: my-release-mysql
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: Practica_4_Recuperacion_helm/templates/external.yml
+apiVersion: v1 
+kind: Service
+metadata:
+  name: my-release-external-service
+  namespace: mca-app
+  labels:
+    app: my-release-external-service
+spec:
+  ports:
+  - name: my-release-external-service-port
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+  selector:
+    app: my-release-external-service
+  type: ClusterIP
+---
+# Source: Practica_4_Recuperacion_helm/templates/mongo.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mongo
+  namespace: mca-app
+  labels:
+    app: my-release-mongo
+spec:
+  ports:
+  - port: 27017
+    targetPort: 27017
+    protocol: TCP
+    name: my-release-mongo-port-27017
+  - port: 27018
+    targetPort: 27018
+    protocol: TCP
+    name: my-release-mongo-port-27018
+  - port: 27019
+    targetPort: 27019
+    protocol: TCP
+    name: my-release-mongo-port-27019
+  selector:
+    app: my-release-mongo
+  type: ClusterIP
+---
+# Source: Practica_4_Recuperacion_helm/templates/mysql.yml
+apiVersion: v1 
+kind: Service
+metadata:
+  name: my-release-mysql
+  namespace: mca-app
+  labels:
+    app: my-release-mysql
+spec:
+  ports:
+  - name: my-release-sql
+    protocol: TCP
+    port: 3306
+    targetPort: 3306
+  selector:
+    app: my-release-mysql
+  type: ClusterIP
+---
+# Source: Practica_4_Recuperacion_helm/templates/rabbitmq.yml
+apiVersion: v1 
+kind: Service
+metadata:
+  name: my-release-rabbitmq
+  namespace: mca-app
+  labels:
+    app: my-release-rabbitmq
+spec:
+  ports:
+  - name: my-release-rabbitmq-port
+    protocol: TCP
+    port: 5672
+    targetPort: 5672
+  selector:
+    app: my-release-rabbitmq
+  type: ClusterIP
+---
+# Source: Practica_4_Recuperacion_helm/templates/server.yml
+apiVersion: v1 
+kind: Service
+metadata:
+  name: my-release-server
+  namespace: mca-app
+  labels:
+    app: my-release-server
+spec:
+  ports:
+  - name: my-release-server
+    protocol: TCP
+    port: 8080
+  selector:
+    app: my-release-server
+  type: ClusterIP
+---
+# Source: Practica_4_Recuperacion_helm/templates/external.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-external-service-deployment
+  namespace: mca-app
+spec:
+  selector:
+    matchLabels:
+      app: my-release-external-service
+  template:
+    metadata:
+      labels:
+        app: my-release-external-service
+    spec:
+      securityContext:
+        runAsUser: 1001
+      containers:
+      - name: my-release-external-service
+        image: fjvela/urjc-fjvela-external-service:1.0.1
+        ports:
+          - containerPort: 9090
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+# Source: Practica_4_Recuperacion_helm/templates/mongo.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mongo-deployment
+  namespace: mca-app
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: my-release-mongo
+  template:
+    metadata:
+      labels:
+        app: my-release-mongo
+    spec:
+      containers:
+      - name: my-release-mongo
+        image: mongo:4.2.3
+        ports:
+        - containerPort: 27017
+        - containerPort: 27018
+        - containerPort: 27019
+        volumeMounts:
+        - name: my-release-mongo-persistent-storage
+          mountPath: /data/db
+      volumes:
+      - name: my-release-mongo-persistent-storage
+        persistentVolumeClaim:
+          claimName: my-release-mongodb-pvc
+---
+# Source: Practica_4_Recuperacion_helm/templates/mysql.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mysql-deployment
+  namespace: mca-app
+spec:
+  selector:
+    matchLabels:
+      app: my-release-mysql
+  template:
+    metadata:
+      labels:
+        app: my-release-mysql
+    spec:
+      containers:
+      - name: my-release-mysql
+        image: mysql:8
+        ports:
+          - containerPort: 3306
+        env: 
+        - name: MYSQL_DATABASE
+          value: database
+        - name: MYSQL_USER
+          value: myuser
+        - name: MYSQL_ROOT_PASSWORD
+          value: mypassword
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-mysql-secret
+              key: password
+        volumeMounts:
+        - name: my-release-mysql-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: my-release-mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: my-release-mysql-pvc
+---
+# Source: Practica_4_Recuperacion_helm/templates/rabbitmq.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-rabbitmq-deployment
+  namespace: mca-app
+spec:
+  selector:
+    matchLabels:
+      app: my-release-rabbitmq
+  template:
+    metadata:
+      labels:
+        app: my-release-rabbitmq
+    spec:
+      containers:
+      - name: my-release-rabbitmq
+        image: fjvela/urjc-fjvela-rabbitmq:1.0.0
+        ports:
+          - containerPort: 5672
+---
+# Source: Practica_4_Recuperacion_helm/templates/server.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-server-deployment
+  namespace: mca-app
+spec:
+  selector:
+    matchLabels:
+      app: my-release-server
+  template:
+    metadata:
+      labels:
+        app: my-release-server
+    spec:
+      securityContext:
+        runAsUser: 1001
+      containers:
+      - name: my-release-server
+        image: fjvela/urjc-fjvela-server:1.0.5
+        ports:
+          - containerPort: 8080
+        env:
+        - name: RABBITMQ_SERVER
+          value: my-release-rabbitmq
+        - name: MONGO_SERVER
+          value: my-release-mongo
+        - name: MONGO_DATABASE
+          value: database
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+# Source: Practica_4_Recuperacion_helm/templates/worker.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-worker-deployment
+  namespace: mca-app
+spec:
+  selector:
+    matchLabels:
+      app: my-release-worker
+  template:
+    metadata:
+      labels:
+        app: my-release-worker
+    spec:
+      securityContext:
+        runAsUser: 1001
+      containers:
+      - name: worker
+        image: torrespro/mca-worker:2.0.0
+        env:
+        - name: RABBITMQ_SERVER
+          value: my-release-rabbitmq
+        - name: UPPERCASE_GRPC_SERVER
+          value: static://my-release-external-service:9090
+        - name: MYSQL_SERVER
+          value: my-release-mysql
+        - name: MYSQL_DATABASE
+          value: database
+        - name: MYSQL_USER
+          value: myuser
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-mysql-secret
+              key: password
+        securityContext:
+            allowPrivilegeEscalation: false
+---
+# Source: Practica_4_Recuperacion_helm/templates/server.yml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+ name: my-release-multi-ingress
+ namespace: mca-app
+ annotations:
+   nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+ rules:
+ - host: cluster-ip
+   http:
+     paths:
+     - path: /(.*)
+       pathType: ImplementationSpecific
+       backend:
+         service:
+           name: my-release-server
+           port:
+             number: 8080

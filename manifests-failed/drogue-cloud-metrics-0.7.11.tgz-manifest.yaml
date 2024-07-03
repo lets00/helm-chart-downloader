@@ -1,0 +1,4538 @@
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+---
+# Source: drogue-cloud-metrics/charts/prometheus/charts/kube-state-metrics/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    helm.sh/chart: kube-state-metrics-3.4.2
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  name: my-release-kube-state-metrics
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+imagePullSecrets:
+  []
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/alertmanager/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-alertmanager
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  annotations:
+    {}
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/node-exporter/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "node-exporter"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-node-exporter
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  annotations:
+    {}
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/pushgateway/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "pushgateway"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-pushgateway
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  annotations:
+    {}
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/server/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  annotations:
+    {}
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  admin-user: "YWRtaW4="
+  admin-password: "YWRtaW4xMjM0NTY="
+  ldap-toml: ""
+---
+# Source: drogue-cloud-metrics/templates/grafana/grafana-datasource-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    grafana_datasource: "1"
+    app.kubernetes.io/component: metrics
+  name: drogue-iot-grafana-datasource
+type: Opaque
+stringData:
+  prometheus-datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: drogue_metrics
+      version: 1
+      type: prometheus
+      access: proxy
+      orgId: 1
+      uid: PCF44A6F8518AA255
+      url: "http://drogue-iot-prometheus-server.drogue-iot:9090"
+      basicAuth: false
+      isDefault: false
+      editable: false
+      jsonData:
+        tlsSkipVerify: false
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/configmap-dashboard-provider.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana-config-dashboards
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+data:
+  provider.yaml: |-
+    apiVersion: 1
+    providers:
+    - name: 'sidecarProvider'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      allowUiUpdates: false
+      updateIntervalSeconds: 30
+      options:
+        foldersFromFilesStructure: false
+        path: /tmp/dashboards
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  grafana.ini: |
+    [analytics]
+    check_for_updates = true
+    [dashboards]
+    default_home_dashboard_path = /tmp/dashboards/drogue-dashboard.json
+    [grafana_net]
+    url = https://grafana.net
+    [log]
+    mode = console
+    [paths]
+    data = /var/lib/grafana/
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+    [server]
+    domain = chart-example.local
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/alertmanager/cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-alertmanager
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+data:
+  alertmanager.yml: |
+    global: {}
+    receivers:
+    - name: default-receiver
+    route:
+      group_interval: 5m
+      group_wait: 10s
+      receiver: default-receiver
+      repeat_interval: 3h
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/server/cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+data:
+  alerting_rules.yml: |
+    {}
+  alerts: |
+    {}
+  prometheus.yml: |
+    global:
+      evaluation_interval: 1m
+      scrape_interval: 10s
+      scrape_timeout: 10s
+    rule_files:
+    - /etc/config/recording_rules.yml
+    - /etc/config/alerting_rules.yml
+    - /etc/config/rules
+    - /etc/config/alerts
+    scrape_configs:
+    - job_name: prometheus
+      static_configs:
+      - targets:
+        - localhost:9090
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-apiservers
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: default;kubernetes;https
+        source_labels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_service_name
+        - __meta_kubernetes_endpoint_port_name
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-nodes
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-nodes-cadvisor
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - job_name: kubernetes-service-endpoints
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_service_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_service_name
+        target_label: kubernetes_name
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: kubernetes_node
+    - job_name: kubernetes-service-endpoints-slow
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_service_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_service_name
+        target_label: kubernetes_name
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: kubernetes_node
+      scrape_interval: 5m
+      scrape_timeout: 30s
+    - honor_labels: true
+      job_name: prometheus-pushgateway
+      kubernetes_sd_configs:
+      - role: service
+      relabel_configs:
+      - action: keep
+        regex: pushgateway
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+    - job_name: kubernetes-services
+      kubernetes_sd_configs:
+      - role: service
+      metrics_path: /probe
+      params:
+        module:
+        - http_2xx
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+      - source_labels:
+        - __address__
+        target_label: __param_target
+      - replacement: blackbox
+        target_label: __address__
+      - source_labels:
+        - __param_target
+        target_label: instance
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - source_labels:
+        - __meta_kubernetes_service_name
+        target_label: kubernetes_name
+    - job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: kubernetes_pod_name
+      - action: drop
+        regex: Pending|Succeeded|Failed|Completed
+        source_labels:
+        - __meta_kubernetes_pod_phase
+    - job_name: kubernetes-pods-slow
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: kubernetes_pod_name
+      - action: drop
+        regex: Pending|Succeeded|Failed|Completed
+        source_labels:
+        - __meta_kubernetes_pod_phase
+      scrape_interval: 5m
+      scrape_timeout: 30s
+    alerting:
+      alertmanagers:
+      - kubernetes_sd_configs:
+          - role: pod
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace]
+          regex: drogue-cloud-metrics-0.7.11.tgz
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          regex: prometheus
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_component]
+          regex: alertmanager
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_probe]
+          regex: .*
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_container_port_number]
+          regex: "9093"
+          action: keep
+  recording_rules.yml: |
+    {}
+  rules: |
+    {}
+---
+# Source: drogue-cloud-metrics/templates/grafana/grafana-dashboard-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    grafana_dashboard: "1"
+  name: drogue-iot-grafana-dashboards
+data:
+  
+  drogue-dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "datasource",
+              "uid": "grafana"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "target": {
+              "limit": 100,
+              "matchAny": false,
+              "tags": [],
+              "type": "dashboard"
+            },
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 2,
+      "links": [
+        {
+          "asDropdown": false,
+          "icon": "external link",
+          "includeVars": false,
+          "keepTime": true,
+          "tags": [
+            "drogue"
+          ],
+          "targetBlank": false,
+          "title": "Drogue Cloud",
+          "tooltip": "",
+          "type": "dashboards",
+          "url": ""
+        }
+      ],
+      "liveNow": true,
+      "panels": [
+        {
+          "collapsed": false,
+          "datasource": "drogue_metrics",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 6,
+          "panels": [],
+          "title": "Endpoints",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PCF44A6F8518AA255"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 1
+          },
+          "id": 8,
+          "interval": "15s",
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PCF44A6F8518AA255"
+              },
+              "exemplar": true,
+              "expr": "sum(irate(http_endpoint_http_requests_total{}[$__rate_interval]))",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "HTTP Endpoint Requests",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "valueLabel": "status"
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PCF44A6F8518AA255"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 1
+          },
+          "id": 14,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PCF44A6F8518AA255"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum by (protocol) (drogue_connections{type=\"endpoint\"})",
+              "interval": "",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Connections",
+          "transformations": [],
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PCF44A6F8518AA255"
+          },
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 9
+          },
+          "id": 10,
+          "panels": [],
+          "title": "Events",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PCF44A6F8518AA255"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 14,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "__systemRef": "hideSeriesFrom",
+                "matcher": {
+                  "id": "byNames",
+                  "options": {
+                    "mode": "exclude",
+                    "names": [
+                      "Value"
+                    ],
+                    "prefix": "All except:",
+                    "readOnly": true
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 10
+          },
+          "id": 12,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "sum(irate(drogue_downstream_events{outcome=\"Accepted\"}[$__rate_interval]))",
+              "interval": "",
+              "legendFormat": "Accepted",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "sum(irate(drogue_downstream_events{outcome=\"Rejected\"}[$__rate_interval]))",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "Rejected",
+              "refId": "B"
+            },
+            {
+              "exemplar": true,
+              "expr": "sum(irate(drogue_downstream_events{outcome=\"QueueFull\"}[$__rate_interval]))",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "Queue Full",
+              "refId": "C"
+            },
+            {
+              "exemplar": true,
+              "expr": "sum(irate(drogue_downstream_events{outcome=\"Error\"}[$__rate_interval]))",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "Error",
+              "refId": "D"
+            }
+          ],
+          "title": "Downstream Events",
+          "transformations": [],
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 18
+          },
+          "id": 16,
+          "panels": [],
+          "title": "Integrations",
+          "type": "row"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PCF44A6F8518AA255"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 19
+          },
+          "id": 17,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PCF44A6F8518AA255"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum by (protocol) (drogue_connections{type=\"integration\"})",
+              "interval": "",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Connections",
+          "transformations": [],
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 36,
+      "style": "dark",
+      "tags": [
+        "drogue",
+        "iot"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-15m",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Drogue IoT dashboard",
+      "uid": "RdhmR4Anz",
+      "version": 2,
+      "weekStart": ""
+    }
+  
+  drogue-registry-dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "target": {
+              "limit": 100,
+              "matchAny": false,
+              "tags": [],
+              "type": "dashboard"
+            },
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [
+        {
+          "asDropdown": false,
+          "icon": "external link",
+          "includeVars": false,
+          "keepTime": true,
+          "tags": [
+            "drogue"
+          ],
+          "targetBlank": false,
+          "title": "Drogue Cloud",
+          "tooltip": "",
+          "type": "dashboards",
+          "url": ""
+        }
+      ],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PCF44A6F8518AA255"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 2,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PCF44A6F8518AA255"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(drogue_registry_events_mark_seen{}[$__rate_interval]))",
+              "legendFormat": "Events marked as seen",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PCF44A6F8518AA255"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(drogue_registry_events_resent{}[$__rate_interval]))",
+              "hide": false,
+              "legendFormat": "Events resent",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Change events",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 36,
+      "style": "dark",
+      "tags": [
+        "drogue",
+        "iot"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-15m",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Device Registry",
+      "uid": "wGA_NHq7z",
+      "version": 6,
+      "weekStart": ""
+    }
+  
+  kubernetes-cluster.json: |
+    {
+        "__inputs": [
+          {
+            "name": "DS_PROMETHEUS",
+            "label": "Prometheus",
+            "description": "",
+            "type": "datasource",
+            "pluginId": "prometheus",
+            "pluginName": "Prometheus"
+          }
+        ],
+        "__requires": [
+          {
+            "type": "panel",
+            "id": "graph",
+            "name": "Graph",
+            "version": ""
+          },
+          {
+            "type": "panel",
+            "id": "singlestat",
+            "name": "Singlestat",
+            "version": ""
+          },
+          {
+            "type": "grafana",
+            "id": "grafana",
+            "name": "Grafana",
+            "version": "3.1.1"
+          },
+          {
+            "type": "datasource",
+            "id": "prometheus",
+            "name": "Prometheus",
+            "version": "1.3.0"
+          }
+        ],
+        "id": null,
+        "title": "Kubernetes cluster monitoring (via Prometheus)",
+        "description": "Monitors Kubernetes cluster using Prometheus. Shows overall cluster CPU / Memory / Filesystem usage as well as individual pod, containers, systemd services statistics. Uses cAdvisor metrics only.",
+        "tags": [
+          "kubernetes"
+        ],
+        "style": "dark",
+        "timezone": "browser",
+        "editable": true,
+        "hideControls": false,
+        "sharedCrosshair": false,
+        "rows": [
+          {
+            "collapse": false,
+            "editable": true,
+            "height": "200px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "fill": 1,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)",
+                  "thresholdLine": false
+                },
+                "height": "200px",
+                "id": 32,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": false,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": false,
+                  "show": false,
+                  "sideWidth": 200,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": false,
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_network_receive_bytes_total{kubernetes_io_hostname=~\"^$Node$\"}[1m]))",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "Received",
+                    "metric": "network",
+                    "refId": "A",
+                    "step": 10
+                  },
+                  {
+                    "expr": "- sum (rate (container_network_transmit_bytes_total{kubernetes_io_hostname=~\"^$Node$\"}[1m]))",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "Sent",
+                    "metric": "network",
+                    "refId": "B",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "Network I/O pressure",
+                "tooltip": {
+                  "msResolution": false,
+                  "shared": true,
+                  "sort": 0,
+                  "value_type": "cumulative"
+                },
+                "transparent": false,
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "Bps",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "Bps",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "Network I/O pressure"
+          },
+          {
+            "collapse": false,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": true,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "editable": true,
+                "error": false,
+                "format": "percent",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": true,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "180px",
+                "id": 4,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": "",
+                "postfixFontSize": "50%",
+                "prefix": "",
+                "prefixFontSize": "50%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 4,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (container_memory_working_set_bytes{id=\"/\",kubernetes_io_hostname=~\"^$Node$\"}) / sum (machine_memory_bytes{kubernetes_io_hostname=~\"^$Node$\"}) * 100",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "65, 90",
+                "title": "Cluster memory usage",
+                "transparent": false,
+                "type": "singlestat",
+                "valueFontSize": "80%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              },
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": true,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "format": "percent",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": true,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "180px",
+                "id": 6,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": "",
+                "postfixFontSize": "50%",
+                "prefix": "",
+                "prefixFontSize": "50%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 4,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_cpu_usage_seconds_total{id=\"/\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) / sum (machine_cpu_cores{kubernetes_io_hostname=~\"^$Node$\"}) * 100",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "65, 90",
+                "title": "Cluster CPU usage (1m avg)",
+                "type": "singlestat",
+                "valueFontSize": "80%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              },
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": true,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "format": "percent",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": true,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "180px",
+                "id": 7,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": "",
+                "postfixFontSize": "50%",
+                "prefix": "",
+                "prefixFontSize": "50%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 4,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (container_fs_usage_bytes{device=~\"^/dev/[sv]d[a-z][1-9]$\",id=\"/\",kubernetes_io_hostname=~\"^$Node$\"}) / sum (container_fs_limit_bytes{device=~\"^/dev/[sv]d[a-z][1-9]$\",id=\"/\",kubernetes_io_hostname=~\"^$Node$\"}) * 100",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "",
+                    "metric": "",
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "65, 90",
+                "title": "Cluster filesystem usage",
+                "type": "singlestat",
+                "valueFontSize": "80%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              },
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": false,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "format": "bytes",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": false,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "1px",
+                "id": 9,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": "",
+                "postfixFontSize": "20%",
+                "prefix": "",
+                "prefixFontSize": "20%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 2,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (container_memory_working_set_bytes{id=\"/\",kubernetes_io_hostname=~\"^$Node$\"})",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "",
+                "title": "Used",
+                "type": "singlestat",
+                "valueFontSize": "50%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              },
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": false,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "format": "bytes",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": false,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "1px",
+                "id": 10,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": "",
+                "postfixFontSize": "50%",
+                "prefix": "",
+                "prefixFontSize": "50%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 2,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (machine_memory_bytes{kubernetes_io_hostname=~\"^$Node$\"})",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "",
+                "title": "Total",
+                "type": "singlestat",
+                "valueFontSize": "50%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              },
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": false,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "format": "none",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": false,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "1px",
+                "id": 11,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": " cores",
+                "postfixFontSize": "30%",
+                "prefix": "",
+                "prefixFontSize": "50%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 2,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_cpu_usage_seconds_total{id=\"/\",kubernetes_io_hostname=~\"^$Node$\"}[1m]))",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "",
+                "title": "Used",
+                "type": "singlestat",
+                "valueFontSize": "50%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              },
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": false,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "format": "none",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": false,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "1px",
+                "id": 12,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": " cores",
+                "postfixFontSize": "30%",
+                "prefix": "",
+                "prefixFontSize": "50%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 2,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (machine_cpu_cores{kubernetes_io_hostname=~\"^$Node$\"})",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "",
+                "title": "Total",
+                "type": "singlestat",
+                "valueFontSize": "50%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              },
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": false,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "format": "bytes",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": false,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "1px",
+                "id": 13,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": "",
+                "postfixFontSize": "50%",
+                "prefix": "",
+                "prefixFontSize": "50%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 2,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (container_fs_usage_bytes{device=~\"^/dev/[sv]d[a-z][1-9]$\",id=\"/\",kubernetes_io_hostname=~\"^$Node$\"})",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "",
+                "title": "Used",
+                "type": "singlestat",
+                "valueFontSize": "50%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              },
+              {
+                "cacheTimeout": null,
+                "colorBackground": false,
+                "colorValue": false,
+                "colors": [
+                  "rgba(50, 172, 45, 0.97)",
+                  "rgba(237, 129, 40, 0.89)",
+                  "rgba(245, 54, 54, 0.9)"
+                ],
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "format": "bytes",
+                "gauge": {
+                  "maxValue": 100,
+                  "minValue": 0,
+                  "show": false,
+                  "thresholdLabels": false,
+                  "thresholdMarkers": true
+                },
+                "height": "1px",
+                "id": 14,
+                "interval": null,
+                "isNew": true,
+                "links": [],
+                "mappingType": 1,
+                "mappingTypes": [
+                  {
+                    "name": "value to text",
+                    "value": 1
+                  },
+                  {
+                    "name": "range to text",
+                    "value": 2
+                  }
+                ],
+                "maxDataPoints": 100,
+                "nullPointMode": "connected",
+                "nullText": null,
+                "postfix": "",
+                "postfixFontSize": "50%",
+                "prefix": "",
+                "prefixFontSize": "50%",
+                "rangeMaps": [
+                  {
+                    "from": "null",
+                    "text": "N/A",
+                    "to": "null"
+                  }
+                ],
+                "span": 2,
+                "sparkline": {
+                  "fillColor": "rgba(31, 118, 189, 0.18)",
+                  "full": false,
+                  "lineColor": "rgb(31, 120, 193)",
+                  "show": false
+                },
+                "targets": [
+                  {
+                    "expr": "sum (container_fs_limit_bytes{device=~\"^/dev/[sv]d[a-z][1-9]$\",id=\"/\",kubernetes_io_hostname=~\"^$Node$\"})",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "thresholds": "",
+                "title": "Total",
+                "type": "singlestat",
+                "valueFontSize": "50%",
+                "valueMaps": [
+                  {
+                    "op": "=",
+                    "text": "N/A",
+                    "value": "null"
+                  }
+                ],
+                "valueName": "current"
+              }
+            ],
+            "showTitle": false,
+            "title": "Total usage"
+          },
+          {
+            "collapse": false,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 3,
+                "editable": true,
+                "error": false,
+                "fill": 0,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "height": "",
+                "id": 17,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": true,
+                  "show": true,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": true,
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_cpu_usage_seconds_total{image!=\"\",name=~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (pod_name)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "{{ pod_name }}",
+                    "metric": "container_cpu",
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "Pods CPU usage (1m avg)",
+                "tooltip": {
+                  "msResolution": true,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "transparent": false,
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "none",
+                    "label": "cores",
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "showTitle": false,
+            "title": "Pods CPU usage"
+          },
+          {
+            "collapse": true,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 3,
+                "editable": true,
+                "error": false,
+                "fill": 0,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "height": "",
+                "id": 23,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": true,
+                  "show": true,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": true,
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_cpu_usage_seconds_total{systemd_service_name!=\"\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (systemd_service_name)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "{{ systemd_service_name }}",
+                    "metric": "container_cpu",
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "System services CPU usage (1m avg)",
+                "tooltip": {
+                  "msResolution": true,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "none",
+                    "label": "cores",
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "System services CPU usage"
+          },
+          {
+            "collapse": true,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 3,
+                "editable": true,
+                "error": false,
+                "fill": 0,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "height": "",
+                "id": 24,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "hideEmpty": false,
+                  "hideZero": false,
+                  "max": false,
+                  "min": false,
+                  "rightSide": true,
+                  "show": true,
+                  "sideWidth": null,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": true,
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_cpu_usage_seconds_total{image!=\"\",name=~\"^k8s_.*\",container_name!=\"POD\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (container_name, pod_name)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "pod: {{ pod_name }} | {{ container_name }}",
+                    "metric": "container_cpu",
+                    "refId": "A",
+                    "step": 10
+                  },
+                  {
+                    "expr": "sum (rate (container_cpu_usage_seconds_total{image!=\"\",name!~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (kubernetes_io_hostname, name, image)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "docker: {{ kubernetes_io_hostname }} | {{ image }} ({{ name }})",
+                    "metric": "container_cpu",
+                    "refId": "B",
+                    "step": 10
+                  },
+                  {
+                    "expr": "sum (rate (container_cpu_usage_seconds_total{rkt_container_name!=\"\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (kubernetes_io_hostname, rkt_container_name)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "rkt: {{ kubernetes_io_hostname }} | {{ rkt_container_name }}",
+                    "metric": "container_cpu",
+                    "refId": "C",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "Containers CPU usage (1m avg)",
+                "tooltip": {
+                  "msResolution": true,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "none",
+                    "label": "cores",
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "Containers CPU usage"
+          },
+          {
+            "collapse": true,
+            "editable": true,
+            "height": "500px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 3,
+                "editable": true,
+                "error": false,
+                "fill": 0,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "id": 20,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": false,
+                  "show": true,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": true,
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_cpu_usage_seconds_total{id!=\"/\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (id)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "{{ id }}",
+                    "metric": "container_cpu",
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "All processes CPU usage (1m avg)",
+                "tooltip": {
+                  "msResolution": true,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "none",
+                    "label": "cores",
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "repeat": null,
+            "showTitle": false,
+            "title": "All processes CPU usage"
+          },
+          {
+            "collapse": false,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "fill": 0,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "id": 25,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": true,
+                  "show": true,
+                  "sideWidth": 200,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": true,
+                "targets": [
+                  {
+                    "expr": "sum (container_memory_working_set_bytes{image!=\"\",name=~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}) by (pod_name)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "{{ pod_name }}",
+                    "metric": "container_memory_usage:sort_desc",
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "Pods memory usage",
+                "tooltip": {
+                  "msResolution": false,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "bytes",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "Pods memory usage"
+          },
+          {
+            "collapse": true,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "fill": 0,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "id": 26,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": true,
+                  "show": true,
+                  "sideWidth": 200,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": true,
+                "targets": [
+                  {
+                    "expr": "sum (container_memory_working_set_bytes{systemd_service_name!=\"\",kubernetes_io_hostname=~\"^$Node$\"}) by (systemd_service_name)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "{{ systemd_service_name }}",
+                    "metric": "container_memory_usage:sort_desc",
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "System services memory usage",
+                "tooltip": {
+                  "msResolution": false,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "bytes",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "System services memory usage"
+          },
+          {
+            "collapse": true,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "fill": 0,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "id": 27,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": true,
+                  "show": true,
+                  "sideWidth": 200,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": true,
+                "targets": [
+                  {
+                    "expr": "sum (container_memory_working_set_bytes{image!=\"\",name=~\"^k8s_.*\",container_name!=\"POD\",kubernetes_io_hostname=~\"^$Node$\"}) by (container_name, pod_name)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "pod: {{ pod_name }} | {{ container_name }}",
+                    "metric": "container_memory_usage:sort_desc",
+                    "refId": "A",
+                    "step": 10
+                  },
+                  {
+                    "expr": "sum (container_memory_working_set_bytes{image!=\"\",name!~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}) by (kubernetes_io_hostname, name, image)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "docker: {{ kubernetes_io_hostname }} | {{ image }} ({{ name }})",
+                    "metric": "container_memory_usage:sort_desc",
+                    "refId": "B",
+                    "step": 10
+                  },
+                  {
+                    "expr": "sum (container_memory_working_set_bytes{rkt_container_name!=\"\",kubernetes_io_hostname=~\"^$Node$\"}) by (kubernetes_io_hostname, rkt_container_name)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "rkt: {{ kubernetes_io_hostname }} | {{ rkt_container_name }}",
+                    "metric": "container_memory_usage:sort_desc",
+                    "refId": "C",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "Containers memory usage",
+                "tooltip": {
+                  "msResolution": false,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "bytes",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "Containers memory usage"
+          },
+          {
+            "collapse": true,
+            "editable": true,
+            "height": "500px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "fill": 0,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "id": 28,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": false,
+                  "show": true,
+                  "sideWidth": 200,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": true,
+                "targets": [
+                  {
+                    "expr": "sum (container_memory_working_set_bytes{id!=\"/\",kubernetes_io_hostname=~\"^$Node$\"}) by (id)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "{{ id }}",
+                    "metric": "container_memory_usage:sort_desc",
+                    "refId": "A",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "All processes memory usage",
+                "tooltip": {
+                  "msResolution": false,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "bytes",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "All processes memory usage"
+          },
+          {
+            "collapse": false,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "fill": 1,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "id": 16,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": true,
+                  "show": true,
+                  "sideWidth": 200,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": false,
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_network_receive_bytes_total{image!=\"\",name=~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (pod_name)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "-> {{ pod_name }}",
+                    "metric": "network",
+                    "refId": "A",
+                    "step": 10
+                  },
+                  {
+                    "expr": "- sum (rate (container_network_transmit_bytes_total{image!=\"\",name=~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (pod_name)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "<- {{ pod_name }}",
+                    "metric": "network",
+                    "refId": "B",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "Pods network I/O (1m avg)",
+                "tooltip": {
+                  "msResolution": false,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "Bps",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "Pods network I/O"
+          },
+          {
+            "collapse": true,
+            "editable": true,
+            "height": "250px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "fill": 1,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "id": 30,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": true,
+                  "show": true,
+                  "sideWidth": 200,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": false,
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_network_receive_bytes_total{image!=\"\",name=~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (container_name, pod_name)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "-> pod: {{ pod_name }} | {{ container_name }}",
+                    "metric": "network",
+                    "refId": "B",
+                    "step": 10
+                  },
+                  {
+                    "expr": "- sum (rate (container_network_transmit_bytes_total{image!=\"\",name=~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (container_name, pod_name)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "<- pod: {{ pod_name }} | {{ container_name }}",
+                    "metric": "network",
+                    "refId": "D",
+                    "step": 10
+                  },
+                  {
+                    "expr": "sum (rate (container_network_receive_bytes_total{image!=\"\",name!~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (kubernetes_io_hostname, name, image)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "-> docker: {{ kubernetes_io_hostname }} | {{ image }} ({{ name }})",
+                    "metric": "network",
+                    "refId": "A",
+                    "step": 10
+                  },
+                  {
+                    "expr": "- sum (rate (container_network_transmit_bytes_total{image!=\"\",name!~\"^k8s_.*\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (kubernetes_io_hostname, name, image)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "<- docker: {{ kubernetes_io_hostname }} | {{ image }} ({{ name }})",
+                    "metric": "network",
+                    "refId": "C",
+                    "step": 10
+                  },
+                  {
+                    "expr": "sum (rate (container_network_transmit_bytes_total{rkt_container_name!=\"\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (kubernetes_io_hostname, rkt_container_name)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "-> rkt: {{ kubernetes_io_hostname }} | {{ rkt_container_name }}",
+                    "metric": "network",
+                    "refId": "E",
+                    "step": 10
+                  },
+                  {
+                    "expr": "- sum (rate (container_network_transmit_bytes_total{rkt_container_name!=\"\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (kubernetes_io_hostname, rkt_container_name)",
+                    "hide": false,
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "<- rkt: {{ kubernetes_io_hostname }} | {{ rkt_container_name }}",
+                    "metric": "network",
+                    "refId": "F",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "Containers network I/O (1m avg)",
+                "tooltip": {
+                  "msResolution": false,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "Bps",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "Containers network I/O"
+          },
+          {
+            "collapse": true,
+            "editable": true,
+            "height": "500px",
+            "panels": [
+              {
+                "aliasColors": {},
+                "bars": false,
+                "datasource": "drogue_metrics",
+                "decimals": 2,
+                "editable": true,
+                "error": false,
+                "fill": 1,
+                "grid": {
+                  "threshold1": null,
+                  "threshold1Color": "rgba(216, 200, 27, 0.27)",
+                  "threshold2": null,
+                  "threshold2Color": "rgba(234, 112, 112, 0.22)"
+                },
+                "id": 29,
+                "isNew": true,
+                "legend": {
+                  "alignAsTable": true,
+                  "avg": true,
+                  "current": true,
+                  "max": false,
+                  "min": false,
+                  "rightSide": false,
+                  "show": true,
+                  "sideWidth": 200,
+                  "sort": "current",
+                  "sortDesc": true,
+                  "total": false,
+                  "values": true
+                },
+                "lines": true,
+                "linewidth": 2,
+                "links": [],
+                "nullPointMode": "connected",
+                "percentage": false,
+                "pointradius": 5,
+                "points": false,
+                "renderer": "flot",
+                "seriesOverrides": [],
+                "span": 12,
+                "stack": false,
+                "steppedLine": false,
+                "targets": [
+                  {
+                    "expr": "sum (rate (container_network_receive_bytes_total{id!=\"/\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (id)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "-> {{ id }}",
+                    "metric": "network",
+                    "refId": "A",
+                    "step": 10
+                  },
+                  {
+                    "expr": "- sum (rate (container_network_transmit_bytes_total{id!=\"/\",kubernetes_io_hostname=~\"^$Node$\"}[1m])) by (id)",
+                    "interval": "10s",
+                    "intervalFactor": 1,
+                    "legendFormat": "<- {{ id }}",
+                    "metric": "network",
+                    "refId": "B",
+                    "step": 10
+                  }
+                ],
+                "timeFrom": null,
+                "timeShift": null,
+                "title": "All processes network I/O (1m avg)",
+                "tooltip": {
+                  "msResolution": false,
+                  "shared": true,
+                  "sort": 2,
+                  "value_type": "cumulative"
+                },
+                "type": "graph",
+                "xaxis": {
+                  "show": true
+                },
+                "yaxes": [
+                  {
+                    "format": "Bps",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                  },
+                  {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": false
+                  }
+                ]
+              }
+            ],
+            "title": "All processes network I/O"
+          }
+        ],
+        "time": {
+          "from": "now-5m",
+          "to": "now"
+        },
+        "timepicker": {
+          "refresh_intervals": [
+            "5s",
+            "10s",
+            "30s",
+            "1m",
+            "5m",
+            "15m",
+            "30m",
+            "1h",
+            "2h",
+            "1d"
+          ],
+          "time_options": [
+            "5m",
+            "15m",
+            "1h",
+            "6h",
+            "12h",
+            "24h",
+            "2d",
+            "7d",
+            "30d"
+          ]
+        },
+        "templating": {
+          "list": [
+            {
+              "allValue": ".*",
+              "current": {},
+              "datasource": "drogue_metrics",
+              "hide": 0,
+              "includeAll": true,
+              "multi": false,
+              "name": "Node",
+              "options": [],
+              "query": "label_values(kubernetes_io_hostname)",
+              "refresh": 1,
+              "type": "query"
+            }
+          ]
+        },
+        "annotations": {
+          "list": []
+        },
+        "refresh": "10s",
+        "schemaVersion": 12,
+        "version": 13,
+        "links": [],
+        "gnetId": 315
+    }
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/alertmanager/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-alertmanager
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "2Gi"
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/server/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana-clusterrole
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "watch", "list"]
+---
+# Source: drogue-cloud-metrics/charts/prometheus/charts/kube-state-metrics/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    helm.sh/chart: kube-state-metrics-3.4.2
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  name: my-release-kube-state-metrics
+rules:
+
+- apiGroups: ["certificates.k8s.io"]
+  resources:
+  - certificatesigningrequests
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["list", "watch"]
+
+- apiGroups: ["batch"]
+  resources:
+  - cronjobs
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - daemonsets
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - deployments
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - endpoints
+  verbs: ["list", "watch"]
+
+- apiGroups: ["autoscaling"]
+  resources:
+  - horizontalpodautoscalers
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources:
+  - ingresses
+  verbs: ["list", "watch"]
+
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - limitranges
+  verbs: ["list", "watch"]
+
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources:
+    - mutatingwebhookconfigurations
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - namespaces
+  verbs: ["list", "watch"]
+
+- apiGroups: ["networking.k8s.io"]
+  resources:
+  - networkpolicies
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - nodes
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - persistentvolumeclaims
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - persistentvolumes
+  verbs: ["list", "watch"]
+
+- apiGroups: ["policy"]
+  resources:
+    - poddisruptionbudgets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - pods
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - replicasets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - replicationcontrollers
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - resourcequotas
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - secrets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - services
+  verbs: ["list", "watch"]
+
+- apiGroups: ["apps"]
+  resources:
+  - statefulsets
+  verbs: ["list", "watch"]
+
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - storageclasses
+  verbs: ["list", "watch"]
+
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources:
+    - validatingwebhookconfigurations
+  verbs: ["list", "watch"]
+
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - volumeattachments
+  verbs: ["list", "watch"]
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/alertmanager/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-alertmanager
+rules:
+  []
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/pushgateway/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    component: "pushgateway"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-pushgateway
+rules:
+  []
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/server/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-server
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+      - ingresses
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "extensions"
+      - "networking.k8s.io"
+    resources:
+      - ingresses/status
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-grafana-clusterrolebinding
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: my-release-grafana
+    namespace: drogue-cloud-metrics-0.7.11.tgz
+roleRef:
+  kind: ClusterRole
+  name: my-release-grafana-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: drogue-cloud-metrics/charts/prometheus/charts/kube-state-metrics/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    helm.sh/chart: kube-state-metrics-3.4.2
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  name: my-release-kube-state-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kube-state-metrics
+subjects:
+- kind: ServiceAccount
+  name: my-release-kube-state-metrics
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/alertmanager/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-alertmanager
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-alertmanager
+    namespace: drogue-cloud-metrics-0.7.11.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-prometheus-alertmanager
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/pushgateway/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    component: "pushgateway"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-pushgateway
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-pushgateway
+    namespace: drogue-cloud-metrics-0.7.11.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-prometheus-pushgateway
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/server/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-server
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-server
+    namespace: drogue-cloud-metrics-0.7.11.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-prometheus-server
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:      ['extensions']
+  resources:      ['podsecuritypolicies']
+  verbs:          ['use']
+  resourceNames:  [my-release-grafana]
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-grafana
+subjects:
+- kind: ServiceAccount
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: service
+      port: 80
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+---
+# Source: drogue-cloud-metrics/charts/prometheus/charts/kube-state-metrics/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kube-state-metrics
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    helm.sh/chart: "kube-state-metrics-3.4.2"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    prometheus.io/scrape: 'true'
+spec:
+  type: "ClusterIP"
+  ports:
+  - name: "http"
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  
+  selector:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/alertmanager/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-alertmanager
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 9093
+  selector:
+    component: "alertmanager"
+    app: prometheus
+    release: my-release
+  sessionAffinity: None
+  type: "ClusterIP"
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/node-exporter/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    component: "node-exporter"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-node-exporter
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: 9100
+      protocol: TCP
+      targetPort: 9100
+  selector:
+    component: "node-exporter"
+    app: prometheus
+    release: my-release
+  type: "ClusterIP"
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/pushgateway/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/probe: pushgateway
+  labels:
+    component: "pushgateway"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-pushgateway
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  ports:
+    - name: http
+      port: 9091
+      protocol: TCP
+      targetPort: 9091
+  selector:
+    component: "pushgateway"
+    app: prometheus
+    release: my-release
+  type: "ClusterIP"
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/server/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  ports:
+    - name: http
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    component: "server"
+    app: prometheus
+    release: my-release
+  sessionAffinity: None
+  type: "ClusterIP"
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/node-exporter/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    component: "node-exporter"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-node-exporter
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  selector:
+    matchLabels:
+      component: "node-exporter"
+      app: prometheus
+      release: my-release
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        component: "node-exporter"
+        app: prometheus
+        release: my-release
+        chart: prometheus-14.6.1
+        heritage: Helm
+    spec:
+      serviceAccountName: my-release-prometheus-node-exporter
+      containers:
+        - name: prometheus-node-exporter
+          image: "quay.io/prometheus/node-exporter:v1.1.2"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --path.rootfs=/host/root
+            - --web.listen-address=:9100
+          ports:
+            - name: metrics
+              containerPort: 9100
+              hostPort: 9100
+          resources:
+            {}
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly:  true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: root
+              mountPath: /host/root
+              mountPropagation: HostToContainer
+              readOnly: true
+      hostNetwork: true
+      hostPID: true
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: root
+          hostPath:
+            path: /
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: metrics
+      annotations:
+        checksum/config: ef76272f6e3dd8cdcec0cfbf131af584f3ca7a8eebd491783b22db59b4de8a0d
+        checksum/dashboards-json-config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/sc-dashboard-provider-config: 37456f7486a8d26f1b0b85026bf94e5f4fe0f4a8f7b885748a12387e31a156a4
+        checksum/secret: 762b5b4e576f8820e6e2c94935f63c03a2a3566a6c531f89304dff03b6e15676
+    spec:      
+      serviceAccountName: my-release-grafana
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 472
+        runAsGroup: 472
+        runAsUser: 472
+      enableServiceLinks: true
+      containers:
+        - name: grafana-sc-dashboard
+          image: "quay.io/kiwigrid/k8s-sidecar:1.19.2"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: METHOD
+              value: WATCH
+            - name: LABEL
+              value: "grafana_dashboard"
+            - name: FOLDER
+              value: "/tmp/dashboards"
+            - name: RESOURCE
+              value: "both"
+          volumeMounts:
+            - name: sc-dashboard-volume
+              mountPath: "/tmp/dashboards"
+        - name: grafana-sc-datasources
+          image: "quay.io/kiwigrid/k8s-sidecar:1.19.2"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: METHOD
+              value: WATCH
+            - name: LABEL
+              value: "grafana_datasource"
+            - name: FOLDER
+              value: "/etc/grafana/provisioning/datasources"
+            - name: RESOURCE
+              value: "both"
+            - name: REQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-grafana
+                  key: admin-user
+            - name: REQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-grafana
+                  key: admin-password
+            - name: REQ_URL
+              value: http://localhost:3000/api/admin/provisioning/datasources/reload
+            - name: REQ_METHOD
+              value: POST
+          volumeMounts:
+            - name: sc-datasources-volume
+              mountPath: "/etc/grafana/provisioning/datasources"
+        - name: grafana
+          image: "grafana/grafana:9.2.4"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/grafana/grafana.ini"
+              subPath: grafana.ini
+            - name: storage
+              mountPath: "/var/lib/grafana"
+            - name: sc-dashboard-volume
+              mountPath: "/tmp/dashboards"
+      
+            - name: sc-dashboard-provider
+              mountPath: "/etc/grafana/provisioning/dashboards/sc-dashboardproviders.yaml"
+              subPath: provider.yaml
+            - name: sc-datasources-volume
+              mountPath: "/etc/grafana/provisioning/datasources"
+          ports:
+            - name: grafana
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-grafana
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-grafana
+                  key: admin-password
+            - name: GF_PATHS_DATA
+              value: /var/lib/grafana/
+            - name: GF_PATHS_LOGS
+              value: /var/log/grafana
+            - name: GF_PATHS_PLUGINS
+              value: /var/lib/grafana/plugins
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-grafana
+        - name: storage
+          emptyDir: {}
+        - name: sc-dashboard-volume
+          emptyDir: {}
+        - name: sc-dashboard-provider
+          configMap:
+            name: my-release-grafana-config-dashboards
+        - name: sc-datasources-volume
+          emptyDir: {}
+---
+# Source: drogue-cloud-metrics/charts/prometheus/charts/kube-state-metrics/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kube-state-metrics
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    helm.sh/chart: "kube-state-metrics-3.4.2"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/version: "2.1.1"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-state-metrics
+        app.kubernetes.io/instance: "my-release"
+    spec:
+      hostNetwork: false
+      serviceAccountName: my-release-kube-state-metrics
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsUser: 65534
+      containers:
+      - name: kube-state-metrics
+        args:
+        - --port=8080
+        - --resources=certificatesigningrequests,configmaps,cronjobs,daemonsets,deployments,endpoints,horizontalpodautoscalers,ingresses,jobs,limitranges,mutatingwebhookconfigurations,namespaces,networkpolicies,nodes,persistentvolumeclaims,persistentvolumes,poddisruptionbudgets,pods,replicasets,replicationcontrollers,resourcequotas,secrets,services,statefulsets,storageclasses,validatingwebhookconfigurations,volumeattachments
+        - --telemetry-port=8081
+        imagePullPolicy: IfNotPresent
+        image: "k8s.gcr.io/kube-state-metrics/kube-state-metrics:v2.1.1"
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/alertmanager/deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-alertmanager
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  selector:
+    matchLabels:
+      component: "alertmanager"
+      app: prometheus
+      release: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: "alertmanager"
+        app: prometheus
+        release: my-release
+        chart: prometheus-14.6.1
+        heritage: Helm
+    spec:
+      serviceAccountName: my-release-prometheus-alertmanager
+      containers:
+        - name: prometheus-alertmanager
+          image: "quay.io/prometheus/alertmanager:v0.21.0"
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          args:
+            - --config.file=/etc/config/alertmanager.yml
+            - --storage.path=/data
+            - --cluster.advertise-address=[$(POD_IP)]:6783
+            - --web.external-url=http://localhost:9093
+
+          ports:
+            - containerPort: 9093
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+            - name: storage-volume
+              mountPath: "/data"
+              subPath: ""
+        - name: prometheus-alertmanager-configmap-reload
+          image: "jimmidyson/configmap-reload:v0.5.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --volume-dir=/etc/config
+            - --webhook-url=http://127.0.0.1:9093/-/reload
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+              readOnly: true
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-release-prometheus-alertmanager
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: my-release-prometheus-alertmanager
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/pushgateway/deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "pushgateway"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-pushgateway
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  selector:
+    matchLabels:
+      component: "pushgateway"
+      app: prometheus
+      release: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: "pushgateway"
+        app: prometheus
+        release: my-release
+        chart: prometheus-14.6.1
+        heritage: Helm
+    spec:
+      serviceAccountName: my-release-prometheus-pushgateway
+      containers:
+        - name: prometheus-pushgateway
+          image: "prom/pushgateway:v1.3.1"
+          imagePullPolicy: "IfNotPresent"
+          args:
+          ports:
+            - containerPort: 9091
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9091
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9091
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+          resources:
+            {}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+---
+# Source: drogue-cloud-metrics/charts/prometheus/templates/server/deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-14.6.1
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  selector:
+    matchLabels:
+      component: "server"
+      app: prometheus
+      release: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: "server"
+        app: prometheus
+        release: my-release
+        chart: prometheus-14.6.1
+        heritage: Helm
+    spec:
+      enableServiceLinks: true
+      serviceAccountName: my-release-prometheus-server
+      containers:
+        - name: prometheus-server-configmap-reload
+          image: "jimmidyson/configmap-reload:v0.5.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --volume-dir=/etc/config
+            - --webhook-url=http://127.0.0.1:9090/-/reload
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+              readOnly: true
+
+        - name: prometheus-server
+          image: "quay.io/prometheus/prometheus:v2.26.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --storage.tsdb.retention.time=15d
+            - --config.file=/etc/config/prometheus.yml
+            - --storage.tsdb.path=/data
+            - --web.console.libraries=/etc/prometheus/console_libraries
+            - --web.console.templates=/etc/prometheus/consoles
+            - --web.enable-lifecycle
+          ports:
+            - containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+            - name: storage-volume
+              mountPath: /data
+              subPath: ""
+      hostNetwork: false
+      dnsPolicy: ClusterFirst
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-release-prometheus-server
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: my-release-prometheus-server
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-grafana
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+    - host: chart-example.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-grafana
+                port:
+                  number: 80
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/tests/test-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana-test
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/tests/test-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-grafana-test
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  run.sh: |-
+    @test "Test Health" {
+      url="http://my-release-grafana/api/health"
+
+      code=$(wget --server-response --spider --timeout 90 --tries 10 ${url} 2>&1 | awk '/^  HTTP/{print $2}')
+      [ "$code" == "200" ]
+    }
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/tests/test-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-grafana-test
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:      ['policy']
+  resources:      ['podsecuritypolicies']
+  verbs:          ['use']
+  resourceNames:  [my-release-grafana-test]
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/tests/test-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-grafana-test
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-grafana-test
+subjects:
+- kind: ServiceAccount
+  name: my-release-grafana-test
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+---
+# Source: drogue-cloud-metrics/charts/grafana/templates/tests/test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-release-grafana-test
+  labels:
+    helm.sh/chart: grafana-6.43.5
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.2.4"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  namespace: drogue-cloud-metrics-0.7.11.tgz
+spec:
+  serviceAccountName: my-release-grafana-test
+  containers:
+    - name: my-release-test
+      image: "bats/bats:v1.4.1"
+      imagePullPolicy: "IfNotPresent"
+      command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+        - mountPath: /tests
+          name: tests
+          readOnly: true
+  volumes:
+  - name: tests
+    configMap:
+      name: my-release-grafana-test
+  restartPolicy: Never

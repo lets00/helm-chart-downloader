@@ -1,0 +1,272 @@
+---
+# Source: cosmo-dashboard/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: cosmo-dashboard-0.9.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: cosmo-dashboard
+    app.kubernetes.io/version: "v0.9.1"
+    app.kubernetes.io/managed-by: Helm
+  name: cosmo-dashboard
+  namespace: cosmo-dashboard-0.9.1.tgz
+---
+# Source: cosmo-dashboard/templates/roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    helm.sh/chart: cosmo-dashboard-0.9.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: cosmo-dashboard
+    app.kubernetes.io/version: "v0.9.1"
+    app.kubernetes.io/managed-by: Helm
+  name: cosmo-dashboard
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - namespaces
+  - secrets
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+  - get
+  - list
+  - watch
+  - bind
+- apiGroups:
+  - cosmo-workspace.github.io
+  resources:
+  - workspaces
+  - users
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cosmo-workspace.github.io
+  resources:
+  - workspaces/status
+  - users/status
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cosmo-workspace.github.io
+  resources:
+  - instances
+  - templates
+  - clusterinstances
+  - clustertemplates
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cosmo-workspace.github.io
+  resources:
+  - instances/status
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Source: cosmo-dashboard/templates/roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: cosmo-dashboard-0.9.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: cosmo-dashboard
+    app.kubernetes.io/version: "v0.9.1"
+    app.kubernetes.io/managed-by: Helm
+  name: cosmo-dashboard-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cosmo-dashboard
+subjects:
+- kind: ServiceAccount
+  name: cosmo-dashboard
+  namespace: cosmo-dashboard-0.9.1.tgz
+---
+# Source: cosmo-dashboard/templates/dashboard.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: cosmo-dashboard-0.9.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: cosmo-dashboard
+    app.kubernetes.io/version: "v0.9.1"
+    app.kubernetes.io/managed-by: Helm
+  name: cosmo-dashboard
+  namespace: cosmo-dashboard-0.9.1.tgz
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: http
+  
+spec:
+  type: ClusterIP
+  ports:
+  - name: cosmo-dashboard-server
+    port: 8443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: cosmo-dashboard
+---
+# Source: cosmo-dashboard/templates/dashboard.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: cosmo-dashboard-0.9.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: cosmo-dashboard
+    app.kubernetes.io/version: "v0.9.1"
+    app.kubernetes.io/managed-by: Helm
+  name: cosmo-dashboard
+  namespace: cosmo-dashboard-0.9.1.tgz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: cosmo-dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: cosmo-dashboard
+    spec:
+      containers:
+      - args:
+        - --port=8443
+        - --maxage-minutes=180
+        - --zap-log-level=info
+        - --zap-time-encoding=iso8601
+        - --cookie-domain=$(COOKIE_DOMAIN)
+        - --cookie-hashkey=$(COOKIE_HASHKEY)
+        - --cookie-blockkey=$(COOKIE_BLOCKKEY)
+        - --cookie-session-name=$(COOKIE_SESSION_NAME)
+        - --insecure
+        command:
+        - /app/dashboard
+        image: "ghcr.io/cosmo-workspace/cosmo-dashboard:v0.9.1"
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8443
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: dashboard
+        envFrom:
+          - secretRef:
+              name: cosmo-auth-env
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        securityContext:
+          {}
+        volumeMounts:
+      securityContext:
+        {}
+      serviceAccountName: cosmo-dashboard
+      terminationGracePeriodSeconds: 10
+      volumes:
+---
+# Source: cosmo-dashboard/templates/cert.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    helm.sh/chart: cosmo-dashboard-0.9.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: cosmo-dashboard
+    app.kubernetes.io/version: "v0.9.1"
+    app.kubernetes.io/managed-by: Helm
+  name: cosmo-dashboard-cert
+  namespace: cosmo-dashboard-0.9.1.tgz
+spec:
+  dnsNames:
+    - cosmo-dashboard.cosmo-dashboard-0.9.1.tgz.svc
+    - cosmo-dashboard.cosmo-dashboard-0.9.1.tgz.svc.cluster.local
+  issuerRef:
+    kind: ClusterIssuer
+    name: cosmo-selfsigned-clusterissuer
+  secretName: dashboard-server-cert
+---
+# Source: cosmo-dashboard/templates/ingress.yaml
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: my-release-cosmo-dashboard
+  namespace: cosmo-dashboard-0.9.1.tgz
+  labels:
+    helm.sh/chart: cosmo-dashboard-0.9.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: cosmo-dashboard
+    app.kubernetes.io/version: "v0.9.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`dashboard.local`) && (Path(`/`) || PathPrefix(`/logo`,`/assets/`,`/dashboard.v1alpha1.AuthService/`))
+      priority: 1001
+      services:
+        - kind: Service
+          name: my-release-cosmo-dashboard
+          namespace: cosmo-dashboard-0.9.1.tgz
+          port: cosmo-dashboard-server
+          scheme: http
+    - kind: Rule
+      match: Host(`dashboard.local`)
+      priority: 1000
+      services:
+        - kind: Service
+          name: my-release-cosmo-dashboard
+          namespace: cosmo-dashboard-0.9.1.tgz
+          port: cosmo-dashboard-server
+          scheme: http
+      middlewares:
+        - name: cosmo-auth

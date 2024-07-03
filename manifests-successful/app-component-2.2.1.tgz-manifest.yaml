@@ -1,0 +1,99 @@
+---
+# Source: app-component/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-app-component
+  labels:
+    helm.sh/chart: app-component-2.2.1
+    app.kubernetes.io/name: app-component
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: app-component/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-app-component
+  labels:
+    helm.sh/chart: app-component-2.2.1
+    app.kubernetes.io/name: app-component
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: app-component
+    app.kubernetes.io/instance: my-release
+---
+# Source: app-component/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-app-component
+  labels:
+    helm.sh/chart: app-component-2.2.1
+    app.kubernetes.io/name: app-component
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-component
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-component
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-app-component
+      securityContext:
+        {}
+
+      containers:
+        - name: app-component
+          securityContext:
+            {}
+          image: "nginx:latest"
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+
+          env:
+            []
+          resources:
+            {}
+---
+# Source: app-component/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-app-component-test-connection"
+  labels:
+    helm.sh/chart: app-component-2.2.1
+    app.kubernetes.io/name: app-component
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-app-component:']
+  restartPolicy: Never

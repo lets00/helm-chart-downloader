@@ -1,0 +1,228 @@
+---
+# Source: wharf-cmd/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wharf-cmd
+---
+# Source: wharf-cmd/templates/aggregator.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-wharf-cmd-aggregator-config
+  labels:
+    component: aggregator
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  wharf-cmd-config.yml: |
+    instanceId: dev
+---
+# Source: wharf-cmd/templates/provisioner.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-wharf-cmd-provisioner-config
+  labels:
+    component: provisioner
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  wharf-cmd-config.yml: |
+    instanceId: dev
+    provisioner:
+      k8s:
+        worker:
+          configMapName: my-release-wharf-cmd-worker-config
+          container:
+            image: quay.io/iver-wharf/wharf-cmd
+            imageTag: v0.8.2
+---
+# Source: wharf-cmd/templates/worker.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-wharf-cmd-worker-config
+  labels:
+    component: worker
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  wharf-cmd-config.yml: |
+    instanceId: dev
+  wharf-vars.yml: |
+    vars:
+      {}
+---
+# Source: wharf-cmd/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wharf-cmd
+rules:
+- apiGroups: [""]
+  resources: [pods]
+  verbs: ["*"]
+
+- apiGroups: [""]
+  resources: [pods/log]
+  verbs: [get, list, watch]
+
+- apiGroups: [""]
+  resources: [pods/portforward]
+  verbs: [get, list, create]
+
+- apiGroups: [""]
+  resources: [pods/exec]
+  verbs: [create]
+---
+# Source: wharf-cmd/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wharf-cmd
+subjects:
+- kind: ServiceAccount
+  name: wharf-cmd
+roleRef:
+  kind: Role
+  name: wharf-cmd
+  apiGroup: ""
+---
+# Source: wharf-cmd/templates/provisioner.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-wharf-cmd-provisioner
+  labels:
+    component: provisioner
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: "ClusterIP"
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  selector:
+    component: provisioner
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+  type: ClusterIP
+---
+# Source: wharf-cmd/templates/aggregator.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-wharf-cmd-aggregator
+  labels:
+    component: aggregator
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: aggregator
+      app.kubernetes.io/name: wharf-cmd
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        component: aggregator
+        app.kubernetes.io/name: wharf-cmd
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-cmd
+      containers:
+        - name: aggregator
+          image: "quay.io/iver-wharf/wharf-cmd:v0.8.2"
+          args: 
+            - --loglevel
+            - "debug"
+            - aggregator
+            - serve
+          volumeMounts:
+          - mountPath: /etc/iver-wharf/wharf-cmd
+            name: config
+            readOnly: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      volumes:
+      - name: config
+        configMap:
+          name: my-release-wharf-cmd-aggregator-config
+---
+# Source: wharf-cmd/templates/provisioner.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-wharf-cmd-provisioner
+  labels:
+    component: provisioner
+    helm.sh/chart: wharf-cmd-0.3.3
+    app.kubernetes.io/name: wharf-cmd
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: provisioner
+      app.kubernetes.io/name: wharf-cmd
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        component: provisioner
+        app.kubernetes.io/name: wharf-cmd
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: wharf-cmd
+      containers:
+        - name: provisioner
+          image: "quay.io/iver-wharf/wharf-cmd:v0.8.2"
+          args:
+            - --loglevel
+            - "debug"
+            - provisioner
+            - serve
+          volumeMounts:
+          - mountPath: /etc/iver-wharf/wharf-cmd
+            name: config
+            readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          ports:
+            - name: http
+              containerPort: 5009
+              protocol: TCP
+      nodeSelector:
+        kubernetes.io/os: linux
+      volumes:
+      - name: config
+        configMap:
+          name: my-release-wharf-cmd-provisioner-config

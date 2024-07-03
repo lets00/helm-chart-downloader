@@ -1,0 +1,76 @@
+---
+# Source: notification/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "my-release-config"
+  labels:
+    helm.sh/chart: notification-4.5.0
+    app.kubernetes.io/name: notification
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  notification-channel.yaml: |
+    
+    - endPoint: SOME_ENV_KEY
+      name: slack
+      rules:
+      - matches:
+          anyOf:
+          - category: Open Port
+      template: slack-messageCard
+      type: slack
+---
+# Source: notification/templates/configmap.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+---
+# Source: notification/templates/notification-hook.yaml
+# SPDX-FileCopyrightText: the secureCodeBox authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: "execution.securecodebox.io/v1"
+kind: ScanCompletionHook
+metadata:
+  name: my-release-notification
+  labels:
+    helm.sh/chart: notification-4.5.0
+    app.kubernetes.io/name: notification
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  priority: 0
+  type: ReadOnly
+  imagePullPolicy: "IfNotPresent"
+  image: "docker.io/securecodebox/hook-notification:4.5.0"
+  ttlSecondsAfterFinished: 
+  volumes:
+    - name: my-release-config
+      configMap:
+        name: my-release-config
+    
+    
+  volumeMounts:
+    - name: my-release-config
+      mountPath: /home/app/config
+      readOnly: true
+    
+    
+  env:
+    - name: SOME_ENV_KEY
+      valueFrom:
+        secretKeyRef:
+          key: some-key
+          name: some-secret
+    - name: SMTP_CONFIG
+      valueFrom:
+        secretKeyRef:
+          key: smtp-config-key
+          name: some-secret 
+    
+  affinity:
+    {}
+  tolerations:
+    []

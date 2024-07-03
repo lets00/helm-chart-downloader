@@ -1,0 +1,689 @@
+---
+# Source: activityrelay/charts/redis/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-redis
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redis
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # Allow inbound connections
+    - ports:
+        - port: 6379
+---
+# Source: activityrelay/charts/redis/templates/master/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-redis-master
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+    app.kubernetes.io/component: master
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: master
+---
+# Source: activityrelay/charts/redis/templates/master/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: false
+metadata:
+  name: my-release-redis-master
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+---
+# Source: activityrelay/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-activityrelay
+  labels:
+    helm.sh/chart: activityrelay-1.0.42
+    app.kubernetes.io/name: activityrelay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.0.5"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: activityrelay/templates/secrets-actor-key.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-activityrelay-actor-key
+  labels:
+    helm.sh/chart: activityrelay-1.0.42
+    app.kubernetes.io/name: activityrelay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.0.5"
+    app.kubernetes.io/managed-by: Helm
+data:
+  actor.pem: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS1FJQkFBS0NBZ0VBMGMwSCsvd2dSamJkZW5nTnNNOGgvazd3MUVWcm94S1JyMTQvM1hkSWtKL3FscXowCmFUOXlEK0FHRDIrUHQ2YTVla0lnY2lLcmF4QjRwcGZyZGxBeXpGTFpqUGFTZlVINGUybHVDaGpWdXBiZkF6dmkKQlZqVHNodEYxU3F2L25FY0UrbUxrSXpSQU5QcHhlSnpvaEI2OXRrMnhtM0dTaXQ1MnRWcHU3QVZrVDVWTzNaMQplNUNxZVdwN3VxOTJjU1N0Z0tZekRRT2RUT0JvVWRxcmFnYUxXd0JUSUV4OUxQRTVHdnVCOEJGWmU0QXZGRkRwCncvRG9mS01ETVRvdEEyNFlDbERtYkhtYW9IbEYvbklkUy9BMTltK3paTFNXWGxsT0pqREs4U3lLQUFRMVV1ejkKV2RPc3ZzcGlzOGlnREluc3llOEpTWFN1ZW84OFlPRHdzY1U3Nm5BMjRqRjBzVzMrdFc0OGNlSVRycmZPUmVTKwpOQ09WM1RRTTNGVkpXOVNmS2IrZjVXb0ZuZldHdTNJejl1Uzh4aXU5UUFUcUx2YzA1SmM2WWY2YWIwY0t6eHBvCmE5ODhTUFRiYzdmSVhySEY0RDM0RXoxS2FiMk1uNEN4cXg5ZVRkWTljdHdibkkxZjdQeWdJalR6M3pLZ0k1T3IKT0o0UFdZbnMyb3lJV291T2ZOZ0pGclFxRE5SMTBwMUVqZkRwMFI3b2t5SEhWQ3FlNXRMQVpIMG4wMVdGbUU2cgpvS0gwNjFpQW11bGFyeHIyalpWY29TVFhwVmlKQ0FNY2RkZGNIZWNCYXZMVzRwa3ZGenpnck5LNDJXYVUrdjlJCml4bThoVitPem9qR2RTUVJ3YmNma1VsZENXK0todkJCd1dtbjNDKzNwQVpCSC9CVVZuR2kzM0tzdDRNQ0F3RUEKQVFLQ0FnRUFvamJWSlpBYnBDNW5zSG1DbkdLSzlnWXpUdTBkL0VndlBGaXpLSmxDRWhDVFlVejQ3U2VSR1pVdApHbUkzek5lc01VdFBxdkFEZWhTU05Memg0ZWpBWGhydytuenJaczNMUWlDU1pGd3ZaTVdpU08zVUpDNDZBRXYyCkFvdXU2QnlzaVBqYVlEbUFvQk01ZlRkS0VOU05QcTlVR3JobHlKTTA5RzV1QWlCempJbVZmUlJxWWMvSS8zZkYKa3VKM3dhT0tReDQ5K3FJQXpaLzFDTlQ2RkZCYkQxR0E5RWd2d01BQ1YwcC9mUTd0RVFCYlptbnBWUWEvdXg2UApLVkRCM1JVU29XZEx3ak9EeXUvNW5uSzlGQ24yajBSdWdEN2d4TEpvS2o4dnFxbTFTYTMzVE5iUVROUE5qUGNPCnVkTTFiSHg0Q09vNVZBSlRwWTk2TDYyOGJMY0RTeW85SnRJK28yaEhUWXJFd3VPWFlUUkFDNG1tUldaMzc4WVgKRHNKeVRkZGxYYlRMSjhxQjZXWnRwWjhxckFlTms2Mis2bUUyOXJPQjd1SXg3TG9sVlpyOVpQN2VNU2pGWW9WMApCdVk1OS9jUmtFVjhBempCbVdqcFVUdnVrMC9qQXNTWjBlSDFVUEdUVTlmZllTeGlmUHhJOGVuc09OcGtJK0RTCmFqMXh3MHR6MXVSVTN0ZGdGNzNJc2pxNHVXNGtORk0wTnZOQmhDYlhkYTBsb1ROR2hWaS9oNEVaMGxTVU1PQzQKb2JpeE5kTFFlY2R6cUxGSUN5Y2NucWg0Vnp4ZUowLzNVUlBBWkVON3JCUlN3Ti9jbVkxUVJWb2VBekZ0czNESgpQRERRR2tWQTdZdWYyUUx6b0JSa2JzWE1rMG9oajlUcloyTmpqbjJpb0pxZEdoenRlNEVDZ2dFQkFOK2ppVzBSCm5yTzRER2hJQnBrSExqWEZWTnBONG9tWFgxY0owazMwcEdnT2Q1dURPSWpmQ29RNmorMXcxdjJSRUZiclJzSHEKY2NZMHo3a24vL3lkSVNMRmZPVGRKRERGOEZjS0J5UFpwR0FwNkRickFuTG5ZelcwOXNBVXpJNUpCMkFvaUlxUAp0Zkl6NmI5MjM0YnVaMERPcEdLUmRjZ2cvYmMvWmFZdVdvRkpYSHdncnB4Vnc5VHdGWkZhNTRvcjFDYXNLRVdZCm9zZ1QzMmJKc0VsYW16K0ZBWjI4MGsycGVSa1dZL0N6ZmozQ1VQVnpDbGZKM0ZTUitvc3AydjA5M1F5TWZmL3cKeUlGS2xvcTJFeFJDRzVpVndTZ2pBcnF6Wk9iNVdqMWhMeHJycGIrckJCOEZIbllTcHlVcno1eXd5ek5ITm9zcgpCYXZ2eVZVTjNKOUZaQjhDZ2dFQkFQQW80aS95N2F2QXNJZkRDcVdoMjdYWHk3bytJRHFMQjUwZWF0RzduY0EyCk42QjRXNXoxZlg2WmQ0U3VEU05za0JzTkx3UHhKaVF2VzJvU1RyVlpTNDJwb3IwQlRBTG1mSE9yc1hva2FSTm0KYTRET0loQ2JXd2VMdEljUGFoZmhzS05kb2Y1cHhqemwrNzdpQUJnakt2OUpuK280RDBWVndPdTBSWWd6VzZOKwpsbFcwZnRPSHZYMTFmYWZkdnhvTEFwY3hTcnM5aDJQYnpLSG5SZVo4VjRpdU44b1F2UjZyU1pCSUFvRHNlUWMwCnFIOVpka2ZxeldLQVIyYUllTXdiVXlHWTVDbXlVL05iS3l5TjZ6WUhqRFFlK3VZKzJPSml2eWV2cU4zTjBQWXQKWHNDcHpCN2h6ZjdjZnZ2YUZPM3Jzd1pUTHo2NnE1bVY4dzZIVTRjam9CMENnZ0VCQU43eU0zQnVIbDVmM3M2ZQo3eVRqU2FnRlB5QWFnUHBWMDQvN2xKSnVqdS9GYkd1MkYwZ3J3bG9yMzR2LzcvUDlCK0wremgxSFVZRWM2UEJXCjloV3B0M3pva0NmQVpmSFJnbFhqQTFjMEEzQnlsck1ZK2VuK3pxS2Q4MWR0NUxiOENzUkw1RUx1SFo2RkxrUFgKaCtNR0RCMUpaQXQzbzRtTmlpR0NyQjFOSEtEQ3Q5WnU1bU9vQklCbGo3ckdld2o5eEpPQkVPekF5NWJXYU9JWgpzd3FOcnpOVnIxVEhCb2l4cUszZjZtWHRLcTc2NXFhcXR1YnBzQ01ISEZSYnQ1cTZiNEd4RlhOdllST3pmZnh1Cm92cVJKTjJxZlZNOEE5NklOTkVtU0ZYa2FvZFY0SGtCVGl4MmQvV1JodHZCbjBrLzNuTVNUVWZUN2VXSU9KZjQKSjdjSUFGVUNnZ0VBU1JTMzE4MTk0NkVNVnhQVUhwa0ZpZTEwRW1Xcld3Vkp1TmN6dkVUeWVUWkdjUytPK1ZGKwo4ZEp6bTAxM3RBcnFRMEVjeUg5T2t2NVNQQkg4SDVWZnQya2ltNDlVZVNGNFI1NjhzQ1Y2VUN2L2xMK2xnQlkyCmVqSmFLaXRYcHBMSU5MNWVlRlBwdmtoaDlqRkJ4QmFYay8zc2l0S3FXdmdBYi9sNG16eTlxeC92VVg5T2hNSXUKdUluVFJnemxoV0JLVm9YcWJ0WUhhQ3pQdFlqeUxYUXpFdVdwRm5WSGg1aXFGeHpDbmtiWGdZalZxWU1veWpPNgpjam9GQUQrUk90TXAxZlIzb2ZTaE5WSE43bzMxUUlqRmNtcm5BTCtwTWlMSWRxUXVwK2hrcVRVZk8xT3dTTWwvCjdRbGVIdmU3SExkM3ovbnFTNVYwZUpVMzFIajd3d2psUlFLQ0FRQWFYek9icUZOWTh3K1JBZUMyRFZqdWxsQ2cKYmJ1VTExSS9rY0txT2VudVVQRjZQcFpEdHBtUmt5TENoUG12WXVSOXRtOEJXTVVwMk9Eb2pyWFJMbG9zOU9NbApveVBqZFdQYURjNnJ1eWdHYXpNQXR5eGdrRHdHQS8zYk4zeStSOEJ4R1Q5TnU1VHNUV1JEUDdJaTdoNFRyWHgxCjBhL0w2N0toZlNldkUzNXgrUi9aa2JMbGZTRE9UWlNBdjB0aUNkSzNEUlNlLyt0TERQaitTM2JOZCtOMkNJR2oKWDhyOTQzakgwUHF2MjZaTUtVZzVpN0hldll6L2JxeElKM214b2Rxc3BTRlV6L0laZ0taa0lSNEZuMzdtNUthNwp2K1NJZm90aVo5NXRWMDRoN05mRXh3V1pXRXZVbDFCTW5pYUs3Ymc5S2xWOGNuaDh1bVFWVGloK1NySVIKLS0tLS1FTkQgUlNBIFBSSVZBVEUgS0VZLS0tLS0K
+---
+# Source: activityrelay/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-configuration
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+data:
+  redis.conf: |-
+    # User-supplied common configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+    # End of common configuration
+  master.conf: |-
+    dir /data
+    # User-supplied master configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of master configuration
+  replica.conf: |-
+    dir /data
+    # User-supplied replica configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of replica configuration
+---
+# Source: activityrelay/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-health
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ] && [ "$responseFirstWord" != "MASTERDOWN" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: activityrelay/charts/redis/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-scripts
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+data:
+  start-master.sh: |
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    if [[ -f /opt/bitnami/redis/mounted-etc/master.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+    fi
+    if [[ -f /opt/bitnami/redis/mounted-etc/redis.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+    fi
+    ARGS=("--port" "${REDIS_PORT}")
+    ARGS+=("--protected-mode" "no")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+    exec redis-server "${ARGS[@]}"
+---
+# Source: activityrelay/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-activityrelay-config
+  labels:
+    helm.sh/chart: activityrelay-1.0.42
+    app.kubernetes.io/name: activityrelay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.0.5"
+    app.kubernetes.io/managed-by: Helm
+data:
+  ACTOR_PEM: "/var/lib/relay/actor.pem"
+  REDIS_URL: "redis://my-release-redis-master:6379"
+  RELAY_BIND: "0.0.0.0:8080"
+  RELAY_DOMAIN: "relay.example.com"
+  RELAY_SERVICENAME: "Example ActivityPub Relay Service"
+  JOB_CONCURRENCY: "50"
+---
+# Source: activityrelay/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-headless
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: redis
+---
+# Source: activityrelay/charts/redis/templates/master/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-master
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  internalTrafficPolicy: Cluster
+  sessionAffinity: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: master
+---
+# Source: activityrelay/templates/service-server.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-activityrelay-server
+  labels:
+    helm.sh/chart: activityrelay-1.0.42
+    app.kubernetes.io/name: activityrelay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.0.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: activityrelay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: server
+---
+# Source: activityrelay/templates/deployment-server.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-activityrelay-server
+  labels:
+    helm.sh/chart: activityrelay-1.0.42
+    app.kubernetes.io/name: activityrelay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.0.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: activityrelay
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/name: activityrelay
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: server
+    spec:
+      serviceAccountName: my-release-activityrelay
+      securityContext:
+        fsGroup: 991
+        runAsGroup: 991
+        runAsNonRoot: true
+        runAsUser: 991
+      containers:
+        - name: activityrelay-server
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+              - NET_BIND_SERVICE
+              drop:
+              - all
+            readOnlyRootFilesystem: false
+          image: "docker.io/yukimochi/activity-relay:v2.0.5"
+          imagePullPolicy: IfNotPresent
+          command: [ "/usr/bin/relay" ]
+          args:
+            - server
+            - --verbose
+          envFrom:
+            - configMapRef:
+                name: my-release-activityrelay-config
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /nodeinfo/2.1
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /nodeinfo/2.1
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: actor-key
+              mountPath: /var/lib/relay
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: actor-key
+          secret:
+            secretName: my-release-activityrelay-actor-key
+        - name: tmp
+          emptyDir: {}
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: workers
+            topologyKey: kubernetes.io/hostname
+---
+# Source: activityrelay/templates/deployment-worker.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-activityrelay-worker
+  labels:
+    helm.sh/chart: activityrelay-1.0.42
+    app.kubernetes.io/name: activityrelay
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.0.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: activityrelay
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/name: activityrelay
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: my-release-activityrelay
+      securityContext:
+        fsGroup: 991
+        runAsGroup: 991
+        runAsNonRoot: true
+        runAsUser: 991
+      containers:
+        - name: activityrelay-worker
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - all
+            readOnlyRootFilesystem: false
+          image: "docker.io/yukimochi/activity-relay:v2.0.5"
+          imagePullPolicy: IfNotPresent
+          command: [ "/usr/bin/relay" ]
+          args:
+            - worker
+            - --verbose
+          envFrom:
+            - configMapRef:
+                name: my-release-activityrelay-config
+          volumeMounts:
+            - name: actor-key
+              mountPath: /var/lib/relay
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: actor-key
+          secret:
+            secretName: my-release-activityrelay-actor-key
+        - name: tmp
+          emptyDir: {}
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: workers
+            topologyKey: kubernetes.io/hostname
+---
+# Source: activityrelay/charts/redis/templates/master/application.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-redis-master
+  namespace: "activityrelay-1.0.42.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: 7.2.5
+    helm.sh/chart: redis-19.5.0
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: master
+  serviceName: my-release-redis-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/version: 7.2.5
+        helm.sh/chart: redis-19.5.0
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/configmap: 86bcc953bb473748a3d3dc60b7c11f34e60c93519234d4c37f42e22ada559d47
+        checksum/health: aff24913d801436ea469d8d374b2ddb3ec4c43ee7ab24663d5f8ff1a1b6991a9
+        checksum/scripts: 43cdf68c28f3abe25ce017a82f74dbf2437d1900fd69df51a55a3edf6193d141
+        checksum/secret: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      serviceAccountName: my-release-redis-master
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: redis
+                    app.kubernetes.io/component: master
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      enableServiceLinks: true
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:7.2.5-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /bin/bash
+          args:
+            - -c
+            - /opt/bitnami/scripts/start-scripts/start-master.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: REDIS_REPLICATION_MODE
+              value: master
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            # One second longer than command timeout should prevent generation of zombie processes.
+            timeoutSeconds: 6
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_liveness_local.sh 5
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_readiness_local.sh 1
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          volumeMounts:
+            - name: start-scripts
+              mountPath: /opt/bitnami/scripts/start-scripts
+            - name: health
+              mountPath: /health
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /opt/bitnami/redis/mounted-etc
+            - name: empty-dir
+              mountPath: /opt/bitnami/redis/etc/
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+      volumes:
+        - name: start-scripts
+          configMap:
+            name: my-release-redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: my-release-redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: my-release-redis-configuration
+        - name: empty-dir
+          emptyDir: {}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-data
+        labels:
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: redis
+          app.kubernetes.io/component: master
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"

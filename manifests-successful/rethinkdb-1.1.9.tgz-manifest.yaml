@@ -1,0 +1,315 @@
+---
+# Source: rethinkdb/templates/auth/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-rethinkdb
+  labels:
+    app: rethinkdb
+    chart: rethinkdb-1.1.9
+    release: my-release
+    heritage: Helm
+---
+# Source: rethinkdb/templates/rethinkdb-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-rethinkdb
+  labels:
+    app: rethinkdb
+    chart: rethinkdb-1.1.9
+    release: "my-release"
+    heritage: "Helm"
+type: Opaque
+data:
+  rethinkdb-password: "cmV0aGlua2Ri"
+---
+# Source: rethinkdb/templates/auth/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-rethinkdb
+  labels:
+    app: rethinkdb
+    chart: rethinkdb-1.1.9
+    release: my-release
+    heritage: Helm
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: rethinkdb/templates/auth/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-rethinkdb
+  labels:
+    app: rethinkdb
+    chart: rethinkdb-1.1.9
+    release: my-release
+    heritage: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-rethinkdb
+subjects:
+  - kind: ServiceAccount
+    name: my-release-rethinkdb
+    namespace: rethinkdb-1.1.9.tgz
+---
+# Source: rethinkdb/templates/rethinkdb-admin-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-rethinkdb-admin"
+  labels:
+    app: "rethinkdb-admin"
+    chart: rethinkdb-1.1.9
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  clusterIP: None
+  ports:
+    - port: 8080
+      targetPort: admin
+  selector:
+    app: "rethinkdb-proxy"
+    release: "my-release"
+---
+# Source: rethinkdb/templates/rethinkdb-cluster-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-rethinkdb-cluster"
+  labels:
+    app: "rethinkdb-cluster"
+    chart: rethinkdb-1.1.9
+    heritage: "Helm"
+    release: "my-release"
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None
+  ports:
+    - port: 29015
+      targetPort: cluster
+  selector:
+    app: "rethinkdb-cluster"
+    release: "my-release"
+---
+# Source: rethinkdb/templates/rethinkdb-proxy-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-rethinkdb-proxy
+  labels:
+    app: rethinkdb-proxy
+    chart: rethinkdb-1.1.9
+    heritage: Helm
+    release: my-release
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 28015
+      targetPort: driver
+  selector:
+    app: rethinkdb-proxy
+    release: my-release
+---
+# Source: rethinkdb/templates/rethinkdb-proxy-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-rethinkdb-proxy"
+  labels:
+    app: "rethinkdb-proxy"
+    chart: rethinkdb-1.1.9
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rethinkdb-proxy
+      heritage: "Helm"
+      release: "my-release"
+      chart: "rethinkdb-1.1.5"
+  template:
+    metadata:
+      name: my-release-rethinkdb-proxy
+      labels:
+        app: rethinkdb-proxy
+        heritage: "Helm"
+        release: "my-release"
+        chart: "rethinkdb-1.1.5"
+      annotations:
+    spec:
+      serviceAccountName: my-release-rethinkdb
+      containers:
+        - name: rethinkdb-proxy
+          image: "pozetroninc/rethinkdb-cluster:v2.4.1"
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - name: cluster
+              containerPort: 29015
+            - name: driver
+              containerPort: 28015
+            - name: admin
+              containerPort: 8080
+          args:
+            - "--bind"
+            - "all"
+          volumeMounts:
+            - name: "secrets"
+              mountPath: "/secrets"
+          livenessProbe:
+            exec:
+              command:
+              - /rethinkdb-probe
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+              - /rethinkdb-probe
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          env:
+            - name: PROXY
+              value: "true"
+            - name: RETHINK_CLUSTER_SERVICE
+              value: "my-release-rethinkdb-cluster"
+            - name: RETHINKDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-rethinkdb
+                  key: rethinkdb-password
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+            {}
+      volumes:
+        - name: secrets
+          projected:
+            sources:
+            - secret:
+                name: my-release-rethinkdb
+---
+# Source: rethinkdb/templates/rethinkdb-cluster-stateful-set.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "my-release-rethinkdb-cluster"
+  labels:
+    app: "rethinkdb-cluster"
+    chart: rethinkdb-1.1.9
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  serviceName: "my-release-rethinkdb-cluster"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: "rethinkdb-cluster"
+      heritage: "Helm"
+      release: "my-release"
+      chart: "rethinkdb-1.1.5"
+  template:
+    metadata:
+      name: "my-release-rethinkdb-cluster"
+      labels:
+        app: "rethinkdb-cluster"
+        heritage: "Helm"
+        release: "my-release"
+        chart: "rethinkdb-1.1.5"
+      annotations:
+    spec:
+      serviceAccountName: my-release-rethinkdb
+      containers:
+        - name: rethinkdb-cluster
+          image: "pozetroninc/rethinkdb-cluster:v2.4.1"
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - name: cluster
+              containerPort: 29015
+          args:
+            - "--directory"
+            - "/data/db"
+            - "--bind"
+            - "all"
+            - "--no-http-admin"
+            - "--cache-size"
+            - "100"
+          volumeMounts:
+            - name: "datadir"
+              mountPath: "/data"
+          env:
+            - name: RETHINK_CLUSTER_SERVICE
+              value: "my-release-rethinkdb-cluster"
+            - name: RETHINKDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-rethinkdb
+                  key: rethinkdb-password
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          livenessProbe:
+            exec:
+              command:
+              - /rethinkdb-probe
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+              - /rethinkdb-probe
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources:
+            {}
+  volumeClaimTemplates:
+  - metadata:
+      name: datadir
+      annotations:
+    spec:
+      accessModes:
+        - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: "1Gi"

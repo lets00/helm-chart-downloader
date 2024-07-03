@@ -1,0 +1,221 @@
+---
+# Source: honeycomb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-honeycomb
+  namespace: honeycomb-1.9.0.tgz
+  labels:
+    helm.sh/chart: honeycomb-1.9.0
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: honeycomb
+    app.kubernetes.io/instance: my-release
+---
+# Source: honeycomb/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-honeycomb
+  namespace: honeycomb-1.9.0.tgz
+  labels:
+    helm.sh/chart: honeycomb-1.9.0
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: honeycomb
+    app.kubernetes.io/instance: my-release
+type: Opaque
+data:
+  api-key: "WU9VUl9BUElfS0VZ"
+---
+# Source: honeycomb/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-honeycomb-agent
+  namespace: honeycomb-1.9.0.tgz
+  labels:
+    helm.sh/chart: honeycomb-1.9.0
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: honeycomb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: agent
+data:
+  config.yaml: |
+    apiHost: https://api.honeycomb.io/
+
+    
+    watchers:
+      - dataset: kubernetes-logs
+        labelSelector: component=kube-apiserver,tier=control-plane
+        namespace: kube-system
+        parser: glog
+      - dataset: kubernetes-logs
+        labelSelector: component=kube-scheduler,tier=control-plane
+        namespace: kube-system
+        parser: glog
+      - dataset: kubernetes-logs
+        labelSelector: component=kube-controller-manager,tier=control-plane
+        namespace: kube-system
+        parser: glog
+      - dataset: kubernetes-logs
+        labelSelector: k8s-app=kube-proxy
+        namespace: kube-system
+        parser: glog
+      - dataset: kubernetes-logs
+        labelSelector: k8s-app=kube-dns
+        namespace: kube-system
+        parser: glog
+    verbosity: info
+    splitLogging: false
+    retryBufferSize: 0
+    retryBufferExpire: 0
+    additionalFields:
+
+    metrics:
+      clusterName: k8s-cluster
+      dataset: kubernetes-metrics
+      enabled: true
+      metricGroups:
+      - node
+      - pod
+---
+# Source: honeycomb/templates/cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-honeycomb-agent
+  namespace: honeycomb-1.9.0.tgz
+  labels:
+    helm.sh/chart: honeycomb-1.9.0
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: honeycomb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: agent
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - nodes/stats
+      - nodes/proxy
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: honeycomb/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-honeycomb-agent
+  namespace: honeycomb-1.9.0.tgz
+  labels:
+    helm.sh/chart: honeycomb-1.9.0
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: honeycomb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-honeycomb-agent
+subjects:
+  - kind: ServiceAccount
+    name: my-release-honeycomb
+    namespace: honeycomb-1.9.0.tgz
+---
+# Source: honeycomb/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-release-honeycomb-agent
+  namespace: honeycomb-1.9.0.tgz
+  labels:
+    helm.sh/chart: honeycomb-1.9.0
+    app.kubernetes.io/version: "2.7.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: honeycomb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: agent
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: honeycomb
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: agent
+  template:
+    metadata:
+      annotations:
+        checksum/config: cf92cc00a3840b1ffb35966d27bd479dc874f39a083e9c29de424c88611f7231
+        checksum/secret: de74b41ac97c15a57727bbbe25a19fb9af21d86b54712769686956a0a0de65b4
+      labels:
+        app.kubernetes.io/name: honeycomb
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: agent
+    spec:
+      serviceAccountName: my-release-honeycomb
+      securityContext:
+        {}
+      containers:
+        - name: honeycomb-agent
+          securityContext:
+            {}
+          image: "honeycombio/honeycomb-kubernetes-agent:2.7.2"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HONEYCOMB_APIKEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-honeycomb
+                  key: api-key
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          resources:
+            {}
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/honeycomb"
+              readOnly: false
+            - name: varlog
+              mountPath: "/var/log"
+              readOnly: false
+            - name: varlibdockercontainers
+              mountPath: "/var/lib/docker/containers"
+              readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            items:
+              - key: config.yaml
+                path: config.yaml
+            name: my-release-honeycomb-agent
+        - name: varlog
+          hostPath:
+            path: "/var/log"
+        - name: varlibdockercontainers
+          hostPath:
+            path: "/var/lib/docker/containers"
+      tolerations:
+        - effect: NoSchedule
+          key: node.alpha.kubernetes.io/role
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists

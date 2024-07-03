@@ -1,0 +1,241 @@
+---
+# Source: pihole/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pihole
+  namespace: "pihole-0.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: pihole
+    helm.sh/chart: pihole-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: pihole
+automountServiceAccountToken: true
+---
+# Source: pihole/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-pihole-webui-password
+  namespace: "pihole-0.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: pihole
+    helm.sh/chart: pihole-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: pihole
+type: Opaque
+data:
+  webpassword: "cVlqR0VybEZwbw=="
+---
+# Source: pihole/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-pihole
+  namespace: "pihole-0.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: pihole
+    helm.sh/chart: pihole-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: pihole
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "4Gi"
+---
+# Source: pihole/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pihole-tcp
+  namespace: "pihole-0.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: pihole
+    helm.sh/chart: pihole-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: pihole
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: dns
+      port: 53
+      protocol: TCP
+      nodePort: null
+    - name: http
+      port: 80
+      protocol: TCP
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: pihole
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: pihole
+---
+# Source: pihole/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pihole-udp
+  namespace: "pihole-0.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: pihole
+    helm.sh/chart: pihole-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: pihole
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: dns
+      port: 53
+      protocol: UDP
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: pihole
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: pihole
+---
+# Source: pihole/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pihole
+  namespace: "pihole-0.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: pihole
+    helm.sh/chart: pihole-0.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: pihole
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pihole
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: pihole
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pihole
+        helm.sh/chart: pihole-0.2.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: pihole
+    spec:
+      serviceAccountName: my-release-pihole
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: pihole
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: pihole
+                namespaces:
+                  - "pihole-0.2.0.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      initContainers:
+      containers:
+        - name: pihole
+          image: docker.io/pihole/pihole:2023.05.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: "America/Los_Angeles"
+            - name: WEBPASSWORD_FILE
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-pihole-webui-password
+                  key: webpassword
+            - name: PIHOLE_DNS_
+              value: "8.8.8.8;8.8.4.4"
+            - name: DNSSEC
+              value: "false"
+            - name: DNS_BOGUS_PRIV
+              value: "true"
+            - name: DNS_FQDN_REQUIRED
+              value: "true"
+            - name: REV_SERVER
+              value: "false"
+            - name: VIRTUAL_HOST
+              value: ""
+            - name: IPv6
+              value: "true"
+            - name: TEMPERATUREUNIT
+              value: f
+            - name: WEBUIBOXEDLAYOUT
+              value: boxed
+            - name: QUERY_LOGGING
+              value: "true"
+            - name: WEBTHEME
+              value: default-auto
+            - name: WEB_PORT
+              value: ""
+            - name: WEB_BIND_ADDR
+              value: ""
+            - name: CUSTOM_CACHE_SIZE
+              value: "10000"
+            - name: FTL_CMD
+              value: "no-daemon"
+            - name: ADMIN_EMAIL
+              value: ""
+          envFrom:
+          resources:
+            limits:
+              cpu: 250m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          ports:
+            - name: dns
+              containerPort: 53
+              protocol: TCP
+            - name: dns-udp
+              containerPort: 53
+              protocol: UDP
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 10
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /admin.index.php
+              port: http
+          readinessProbe:
+            failureThreshold: 5
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /admin.index.php
+              port: http
+          volumeMounts:
+            - name: pihole
+              mountPath: /etc/pihole
+      volumes:
+        - name: pihole
+          persistentVolumeClaim:
+            claimName: my-release-pihole

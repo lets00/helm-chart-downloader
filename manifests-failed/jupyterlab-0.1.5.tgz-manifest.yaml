@@ -1,0 +1,124 @@
+---
+# Source: jupyterlab/templates/volume.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "my-release-master-data"
+  namespace: jupyterlab-0.1.5.tgz
+  labels:
+    app: "my-release"
+    chart: "jupyterlab-0.1.5"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "30Gi"
+---
+# Source: jupyterlab/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: "my-release"
+    chart: "jupyterlab-0.1.5"
+    heritage: Helm
+    release: my-release
+  name: "my-release-service"
+spec:
+  type: ClusterIP
+  ports:
+    - name: 8888tcp
+      port: 8888
+      protocol: TCP
+      targetPort: 8888
+  selector:
+    app: "my-release"
+    release: my-release
+---
+# Source: jupyterlab/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: my-release-jupyter-master
+    chart: "jupyterlab-0.1.5"
+    heritage: Helm
+    release: my-release
+  name: "my-release"
+  namespace: jupyterlab-0.1.5.tgz
+spec:
+  serviceName: "my-release"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "my-release"
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: "my-release"
+        release: my-release
+        app.kubernetes.io/name: master
+        app.kubernetes.io/instance: my-release
+        rollme: "5mc4T"
+    spec:
+      containers:
+      - env:
+        image: jupyter/datascience-notebook:python-3.9.6:master
+        imagePullPolicy: IfNotPresent
+        name: my-release-jupyter-master
+        args:
+        - /bin/bash
+        - -c
+        - 'cp -r /home/jovyan/work/.ssh /home/jovyan/ 2>/dev/null || : && jupyter lab --notebook-dir=/home/jovyan/work --ip 0.0.0.0 --no-browser --allow-root'
+        ports:
+        - containerPort: 8888
+          name: 8888tcp
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "1"
+            memory: 1000Mi
+          limits:
+            cpu: "20"
+            memory: 25000Mi
+        volumeMounts:
+        - mountPath: /home/jovyan/work
+          name: "my-release-master-data"
+      volumes:
+      - name: "my-release-master-data"
+        persistentVolumeClaim:
+          claimName: "my-release-master-data"
+---
+# Source: jupyterlab/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: "my-release"
+    chart: "jupyterlab-0.1.5"
+    heritage: Helm
+    release: my-release
+  name: "my-release-ingress"
+  annotations:
+    nginx.ingress.kubernetes.io/client_max_body_size: 10000m
+    nginx.ingress.kubernetes.io/proxy-body-size: 10000m
+spec:
+  tls:
+    - hosts:
+      - jupyter-data.compagny.net
+      secretName: jupyter-data
+  rules:
+    - host: "jupyter-data.compagny.net"
+      http:
+        paths:
+          - path: "/master"
+            pathType: Prefix
+            backend:
+              service:
+                name: "my-release-service"
+                port:
+                  name: 8888tcp

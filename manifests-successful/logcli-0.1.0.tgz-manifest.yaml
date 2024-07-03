@@ -1,0 +1,51 @@
+---
+# Source: logcli/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-logcli
+  labels:
+    helm.sh/chart: logcli-0.1.0
+    app.kubernetes.io/name: logcli
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "main-c90366d-amd64"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: logcli/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-logcli
+  labels:
+    helm.sh/chart: logcli-0.1.0
+    app.kubernetes.io/name: logcli
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "main-c90366d-amd64"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: logcli
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: logcli
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-logcli
+      securityContext:
+        {}
+      containers:
+        - name: logcli
+          securityContext:
+            {}
+          image: "grafana/logcli:main-c90366d-amd64"
+          command: ["/bin/sh", "-ec", "sleep infinity"]
+          imagePullPolicy: Always
+          resources:
+            {}
+          env:
+          - name: LOKI_ADDR
+            value: http://my-release-loki:3100

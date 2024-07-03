@@ -1,0 +1,765 @@
+---
+# Source: clickhouse/templates/zookeeper.yaml
+# Setup max number of unavailable pods in StatefulSet
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: zk-pdb-my-release
+  namespace: clickhouse-0.1.1.tgz
+spec:
+  selector:
+    matchLabels:
+      app: zk-my-release
+  maxUnavailable: 1
+---
+# Source: clickhouse/templates/configuration.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-my-release-configuration
+  labels:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    helm.sh/chart: "clickhouse-0.1.1"
+    app.kubernetes.io/version: "21.1"
+data:
+  config.xml: |
+    <?xml version="1.0"?>
+    <yandex>
+      <listen_host>0.0.0.0</listen_host>
+      
+
+      <logger>
+        <level>error</level>
+        <log></log>
+        <errorlog></errorlog>
+        <console>1</console>
+      </logger>
+
+      <default_on_cluster_name>cluster</default_on_cluster_name>
+      <!-- <display_name>clickhouse-cluster</display_name> -->
+      <http_port>8123</http_port>
+      <tcp_port>9000</tcp_port>
+      <interserver_http_port>9009</interserver_http_port>
+
+      <mark_cache_size>5368709120</mark_cache_size>
+
+      <compression incl="clickhouse_compression">
+        <case>
+          <method>lz4</method>
+        </case>
+      </compression>
+
+      <distributed_ddl>
+        <path>/clickhouse/clickhouse-my-release/task_queue/ddl</path>
+      </distributed_ddl>
+
+      <remote_servers>
+        <cluster>
+          <shard>
+            <weight>1</weight>
+            <replica>
+                  <host>clickhouse-my-release-s0-r0-0.clickhouse-my-release.clickhouse-0.1.1.tgz.svc.cluster.local</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password>C1ickh0use</password>
+            </replica>
+            <replica>
+                  <host>clickhouse-my-release-s0-r1-0.clickhouse-my-release.clickhouse-0.1.1.tgz.svc.cluster.local</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password>C1ickh0use</password>
+            </replica>
+          </shard>
+        </cluster>
+        <logical_consistency_cluster>
+          <shard>
+            <weight>1</weight>
+            <replica>
+                  <host>clickhouse-my-release-s0-r0-0.clickhouse-my-release.clickhouse-0.1.1.tgz.svc.cluster.local</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password>C1ickh0use</password>
+            </replica>
+            <replica>
+                  <host>clickhouse-my-release-s0-r1-0.clickhouse-my-release.clickhouse-0.1.1.tgz.svc.cluster.local</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password>C1ickh0use</password>
+            </replica>
+          </shard>
+        </logical_consistency_cluster>
+        <physical_consistency_cluster>
+          <shard>
+            <internal_replication>true</internal_replication>
+            <replica>
+                  <host>clickhouse-my-release-s0-r0-0.clickhouse-my-release.clickhouse-0.1.1.tgz.svc.cluster.local</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password>C1ickh0use</password>
+            </replica>
+            <replica>
+                  <host>clickhouse-my-release-s0-r1-0.clickhouse-my-release.clickhouse-0.1.1.tgz.svc.cluster.local</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password>C1ickh0use</password>
+            </replica>
+          </shard>
+        </physical_consistency_cluster>
+      </remote_servers>
+
+      <profiles>
+        <default>
+
+        </default>
+      </profiles>
+
+      <users>
+          <default>
+            <password_sha256_hex>9109b4cc5bfc78a316090a3caf04bd0e4b722fecc0f8641b0b0a6b854b3f8d44</password_sha256_hex>
+            <networks>
+              <ip>0.0.0.0/0</ip>
+              
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+          </default>
+      </users>
+
+      <quotas>
+        <default>
+          <interval>
+            <duration>3600</duration>
+            <queries>0</queries>
+            <errors>0</errors>
+            <result_rows>0</result_rows>
+            <read_rows>0</read_rows>
+            <execution_time>0</execution_time>
+          </interval>
+        </default>
+      </quotas>
+
+      <zookeeper>
+        <node>
+          <host>zk-server-my-release</host>
+          <port>2181</port>
+        </node>
+      </zookeeper>
+    </yandex>
+# For shard configuration see https://clickhouse.tech/docs/en/operations/table_engines/distributed/
+---
+# Source: clickhouse/templates/instances.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-my-release-s0-r0-configuration
+  labels:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    helm.sh/chart: "clickhouse-0.1.1"
+    app.kubernetes.io/version: "21.1"
+data:
+  macros.xml: |
+    <yandex>
+      <macros>
+        <shard>clickhouse-my-releases0</shard>
+        <replica>r0</replica>
+      </macros>
+    </yandex>
+---
+# Source: clickhouse/templates/instances.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-my-release-s0-r1-configuration
+  labels:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    helm.sh/chart: "clickhouse-0.1.1"
+    app.kubernetes.io/version: "21.1"
+data:
+  macros.xml: |
+    <yandex>
+      <macros>
+        <shard>clickhouse-my-releases0</shard>
+        <replica>r1</replica>
+      </macros>
+    </yandex>
+---
+# Source: clickhouse/templates/instances.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse-my-release-s0-r0
+  labels:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    helm.sh/chart: "clickhouse-0.1.1"
+    app.kubernetes.io/version: "21.1"
+    clickhouse/component: clickhouse
+spec:
+  selector:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    clickhouse/shard-index: "0"
+    clickhouse/replica-index: "0"
+    clickhouse/component: clickhouse
+  ports:
+    - name: native
+      protocol: TCP
+      port: 9000
+    - name: http
+      protocol: TCP
+      port: 8123
+---
+# Source: clickhouse/templates/instances.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse-my-release-s0-r1
+  labels:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    helm.sh/chart: "clickhouse-0.1.1"
+    app.kubernetes.io/version: "21.1"
+    clickhouse/component: clickhouse
+spec:
+  selector:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    clickhouse/shard-index: "0"
+    clickhouse/replica-index: "1"
+    clickhouse/component: clickhouse
+  ports:
+    - name: native
+      protocol: TCP
+      port: 9000
+    - name: http
+      protocol: TCP
+      port: 8123
+---
+# Source: clickhouse/templates/service.yaml
+# This file is part of the ClickHouse Helm Chart
+#    https://github.com/radondb/clickhouse-cluster-helm
+#
+# Copyright 2021 TCeason <tai_chong@foxmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse-my-release
+  labels:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    helm.sh/chart: "clickhouse-0.1.1"
+    app.kubernetes.io/version: "21.1"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    clickhouse/component: clickhouse
+  ports:
+    - name: native
+      protocol: TCP
+      port: 9000
+    - name: http
+      protocol: TCP
+      port: 8123
+---
+# Source: clickhouse/templates/zookeeper.yaml
+# This file is part of the ClickHouse Helm Chart
+#    https://github.com/radondb/clickhouse-cluster-helm
+#
+# Copyright 2021 TCeason <tai_chong@foxmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Setup Service to provide access to Zookeeper for clients
+apiVersion: v1
+kind: Service
+metadata:
+  # DNS would be like zookeeper.zoons
+  name: zk-client-my-release
+  namespace: clickhouse-0.1.1.tgz
+  labels:
+    app: zk-my-release
+spec:
+  ports:
+    - port: 2181
+      name: client
+  selector:
+    app: zk-my-release
+    what: node
+---
+# Source: clickhouse/templates/zookeeper.yaml
+# Setup Headless Service for StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  # DNS would be like zk-my-release-0.zk-server-my-release.etc
+  name: zk-server-my-release
+  namespace: clickhouse-0.1.1.tgz
+  labels:
+    app: zk-my-release
+spec:
+  ports:
+    - port: 2888
+      name: server
+    - port: 3888
+      name: leader-election
+  clusterIP: None
+  selector:
+    app: zk-my-release
+    what: node
+---
+# Source: clickhouse/templates/instances.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clickhouse-my-release-s0-r0
+  labels:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    helm.sh/chart: "clickhouse-0.1.1"
+    app.kubernetes.io/version: "21.1"
+spec:
+  replicas: 1
+  serviceName: clickhouse-my-release
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "clickhouse"
+      app.kubernetes.io/instance: "my-release"
+      clickhouse/component: clickhouse
+      clickhouse/shard-index: "0"
+      clickhouse/replica-index: "0"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "clickhouse"
+        app.kubernetes.io/instance: "my-release"
+        app.kubernetes.io/managed-by: "Helm"
+        helm.sh/chart: "clickhouse-0.1.1"
+        app.kubernetes.io/version: "21.1"
+        clickhouse/component: clickhouse
+        clickhouse/shard-index: "0"
+        clickhouse/replica-index: "0"
+      annotations:
+        clickhouse/config-checksum: 55458090fd24282be98c5c76643f76c6cb9bd20de370ab925de6e3cf3ac7c4e8
+    spec:
+      hostname: clickhouse-my-release-s0-r0
+      containers:
+        - name: clickhouse
+          image: radondb/clickhouse-server:v21.1.3.32-stable
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - "OK=$(/usr/bin/clickhouse client --user=default --password=C1ickh0use --port=9000 --query='SELECT 1'); if [[ \"$OK\" == \"1\" ]]; then exit 0; else exit 1; fi"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 0.5
+            limits:
+              memory: 1Gi
+              cpu: 0.5
+          ports:
+            - containerPort: 9000
+            - containerPort: 8123
+          volumeMounts:
+            - name: common-configuration
+              subPath: config.xml
+              mountPath: /etc/clickhouse-server/config.xml
+            - name: instance-configuration
+              subPath: macros.xml
+              mountPath: /etc/clickhouse-server/config.d/macros.xml
+            - name: ck-datadir
+              mountPath: /var/lib/clickhouse
+      volumes:
+        - name: common-configuration
+          configMap:
+            name: clickhouse-my-release-configuration
+        - name: instance-configuration
+          configMap:
+            name: clickhouse-my-release-s0-r0-configuration
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: "clickhouse"
+                    app.kubernetes.io/instance: "my-release"
+                    clickhouse/component: clickhouse
+                    clickhouse/shard-index: "0"
+                topologyKey: kubernetes.io/hostname
+              weight: 20
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: "clickhouse"
+                    app.kubernetes.io/instance: "my-release"
+                    clickhouse/component: clickhouse
+                    clickhouse/replica-index: "0"
+                topologyKey: kubernetes.io/hostname
+              weight: 10
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: "clickhouse"
+                    app.kubernetes.io/instance: "my-release"
+                    clickhouse/component: clickhouse
+                topologyKey: kubernetes.io/hostname
+              weight: 5
+      securityContext:
+        runAsUser: 101
+        fsGroup: 101
+  volumeClaimTemplates:
+    - metadata:
+        name: ck-datadir
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+# Source: clickhouse/templates/instances.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clickhouse-my-release-s0-r1
+  labels:
+    app.kubernetes.io/name: "clickhouse"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/managed-by: "Helm"
+    helm.sh/chart: "clickhouse-0.1.1"
+    app.kubernetes.io/version: "21.1"
+spec:
+  replicas: 1
+  serviceName: clickhouse-my-release
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "clickhouse"
+      app.kubernetes.io/instance: "my-release"
+      clickhouse/component: clickhouse
+      clickhouse/shard-index: "0"
+      clickhouse/replica-index: "1"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "clickhouse"
+        app.kubernetes.io/instance: "my-release"
+        app.kubernetes.io/managed-by: "Helm"
+        helm.sh/chart: "clickhouse-0.1.1"
+        app.kubernetes.io/version: "21.1"
+        clickhouse/component: clickhouse
+        clickhouse/shard-index: "0"
+        clickhouse/replica-index: "1"
+      annotations:
+        clickhouse/config-checksum: 55458090fd24282be98c5c76643f76c6cb9bd20de370ab925de6e3cf3ac7c4e8
+    spec:
+      hostname: clickhouse-my-release-s0-r1
+      containers:
+        - name: clickhouse
+          image: radondb/clickhouse-server:v21.1.3.32-stable
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - "OK=$(/usr/bin/clickhouse client --user=default --password=C1ickh0use --port=9000 --query='SELECT 1'); if [[ \"$OK\" == \"1\" ]]; then exit 0; else exit 1; fi"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 0.5
+            limits:
+              memory: 1Gi
+              cpu: 0.5
+          ports:
+            - containerPort: 9000
+            - containerPort: 8123
+          volumeMounts:
+            - name: common-configuration
+              subPath: config.xml
+              mountPath: /etc/clickhouse-server/config.xml
+            - name: instance-configuration
+              subPath: macros.xml
+              mountPath: /etc/clickhouse-server/config.d/macros.xml
+            - name: ck-datadir
+              mountPath: /var/lib/clickhouse
+      volumes:
+        - name: common-configuration
+          configMap:
+            name: clickhouse-my-release-configuration
+        - name: instance-configuration
+          configMap:
+            name: clickhouse-my-release-s0-r1-configuration
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: "clickhouse"
+                    app.kubernetes.io/instance: "my-release"
+                    clickhouse/component: clickhouse
+                    clickhouse/shard-index: "0"
+                topologyKey: kubernetes.io/hostname
+              weight: 20
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: "clickhouse"
+                    app.kubernetes.io/instance: "my-release"
+                    clickhouse/component: clickhouse
+                    clickhouse/replica-index: "1"
+                topologyKey: kubernetes.io/hostname
+              weight: 10
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: "clickhouse"
+                    app.kubernetes.io/instance: "my-release"
+                    clickhouse/component: clickhouse
+                topologyKey: kubernetes.io/hostname
+              weight: 5
+      securityContext:
+        runAsUser: 101
+        fsGroup: 101
+  volumeClaimTemplates:
+    - metadata:
+        name: ck-datadir
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+# Source: clickhouse/templates/zookeeper.yaml
+# Setup Zookeeper StatefulSet
+# Possible params:
+# 1. replicas
+# 2. memory
+# 3. cpu
+# 4. storage
+# 5. user to run app
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  # nodes would be named as zookeeper-0, zookeeper-1, zookeeper-2
+  name: zk-my-release
+  namespace: clickhouse-0.1.1.tgz
+spec:
+  selector:
+    matchLabels:
+      app: zk-my-release
+  serviceName: zk-server-my-release
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: zk-my-release
+        what: node
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: "app"
+                      operator: In
+                      values:
+                        - zk-my-release
+                topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: zookeeper
+          imagePullPolicy: IfNotPresent
+          image: radondb/zookeeper:3.6.2
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 0.5
+            limits:
+              memory: 1Gi
+              cpu: 0.5
+          ports:
+            - containerPort: 2181
+              name: client
+            - containerPort: 2888
+              name: server
+            - containerPort: 3888
+              name: leader-election
+          command:
+            - bash
+            - -x
+            - -c
+            - |
+              SERVERS=3 &&
+              HOST=`hostname -s` &&
+              DOMAIN=`hostname -d` &&
+              CLIENT_PORT=2181 &&
+              SERVER_PORT=2888 &&
+              ELECTION_PORT=3888 &&
+              ZOO_CONF_DIR=/conf &&
+              ZOO_DATA_DIR=/var/lib/zookeeper/data &&
+              ZOO_DATA_LOG_DIR=/var/lib/zookeeper/data_log &&
+              {
+                echo "clientPort=${CLIENT_PORT}"
+                echo 'tickTime=2000'
+                echo 'initLimit=30000'
+                echo 'syncLimit=10'
+                echo 'maxClientCnxns=2000'
+                echo 'maxSessionTimeout=60000000'
+                echo "dataDir=${ZOO_DATA_DIR}"
+                echo "dataLogDir=${ZOO_DATA_LOG_DIR}"
+                echo 'autopurge.snapRetainCount=10'
+                echo 'autopurge.purgeInterval=1'
+                echo 'preAllocSize=131072'
+                echo 'snapCount=3000000'
+                echo 'leaderServes=yes'
+                echo 'standaloneEnabled=true'
+                echo '4lw.commands.whitelist=stat, ruok, conf, isro'
+              } > /conf/zoo.cfg &&
+              {
+                echo "zookeeper.root.logger=CONSOLE"
+                echo "zookeeper.console.threshold=INFO"
+                echo "log4j.rootLogger=\${zookeeper.root.logger}"
+                echo "log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender"
+                echo "log4j.appender.CONSOLE.Threshold=\${zookeeper.console.threshold}"
+                echo "log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout"
+                echo "log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n"
+              } > /conf/log4j.properties &&
+              echo 'JVMFLAGS="-Xms128M -Xmx1G -XX:+CMSParallelRemarkEnabled"' > /conf/java.env &&
+              if [[ $HOST =~ (.*)-([0-9]+)$ ]]; then
+                  NAME=${BASH_REMATCH[1]}
+                  ORD=${BASH_REMATCH[2]}
+              else
+                  echo "Fialed to parse name and ordinal of Pod"
+                  exit 1
+              fi &&
+              mkdir -p ${ZOO_DATA_DIR} &&
+              mkdir -p ${ZOO_DATA_LOG_DIR} &&
+              export MY_ID=$((ORD+1)) &&
+              echo $MY_ID > $ZOO_DATA_DIR/myid &&
+              if [[ $SERVERS -gt 1 ]]; then
+                for (( i=1; i<=$SERVERS; i++ )); do
+                    echo "server.$i=$NAME-$((i-1)).$DOMAIN:$SERVER_PORT:$ELECTION_PORT" >> /conf/zoo.cfg;
+                done
+              fi &&
+              chown -Rv zookeeper "$ZOO_DATA_DIR" "$ZOO_DATA_LOG_DIR" "$ZOO_LOG_DIR" "$ZOO_CONF_DIR" &&
+              zkServer.sh start-foreground
+          # See those links for proper startup settings:
+          # https://github.com/kow3ns/kubernetes-zookeeper/blob/master/docker/scripts/start-zookeeper
+          # https://clickhouse.yandex/docs/en/operations/tips/#zookeeper
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - "OK=$(echo ruok | nc 127.0.0.1 2181); if [[ \"$OK\" == \"imok\" ]]; then exit 0; else exit 1; fi"
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - "OK=$(echo ruok | nc 127.0.0.1 2181); if [[ \"$OK\" == \"imok\" ]]; then exit 0; else exit 1; fi"
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: datadir-volume
+              mountPath: /var/lib/zookeeper
+  volumeClaimTemplates:
+    - metadata:
+        name: datadir-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+# Source: clickhouse/templates/configuration.yaml
+# This file is part of the ClickHouse Helm Chart
+#    https://github.com/radondb/clickhouse-cluster-helm
+#
+# Copyright 2021 TCeason <tai_chong@foxmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Source: clickhouse/templates/instances.yaml
+# This file is part of the ClickHouse Helm Chart
+#    https://github.com/radondb/clickhouse-cluster-helm
+#
+# Copyright 2021 TCeason <tai_chong@foxmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.

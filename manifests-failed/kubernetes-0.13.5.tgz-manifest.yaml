@@ -1,0 +1,1553 @@
+---
+# Source: kubernetes/templates/admin-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-admin-conf
+data:
+  admin.conf: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority: /pki/admin-client/ca.crt
+        server: https://my-release-kubernetes-apiserver:6443
+      name: default-cluster
+    contexts:
+    - context:
+        cluster: default-cluster
+        namespace: default
+        user: default-auth
+      name: default-context
+    current-context: default-context
+    kind: Config
+    preferences: {}
+    users:
+    - name: default-auth
+      user:
+        client-certificate: /pki/admin-client/tls.crt
+        client-key: /pki/admin-client/tls.key
+---
+# Source: kubernetes/templates/apiserver-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-apiserver-config
+data:
+  egress-selector-configuration.yaml: |
+    apiVersion: apiserver.k8s.io/v1beta1
+    kind: EgressSelectorConfiguration
+    egressSelections:
+    - name: cluster
+      connection:
+        proxyProtocol: Direct
+    - name: master
+      connection:
+        proxyProtocol: Direct
+    - name: etcd
+      connection:
+        proxyProtocol: Direct
+---
+# Source: kubernetes/templates/controller-manager-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-controller-manager-conf
+data:
+  controller-manager.conf: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority: /pki/controller-manager-client/ca.crt
+        server: https://my-release-kubernetes-apiserver:6443
+      name: default-cluster
+    contexts:
+    - context:
+        cluster: default-cluster
+        namespace: default
+        user: default-auth
+      name: default-context
+    current-context: default-context
+    kind: Config
+    preferences: {}
+    users:
+    - name: default-auth
+      user:
+        client-certificate: /pki/controller-manager-client/tls.crt
+        client-key: /pki/controller-manager-client/tls.key
+---
+# Source: kubernetes/templates/kubeadm-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-kubeadm-config
+data:
+  kubeadmcfg.yaml: |+
+    apiVersion: kubeadm.k8s.io/v1beta3
+    kind: ClusterConfiguration
+    controlPlaneEndpoint: my-release-kubernetes-apiserver:6443
+    networking:
+      dnsDomain: cluster.local
+      serviceSubnet: 10.96.0.0/12
+---
+# Source: kubernetes/templates/kubeadm-scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-kubeadm-scripts
+data:
+  configure-cluster.sh: |+
+    #!/bin/sh
+    set -e
+    set -x
+    ENDPOINT=$(awk -F'[ "]+' '$1 == "controlPlaneEndpoint:" {print $2}' /config/kubeadmcfg.yaml)
+    
+    # ------------------------------------------------------------------------------
+    # Update secrets and component configs
+    # ------------------------------------------------------------------------------
+    
+    # wait for cluster
+    echo "Waiting for api-server endpoint ${ENDPOINT}..."
+    until kubectl cluster-info >/dev/null 2>/dev/null; do
+      sleep 1
+    done
+    
+    # ------------------------------------------------------------------------------
+    # Cluster configuration
+    # ------------------------------------------------------------------------------
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    
+    # upload configuration
+    # TODO: https://github.com/kubefarm/kubernetes-in-kubernetes/issues/6
+    kubeadm init phase upload-config kubeadm --config /config/kubeadmcfg.yaml
+    
+    # upload configuration
+    # TODO: https://github.com/kubefarm/kubernetes-in-kubernetes/issues/5
+    kubeadm init phase upload-config kubelet --config /config/kubeadmcfg.yaml -v1 2>&1 |
+      while read line; do echo "$line" | grep 'Preserving the CRISocket information for the control-plane node' && killall kubeadm || echo "$line"; done
+    
+    # setup bootstrap-tokens
+    # TODO: https://github.com/kubefarm/kubernetes-in-kubernetes/issues/7
+    # TODO: https://github.com/kubernetes/kubernetes/issues/98881
+    flatconfig=$(mktemp)
+    kubectl config view --flatten > "$flatconfig"
+    kubeadm init phase bootstrap-token --config /config/kubeadmcfg.yaml --skip-token-print --kubeconfig="$flatconfig"
+    rm -f "$flatconfig"
+    
+    # correct apiserver address for the external clients
+    kubectl apply -n kube-public -f - <<EOT
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: cluster-info
+    data:
+      kubeconfig: |
+        apiVersion: v1
+        clusters:
+        - cluster:
+            certificate-authority-data: $(base64 /pki/admin-client/ca.crt | tr -d '\n')
+            server: https://${ENDPOINT}
+          name: ""
+        contexts: null
+        current-context: ""
+        kind: Config
+        preferences: {}
+        users: null
+    EOT
+    
+    kubectl delete -f /manifests/konnectivity-server-rbac.yaml 2>/dev/null || true
+    
+    # uninstall konnectivity agent
+    kubectl delete -f /manifests/konnectivity-agent-deployment.yaml -f /manifests/konnectivity-agent-rbac.yaml 2>/dev/null || true
+    
+    # install coredns addon
+    kubectl apply -f /manifests/coredns.yaml
+    
+    # install kube-proxy addon
+    # TODO: https://github.com/kubefarm/kubernetes-in-kubernetes/issues/4
+    kubeadm init phase addon kube-proxy --config /config/kubeadmcfg.yaml
+---
+# Source: kubernetes/templates/kubedns-manifests.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-coredns-manifests
+data:
+  coredns.yaml: |
+    # Source: https://github.com/kubernetes/kubernetes/blob/master/cluster/addons/dns/coredns/coredns.yaml.base
+    ---
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: coredns
+      namespace: kube-system
+      labels:
+          kubernetes.io/cluster-service: "true"
+          addonmanager.kubernetes.io/mode: Reconcile
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        kubernetes.io/bootstrapping: rbac-defaults
+        addonmanager.kubernetes.io/mode: Reconcile
+      name: system:coredns
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - endpoints
+      - services
+      - pods
+      - namespaces
+      verbs:
+      - list
+      - watch
+    - apiGroups:
+      - ""
+      resources:
+      - nodes
+      verbs:
+      - get
+    - apiGroups:
+      - discovery.k8s.io
+      resources:
+      - endpointslices
+      verbs:
+      - list
+      - watch
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      annotations:
+        rbac.authorization.kubernetes.io/autoupdate: "true"
+      labels:
+        kubernetes.io/bootstrapping: rbac-defaults
+        addonmanager.kubernetes.io/mode: EnsureExists
+      name: system:coredns
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: system:coredns
+    subjects:
+    - kind: ServiceAccount
+      name: coredns
+      namespace: kube-system
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: coredns
+      namespace: kube-system
+    data:
+      Corefile: |
+        .:53 {
+            errors
+            health {
+                lameduck 5s
+            }
+            ready
+            kubernetes cluster.local in-addr.arpa ip6.arpa {
+                pods insecure
+                fallthrough in-addr.arpa ip6.arpa
+                ttl 30
+            }
+            prometheus :9153
+            forward . /etc/resolv.conf {
+                max_concurrent 1000
+            }
+            cache 30
+            loop
+            reload
+            loadbalance
+        }
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: coredns
+      namespace: kube-system
+      labels:
+        k8s-app: kube-dns
+        kubernetes.io/cluster-service: "true"
+        addonmanager.kubernetes.io/mode: Reconcile
+        kubernetes.io/name: "CoreDNS"
+    spec:
+      replicas: 2
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 1
+      selector:
+        matchLabels:
+          k8s-app: kube-dns
+      template:
+        metadata:
+          labels:
+            k8s-app: kube-dns
+        spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          priorityClassName: system-cluster-critical
+          serviceAccountName: coredns
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                      - key: k8s-app
+                        operator: In
+                        values: ["kube-dns"]
+                  topologyKey: kubernetes.io/hostname
+          tolerations:
+            - key: "CriticalAddonsOnly"
+              operator: "Exists"
+          nodeSelector:
+            kubernetes.io/os: linux
+          containers:
+          - name: coredns
+            image: "coredns/coredns:1.8.6"
+            imagePullPolicy: IfNotPresent
+            resources:
+              limits:
+                memory: 170Mi
+              requests:
+                cpu: 100m
+                memory: 70Mi
+            args: [ "-conf", "/etc/coredns/Corefile" ]
+            volumeMounts:
+            - name: config-volume
+              mountPath: /etc/coredns
+              readOnly: true
+            ports:
+            - containerPort: 53
+              name: dns
+              protocol: UDP
+            - containerPort: 53
+              name: dns-tcp
+              protocol: TCP
+            - containerPort: 9153
+              name: metrics
+              protocol: TCP
+            livenessProbe:
+              httpGet:
+                path: /health
+                port: 8080
+                scheme: HTTP
+              initialDelaySeconds: 60
+              timeoutSeconds: 5
+              successThreshold: 1
+              failureThreshold: 5
+            readinessProbe:
+              httpGet:
+                path: /ready
+                port: 8181
+                scheme: HTTP
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                add:
+                - NET_BIND_SERVICE
+                drop:
+                - all
+              readOnlyRootFilesystem: true
+          dnsPolicy: Default
+          volumes:
+            - name: config-volume
+              configMap:
+                name: coredns
+                items:
+                - key: Corefile
+                  path: Corefile
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: kube-dns
+      namespace: kube-system
+      annotations:
+        prometheus.io/port: "9153"
+        prometheus.io/scrape: "true"
+      labels:
+        k8s-app: kube-dns
+        kubernetes.io/cluster-service: "true"
+        addonmanager.kubernetes.io/mode: Reconcile
+        kubernetes.io/name: "CoreDNS"
+    spec:
+      selector:
+        k8s-app: kube-dns
+      clusterIP: 10.96.0.10
+      ports:
+      - name: dns
+        port: 53
+        protocol: UDP
+      - name: dns-tcp
+        port: 53
+        protocol: TCP
+      - name: metrics
+        port: 9153
+        protocol: TCP
+---
+# Source: kubernetes/templates/scheduler-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-scheduler-conf
+data:
+  scheduler.conf: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority: /pki/scheduler-client/ca.crt
+        server: https://my-release-kubernetes-apiserver:6443
+      name: default-cluster
+    contexts:
+    - context:
+        cluster: default-cluster
+        namespace: default
+        user: default-auth
+      name: default-context
+    current-context: default-context
+    kind: Config
+    preferences: {}
+    users:
+    - name: default-auth
+      user:
+        client-certificate: /pki/scheduler-client/tls.crt
+        client-key: /pki/scheduler-client/tls.key
+---
+# Source: kubernetes/templates/apiserver-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubernetes-apiserver
+  labels:
+    app: my-release-kubernetes-apiserver
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6443
+    name: client
+  selector:
+    app: my-release-kubernetes-apiserver
+---
+# Source: kubernetes/templates/controller-manager-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubernetes-controller-manager
+  labels:
+    app: my-release-kubernetes-controller-manager
+spec:
+  type: ClusterIP
+  ports:
+  - port: 10257
+    name: client
+  selector:
+    app: my-release-kubernetes-controller-manager
+---
+# Source: kubernetes/templates/etcd-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubernetes-etcd
+  labels:
+    app: my-release-kubernetes-etcd
+spec:
+  type: ClusterIP
+  publishNotReadyAddresses: true
+  clusterIP: None
+  ports:
+  - port: 2379
+    name: client
+  - port: 2380
+    name: peer
+  - port: 2381
+    name: metrics
+  selector:
+    app: my-release-kubernetes-etcd
+---
+# Source: kubernetes/templates/scheduler-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubernetes-scheduler
+  labels:
+    app: my-release-kubernetes-scheduler
+spec:
+  type: ClusterIP
+  ports:
+  - port: 10259
+    name: client
+  selector:
+    app: my-release-kubernetes-scheduler
+---
+# Source: kubernetes/templates/admin-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kubernetes-admin"
+  labels:
+    app: "my-release-kubernetes-admin"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "my-release-kubernetes-admin"
+  template:
+    metadata:
+      labels:
+        app: "my-release-kubernetes-admin"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-admin
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 5
+      containers:
+      - command: [ 'sleep', 'infinity' ]
+        image: "ghcr.io/kvaps/kubernetes-tools:v0.13.5"
+        imagePullPolicy: IfNotPresent
+        name: admin
+        readinessProbe:
+          exec:
+            command:
+            - kubectl
+            - auth
+            - can-i
+            - '*'
+            - '*'
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        - name: KUBECONFIG
+          value: "/etc/kubernetes/admin.conf"
+        volumeMounts:
+        - mountPath: /etc/kubernetes/
+          name: kubeconfig
+          readOnly: true
+        - mountPath: /pki/admin-client
+          name: pki-admin-client
+        - mountPath: /scripts
+          name: scripts
+        - mountPath: /config
+          name: config
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - configMap:
+          name: "my-release-kubernetes-admin-conf"
+        name: kubeconfig
+      - secret:
+          secretName: "my-release-kubernetes-pki-admin-client"
+        name: pki-admin-client
+      - name: scripts
+        configMap:
+          name: "my-release-kubernetes-kubeadm-scripts"
+          defaultMode: 0777
+      - name: config
+        configMap:
+          name: "my-release-kubernetes-kubeadm-config"
+---
+# Source: kubernetes/templates/apiserver-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kubernetes-apiserver"
+  labels:
+    app: "my-release-kubernetes-apiserver"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "my-release-kubernetes-apiserver"
+  template:
+    metadata:
+      labels:
+        app: "my-release-kubernetes-apiserver"
+      annotations:
+        checksum/config: ef75c983516b0fba42def034009e10d154aa0ce19b0aaf325644cd73cf4a05a1
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-apiserver
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - kube-apiserver
+        - --allow-privileged=true
+        - --authorization-mode=Node,RBAC
+        - --bind-address=0.0.0.0
+        - --client-ca-file=/pki/apiserver-server/ca.crt
+        - --enable-admission-plugins=NodeRestriction
+        - --enable-bootstrap-token-auth=true
+        - --etcd-cafile=/pki/apiserver-etcd-client/ca.crt
+        - --etcd-certfile=/pki/apiserver-etcd-client/tls.crt
+        - --etcd-keyfile=/pki/apiserver-etcd-client/tls.key
+        - --etcd-servers=https://my-release-kubernetes-etcd-0.my-release-kubernetes-etcd:2379,https://my-release-kubernetes-etcd-1.my-release-kubernetes-etcd:2379,https://my-release-kubernetes-etcd-2.my-release-kubernetes-etcd:2379
+        - --insecure-port=0
+        - --kubelet-client-certificate=/pki/apiserver-kubelet-client/tls.crt
+        - --kubelet-client-key=/pki/apiserver-kubelet-client/tls.key
+        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+        - --proxy-client-cert-file=/pki/front-proxy-client/tls.crt
+        - --proxy-client-key-file=/pki/front-proxy-client/tls.key
+        - --requestheader-allowed-names=my-release-kubernetes-front-proxy-client
+        - --requestheader-client-ca-file=/pki/front-proxy-client/ca.crt
+        - --requestheader-extra-headers-prefix=X-Remote-Extra-
+        - --requestheader-group-headers=X-Remote-Group
+        - --requestheader-username-headers=X-Remote-User
+        - --secure-port=6443
+        - --service-account-key-file=/pki/sa/tls.crt
+        - --service-cluster-ip-range=10.96.0.0/12
+        - --tls-cert-file=/pki/apiserver-server/tls.crt
+        - --tls-private-key-file=/pki/apiserver-server/tls.key
+        - --egress-selector-config-file=/etc/kubernetes/egress-selector-configuration.yaml
+        - --service-account-issuer=https://kubernetes.default.svc.cluster.local
+        - --service-account-signing-key-file=/pki/sa/tls.key
+        ports:
+        - containerPort: 6443
+          name: client
+        image: "k8s.gcr.io/kube-apiserver:v1.22.4"
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /livez
+            port: 6443
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          timeoutSeconds: 15
+        name: kube-apiserver
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /etc/kubernetes
+          name: apiserver-config
+        - mountPath: /pki/front-proxy-client
+          name: pki-front-proxy-client
+        - mountPath: /pki/apiserver-server
+          name: pki-apiserver-server
+        - mountPath: /pki/apiserver-etcd-client
+          name: pki-apiserver-etcd-client
+        - mountPath: /pki/apiserver-kubelet-client
+          name: pki-apiserver-kubelet-client
+        - mountPath: /pki/sa
+          name: pki-sa
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - configMap:
+          name: "my-release-kubernetes-apiserver-config"
+        name: apiserver-config
+      - secret:
+          secretName: "my-release-kubernetes-pki-front-proxy-client"
+        name: pki-front-proxy-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-apiserver-server"
+        name: pki-apiserver-server
+      - secret:
+          secretName: "my-release-kubernetes-pki-apiserver-etcd-client"
+        name: pki-apiserver-etcd-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-apiserver-kubelet-client"
+        name: pki-apiserver-kubelet-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-sa"
+        name: pki-sa
+---
+# Source: kubernetes/templates/controller-manager-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kubernetes-controller-manager"
+  labels:
+    app: "my-release-kubernetes-controller-manager"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "my-release-kubernetes-controller-manager"
+  template:
+    metadata:
+      labels:
+        app: "my-release-kubernetes-controller-manager"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-controller-manager
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - kube-controller-manager
+        - --authentication-kubeconfig=/etc/kubernetes/controller-manager.conf
+        - --authorization-kubeconfig=/etc/kubernetes/controller-manager.conf
+        - --bind-address=0.0.0.0
+        - --client-ca-file=/pki/ca/tls.crt
+        - --cluster-name=kubernetes
+        - --cluster-signing-cert-file=/pki/ca/tls.crt
+        - --cluster-signing-key-file=/pki/ca/tls.key
+        - --controllers=*,bootstrapsigner,tokencleaner
+        - --kubeconfig=/etc/kubernetes/controller-manager.conf
+        - --leader-elect=true
+        - --requestheader-client-ca-file=/pki/front-proxy-client/tls.crt
+        - --root-ca-file=/pki/ca/tls.crt
+        - --secure-port=10257
+        - --service-account-private-key-file=/pki/sa/tls.key
+        - --use-service-account-credentials=true
+        - --tls-cert-file=/pki/controller-manager-server/tls.crt
+        - --tls-private-key-file=/pki/controller-manager-server/tls.key
+        - --service-cluster-ip-range=10.96.0.0/12
+        
+        image: "k8s.gcr.io/kube-controller-manager:v1.22.4"
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /healthz
+            port: 10257
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          timeoutSeconds: 15
+        name: kube-controller-manager
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /etc/kubernetes/
+          name: kubeconfig
+          readOnly: true
+        - mountPath: /pki/controller-manager-server
+          name: pki-controller-manager-server
+        - mountPath: /pki/controller-manager-client
+          name: pki-controller-manager-client
+        - mountPath: /pki/ca
+          name: pki-ca
+        - mountPath: /pki/front-proxy-client
+          name: pki-front-proxy-client
+        - mountPath: /pki/sa
+          name: pki-sa
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - configMap:
+          name: "my-release-kubernetes-controller-manager-conf"
+        name: kubeconfig
+      - secret:
+          secretName: "my-release-kubernetes-pki-controller-manager-server"
+        name: pki-controller-manager-server
+      - secret:
+          secretName: "my-release-kubernetes-pki-controller-manager-client"
+        name: pki-controller-manager-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-ca"
+        name: pki-ca
+      - secret:
+          secretName: "my-release-kubernetes-pki-front-proxy-client"
+        name: pki-front-proxy-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-sa"
+        name: pki-sa
+---
+# Source: kubernetes/templates/scheduler-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kubernetes-scheduler"
+  labels:
+    app: "my-release-kubernetes-scheduler"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "my-release-kubernetes-scheduler"
+  template:
+    metadata:
+      labels:
+        app: "my-release-kubernetes-scheduler"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-scheduler
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - kube-scheduler
+        - --authentication-kubeconfig=/etc/kubernetes/scheduler.conf
+        - --authorization-kubeconfig=/etc/kubernetes/scheduler.conf
+        - --bind-address=0.0.0.0
+        - --kubeconfig=/etc/kubernetes/scheduler.conf
+        - --leader-elect=true
+        - --secure-port=10259
+        - --tls-cert-file=/pki/scheduler-server/tls.crt
+        - --tls-private-key-file=/pki/scheduler-server/tls.key
+        image: "k8s.gcr.io/kube-scheduler:v1.22.4"
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /healthz
+            port: 10259
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          timeoutSeconds: 15
+        name: kube-scheduler
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /etc/kubernetes/
+          name: kubeconfig
+          readOnly: true
+        - mountPath: /pki/scheduler-server
+          name: pki-scheduler-server
+        - mountPath: /pki/scheduler-client
+          name: pki-scheduler-client
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - configMap:
+          name: "my-release-kubernetes-scheduler-conf"
+        name: kubeconfig
+      - secret:
+          secretName: "my-release-kubernetes-pki-scheduler-server"
+        name: pki-scheduler-server
+      - secret:
+          secretName: "my-release-kubernetes-pki-scheduler-client"
+        name: pki-scheduler-client
+---
+# Source: kubernetes/templates/etcd-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-kubernetes-etcd
+  labels:
+    app: my-release-kubernetes-etcd
+spec:
+  replicas: 3
+  serviceName: my-release-kubernetes-etcd
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: my-release-kubernetes-etcd
+  template:
+    metadata:
+      name: my-release-kubernetes-etcd
+      labels:
+        app: my-release-kubernetes-etcd
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-etcd
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - etcd
+        - --advertise-client-urls=https://$(POD_NAME).my-release-kubernetes-etcd:2379
+        - --cert-file=/pki/etcd/server/tls.crt
+        - --client-cert-auth=true
+        - --data-dir=/var/lib/etcd
+        - --initial-advertise-peer-urls=https://$(POD_NAME).my-release-kubernetes-etcd:2380
+        - --initial-cluster=my-release-kubernetes-etcd-0=https://my-release-kubernetes-etcd-0.my-release-kubernetes-etcd:2380,my-release-kubernetes-etcd-1=https://my-release-kubernetes-etcd-1.my-release-kubernetes-etcd:2380,my-release-kubernetes-etcd-2=https://my-release-kubernetes-etcd-2.my-release-kubernetes-etcd:2380
+        - --initial-cluster-state=new
+        - --initial-cluster-token=my-release-kubernetes-etcd
+        - --key-file=/pki/etcd/server/tls.key
+        - --listen-client-urls=https://0.0.0.0:2379
+        - --listen-peer-urls=https://0.0.0.0:2380
+        - --listen-metrics-urls=http://0.0.0.0:2381
+        - --name=$(POD_NAME)
+        - --peer-cert-file=/pki/etcd/peer/tls.crt
+        - --peer-client-cert-auth=true
+        - --peer-key-file=/pki/etcd/peer/tls.key
+        - --peer-trusted-ca-file=/pki/etcd/ca/tls.crt
+        - --snapshot-count=10000
+        - --trusted-ca-file=/pki/etcd/ca/tls.crt
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ETCDCTL_API
+          value: "3"
+        - name: ETCDCTL_CACERT
+          value: /pki/etcd/peer/ca.crt
+        - name: ETCDCTL_CERT
+          value: /pki/etcd/peer/tls.crt
+        - name: ETCDCTL_KEY
+          value: /pki/etcd/peer/tls.key 
+        - name: ETCDCTL_ENDPOINTS
+          value: https://my-release-kubernetes-etcd-0.my-release-kubernetes-etcd:2379,https://my-release-kubernetes-etcd-1.my-release-kubernetes-etcd:2379,https://my-release-kubernetes-etcd-2.my-release-kubernetes-etcd:2379
+        image: "k8s.gcr.io/etcd:3.5.1-0"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 2379
+          name: client
+        - containerPort: 2380
+          name: peer
+        - containerPort: 2381
+          name: metrics
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /health
+            port: 2381
+            scheme: HTTP
+          initialDelaySeconds: 15
+          timeoutSeconds: 15
+        name: etcd
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /pki/etcd/ca
+          name: pki-etcd-certs-ca
+        - mountPath: /pki/etcd/peer
+          name: pki-etcd-certs-peer
+        - mountPath: /pki/etcd/server
+          name: pki-etcd-certs-server
+        - mountPath: /var/lib/etcd
+          name: etcd-data
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - secret:
+          secretName: my-release-kubernetes-pki-etcd-ca
+        name: pki-etcd-certs-ca
+      - secret:
+          secretName: my-release-kubernetes-pki-etcd-peer
+        name: pki-etcd-certs-peer
+      - secret:
+          secretName: my-release-kubernetes-pki-etcd-server
+        name: pki-etcd-certs-server
+  volumeClaimTemplates:
+  - metadata:
+      name: etcd-data
+      labels:
+        app: my-release-kubernetes-etcd
+      finalizers:
+        - kubernetes.io/pvc-protection
+    spec:
+      accessModes:
+        - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: "1Gi"
+---
+# Source: kubernetes/templates/kubeadm-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "my-release-kubernetes-kubeadm-tasks"
+  labels:
+    app: "my-release-kubernetes-kubeadm-tasks"
+spec:
+  schedule: "0 0 1 */6 *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app: "my-release-kubernetes-kubeadm-tasks"
+      annotations:
+        checksum/config: 0ac8eb1d66c17884fb59ab8112f26a97a76364c4c7aaee04f03a35a9350eeaa0
+        checksum/scripts: 076e868660c4eeada20474ef02a0b52daa4115586c304e748f711253f7d88a9b
+    spec:
+      template:
+        metadata:
+          labels:
+            app: my-release-kubernetes-kubeadm-tasks
+        spec:
+          automountServiceAccountToken: false
+          containers:
+          - command:
+            - /scripts/configure-cluster.sh
+            env:
+            - name: KUBECONFIG
+              value: /etc/kubernetes/admin.conf
+            image: ghcr.io/kvaps/kubernetes-tools:v0.13.5
+            imagePullPolicy: IfNotPresent
+            name: kubeadm
+            volumeMounts:
+            - mountPath: /etc/kubernetes/
+              name: kubeconfig
+              readOnly: true
+            - mountPath: /pki/admin-client
+              name: pki-admin-client
+            - mountPath: /scripts
+              name: scripts
+            - mountPath: /manifests
+              name: manifests
+            - mountPath: /config
+              name: config
+          restartPolicy: OnFailure
+          volumes:
+          - configMap:
+              name: my-release-kubernetes-admin-conf
+            name: kubeconfig
+          - name: pki-admin-client
+            secret:
+              secretName: my-release-kubernetes-pki-admin-client
+          - configMap:
+              defaultMode: 511
+              name: my-release-kubernetes-kubeadm-scripts
+            name: scripts
+          - name: manifests
+            projected:
+              sources:
+              - configMap:
+                  name: my-release-kubernetes-coredns-manifests
+          - configMap:
+              name: my-release-kubernetes-kubeadm-config
+            name: config
+---
+# Source: kubernetes/templates/etcd-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-etcd-ca"
+spec:
+  commonName: "my-release-kubernetes-etcd-ca"
+  secretName: "my-release-kubernetes-pki-etcd-ca"
+  duration: 87600h # 3650d
+  renewBefore: 8760h # 365d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "cert sign"
+  isCA: true
+  issuerRef:
+    name: "my-release-kubernetes-selfsigning-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/etcd-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-etcd-peer"
+spec:
+  commonName: "my-release-kubernetes-etcd-peer"
+  secretName: "my-release-kubernetes-pki-etcd-peer"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  - "client auth"
+  dnsNames:
+  - "my-release-kubernetes-etcd"
+  - "my-release-kubernetes-etcd.kubernetes-0.13.5.tgz"
+  - "my-release-kubernetes-etcd.kubernetes-0.13.5.tgz.svc"
+  - "*.my-release-kubernetes-etcd"
+  - "*.my-release-kubernetes-etcd.kubernetes-0.13.5.tgz"
+  - "*.my-release-kubernetes-etcd.kubernetes-0.13.5.tgz.svc"
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-etcd-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/etcd-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-etcd-server"
+spec:
+  commonName: "my-release-kubernetes-etcd-server"
+  secretName: "my-release-kubernetes-pki-etcd-server"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  - "client auth"
+  dnsNames:
+  - "my-release-kubernetes-etcd"
+  - "my-release-kubernetes-etcd.kubernetes-0.13.5.tgz"
+  - "my-release-kubernetes-etcd.kubernetes-0.13.5.tgz.svc"
+  - "*.my-release-kubernetes-etcd"
+  - "*.my-release-kubernetes-etcd.kubernetes-0.13.5.tgz"
+  - "*.my-release-kubernetes-etcd.kubernetes-0.13.5.tgz.svc"
+  - "my-release-kubernetes-etcd-client"
+  - "my-release-kubernetes-etcd-client.kubernetes-0.13.5.tgz"
+  - "my-release-kubernetes-etcd-client.kubernetes-0.13.5.tgz.svc"
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-etcd-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/etcd-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-etcd-healthcheck-client"
+spec:
+  commonName: "my-release-kubernetes-etcd-healthcheck-client"
+  secretName: "my-release-kubernetes-pki-etcd-healthcheck-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-etcd-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/etcd-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-apiserver-etcd-client"
+spec:
+  commonName: "my-release-kubernetes-apiserver-etcd-client"
+  secretName: "my-release-kubernetes-pki-apiserver-etcd-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-etcd-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-ca"
+spec:
+  commonName: "my-release-kubernetes-ca"
+  secretName: "my-release-kubernetes-pki-ca"
+  duration: 87600h # 3650d
+  renewBefore: 8760h # 365d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "cert sign"
+  isCA: true
+  issuerRef:
+    name: "my-release-kubernetes-selfsigning-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-sa"
+spec:
+  commonName: "my-release-kubernetes-sa"
+  secretName: "my-release-kubernetes-pki-sa"
+  duration: 87600h # 3650d
+  renewBefore: 8760h # 365d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "cert sign"
+  isCA: true
+  issuerRef:
+    name: "my-release-kubernetes-selfsigning-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-controller-manager-server"
+spec:
+  commonName: "my-release-kubernetes-controller-manager-server"
+  secretName: "my-release-kubernetes-pki-controller-manager-server"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  dnsNames:
+  - "my-release-kubernetes-controller-manager"
+  - "my-release-kubernetes-controller-manager.kubernetes-0.13.5.tgz"
+  - "my-release-kubernetes-controller-manager.kubernetes-0.13.5.tgz.svc"
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  - "10.96.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-scheduler-server"
+spec:
+  commonName: "my-release-kubernetes-scheduler-server"
+  secretName: "my-release-kubernetes-pki-scheduler-server"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  dnsNames:
+  - "my-release-kubernetes-scheduler"
+  - "my-release-kubernetes-scheduler.kubernetes-0.13.5.tgz"
+  - "my-release-kubernetes-scheduler.kubernetes-0.13.5.tgz.svc"
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  - "10.96.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-apiserver-server"
+spec:
+  commonName: "my-release-kubernetes-apiserver-server"
+  secretName: "my-release-kubernetes-pki-apiserver-server"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  dnsNames:
+  - "my-release-kubernetes-apiserver"
+  - "my-release-kubernetes-apiserver.kubernetes-0.13.5.tgz"
+  - "my-release-kubernetes-apiserver.kubernetes-0.13.5.tgz.svc"
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  - "10.96.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-controller-manager-client"
+spec:
+  commonName: "system:kube-controller-manager"
+  secretName: "my-release-kubernetes-pki-controller-manager-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:kube-controller-manager"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-scheduler-client"
+spec:
+  commonName: "system:kube-scheduler"
+  secretName: "my-release-kubernetes-pki-scheduler-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:kube-scheduler"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-konnectivity-server-client"
+spec:
+  commonName: "system:konnectivity-server"
+  secretName: "my-release-kubernetes-pki-konnectivity-server-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:konnectivity-server"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-admin-client"
+spec:
+  commonName: "my-release-kubernetes-admin-client"
+  secretName: "my-release-kubernetes-pki-admin-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-apiserver-kubelet-client"
+spec:
+  commonName: "my-release-kubernetes-apiserver-kubelet-client"
+  secretName: "my-release-kubernetes-pki-apiserver-kubelet-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-front-proxy-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-front-proxy-ca"
+spec:
+  commonName: "my-release-kubernetes-front-proxy-ca"
+  secretName: "my-release-kubernetes-pki-front-proxy-ca"
+  duration: 87600h # 3650d
+  renewBefore: 8760h # 365d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "cert sign"
+  isCA: true
+  issuerRef:
+    name: "my-release-kubernetes-selfsigning-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/kubernetes-front-proxy-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-front-proxy-client"
+spec:
+  commonName: "my-release-kubernetes-front-proxy-client"
+  secretName: "my-release-kubernetes-pki-front-proxy-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-front-proxy-issuer"
+    kind: Issuer
+---
+# Source: kubernetes/templates/etcd-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: "my-release-kubernetes-etcd-issuer"
+spec:
+  ca:
+    secretName: "my-release-kubernetes-pki-etcd-ca"
+---
+# Source: kubernetes/templates/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: "my-release-kubernetes-issuer"
+spec:
+  ca:
+    secretName: "my-release-kubernetes-pki-ca"
+---
+# Source: kubernetes/templates/kubernetes-front-proxy-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: "my-release-kubernetes-front-proxy-issuer"
+spec:
+  ca:
+    secretName: "my-release-kubernetes-pki-front-proxy-ca"
+---
+# Source: kubernetes/templates/selfsigning-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: "my-release-kubernetes-selfsigning-issuer"
+spec:
+  selfSigned: {}
+---
+# Source: kubernetes/templates/kubeadm-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-kubernetes-kubeadm-tasks"
+  labels:
+    app: "my-release-kubernetes-kubeadm-tasks"
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+    checksum/config: 0ac8eb1d66c17884fb59ab8112f26a97a76364c4c7aaee04f03a35a9350eeaa0
+    checksum/scripts: 076e868660c4eeada20474ef02a0b52daa4115586c304e748f711253f7d88a9b
+spec:
+  template:
+    metadata:
+      labels:
+        app: "my-release-kubernetes-kubeadm-tasks"
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      containers:
+      - name: kubeadm
+        image: "ghcr.io/kvaps/kubernetes-tools:v0.13.5"
+        imagePullPolicy: IfNotPresent
+        command: [ '/scripts/configure-cluster.sh' ]
+        env:
+        - name: KUBECONFIG
+          value: "/etc/kubernetes/admin.conf"
+        volumeMounts:
+        - mountPath: /etc/kubernetes/
+          name: kubeconfig
+          readOnly: true
+        - mountPath: /pki/admin-client
+          name: pki-admin-client
+        - mountPath: /scripts
+          name: scripts
+        - mountPath: /manifests
+          name: manifests
+        - mountPath: /config
+          name: config
+      volumes:
+      - configMap:
+          name: "my-release-kubernetes-admin-conf"
+        name: kubeconfig
+      - secret:
+          secretName: "my-release-kubernetes-pki-admin-client"
+        name: pki-admin-client
+      - name: scripts
+        configMap:
+          name: "my-release-kubernetes-kubeadm-scripts"
+          defaultMode: 0777
+      - name: manifests
+        projected:
+          sources:
+          - configMap:
+              name: "my-release-kubernetes-coredns-manifests"
+      - name: config
+        configMap:
+          name: "my-release-kubernetes-kubeadm-config"

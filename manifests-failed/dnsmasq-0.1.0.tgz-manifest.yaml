@@ -1,0 +1,69 @@
+---
+# Source: dnsmasq/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-cm
+data:
+  dnsmasq.conf: |
+    #dnsmasq config, for a complete example, see:
+    #  http://oss.segetech.com/intra/srv/dnsmasq.conf
+    #log all dns queries
+    log-queries
+    #dont use hosts nameservers
+    no-resolv
+    #use 114 as default nameservers
+    server=114.114.114.114
+    #explicitly define host-ip mappings
+---
+# Source: dnsmasq/templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    choerodon.io/release: "my-release"
+    choerodon.io/infra: "dnsmasq"
+    choerodon.io/logs-parser: "docker"
+  name: my-release
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      choerodon.io/release: "my-release"
+      choerodon.io/infra: "dnsmasq"
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        choerodon.io/release: "my-release"
+        choerodon.io/infra: "dnsmasq"
+    spec:
+      containers:
+      - name: my-release
+        env:
+        - name: "HTTP_PASS"
+          value: "password"
+        - name: "HTTP_USER"
+          value: "admin"
+        image: registry.cn-hangzhou.aliyuncs.com/choerodon-tools/dnsmasq:2.78
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 53
+          name: dnsmasq
+          protocol: UDP
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /etc/dnsmasq.conf
+          name: config
+          subPath: dnsmasq.conf
+      volumes:
+      - name: config
+        configMap:
+          defaultMode: 420
+          name: my-release-cm

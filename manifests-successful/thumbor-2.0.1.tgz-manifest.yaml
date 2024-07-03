@@ -1,0 +1,114 @@
+---
+# Source: thumbor/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-thumbor-config
+  labels:
+    heritage: Helm
+    release: my-release
+    chart: thumbor-2.0.1
+    app: thumbor
+data:
+  thumbor.conf: |
+    ALLOWED_SOURCES =  ['http://domain_or_wildcard', 'comma_seperated']
+    FILE_STORAGE_ROOT_PATH = '/data/storage/source'
+    DETECTORS = []
+    FACE_DETECTOR_CASCADE_FILE = 'haarcascade_frontalface_alt.xml'
+    GLASSES_DETECTOR_CASCADE_FILE = 'haarcascade_eye_tree_eyeglasses.xml'
+    PROFILE_DETECTOR_CASCADE_FILE = 'haarcascade_profileface.xml'
+    RESULT_STORAGE_FILE_STORAGE_ROOT_PATH = '/data/storage/result'
+---
+# Source: thumbor/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-thumbor
+  labels:
+    app: thumbor
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: thumbor
+  selector:
+    app: thumbor
+    release: my-release
+---
+# Source: thumbor/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-thumbor
+  labels:
+    chart: thumbor
+    app: thumbor
+    chart: thumbor-2.0.1
+    release: my-release
+    heritage: Helm    
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thumbor
+      release: my-release  
+  template:
+    metadata:
+      labels:
+        app: thumbor
+        release: my-release   
+      annotations:
+        checksum/config: 55c592c4be8dcfb5ee5e778a49c07e073cd9726e4ee8d91b1ced8aa11321a98f             
+    spec:
+      volumes:
+      - name: my-release-thumbor-storage
+        emptyDir: {}
+        
+      - name: my-release-thumbor-config
+        configMap:
+          name: my-release-thumbor-config  
+      containers:
+      - name: thumbor
+        image: "registry.hub.docker.com/thumbororg/thumbor:7.3-py-3.10"
+        imagePullPolicy: IfNotPresent
+        args:
+          - "-c" 
+          - "/app/thumbor.conf"
+        ports:
+        - name: http
+          containerPort: 80
+        env:
+        - name: "ALLOW_UNSAFE_URL"
+          value: "True"
+        - name: "AUTO_WEBP"
+          value: "True"
+        - name: "CORS_ALLOW_ORIGIN"
+          value: "*"
+        - name: "HEALTHCHECK_ROUTE"
+          value: "/healthcheck"
+        - name: "LOG_LEVEL"
+          value: "error"
+        - name: "SEND_IF_MODIFIED_LAST_MODIFIED_HEADERS"
+          value: "True"
+        - name: "THUMBOR_LOG_CONFIG"
+          value: "None"
+        - name: "THUMBOR_PORT"
+          value: "80"
+        volumeMounts:
+        - name: my-release-thumbor-storage
+          mountPath: /data/storage
+          readOnly: false
+        - name: my-release-thumbor-config
+          mountPath: "/app/thumbor.conf"       
+          subPath: "thumbor.conf"         
+        resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 1
+              memory: 512Mi

@@ -1,0 +1,692 @@
+---
+# Source: pomerium/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pomerium-authenticate
+  labels:
+    app.kubernetes.io/name: my-release-pomerium-authenticate
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: authenticate
+  annotations:
+---
+# Source: pomerium/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pomerium-authorize
+  labels:
+    app.kubernetes.io/name: my-release-pomerium-authorize
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: authorize
+  annotations:
+---
+# Source: pomerium/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pomerium-databroker
+  labels:
+    app.kubernetes.io/name: my-release-pomerium-databroker
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: databroker
+  annotations:
+---
+# Source: pomerium/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pomerium-proxy
+  labels:
+    app.kubernetes.io/name: my-release-pomerium-proxy
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: proxy
+  annotations:
+---
+# Source: pomerium/templates/databroker-tls-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-pomerium-databroker-client-tls
+  labels:
+    app.kubernetes.io/name: pomerium
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+type: Opaque
+data:
+  tls.crt: ""
+  tls.key: ""
+  ca.crt: ""
+---
+# Source: pomerium/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-pomerium
+  labels:
+    app.kubernetes.io/name: pomerium
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+type: Opaque
+stringData:
+  config.yaml: |
+    autocert: false
+    dns_lookup_family: V4_ONLY
+    address: :443
+    grpc_address: :443
+    certificate_authority_file: "/pomerium/ca/ca.crt"
+    certificates:
+    authenticate_service_url: https://authenticate.corp.beyondperimeter.com
+    authorize_service_url: https://my-release-pomerium-authorize.pomerium-34.0.1.tgz.svc.cluster.local
+    databroker_service_url: https://my-release-pomerium-databroker.pomerium-34.0.1.tgz.svc.cluster.local
+    idp_provider: google
+    idp_scopes: 
+    idp_provider_url: 
+    idp_client_id: REPLACE_ME
+    idp_client_secret: REPLACE_ME    
+    routes:
+      - from: https://authenticate.corp.beyondperimeter.com
+        to: https://my-release-pomerium-authenticate.pomerium-34.0.1.tgz.svc.cluster.local
+        allow_public_unauthenticated_access: true
+---
+# Source: pomerium/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-pomerium-shared
+  labels:
+    app.kubernetes.io/name: pomerium
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+type: Opaque
+data:
+  SHARED_SECRET: WmtvMVAxdFVTMFFpTjJZMlBGNXZSRG92Ym54eVdrMWFNQ2QwSWtGa0syYz0=
+  COOKIE_SECRET: TnljdktuTmpLMmsrVVR4dmIyWk1PVVZVUFNneVptQTBjUzFKWFdJK09XQT0=
+---
+# Source: pomerium/templates/authenticate-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pomerium-authenticate
+  labels:
+    app.kubernetes.io/name: pomerium-authenticate
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: authenticate
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+    - name: metrics
+      port: 9090
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: pomerium-authenticate
+    app.kubernetes.io/instance: my-release
+---
+# Source: pomerium/templates/authorize-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pomerium-authorize
+  labels:
+    app.kubernetes.io/name: pomerium-authorize
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: authorize
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+    - name: metrics
+      port: 9090
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: pomerium-authorize
+    app.kubernetes.io/instance: my-release
+---
+# Source: pomerium/templates/databroker-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pomerium-databroker
+  labels:
+    app.kubernetes.io/name: pomerium-databroker
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: databroker
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+    - name: metrics
+      port: 9090
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: pomerium-databroker
+    app.kubernetes.io/instance: my-release
+---
+# Source: pomerium/templates/proxy-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-pomerium-proxy
+  labels:
+    app.kubernetes.io/name: pomerium-proxy
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: proxy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+    - name: http
+      targetPort: 80
+      protocol: TCP
+      port: 80
+  selector:
+    app.kubernetes.io/name: pomerium-proxy
+    app.kubernetes.io/instance: my-release
+---
+# Source: pomerium/templates/authenticate-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium-authenticate
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: authenticate
+  name: my-release-pomerium-authenticate
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pomerium-authenticate
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum: 36b0ddba506e8c3ff2777eff770f55bfd6edca5c183d9ecc647aebb14c0680df
+      labels:
+        app.kubernetes.io/name: pomerium-authenticate
+        helm.sh/chart: pomerium-34.0.1
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+      - name: pomerium
+        image: pomerium/pomerium:v0.22.1
+        imagePullPolicy: IfNotPresent
+        args:
+          - --config=/etc/pomerium/config.yaml
+        env:        
+        - name: CERTIFICATE_FILE
+          value: /pomerium/tls/tls.crt
+        - name: CERTIFICATE_KEY_FILE
+          value: /pomerium/tls/tls.key
+        - name: SERVICES
+          value: authenticate
+        - name: SIGNING_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-release-pomerium-signing-key
+              key: signing-key        
+        envFrom:
+          - secretRef:
+              name: my-release-pomerium-shared
+        ports:
+          - containerPort: 443
+            name: https
+            protocol: TCP
+          - containerPort: 9090
+            name: metrics
+            protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: https
+            scheme: HTTPS
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: https
+            scheme: HTTPS
+        resources:
+          {}
+        volumeMounts:
+          - mountPath: /etc/pomerium/
+            name: config
+          - mountPath: /pomerium/tls
+            name: service-tls
+          - mountPath: /pomerium/ca
+            name: ca-tls
+      serviceAccountName: my-release-pomerium-authenticate
+      volumes:
+        - name: config
+          secret:
+            secretName: my-release-pomerium
+        - name: ca-tls
+          secret:
+            secretName: my-release-pomerium-ca-tls
+            optional: true
+        - name: service-tls
+          secret:
+            secretName: my-release-pomerium-authenticate-tls
+            optional: true
+---
+# Source: pomerium/templates/authorize-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium-authorize
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: authorize
+  name: my-release-pomerium-authorize
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pomerium-authorize
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum: 36b0ddba506e8c3ff2777eff770f55bfd6edca5c183d9ecc647aebb14c0680df
+      labels:
+        app.kubernetes.io/name: pomerium-authorize
+        helm.sh/chart: pomerium-34.0.1
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+      - name: pomerium
+        image: pomerium/pomerium:v0.22.1
+        imagePullPolicy: IfNotPresent
+        args:
+          - --config=/etc/pomerium/config.yaml
+        env:        
+        - name: CERTIFICATE_FILE
+          value: /pomerium/tls/tls.crt
+        - name: CERTIFICATE_KEY_FILE
+          value: /pomerium/tls/tls.key
+        - name: SERVICES
+          value: authorize
+        - name: SIGNING_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-release-pomerium-signing-key
+              key: signing-key        
+        envFrom:
+          - secretRef:
+              name: my-release-pomerium-shared
+        ports:
+          - containerPort: 443
+            name: https
+            protocol: TCP
+          - containerPort: 9090
+            name: metrics
+            protocol: TCP
+        livenessProbe:
+          tcpSocket:
+            port: https
+          initialDelaySeconds: 15
+        readinessProbe:
+          tcpSocket:
+            port: https
+        resources:
+          {}
+        volumeMounts:
+          - mountPath: /etc/pomerium/
+            name: config
+          - mountPath: /pomerium/tls
+            name: service-tls
+          - mountPath: /pomerium/ca
+            name: ca-tls
+      serviceAccountName: my-release-pomerium-authorize
+      volumes:
+        - name: config
+          secret:
+            secretName: my-release-pomerium
+        - name: ca-tls
+          secret:
+            secretName: my-release-pomerium-ca-tls
+            optional: true
+        - name: service-tls
+          secret:
+            secretName: my-release-pomerium-authorize-tls
+            optional: true
+---
+# Source: pomerium/templates/databroker-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium-databroker
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: databroker
+  name: my-release-pomerium-databroker
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pomerium-databroker
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum: 36b0ddba506e8c3ff2777eff770f55bfd6edca5c183d9ecc647aebb14c0680df
+      labels:
+        app.kubernetes.io/name: pomerium-databroker
+        helm.sh/chart: pomerium-34.0.1
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+      - name: pomerium
+        image: pomerium/pomerium:v0.22.1
+        imagePullPolicy: IfNotPresent
+        args:
+          - --config=/etc/pomerium/config.yaml
+        env:        
+        - name: CERTIFICATE_FILE
+          value: /pomerium/tls/tls.crt
+        - name: CERTIFICATE_KEY_FILE
+          value: /pomerium/tls/tls.key
+        - name: SERVICES
+          value: databroker
+        - name: DATABROKER_STORAGE_TYPE
+          value: memory                
+        envFrom:
+          - secretRef:
+              name: my-release-pomerium-shared
+        ports:
+          - containerPort: 443
+            name: https
+            protocol: TCP
+          - containerPort: 9090
+            name: metrics
+            protocol: TCP
+        livenessProbe:
+          tcpSocket:
+            port: https
+          initialDelaySeconds: 15
+        readinessProbe:
+          tcpSocket:
+            port: https
+        resources:
+          {}
+        volumeMounts:
+          - mountPath: /pomerium/databroker-client-tls
+            name: databroker-client-tls
+          - mountPath: /etc/pomerium/
+            name: config
+          - mountPath: /pomerium/tls
+            name: service-tls
+          - mountPath: /pomerium/ca
+            name: ca-tls
+      serviceAccountName: my-release-pomerium-databroker
+      volumes:
+        - name: databroker-client-tls
+          secret:
+            secretName: my-release-pomerium-databroker-client-tls
+        - name: config
+          secret:
+            secretName: my-release-pomerium
+        - name: ca-tls
+          secret:
+            secretName: my-release-pomerium-ca-tls
+            optional: true
+        - name: service-tls
+          secret:
+            secretName: my-release-pomerium-databroker-tls
+            optional: true
+---
+# Source: pomerium/templates/proxy-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium-proxy
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: proxy
+  name: my-release-pomerium-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pomerium-proxy
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum: 36b0ddba506e8c3ff2777eff770f55bfd6edca5c183d9ecc647aebb14c0680df
+      labels:
+        app.kubernetes.io/name: pomerium-proxy
+        helm.sh/chart: pomerium-34.0.1
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+      - name: pomerium
+        image: pomerium/pomerium:v0.22.1
+        imagePullPolicy: IfNotPresent
+        args:
+          - --config=/etc/pomerium/config.yaml
+        env:
+        - name: INSECURE_SERVER
+          value: "false"
+        - name: HTTP_REDIRECT_ADDR
+          value: :80
+        - name: ADDRESS
+          value: :443
+        - name: SERVICES
+          value: proxy
+        - name: SIGNING_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-release-pomerium-signing-key
+              key: signing-key        
+        envFrom:
+          - secretRef:
+              name: my-release-pomerium-shared
+        ports:
+          - containerPort: 443
+            name: https
+            protocol: TCP
+          - name: http
+            containerPort: 80
+            protocol: TCP
+          - containerPort: 9090
+            name: metrics
+            protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: https
+            scheme: HTTPS
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: https
+            scheme: HTTPS
+        resources:
+          {}
+        volumeMounts:
+          - mountPath: /etc/pomerium/
+            name: config
+          - mountPath: /pomerium/tls
+            name: service-tls
+          - mountPath: /pomerium/ca
+            name: ca-tls
+      serviceAccountName: my-release-pomerium-proxy
+      volumes:
+        - name: config
+          secret:
+            secretName: my-release-pomerium
+        - name: ca-tls
+          secret:
+            secretName: my-release-pomerium-ca-tls
+            optional: true
+        - name: service-tls
+          secret:
+            secretName: my-release-pomerium-proxy-tls
+            optional: true
+---
+# Source: pomerium/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-pomerium
+  labels:
+    app.kubernetes.io/name: pomerium
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: pomerium-34.0.1
+spec:
+  
+  tls:
+    - secretName: pomerium-tls
+      hosts:
+        - authenticate.corp.beyondperimeter.com
+  rules:
+    - host: authenticate.corp.beyondperimeter.com
+      http:
+        paths:
+          - backend:
+              service:
+                name: my-release-pomerium-authenticate
+                port:
+                  name: https
+            pathType: ImplementationSpecific
+---
+# Source: pomerium/templates/signing-key-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  annotations:
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook: pre-install
+  name: my-release-pomerium-signing-key
+type: Opaque
+data:
+  signing-key: TFMwdExTMUNSVWRKVGlCRlF5QlFVa2xXUVZSRklFdEZXUzB0TFMwdENrMUlZME5CVVVWRlNVRjVTak5DZEdzNFlWZHlNR1J1TldreFZGWTNlRWx5TmxCRlNVbHBUREI1WXpORU1Xb3ZhbkUyZFd0dlFXOUhRME54UjFOTk5Ea0tRWGRGU0c5VlVVUlJaMEZGVTNoSlZGaG1NVVJDU2tka1RVbExZbVZ5VG14dVUzRkJiVFp6TkdRMGFuRlNUblJtUjNoSFZTOHlNSFp3ZWtad2JIaFRPQW95VW5BNVpWRkxVVlJoZUVJclprSXpMM3BGYVZwa2N6VnFiRUUxUlhaNU5ucFJQVDBLTFMwdExTMUZUa1FnUlVNZ1VGSkpWa0ZVUlNCTFJWa3RMUzB0TFFvPQ==
+---
+# Source: pomerium/templates/tls-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  annotations:
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook: pre-install
+  name: my-release-pomerium-ca-tls
+type: Opaque
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURGakNDQWY2Z0F3SUJBZ0lSQUpWM3dEd0loSllZc1AySy9pM0k0NW93RFFZSktvWklodmNOQVFFTEJRQXcKRlRFVE1CRUdBMVVFQXhNS1pHVm1ZWFZzZEMxallUQWVGdzB5TkRBMk1qQXhORFU0TWpWYUZ3MHpOREEyTVRneApORFU0TWpWYU1CVXhFekFSQmdOVkJBTVRDbVJsWm1GMWJIUXRZMkV3Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBCkE0SUJEd0F3Z2dFS0FvSUJBUUNmQ3YwZW9DeU5GOHRlbjdzQzViRUN2U0pENjRPTk5UNUZRM2x5OFJpWHRaL2IKRnpyRzYyZTQ4eTZCWmxuaGZCN0hYczZsMWFRRDhBdzBPZVpiL1F1VUZGVGVHbW1rMkdsV2lVR1czOXZ5WHlxOApDZmM2UE9QMmJKaDFqQkpiSnBUZTUyTXhtVVE2c251ZjBtVFFaTDVMMHprS3gyb01LYmZnS2NFODAzblhOUkFUCkpEV3Q2bjFLTzgxcElrMDd4dW9iSmFnSHhmM3l1SlBEWmpvTit1czZIU1JrdzhaZktKK2J0aE85a3VrbFNjckwKWDRDNGtMN0N0dHpCcnYrRTZzZk5CRVFlUnZhQUJTSXd0cW9ud1N1TTBLYmgvTEgvb2YwU0Y3T09aMGpGTFI0LwoxOWpjUGxRSTBqZW9NNzA0SDJQNFZmak5lYVpQNTZ2alZITnNFT21kQWdNQkFBR2pZVEJmTUE0R0ExVWREd0VCCi93UUVBd0lDcERBZEJnTlZIU1VFRmpBVUJnZ3JCZ0VGQlFjREFRWUlLd1lCQlFVSEF3SXdEd1lEVlIwVEFRSC8KQkFVd0F3RUIvekFkQmdOVkhRNEVGZ1FVYjFWV1R4ZFJEaFMyUFlIRmFzTDdhejNBWHdVd0RRWUpLb1pJaHZjTgpBUUVMQlFBRGdnRUJBRmk2eXEyMmxjWTZXbzdmYUFEclBhanVsbjBSVVlqaHVtaHBRWjhJUGhZZURFbGlPZkxwCkRLUXdrWlJUTFZUd3YvUFY3TTR0M0FFU0tOWGlmYlF3RkV0OWFZUXhMaEZLL0p5NEk0NWxWdk91OWt5bERqOHQKM3kxUWd1aTB3N090bEszYlkvMExxb3hKT3paeUJJc21xN1Uwck1PdndwYnlhNStPWVU2NGVXUWk0YWR0dmFURApHTlpBTk5qZlFKc2RzNTVvNmNJK0taTGZ2Nkg4dWg2U2xUQ0lzZHgxb2JlNkdjRlBJbk5TOW5ORjkxWWJ1TTRSCkZ2OTRqZ3FPcTNoT2d2NlUxajdUSkx4YlNyZ0NZN1pFcmRIdnA5Z3h5czN1UWpaMXg5cnNHSGtEb0pIY3prVEIKL2dhM01DdGtYMWpjREdZcUpkSXZYVXV2K3FlL2Z5cjFCWDA9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  ca.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBbndyOUhxQXNqUmZMWHArN0F1V3hBcjBpUSt1RGpUVStSVU41Y3ZFWWw3V2YyeGM2Cnh1dG51UE11Z1daWjRYd2V4MTdPcGRXa0EvQU1ORG5tVy8wTGxCUlUzaHBwcE5ocFZvbEJsdC9iOGw4cXZBbjMKT2p6ajlteVlkWXdTV3lhVTN1ZGpNWmxFT3JKN245SmswR1MrUzlNNUNzZHFEQ20zNENuQlBOTjUxelVRRXlRMQpyZXA5U2p2TmFTSk5POGJxR3lXb0I4WDk4cmlUdzJZNkRmcnJPaDBrWk1QR1h5aWZtN1lUdlpMcEpVbkt5MStBCnVKQyt3cmJjd2E3L2hPckh6UVJFSGtiMmdBVWlNTGFxSjhFcmpOQ200Znl4LzZIOUVoZXpqbWRJeFMwZVA5ZlkKM0Q1VUNOSTNxRE85T0I5aitGWDR6WG1tVCtlcjQxUnpiQkRwblFJREFRQUJBb0lCQUV1VVJVVlFpTnRqKzFrMApQd0xaZEkwQXBFL3lrOGwvQytDT2VDQ1BRa2lXSHlsV21LLy9Ib05kelRQaEY4VjMzb2lRSFZQaGV0Z0VNMGgrClcySkxsajBBakhRZnlTUjFVMW0wVUY4S2N0TnpOak8xNks3Y1VOakNNcEZweHk5WjNsVXZVSXc1Y1pzVFJueGsKMTFQUkREMnNXdWNzYk5EcTRsNjhlUUFXMzBmTlI2VVpHaU9yTjFDeDE5REJ1V1gzTHkzRW15Sjd3SzJrUUsxZgoyR3dKREI3UE5maHllTVJ1N1JaREtjYWVncXI4WDliczh1QzNjSDIxNDRXangxVlp6MWpjQUF0c2hHOXp1VVE2Cm1MUHovcFRreDRpMWVOZ2ZpbWoyUzdFaUlJS3BoMUhKNDhvNGs2Mm5DOERrb1NiRkZQMmtXcFZXbTMyRVVkQ2gKdmFYM293RUNnWUVBd09aTklwN1pOaTVLK2dRQzBVd3haa3dnY2JUcDE4NFYyODBWOGRnQjJmeWozYjVMOE1HawpBZ29ZZ3JmR3NNNGJCZzJNRis3aG9rRTFWTjJWUng3TFFNVTVzTGM3MFc1Rm1KUkxqeW15YjRCZEJZc1NwaERxCmxraGJXQ2RvZTVhV1JGK1NPK2RoM3RZSU5DV044ZTl4bjYxRHE1TndxcE0xdjFySFYyTkZ0YmtDZ1lFQTB4RjYKYlJ3TE5CS1g2bExVVGNhTHJLdUxqTytTcTQ2SWJjWEhkS0hPUWNXQWVGM3VwcXdlZXF5Q1JyTkVqRzhnZWIvQwpYT2VWMlpZcTZvQW5CMHp0aytXeld2eHBIWnNlRjlrbDR1bHZ0VlY3ZkNQNXdCRDVSWEd0dUdQc0xaeDB0TEhtCjM4eTJWYmJnYlEzYlBVZzdwTmFKRDRmaVQyb2FhNnV6L0x4RnhRVUNnWUFPcmJleTZibUhxUEFscEVaK25MaXAKbXlOZzQ2NWpzSmZ6T09EeG5VbE95QzNFQXVZT2RQM0E5Zm0xZ0x5SzJiUXV1cnN0V3cwcVpxSGpTbFZBcXpRMgpRb3ZJU2Jrd2o1NldKTHEzTXlvVDJBVzhGVUFmQ095QThSS2FXNjFVc2puUERDSzVranJkVlJZY3VicmFiU2tOClNJYjh1R1I3Wm1aUm9Gdkk1NUgzYVFLQmdGOGZvVzFMRmtHQm43V2JYdE11aUFScHk1clkzZUV6ZTRqOWVjYTIKcFo0K3hJZDZ6Zk9QM3F5cTBvdktmenBMV3ZlRDFMVEtLbDdGcnRIQXI5WTZkVmdTVGFMVDN3dll2TmRDcGpCOQp4RHFWSy9IbXhNZ3EzaXpON3QwTEs0WGkzVFlTZDFxbGlBZFpSQXZpRXN5cm9UWEkranhsb1RqcE9MOE53ekJFCkthMkJBb0dBYlBObS9pWXkrbGcwaUpzZ2NWOExSU0U5by9sSllMUUI4ZGtmYjF4bVkxdDl0SW80bHZtMS83OHUKc2hDcDNhNVNMTnd3MTRlN3dtQjZVcG13djE5MjcxNlF1eUFrVW00L3FBdThVWHhKa2JXT0wzSDFHMlRZVldkNAo2T1ZRd3g4T09CRUtkd2wwTTJqcFpmdmNLNXNkZHBMZ25scS9sWDNTdU1zNmw2YkVzbHM9Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+---
+# Source: pomerium/templates/tls-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  annotations:
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook: pre-install
+  name: my-release-pomerium-authenticate-tls
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURuakNDQW9hZ0F3SUJBZ0lRWFdXdVpWUnFOZE9XRjV3STBVYnp1VEFOQmdrcWhraUc5dzBCQVFzRkFEQVYKTVJNd0VRWURWUVFERXdwa1pXWmhkV3gwTFdOaE1CNFhEVEkwTURZeU1ERTBOVGd5TlZvWERUTTBNRFl4T0RFMApOVGd5TlZvd0l6RWhNQjhHQTFVRUF4TVlZMjl5Y0M1aVpYbHZibVJ3WlhKcGJXVjBaWEl1WTI5dE1JSUJJakFOCkJna3Foa2lHOXcwQkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQTh4RU9rcndoRm0wcjRFbENvbGt5SU9XaHJaei8KanNYK01Bcmh5WklvaEJLbGdZOTRRVmhVL0U5aThxazlXSmVmQ3pNdWx6Yi9QWjVqQ2tER3ZaR2VubU5TZldKZAo0cnNKeVp1Q1AwZ0IvSGM3cFVjN3haRVFpU0pydzdHaGJ5QUNzTTJ0WnJneENWT3BJZXRRSGxhbTNXTnQvc2FJClVlSndHNnNNTkd0L25JM0FMTzl3dCtKbnZBYkdBa3k4NkRkdVMrdU4xaUhnTXZmVlhBekEyeEJIWUR5Wm1HSzMKY2I3bWtvUkpEa1lTNmRKZXMxb1Y4TFQvd2VLUnM0SjRGV216RWJZOHJkQSsyd2hXb29KNlMzZ3RZdnlpLzNkRQpvcktmTXE2R25BVXMyb0lkTlVVUzE2OG1tVXg1bDlTQkMvWjFneXpCa1dmeTJrdGlzaDhIU083ck1RSURBUUFCCm80SGJNSUhZTUE0R0ExVWREd0VCL3dRRUF3SUZvREFkQmdOVkhTVUVGakFVQmdnckJnRUZCUWNEQVFZSUt3WUIKQlFVSEF3SXdEQVlEVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCUnZWVlpQRjFFT0ZMWTlnY1Zxd3Z0cgpQY0JmQlRCNEJnTlZIUkVFY1RCdmdpVmhkWFJvWlc1MGFXTmhkR1V1WTI5eWNDNWlaWGx2Ym1Sd1pYSnBiV1YwClpYSXVZMjl0Z2tadGVTMXlaV3hsWVhObExYQnZiV1Z5YVhWdExXRjFkR2hsYm5ScFkyRjBaUzV3YjIxbGNtbDEKYlMwek5DNHdMakV1ZEdkNkxuTjJZeTVqYkhWemRHVnlMbXh2WTJGc01BMEdDU3FHU0liM0RRRUJDd1VBQTRJQgpBUUEwS1doaUluVzVKQWFpMnBPTWVHaDZ3dEtkY3BWRnRtM2VIc0NuOVJnL2tkNzJDbGhOQzFtY2h6NGtFNjRJCjNZYndSZ2dtemh1OHFZVzZzOUt2aTlSMFAxMzlrQS9wSndtc0c2aEJoaStVK0I5NFl4MkZXZEJ2OTA3RHVsdksKblhrcWExY1FQS0JzeUo4OHA1STBId1Zxc1hnekpBV0JVa0s2eUl5SytBbkZLT01rNGJWYzc4WEZIbE5KRTladQo1ZW8rT2w0aTVnaC9BT1Y3VlRwRTJsUW4vY2NMaWU5azQ4UlJaY0FDSHJ4WDlIZGRtNnU0SWU1ZkVYSng1N2FZCjhmRWMzMEV3VHF6eE1QNGYyTEw2UVE2b1dQQ0xiWFdpWkJDRDBMV0dLWGVBYkhONVRZcVhKVHNZMUxYQ1NQWFoKK3Vta1lXVlF2VE40OCtrTlVPWEdJSGl5Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBOHhFT2tyd2hGbTByNEVsQ29sa3lJT1doclp6L2pzWCtNQXJoeVpJb2hCS2xnWTk0ClFWaFUvRTlpOHFrOVdKZWZDek11bHpiL1BaNWpDa0RHdlpHZW5tTlNmV0pkNHJzSnladUNQMGdCL0hjN3BVYzcKeFpFUWlTSnJ3N0doYnlBQ3NNMnRacmd4Q1ZPcElldFFIbGFtM1dOdC9zYUlVZUp3RzZzTU5HdC9uSTNBTE85dwp0K0pudkFiR0FreTg2RGR1Uyt1TjFpSGdNdmZWWEF6QTJ4QkhZRHlabUdLM2NiN21rb1JKRGtZUzZkSmVzMW9WCjhMVC93ZUtSczRKNEZXbXpFYlk4cmRBKzJ3aFdvb0o2UzNndFl2eWkvM2RFb3JLZk1xNkduQVVzMm9JZE5VVVMKMTY4bW1VeDVsOVNCQy9aMWd5ekJrV2Z5Mmt0aXNoOEhTTzdyTVFJREFRQUJBb0lCQVFEYlA1aUFuVGZQVGR4VQo3R0F4cHZsRG1UNTBKdmlSNVdBNkg2YTR0cURiT1NLWE1qMkwyOHlVNWxyZmZlNzYrWkVaZmlwWmRkOVh5b1dWCm13WnB1bTkwZVN6UU1xbHpPYmxEWklWZzVXZjlQZVBNV3V1OGN2U1Niano4Z1Q2WHlTMEVKQkowWkZLL0VmcXUKd040ODczYUduZ2g2MXNQaDhMbWxDMjN2M3NOMkJ0aTF4SGRJcVZFUi8reEUrcmxBLzlhVy9zRGtEbzMzVDVkZwpmdlllVmpPSW93RzIvZWdTT3V4L2hBK1hGSlZOYk5GQmxZQ1BQTEh4YlFFZWJyK21jSDd4b0hoekRMRG4vLzgzCmNxbE11U1RBL1cxeFJsbmExOUtpeUUwd3RTZ0wvbFJoVitodWFCTTFtK2VIaWJ4cThyeHZOTmR0bytRRElPOXQKcFhzY0xzSlJBb0dCQVB3WTQ5RDl2b1pyejdhblorazVHKzVnNjZWOUQycXJaZ3lLeUY0TmgvZ2RCMDZ3WXZtVwpBZ2NOUkgzMEExd3hFS1RuMnROZGhyUENIeWZ4U0pQVVRwVVRSYlpSWXphekdiUkMxOHdrejN3NHhWM082VkxmCis2azZ4OVJUWk85ODFMelFIRzlka1BWNUtMWlFiTk15QytoRXdKUTZYRWtKK3dIaERndWtGVXA5QW9HQkFQYlUKWUlQc3FwUVcrVmdoVjBwdjlZU3RqbkdOcHRDUkdsaFpPMUNzaGhBSWNkaFZSZkIveGovN1B0R0x1bzBhNjhPQwp5dTFQMzl4KzZhQzNPUW5Ed09BcnFWOGRpN3MwSG1VWEcraGd1SSs1VUVURVBXWnFlUDQyQ2xZL0kvcnVNSzFOCmU0QUo4UlAxOFVGTjhFcGpnb2F3Q1pnSnhSMnd0dGhXVE5sMXlVM0ZBb0dCQUt1SWdCTW5aT2x3R0dEUFhkd0sKbU4vRm9QSDB1M1c0ZEhLYVNDWC9EUUtkTmVpc0NseUxYb3ZQMGtmbHJoZWY1eFJlRXI1NVIvdXVYYWErL2NSZwoxS3VJOW9sTXJiWjlmVUx6cklSaWs2K1JyWEhjSlZUWHhSUnNRNlpNckVSc2F4Q2lob2FjWXRNMGdxZ3k1eWw1ClJ6TGUvUzZlMjBaemZSRFZRc3BXOW9tOUFvR0FBWlA4QmZ2bVgwb0NVQmp1ZVBCY1RudlpsRXBHamNEUHZVN2MKdlRoTkp4OFdzejVnVXhoT0NTeXZDeUhza0doaXAzNVhrOHJWOEkvektHN2pjM2VIN1NiNlR6eGVIMVZHK0hoOApXakQ4SFJjZk4wRlY3eWl4RzFiM0cvUU5ZOVpRQTF1aWRZQWF4WGptRVBmUm1IZ29abm9McGFneVZXMUN6Z0ZIClBvQ3RSODBDZ1lFQTUzazM3anY0TkltZ1RTb21zYlhTYWIvNkFUejB5SjFkMEZxWjFJR29sQzBzVzVwK09CYm8KbW1DekU1K2hXQUk1ZG1Gb1YzRGRxVDdiSmtudWRCUDVGWitsVWt0QURlcnhSdTBQUUJIVW9Rc1JwSWs3TUZ5ZgpKNUs3bmhia0M0MHBsRlJaemJJVnJpREVHRzRrdFdSSWtIUUxWbnhsbXFuc3I0V1k2RnB0S2RJPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+# Source: pomerium/templates/tls-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  annotations:
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook: pre-install
+  name: my-release-pomerium-authorize-tls
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURtVENDQW9HZ0F3SUJBZ0lSQUpkS0tTV2MyZldBSGJCYThyakRHK0F3RFFZSktvWklodmNOQVFFTEJRQXcKRlRFVE1CRUdBMVVFQXhNS1pHVm1ZWFZzZEMxallUQWVGdzB5TkRBMk1qQXhORFU0TWpWYUZ3MHpOREEyTVRneApORFU0TWpWYU1DTXhJVEFmQmdOVkJBTVRHR052Y25BdVltVjViMjVrY0dWeWFXMWxkR1Z5TG1OdmJUQ0NBU0l3CkRRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFNcVhlejVRVGF4UU83WUE2NHNUQitPcmNLY0IKVlRNUVN4SnIwUTMxTkZvU01xYnJsM1duWTNtZnBqS096Q2swckxpN2RHR3dLYjQ3YnNiaHB1b3ZLcjg2YVV6WQpzTWsvUlVqOVNZcFlSbXBUOHQvaHpkUmVlZzVCdGNsZXh6R0lDUjhicG5kZkF3UTRKUlBmNldoT1ZvWHE0L3ZkClBQMUtKRTNKS3Z4aXVIWlR3YWVuczhvTlFCeHk4ajBmUmNGNDRjd3RzRldpRkY0RVdIRnc3bHRMV2lSdGpETXMKZjFjaktOeXNTSlBQempiMHA3QUFNbndaTStJMFQ1R0JsV2lmMnZ6RWlacmRnMHJ1d2JjNU45QkhGRGcyUXIragpxSnJEeGhPNC83b2lzUzBuTzhEMEJid1Z4eTRKK0NnRkRJbmYvNi85Q0Y2Uk5tQ3hjZE44N2hqaEl5VUNBd0VBCkFhT0IxVENCMGpBT0JnTlZIUThCQWY4RUJBTUNCYUF3SFFZRFZSMGxCQll3RkFZSUt3WUJCUVVIQXdFR0NDc0cKQVFVRkJ3TUNNQXdHQTFVZEV3RUIvd1FDTUFBd0h3WURWUjBqQkJnd0ZvQVViMVZXVHhkUkRoUzJQWUhGYXNMNwphejNBWHdVd2NnWURWUjBSQkdzd2FZSWlZWFYwYUc5eWFYcGxMbU52Y25BdVltVjViMjVrY0dWeWFXMWxkR1Z5CkxtTnZiWUpEYlhrdGNtVnNaV0Z6WlMxd2IyMWxjbWwxYlMxaGRYUm9iM0pwZW1VdWNHOXRaWEpwZFcwdE16UXUKTUM0eExuUm5laTV6ZG1NdVkyeDFjM1JsY2k1c2IyTmhiREFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBZjF6MQprS1RQd3NYd0VzMFo2Y2pnQ0d3WGIrSEdmQ0J5Vmc4M0dBWjJRTEhnSDNjZ25UbmUzV0hDUzZIbFA3K3RaYzFQCnh5bVpIQXZKcDhzcjMxOUhZWkNKSk56ZDkwc1c2QWdjN3ZjT21leC9FQ3VMaFNmMnZPZEpVNDd5Qy92NDRkVUsKRTZ0RW8xT1NmblBrUDhBWXNBelpNQ0pKT0JZWDdSTXl0dGN2enAzVDl3cU5HM1pJNlI4R3JJeC9IVnNYTEVvawpVWFVsUzJsT1dmdVFjWVh0N1pBMnpuUTZSMFBzNmdld0JkNmF3dGJxOENoVGp2M3JhaEx3aTU1aitWYTB2Y1NUCjczV1VUN2EzOTkvUjlyU2NXTHBlNll6bmdrZFZFaUFTTWNjeldZMS9ybHNFQ2J4NGNJeTNHSFdnTG5lV0tPdlkKdlhUWlNVbzAyNlF1enBmUVpnPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBeXBkN1BsQk5yRkE3dGdEcml4TUg0NnR3cHdGVk14QkxFbXZSRGZVMFdoSXlwdXVYCmRhZGplWittTW83TUtUU3N1THQwWWJBcHZqdHV4dUdtNmk4cXZ6cHBUTml3eVQ5RlNQMUppbGhHYWxQeTMrSE4KMUY1NkRrRzF5VjdITVlnSkh4dW1kMThEQkRnbEU5L3BhRTVXaGVyais5MDgvVW9rVGNrcS9HSzRkbFBCcDZlegp5ZzFBSEhMeVBSOUZ3WGpoekMyd1ZhSVVYZ1JZY1hEdVcwdGFKRzJNTXl4L1Z5TW8zS3hJazgvT052U25zQUF5CmZCa3o0alJQa1lHVmFKL2EvTVNKbXQyRFN1N0J0emszMEVjVU9EWkN2Nk9vbXNQR0U3ai91aUt4TFNjN3dQUUYKdkJYSExnbjRLQVVNaWQvL3IvMElYcEUyWUxGeDAzenVHT0VqSlFJREFRQUJBb0lCQUZUUEF5Vzc0amd2UWovWAp0TUw4allIdVkvTlZxSC8rNHg1c0NoRG94Q2lzazQyeTlDMnBqQWYvSUVqcjVHV2ZpbXF1OW5KcWw1N3VMRnFQClhodU04VDBxUzZpQzBjYjllSmlzaDV1bGhweStWZDhKSE93NVBLazVNc3VBcEt5RWdTVUhvekUza2dDekxEcGMKc3M0YWRUZ01jN0lkRklvSC9waWRqU1FvZzRYc25UcU82MWIySTM3NWNVVzhra0VZSkpGb1czSVErRGhUdzVJbwoxMlVLRUhmM1k0L08vaDZoc253YmI0ZDVQbG1rcjF0M2RnQUNnQjdzd2NjektjYnFsK1BIa1NWVUFMS0VlaVEzClRjMVhqOWNSV0pydTFUVEl6Vzg4TmRscFZsRmZaM3loNzE5dlB6Q3ltY3VmU2xtYU04cFcrTk4va3J1NUJOSnAKS2hnNStpVUNnWUVBN2dJamFsWk91bFZ4c21TS0xqajBDcytVYStoOXlLbnQxUUZNblQ4ejhIYUR0ZTRCUWFoOApnODNEWVFuU0VPOXhYdXllbDlCZnExQy9KN0pEamR5akp2WFd2b2ljUk5oa2wzeDJCSi9yb0VKck04MlpxVlo0CkdUSmx2Nm94UjNURllVRFlQV1hBd09WR1k5eVREUUpWZ0djektkY0RJSG1nUHkzWmtwZEE4c01DZ1lFQTJlZjQKeHlUT3ZzTDVjajNyaTRxTXBNN1pTaWJXU04rVW4vUnFsYU9IWFBoVXBVeHAvbHJ4WlQ2T0svbDQ5WFF6Q1U5YwpCM1ZQWmxqUE5EN2I3bTA0Q0UvVU1IU0hjNFNqK0FDNldwYWF3MXBjMEY1QjhnVW0weGRETlk4V1pSTjNWY3JpClo4R2swL2loU3NOZ3NzOU5QQXhoaEhyRWd4Q2UvNGxNcjE3ODQvY0NnWUF1RXkzbDlRVlNueDNlaWdZU0FxYUQKdlVHZlRpZWpnL250cFUyK2x6Q24yVm1RQzU0a3BzaEwvN1pWLzcreDFaaWQ1cktnOHc3Q0xHU0UrOGFHSFBOYwpwSFRJOTh0QXJKOTBqL3lNMHFTYnBwLzRMRklWN1E1YzJsdkdLZDFXVnUycThSR3JlUnBDZldBT0R2Sk1yMm43CjdINkVHQUtiODgrb3kyaDJMMSs4WHdLQmdERjFXRjhDK0xZTmxRYWNEVWxuMGhKYUxMR0s3Um92UFJHdExULzMKbFBMQ0hweENJdENyblp6SVBRYTRJZjg4TjVWR1lQSUVhMWdra2lzZWxWYWhqWlU5WVVENlFnQXpPL0EvWWd6TApvQ2IwN0pvU3VzOE80a2dKUUtUNGJESFc0RUFsdzR1ZlJTVWppcUJvaGhzdnVDMEg5bDVXYXlJQWRNWTFTS1dKClhzYnpBb0dBZUw2dWlYNSsrcHFMMGdaZ2pCYVFHZ2ttblMweHhUNTNqUElLSTEzVno5WllRRjB2cE5ZaGFhSkcKYUtvSFc0QTZQZ3lDWTJnZjN2Z3BvYW1BOWdZRGREV2MrL3F0a1RTTlFzNTJmR1dHUFNvK0liNkptb0llb1h1VgpiOGxPV1A5eDlUY3c4TnJXSjBOeS9UTHF1QVhnbGNrMlowNGl2RkJrSVR2SWNKcW1SVFk9Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+---
+# Source: pomerium/templates/tls-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/name: pomerium
+    helm.sh/chart: pomerium-34.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+  annotations:
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook: pre-install
+  name: my-release-pomerium-databroker-tls
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURtekNDQW9PZ0F3SUJBZ0lSQUk3TDZPN3cxN2FiMGVMK2ZJZWJHUVF3RFFZSktvWklodmNOQVFFTEJRQXcKRlRFVE1CRUdBMVVFQXhNS1pHVm1ZWFZzZEMxallUQWVGdzB5TkRBMk1qQXhORFU0TWpaYUZ3MHpOREEyTVRneApORFU0TWpaYU1DTXhJVEFmQmdOVkJBTVRHR052Y25BdVltVjViMjVrY0dWeWFXMWxkR1Z5TG1OdmJUQ0NBU0l3CkRRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFMTFpOK0ZmYUttQ25RS05aSERvdXJpa2JTdEgKMFdqU2xnRWR2NmxBcHJrUGpiVkRyZE1rM1JmS2dxOGZpd0tyTlVCSlJRREJweTMvOFVYbEZVZ0dtMm4rQlNNcwp4YVkvNllub29NU3FEZHVBd04wN1dQRURaZDN1YnI3VmMwM1pKYnBVeWtYSHZFTllBVU4wZ0JCVnd2QzhvYmdiCks3WjkzYW1zSjM4WkpUNTFlZC9WVm5qdXR6WnREOGI1SXd4STBRUHJOY29IbGpBVjNNZ3ZMaGx6TjNYak8zQUoKVDVqZGU0TDZQVy80T3ZCVGZHU3lUTEhSSC90SlN3VS9SbzdDOTJXZmpLbFpONkN2UUNWTHd2WUJZYU9CNHF2cwo3R1Y1c0FOWTJ6Y0tKNWQ3NEpEbzU2VzJyM3NQOHJ4dkl6K09COW5qV2lMQVVwcGpHbUFScHlHY1JDc0NBd0VBCkFhT0IxekNCMURBT0JnTlZIUThCQWY4RUJBTUNCYUF3SFFZRFZSMGxCQll3RkFZSUt3WUJCUVVIQXdFR0NDc0cKQVFVRkJ3TUNNQXdHQTFVZEV3RUIvd1FDTUFBd0h3WURWUjBqQkJnd0ZvQVViMVZXVHhkUkRoUzJQWUhGYXNMNwphejNBWHdVd2RBWURWUjBSQkcwd2E0SWpaR0YwWVdKeWIydGxjaTVqYjNKd0xtSmxlVzl1WkhCbGNtbHRaWFJsCmNpNWpiMjJDUkcxNUxYSmxiR1ZoYzJVdGNHOXRaWEpwZFcwdFpHRjBZV0p5YjJ0bGNpNXdiMjFsY21sMWJTMHoKTkM0d0xqRXVkR2Q2TG5OMll5NWpiSFZ6ZEdWeUxteHZZMkZzTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFDVgpkRUNCQ3JuZG9kYXVUWXByT0hxT0NDREszbVFab1F6aEdMaUlTWURWNVRQaWVUMTYrWDhjNkVvNDBKZlIySzd2CmsxK0lQWVhHL0UzK0RwTjMraFZCNHpTeloxWFJpWG0wYVppMzBFSzVlYzRTNkRrRk5VUnV2V0tjU2VFbTVBRFYKbG5Gb3pQbktmQXM4S21SY3RpRVVZekxSZG5KQ0RsVUJpaExYSFRrdWhnMWo0WnFlbk5lRnJ6SmhBaEZSZDkvNQpqTjlVRDBVQXc5end2dUIvem1HdS9jeGJVODhKZk1sVEh6NXJmTFg4WGRQNm5jNmpIRDFRdkMwYVRaY3RzemF0ClJueXBDK21RblQ0TlVCdU95K0FEZDRPWU9CQkdMNDRHYVY3ekUwTGRaRWdFWmZFVmNINGZ6bFZpRnlDcFpqMzQKYWUvdGFNNzNTcWZsV2Y1UTNzZVgKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBc3RrMzRWOW9xWUtkQW8xa2NPaTZ1S1J0SzBmUmFOS1dBUjIvcVVDbXVRK050VU90CjB5VGRGOHFDcngrTEFxczFRRWxGQU1HbkxmL3hSZVVWU0FhYmFmNEZJeXpGcGovcGllaWd4S29OMjREQTNUdFkKOFFObDNlNXV2dFZ6VGRrbHVsVEtSY2U4UTFnQlEzU0FFRlhDOEx5aHVCc3J0bjNkcWF3bmZ4a2xQblY1MzlWVwplTzYzTm0wUHh2a2pERWpSQStzMXlnZVdNQlhjeUM4dUdYTTNkZU03Y0FsUG1OMTdndm85Yi9nNjhGTjhaTEpNCnNkRWYrMGxMQlQ5R2pzTDNaWitNcVZrM29LOUFKVXZDOWdGaG80SGlxK3pzWlhtd0ExamJOd29ubDN2Z2tPam4KcGJhdmV3L3l2RzhqUDQ0SDJlTmFJc0JTbW1NYVlCR25JWnhFS3dJREFRQUJBb0lCQVFDZW54TDFteFlMaVdGUgoyeTlqQ0xaYWZ0S29HVGs4VzlGWXloYXJ1VUJsVDhzaUloVnY5L2p6V2RQUUdBekZZQzJKaDdKZ2VtQ1k1ckFKCmlxVDJUWTNYVXNraHFscmVHVDg2NWd4NGdFNXNDT1NGRWxiTzQzR2NoUlRKd2l4U3RpM0U5ZUMwUlBMUFU2VkQKTzNjOWhhS3d1c3cvcWpGNTJHWVpUeXQwaVV2RCtSWVpTYVJQbEhBSG9mbmY2eW1rWjh3V05SRkp1SmN6L29qaAowdG1QMTM0REpRR2JyL3BkYVpyMjdvdVVUeVNBL2FvWUxFZDFIK2tMTitCeXk3SFFPWkIrdmp1Ynd3Y2Vvd0xWCkZCK1hua2NnRzBZc0I0OFZsMXJneHN4Mkp5NDJKUGxzTVFKN1QyWmRFSHYvMnlmLzFmVUdLcFNvNVlhTDlybm4KZ0FXa0VZM0pBb0dCQU1SVTFLRjh2emt2QUczN21PME5UeFkzLytIK3YvM3I5a2RiOW1sSUxiMmVZTU1kcXplRwo4VTJKTkRmK1RxUjdFYVlBT3kvTGxkYUFZZVYvdVQ5aENQVjYyeTBBMDlCcHcrM3N5dW9Yb1NxWXBjL2VvZzBLCnQ4MjZRUVYwWUM3TVpObDN6VGkrY3ZHM3duQ2VSME1ueUJGVURUcEZWUis2V1dad3o4UEFSQ3Y5QW9HQkFPazAKS3pBdmhlMnRmMDcwVTZ4KzRQNHlFQ2lHOG8xdThGRTRkcTJxV0k5Mzh3N3BHaWhPbENoeEJzc0dwd0gwQm9MYgpWZklhK2RNOTNYTGZXVUJRNDR6U3JUL2htMXJRUVIrcThlS09DcjNyQk9ydXozV0V2THFVaGNodHhjck9mQjhlClQrYnN0N2lkMjZwbDVaQ1pnL0JQNjdPd1U2SStteGttR3IzOTRxVkhBb0dBSHRzbVArc1hNcW1NYTd5cklEYUQKUTM2eG5KY3BIWU5FUlpyU2MyR0FydGlCWktqNUM5VU5mNTRjc3VBcEEvakRvVTlQL2djRkdaMDd4Wkg1VDFpMAp5Ny92U25kaTB0S01sSXd1cC9QbXhJY1JLRVpaT2F1Qmo3ZkNHRlZkK0h6dkxLNkRkbk9ZSlIwNFZmTEtTR2VzCkxlMEQxekNtWEVJeFlzUkFJd2ZJcnhFQ2dZQk5ocDFROEl1S2Z5SVNnbUVLdUVkZDJoRExHRW1zUVJROVBCTWcKR3NCRU9iRWc1TmRnVFBjdUZwMFdnNGlqdXBjcmkzVWYvbDNOSHdUdWVsZTJiTzJvMUNUcVZyc0p6cS9Ic2xHbAphbWtoeCs2amwyNTZkLzB4M2N3MzNGNWoxSThvM1MvYzZoY05sZFQvNmM0T2F5cVVpazBtT0ZrbFY4REI5SXZ4ClcyU3NZd0tCZ1FDRHd3a3A0amNicExFVUxNZkZodnB4U0xQbXFkUFhldVphd1dtclhhOWdYZWNMbXQxWWwvbXgKeEVnYkIzQzVsN3NWWi9HOThPRk5XaWorWlh2SW5tckFTTHh3MytUcktLSEUvcXdsalRIem9mdk1aN0dXRVhZSAo5R0R4M1d4M25QNkxUL3crVkdBbEFWdDJHQTJhWnRkcm1qdlNjb3UwY01JOW43YTdkWDAzcUE9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=

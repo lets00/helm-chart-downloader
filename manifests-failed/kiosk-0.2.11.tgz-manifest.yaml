@@ -1,0 +1,192 @@
+---
+# Source: kiosk/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: serviceaccount
+  namespace: kiosk-0.2.11.tgz
+  labels:
+    app: my-release-kiosk
+    chart: "kiosk-0.2.11"
+    release: "my-release"
+    heritage: "Helm"
+---
+# Source: kiosk/templates/rbac/kiosk-edit.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kiosk-edit
+rules:
+- apiGroups: ["tenancy.kiosk.sh"]
+  resources: ["spaces"]
+  verbs: ["create", "update", "delete"]
+---
+# Source: kiosk/templates/rbac/kiosk-namespace-delete.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kiosk-namespace-delete
+  labels:
+    rbac.kiosk.sh/aggregate-to-space-admin: "true"
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["delete"]
+---
+# Source: kiosk/templates/rbac/kiosk-space-admin.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kiosk-space-admin
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.authorization.k8s.io/aggregate-to-admin: "true"
+  - matchLabels:
+      rbac.kiosk.sh/aggregate-to-space-admin: "true"
+rules: []
+---
+# Source: kiosk/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-kiosk
+  labels:
+    app: my-release-kiosk
+    chart: "kiosk-0.2.11"
+    release: "my-release"
+    heritage: "Helm"
+subjects:
+- kind: ServiceAccount
+  name: serviceaccount
+  namespace: kiosk-0.2.11.tgz
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: kiosk/templates/apiserviceservice.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kiosk-apiservice
+  namespace: kiosk-0.2.11.tgz
+  labels:
+    app: my-release-kiosk
+    chart: "kiosk-0.2.11"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  ports:
+    - name: apiservice
+      port: 443
+      protocol: TCP
+      targetPort: 8443
+  selector:
+    app: my-release-kiosk
+    release: my-release
+---
+# Source: kiosk/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kiosk
+  namespace: kiosk-0.2.11.tgz
+  labels:
+    app: my-release-kiosk
+    chart: "kiosk-0.2.11"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  ports:
+    - name: webhook
+      port: 443
+      targetPort: 9443
+      protocol: TCP
+  selector:
+    app: my-release-kiosk
+    release: my-release
+---
+# Source: kiosk/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kiosk
+  namespace: kiosk-0.2.11.tgz
+  labels:
+    app: my-release-kiosk
+    chart: "kiosk-0.2.11"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  selector:
+    matchLabels:
+      app: my-release-kiosk
+      release: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: my-release-kiosk
+        release: my-release
+    spec:
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: serviceaccount
+      containers:
+      - ports:
+        - name: webhook
+          containerPort: 9443
+          protocol: TCP
+        - name: apiservice
+          containerPort: 8443
+          protocol: TCP
+        command:
+        - "/kiosk"
+        args:
+        image: "kiosksh/kiosk:0.2.11"
+        name: kiosk
+        env:
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: "1"
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+---
+# Source: kiosk/templates/apiserviceservice.yaml
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.tenancy.kiosk.sh
+spec:
+  version: v1alpha1
+  versionPriority: 1000
+  group: tenancy.kiosk.sh
+  groupPriorityMinimum: 10000
+  service:
+    name: kiosk-apiservice
+    namespace: kiosk-0.2.11.tgz
+---
+# Source: kiosk/templates/webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: kiosk

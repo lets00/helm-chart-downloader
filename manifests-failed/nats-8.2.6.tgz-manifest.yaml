@@ -1,0 +1,275 @@
+---
+# Source: nats/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-nats
+  namespace: "nats-8.2.6.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/version: 2.10.16
+    helm.sh/chart: nats-8.2.6
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: nats
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 4222
+        - port: 6222
+        - port: 8222
+---
+# Source: nats/templates/poddisruptionbudget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-nats
+  namespace: "nats-8.2.6.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/version: 2.10.16
+    helm.sh/chart: nats-8.2.6
+spec:
+  selector:     
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: nats
+  maxUnavailable: 1
+---
+# Source: nats/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-nats
+  namespace: "nats-8.2.6.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/version: 2.10.16
+    helm.sh/chart: nats-8.2.6
+automountServiceAccountToken: false
+---
+# Source: nats/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-nats
+  namespace: "nats-8.2.6.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/version: 2.10.16
+    helm.sh/chart: nats-8.2.6
+data:
+  nats-server.conf: |-
+    CnNlcnZlcl9uYW1lOiAkTkFUU19TRVJWRVJfTkFNRQpsaXN0ZW46IDAuMC4wLjA6NDIyMgpodHRwOiAwLjAuMC4wOjgyMjIKCiMgQXV0aG9yaXphdGlvbiBmb3IgY2xpZW50IGNvbm5lY3Rpb25zCmF1dGhvcml6YXRpb24gewogIHVzZXI6ICJuYXRzX2NsaWVudCIKICBwYXNzd29yZDogIlRVQk9MVU5Ub3AiCiAgdGltZW91dDogIDEKfQoKIyBMb2dnaW5nIG9wdGlvbnMKZGVidWc6IGZhbHNlCnRyYWNlOiBmYWxzZQpsb2d0aW1lOiBmYWxzZQojIFBpZCBmaWxlCnBpZF9maWxlOiAiL29wdC9iaXRuYW1pL25hdHMvdG1wL25hdHMtc2VydmVyLnBpZCIKCiMgU29tZSBzeXN0ZW0gb3ZlcnJpZGVzCgojIENsdXN0ZXJpbmcgZGVmaW5pdGlvbgpjbHVzdGVyIHsKICBuYW1lOiAibmF0cyIKICBsaXN0ZW46IDAuMC4wLjA6NjIyMgogICMgQXV0aG9yaXphdGlvbiBmb3IgY2x1c3RlciBjb25uZWN0aW9ucwogIGF1dGhvcml6YXRpb24gewogICAgdXNlcjogIm5hdHNfY2x1c3RlciIKICAgIHBhc3N3b3JkOiAicGh4cFpSek9yeiIKICAgIHRpbWVvdXQ6ICAxCiAgfQogICMgUm91dGVzIGFyZSBhY3RpdmVseSBzb2xpY2l0ZWQgYW5kIGNvbm5lY3RlZCB0byBmcm9tIHRoaXMgc2VydmVyLgogICMgT3RoZXIgc2VydmVycyBjYW4gY29ubmVjdCB0byB1cyBpZiB0aGV5IHN1cHBseSB0aGUgY29ycmVjdCBjcmVkZW50aWFscwogICMgaW4gdGhlaXIgcm91dGVzIGRlZmluaXRpb25zIGZyb20gYWJvdmUKICByb3V0ZXMgPSBbCiAgICBuYXRzOi8vbmF0c19jbHVzdGVyOnBoeHBaUnpPcnpAbXktcmVsZWFzZS1uYXRzOjYyMjIKICBdCn0=
+---
+# Source: nats/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-nats-headless
+  namespace: "nats-8.2.6.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/version: 2.10.16
+    helm.sh/chart: nats-8.2.6
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-client
+      port: 4222
+      targetPort: client
+    - name: tcp-cluster
+      port: 6222
+      targetPort: cluster
+    - name: tcp-monitoring
+      port: 8222
+      targetPort: monitoring
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: nats
+---
+# Source: nats/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-nats
+  namespace: "nats-8.2.6.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/version: 2.10.16
+    helm.sh/chart: nats-8.2.6
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-client
+      port: 4222
+      targetPort: client
+      nodePort: null
+    - name: tcp-cluster
+      port: 6222
+      targetPort: cluster
+      nodePort: null
+    - name: tcp-monitoring
+      port: 8222
+      targetPort: monitoring
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: nats
+---
+# Source: nats/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-nats
+  namespace: "nats-8.2.6.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/version: 2.10.16
+    helm.sh/chart: nats-8.2.6
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: nats
+  serviceName: my-release-nats-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: nats
+        app.kubernetes.io/version: 2.10.16
+        helm.sh/chart: nats-8.2.6
+      annotations:
+        checksum/secret: c51dfcafd393a0f7a02e1566dea47f99df08049ae7427fa29001d5238816a658
+    spec:
+      
+      serviceAccountName: my-release-nats
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: nats
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      containers:
+        - name: nats
+          image: docker.io/bitnami/nats:2.10.16-debian-12-r1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: null
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: NATS_FILENAME
+              value: "nats-server"
+            - name: NATS_SERVER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: client
+              containerPort: 4222
+            - name: cluster
+              containerPort: 6222
+            - name: monitoring
+              containerPort: 8222
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /healthz
+              port: monitoring
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /
+              port: monitoring
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/nats/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/nats/tmp
+              subPath: app-tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/nats/logs
+              subPath: app-logs-dir
+            - name: config
+              mountPath: /bitnami/nats/conf/nats-server.conf
+              subPath: nats-server.conf
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: config
+          secret:
+            secretName: my-release-nats

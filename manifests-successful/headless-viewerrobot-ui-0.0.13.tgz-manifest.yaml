@@ -1,0 +1,102 @@
+---
+# Source: headless-viewerrobot-ui/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-headless-viewerrobot-ui
+  labels:
+    helm.sh/chart: headless-viewerrobot-ui-0.0.13
+    app.kubernetes.io/name: headless-viewerrobot-ui
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.13"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: headless-viewerrobot-ui/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-headless-viewerrobot-ui
+  labels:
+    helm.sh/chart: headless-viewerrobot-ui-0.0.13
+    app.kubernetes.io/name: headless-viewerrobot-ui
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.13"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: headless-viewerrobot-ui
+    app.kubernetes.io/instance: my-release
+---
+# Source: headless-viewerrobot-ui/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-headless-viewerrobot-ui
+  labels:
+    helm.sh/chart: headless-viewerrobot-ui-0.0.13
+    app.kubernetes.io/name: headless-viewerrobot-ui
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.13"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headless-viewerrobot-ui
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: headless-viewerrobot-ui
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-headless-viewerrobot-ui
+      securityContext:
+        {}
+      containers:
+        - name: headless-viewerrobot-ui
+          securityContext:
+            {}
+          image: "jfwenisch/headless-viewerrobot-ui:0.0.13"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: headless-viewerrobot-ui/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-headless-viewerrobot-ui-test-connection"
+  labels:
+    helm.sh/chart: headless-viewerrobot-ui-0.0.13
+    app.kubernetes.io/name: headless-viewerrobot-ui
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.13"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-headless-viewerrobot-ui:80']
+  restartPolicy: Never

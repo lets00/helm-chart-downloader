@@ -1,0 +1,47 @@
+---
+# Source: gickup/templates/secret.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: gickup-config
+type: Opaque
+data:
+  config: Y3JvbjogMCAzICogKiAqCnNvdXJjZToge30=
+---
+# Source: gickup/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gickup
+  labels:
+    k8s-app: gickup
+    version: v1
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: gickup
+      labels:
+        k8s-app: gickup
+        version: v1
+        config-hash: "1577650011"
+    spec:
+      containers:
+      - name: gickup
+        image: "buddyspencer/gickup:0.10.28"
+        volumeMounts:
+        - name: gickup-config
+          subPath: config
+          mountPath: /gickup/conf.yml
+        resources:
+          {}
+      volumes:
+      - name: gickup-config
+        secret:
+          secretName: gickup-config
+  selector:
+    matchLabels:
+      k8s-app: gickup

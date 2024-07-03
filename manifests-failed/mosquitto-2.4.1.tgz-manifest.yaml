@@ -1,0 +1,137 @@
+---
+# Source: mosquitto/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mosquitto
+  labels:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mosquitto-2.4.1
+---
+# Source: mosquitto/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mosquitto
+  labels:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mosquitto-2.4.1
+data:
+  mosquitto.conf:
+  |
+    persistence true
+    persistence_location /mosquitto/data/
+    log_dest stdout
+    listener 1883
+    listener 9090
+    protocol websockets
+---
+# Source: mosquitto/templates/persistentvolumeclaim.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-mosquitto
+  labels:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mosquitto-2.4.1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: mosquitto/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mosquitto
+  labels:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mosquitto-2.4.1
+spec:
+  type: ClusterIP
+  externalTrafficPolicy: Cluster
+  ports:
+    - name: mqtt
+      port: 1883
+      targetPort: mqtt
+      protocol: TCP
+    - name: websocket
+      port: 9090
+      targetPort: websocket
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/instance: my-release
+---
+# Source: mosquitto/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mosquitto
+  labels:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mosquitto-2.4.1
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mosquitto
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mosquitto
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 91030a7d591edd9a9fb48f7ac813947e27e187bb8967c6f3cad4223e2515c25
+    spec:
+      serviceAccountName: my-release-mosquitto
+      containers:
+        - name: mosquitto
+          image: "eclipse-mosquitto:1.6.12"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mqtt
+              containerPort: 1883
+              protocol: TCP
+            - name: websocket
+              containerPort: 9090
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: websocket
+            initialDelaySeconds: 5
+            periodSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: websocket
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          volumeMounts:
+            - name: config
+              mountPath: /mosquitto/config/mosquitto.conf
+              subPath: mosquitto.conf
+            - name: data
+              mountPath: /mosquitto/data
+              subPath: 
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-mosquitto
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-mosquitto

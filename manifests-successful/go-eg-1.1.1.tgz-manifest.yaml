@@ -1,0 +1,304 @@
+---
+# Source: go-eg/templates/auther-configmap.yaml
+apiVersion: v1
+data:
+  config.yaml: |-
+    app:
+      port: 9000
+
+    auth:
+      secret: admin # only for auther
+kind: ConfigMap
+metadata:
+  name: my-release-auther-config
+---
+# Source: go-eg/templates/cacher-configmap.yaml
+apiVersion: v1
+data:
+  config.yaml: |-
+    app:
+      port: 9000
+
+    auth:
+      url: http://my-release-auther:9000/auth
+kind: ConfigMap
+metadata:
+  name: my-release-cacher-config
+---
+# Source: go-eg/templates/ui-configmap.yaml
+apiVersion: v1
+data:
+  config.yaml: |-
+    app:
+      port: 9000
+
+    auth:
+      url: http://my-release-auther:9000/auth
+
+    cache:
+      url: http://my-release-cacher:9000/
+kind: ConfigMap
+metadata:
+  name: my-release-ui-config
+---
+# Source: go-eg/templates/auther-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-auther
+spec:
+  ports:
+    - name: http-default
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    k8s-app: my-release-auther
+  sessionAffinity: None
+  type: ClusterIP
+---
+# Source: go-eg/templates/cacher-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-cacher
+spec:
+  ports:
+    - name: http-default
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    k8s-app: my-release-cacher
+  sessionAffinity: None
+  type: ClusterIP
+---
+# Source: go-eg/templates/ui-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ui
+spec:
+  ports:
+    - name: http-default
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    k8s-app: my-release-ui
+  sessionAffinity: None
+  type: ClusterIP
+---
+# Source: go-eg/templates/auther-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: my-release-auther
+    app.kubernetes.io/name: my-release-auther
+    app: my-release-auther
+    version: "1.0"
+  name: my-release-auther
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      k8s-app: my-release-auther
+      app.kubernetes.io/name: my-release-auther
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        k8s-app: my-release-auther
+        app.kubernetes.io/name: my-release-auther
+        app: my-release-auther
+        version: "1.0"
+    spec:
+      containers:
+        - image: docker.io/voidxmh/xmh-auther:v1
+          imagePullPolicy: IfNotPresent
+          name: my-release-auther
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {}
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          stdin: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          tty: true
+          volumeMounts:
+            - mountPath: /config.yaml
+              name: config
+              subPath: config.yaml
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: my-harbor
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - configMap:
+            defaultMode: 256
+            name: my-release-auther-config
+            optional: false
+          name: config
+---
+# Source: go-eg/templates/cacher-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: my-release-cacher
+    app.kubernetes.io/name: my-release-cacher
+    app: my-release-cacher
+    version: "1.0"
+  name: my-release-cacher
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      k8s-app: my-release-cacher
+      app.kubernetes.io/name: my-release-cacher
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        k8s-app: my-release-cacher
+        app.kubernetes.io/name: my-release-cacher
+        app: my-release-cacher
+        version: "1.0"
+    spec:
+      containers:
+        - image: docker.io/voidxmh/xmh-cacher:v1
+          imagePullPolicy: IfNotPresent
+          name: my-release-cacher
+          resources: { }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { }
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          stdin: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          tty: true
+          volumeMounts:
+            - mountPath: /config.yaml
+              name: config
+              subPath: config.yaml
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: my-harbor
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: { }
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - configMap:
+            defaultMode: 256
+            name: my-release-cacher-config
+            optional: false
+          name: config
+---
+# Source: go-eg/templates/ui-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: my-release-ui
+    app.kubernetes.io/name: my-release-ui
+    app: my-release-ui
+    version: "1.0"
+  name: my-release-ui
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      k8s-app: my-release-ui
+      app.kubernetes.io/name: my-release-ui
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        k8s-app: my-release-ui
+        app.kubernetes.io/name: my-release-ui
+        app: my-release-ui
+        version: "1.0"
+    spec:
+      containers:
+        - image: docker.io/voidxmh/xmh-ui:v1
+          imagePullPolicy: IfNotPresent
+          name: my-release-ui
+          resources: { }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { }
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          stdin: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          tty: true
+          volumeMounts:
+            - mountPath: /config.yaml
+              name: config
+              subPath: config.yaml
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: my-harbor
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: { }
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - configMap:
+            defaultMode: 256
+            name: my-release-ui-config
+            optional: false
+          name: config
+---
+# Source: go-eg/templates/ui-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ingress
+spec:
+
+
+
+
+
+  rules:
+    - host: go.eg.ui
+      http:
+        paths:
+          - backend:
+              service:
+                name: my-release-ui
+                port:
+                  number: 9000
+            pathType: ImplementationSpecific

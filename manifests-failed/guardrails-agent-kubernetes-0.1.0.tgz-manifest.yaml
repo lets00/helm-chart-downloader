@@ -1,0 +1,201 @@
+---
+# Source: guardrails-agent-kubernetes/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-guardrails-agent-kubernetes
+  labels:
+    helm.sh/chart: guardrails-agent-kubernetes-0.1.0
+    app.kubernetes.io/name: guardrails-agent-kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: guardrails-agent-kubernetes-0.1.0.tgz
+automountServiceAccountToken: true
+---
+# Source: guardrails-agent-kubernetes/templates/volumeclaim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-guardrails-agent-kubernetes
+  labels:
+    helm.sh/chart: guardrails-agent-kubernetes-0.1.0
+    app.kubernetes.io/name: guardrails-agent-kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: guardrails-agent-kubernetes-0.1.0.tgz
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: guardrails-agent-kubernetes/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: guardrails:agent:lister
+  labels:
+    helm.sh/chart: guardrails-agent-kubernetes-0.1.0
+    app.kubernetes.io/name: guardrails-agent-kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - endpoints
+      - events
+      - limitranges
+      - namespaces
+      - nodes
+      - persistentvolumes
+      - persistentvolumeclaims
+      - pods
+      - podtemplates
+      - replicationcontrollers
+      - resourcequotas
+      - secrets
+      - services
+      - serviceaccounts
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources:
+      - namespaces
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources:
+      - daemonsets
+      - deployments
+      - replicasets
+      - statefulsets
+    verbs: ["list"]
+  - apiGroups: ["batch"]
+    resources:
+      - cronjobs
+      - jobs
+    verbs: ["list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingress
+      - networkpolicies
+    verbs: ["list"]
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["list"]
+  - apiGroups: ["policy"]
+    resources:
+      - poddisruptionbudgets
+      - podsecuritypolicies
+    verbs: ["list"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - roles
+      - rolebindings
+      - clusterroles
+      - clusterrolebindings
+    verbs: ["list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+    verbs: ["list"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources:
+      - customresourcedefinitions
+    verbs: ["list"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources:
+      - endpointslices
+    verbs: ["list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["list"]
+---
+# Source: guardrails-agent-kubernetes/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: guardrails:agent:lister
+  labels:
+    helm.sh/chart: guardrails-agent-kubernetes-0.1.0
+    app.kubernetes.io/name: guardrails-agent-kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: my-release-guardrails-agent-kubernetes
+    namespace: guardrails-agent-kubernetes-0.1.0.tgz
+roleRef:
+  kind: ClusterRole
+  name: guardrails:agent:lister
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: guardrails-agent-kubernetes/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-guardrails-agent-kubernetes
+  labels:
+    helm.sh/chart: guardrails-agent-kubernetes-0.1.0
+    app.kubernetes.io/name: guardrails-agent-kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: guardrails-agent-kubernetes-0.1.0.tgz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: guardrails-agent-kubernetes
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: guardrails-agent-kubernetes-0.1.0
+        app.kubernetes.io/name: guardrails-agent-kubernetes
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-guardrails-agent-kubernetes
+      securityContext:
+        {}
+      containers:
+        - name: guardrails-agent-kubernetes
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 2000
+          image: "ghcr.io/turbot/guardrails-agent-kubernetes:0.1.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HOSTNAME
+              value: 
+            - name: ENROLL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: guardrails-agent-kubernetes-secret
+                  key: enroll-secret
+          resources:
+            {}
+          volumeMounts:
+            - name: osquery-data 
+              mountPath: /var/osquery/
+            - name: temp-directory
+              mountPath: /tmp/
+            - name: osquery-socket
+              mountPath: /var/osquery
+      volumes:
+        - name: temp-directory
+          emptyDir: {}
+        - name: osquery-socket
+          emptyDir: {}
+        - name: osquery-data
+          persistentVolumeClaim:
+            claimName: my-release-guardrails-agent-kubernetes

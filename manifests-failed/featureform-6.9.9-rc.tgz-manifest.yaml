@@ -1,0 +1,2008 @@
+---
+# Source: featureform/charts/etcd/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: featureform-etcd
+  namespace: "featureform-6.9.9-rc.tgz"
+  labels:
+    app.kubernetes.io/name: etcd
+    helm.sh/chart: etcd-8.2.4
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  minAvailable: 51%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/instance: my-release
+---
+# Source: featureform/charts/coordinator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-coordinator
+  labels:
+    helm.sh/chart: coordinator-0.1.0
+    app.kubernetes.io/name: coordinator
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: featureform/charts/dashboard-metadata/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-dashboard-metadata
+  labels:
+    helm.sh/chart: dashboard-metadata-0.1.0
+    app.kubernetes.io/name: dashboard-metadata
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: featureform/charts/ingress-nginx/templates/controller-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx
+  namespace: featureform-6.9.9-rc.tgz
+automountServiceAccountToken: true
+---
+# Source: featureform/charts/meilisearch/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: featureform-search
+  labels:
+    helm.sh/chart: meilisearch-0.1.49
+    app.kubernetes.io/name: meilisearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/component: search-engine
+    app.kubernetes.io/part-of: meilisearch
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: featureform/charts/prometheus/templates/clusterrole.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: featureform-prometheus
+---
+# Source: featureform/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-featureform
+  labels:
+    helm.sh/chart: featureform-6.9.9-rc
+    app.kubernetes.io/name: featureform
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "6.9.9-rc"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: featureform/charts/etcd/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: featureform-etcd
+  namespace: "featureform-6.9.9-rc.tgz"
+  labels:
+    app.kubernetes.io/name: etcd
+    helm.sh/chart: etcd-8.2.4
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  etcd-root-password: "c2VjcmV0cGFzc3dvcmQ="
+---
+# Source: featureform/charts/etcd/templates/token-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: featureform-etcd-jwt-token
+  namespace: "featureform-6.9.9-rc.tgz"
+  labels:
+    app.kubernetes.io/name: etcd
+    helm.sh/chart: etcd-8.2.4
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  jwt-token.pem: "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS2dJQkFBS0NBZ0VBdGlMMFBMUmRqdVZ5QXRGcTA1QWZyZ3cva2Y4Y3dmZjF4eERRbGJEZXZVSDhQUE9BCmxpaGQvVnVaSU1sWmNZNWVUMitUbVFsVmRycHpvZkpYYUhYL3YyVFFhL0V1QjZPeEJ5TG1KS1hTYjdWUCtZdzgKcllYOERhOG1hdTNtSW15M3k3NGdMdWFlcFBNeGFJSFUwdXlZeWJLM3hQQWg1VVlUaUpKOHJ1bTMvdW9Lb1R1ZApDTHVDdVJXZjFJcFRzSTA0aU5valVJa05zU1A3VTArZWJuaDR0Y1pCV0k3Zjh5anlhN3U3RnNtUGEyQ0htUjhuCnkzZ3Y4bHJNNkRHNHNodmpFU29ScXRKQkxHZVVnWkQ3RGJ2cUZNTlNEeGJreXprOE1iaEVQQlRESUM4RStZOTYKYWZKQnl1TTdkNWFmOEp5UDFIUmdDZEJvVmw1YStSVEF4bXVLNXM2QXdaNmVUTmhlY0VlUjE0YjdDYWZnR0gxUwp3dE1NYk1rV093RE1Ua1g1SnlMMUtONk5JQmVqWlhCQm1OelVMUUYvNG5lWmgrT0NQRmRjQkY1OUpmbUZMYWxqCk5GNGg5T0ttemRBTzVsQ3g2eVFPOEQwOFZqWGJVUnJjcE5TVEt0L3BKdkxndWQ2S0cwT1lmVGt5SklhREd4QnYKU3dhR1RjVnhxRlo1RTlMbm82T3lucmZ1L2E4RjdHMDNnaytXTjVSek5oZFgrSHNJOFJQSDdONVlWNHgrQXRvTAppL0RselloZ3JPYTJ0UDV6eFQ5S2VoTG5hd2d3aFNqQjhEczBYb1VkcmdFYmorNms0QXNKZEpGZDVnSTEvNW0rCkt5NTNJMERYWkYvcDA0SXQ2cGZ0UUNXRDdFamU3SmlYQlozYW1pekpWWm12amRHQlVWb2dqZS9tTXFzQ0F3RUEKQVFLQ0FnRUFwY0RsdUtFRVM5a3ZpclQrblE2YVpoQ3JnYmhEZVpxcFI4SmJzUDdIbGtFSXhvZHJ6RHRzWGZnUQpRVEE4Z0FWcWVxdzJESjNiOHpMM3JMZ1pKKzNMRTJreDdDb1BFOUM2ZUo0Z0I5WUl6clNZMWFmMFNJNll0Zk5oCjZRb2IxOVJNNTlSZEFaSExhcDRQcHVZUXd1dWltRnhXdFprN242WElmUStpL0tPaVdSQ3hIODVhdU9tOHE2ZXMKVHdhYjV4NStCcjFPU2lxUUZWZURqMnZ6Nk9FbUtYY0ZYUXlaYm5jak56d2ZwVHRGbEJqRERteTJFSXVPUnVhdgpkOWhZRjI4ZGxDOU82TUJ6bzIrWVRObWVQLzkxcGZPaktDeFRoMGJOS3dwZ3ZyUytadm1qYzJKSnEwVlc3c2NoCkJWSkV0L29qUXR1dDB3Q2hFNGpIRGNyL0xSUU4wVGpORGhMclJ6alFIYWo4TGplUXc2RCt5a1hLOWFsNTViZVkKVVdxY1ZXQVloYW1CYWU2N0RIb0UwZWFHVWd0RWZFaE1Cb1FqZ1JWdGdSeURZbUZRMmU4Ry9IZ2dOZlJkNjNoQwpuTDZoTjRJRytJME9CampMVEhaSTJreWVWRE5hUG45MjZGYyswZFNXN2Z2dmF6TXIyWW14SW01U3lIcEt0KzJmCjZVanprRzRXYmd3Z1cyTmsxRnBScFphT051MnVmODE3NS9kWjZrS0VML01RSHFGcHhka2kvVVZOL09uamIxMTEKc2s1dzVNTy9va3NzR294c0tYSThuM0tKZXNWWlVlSGo5RnY2ZWxRd1dFV0YwQURqUGt2VXBPcm83cXhLaGV0NgpQOXJpK3Z2MENmbTdabzZjUURCSWR3SkdpalI0Nkl3TEk2dFhPeFkrL1VrL1k0UVdzVkVDZ2dFQkFPY0U3SnF1CkQzbnpJajR6QnNwZGdJVEkrQ3Q2UEdLNFk1YVRNKy91a2xhTURiSzZULzlkLzBkQlVNRmxKT29MUEE2cGQ1d0cKNC9vdWErU0lhcGZ3WUZVbFA0L1dsaUlvdjJtRnpNa2NXV1FubS9zK3hJcXFWb2hjc0JHblcyTW9mTE1KeVR0MAorRVFyVWtNM1Rmdk9iYmd4Z2hhSlQ5MU52L2JrVHRzd2lKd2pvL005U2t6M0hMSXlEa2dWWjdSdkVGaTJHdVFpCjAyVGloS2FvYTlpY0I1bUl1aGRqbE9ISzBPajgrVDdCZWRxS08vVTY1MDdQalgvQkhkWEJiOXBWUlVSeEZoZUMKKzEvckZHMXFmZmN6WWxray9nZUE1RHBxbHRFQWxBVnBXWEZvb01hR29iQ1VQWmFzYXgrM1hodmFuNkZSblRwRgpvQ0EvTUlMeVRXc0liWGNDZ2dFQkFNblUyOWNZY3Z6UXpFandqd3lCOHNuSWpoSWIyUG8zSEFSUFFpWStKYlpaCkVHWVVEQ0VyV3JpSG1Id0tKV1NVV3FuODJ3WFZvUDlOSkVrRWhTMmd3R09NZnFJWG9LQjdZc0dEZHV3TlhqZjYKc2hyYUtvMWlVc1QzdnZzdHBLTmNHSW9HclBPR1plbjJoZllERlpoZmFRR09tNExNdEdrOVNIZko2eEpwS3ZLLwpHdUg5VFhjbUdXUk1HRWRlaUdjb28vNGxVUWREaHBJa3V2cG9TUUJwVkI0RHdZczJMemc5dVI1UTdhbE04VnlqCkpJdk10WnZDaTBZblRhU1JnOFk2bXM0M2p5RjZWZW5GU2NINTVzbFZOWE5VNkNEb0hzT0dJNm1SekFOeE96QXYKakZ1Yk5Pc1FtY3BYeEFpYlZoMEJwZmMydUJ6MDlrdmYySUdPTUpJMjRXMENnZ0VCQUpMcGljSFFRVjFQSmc2aQpDb1owc2I4L3dycDdjSjFqSDBucGNOVDdSYXF1UkNQTjRnUEc5Z21OV3RxeUJLaWwzbHFBb09UamFPVjMwZnN5CldYOG9TVXE4ZGxCMXFXSXR3WlJNbDIrcGpKdHBxUU04NW1ZOGJ1MG03SDA5alp0Z2F2UzhtM0VwTUp6QlkvNEUKMUozMnA4WEVEak5ndlI1Q1RIcW90QkVtS3lvSWJFSEtUMDdrc3lZTE9SUFVNUEFJMVQ5bEIzTGZSc25ZVjMxWQppOFRqYk4zUm1tNDNVTDNLYWRKUTFmeDNzNU1yNTNkTEx6L3FNOVR6clpKN0FqTzVtR1F1K2xxWFhGNmlNNHBsCmQ1ZlY0SXhLUHhYc2ZMYzlnNDJFTFozSFlpOEIxNFNJcDVpUW5SNE5wYzQwb1M5YmQ3cHlHV2V1VVdkUVoveE8KTkxlRlUzOENnZ0VCQU1kQUw2UWlpK3BRUzB5Nng4NEdQK1M2N0o2dUJUL0h4ZzN2SFJQYUNLc0ROREJDSEZObQpsSkpWc3RESngyNkxFeEo4QU5HNnU4MHVuK0xCNXFSTDdZS1pnYTZOK3RKVDNRUER3RlI3UWdlcm84YmttRnVwCnRLS2xIbEtrRmNQOE9IR1M4NDBhb21RZUx0UFc2YXZhalRTdlQ1RUtmQlRsSGpTOER5akcwRktESFl2NjRFMy8KTzlRTFYzQ2x2NjF2cnE1SXNyeWtDaWNld2NSUnpiZnRROUM1em9tYmZYUmRZdkt0M0dKbUJtVjQzYXh4OU53SApiQzFld2NUMHJ3MjBiMzJqMWRhc0NrTFZ0T0lkenB2MlZlVTg3a2tHUHRDeURXVHEvV2hza1kwWmM4dy81amNsCjFWMnYxV1RWeldhbmFPd3NoZ2g0UU9wWTIwblRVTm9YK2VVQ2dnRUFNNW82K2dzOWxhWk8xSXI2RnljM3RKTXYKQk8wRHo1VjhrbkdBWWJyRnkzTWF2cDlsdEUrVXMvRzNCUHUrT2hhdkhoWEhkOVQ4UGtNcGVKS2VUMmlvZG1RZgpzVFJSM2dKNVc5eUx3ZDFXR2kvNVVVeUxHV2pZdlFQYkpzY1A0ejJRMHh4VzhlVWdnV2FYRjVOaHlZWGdBVE1pCnhXWlkyd3R0cm1qUzVjWDBvR1BNOVZuTXQwdWhXYjNGS1pVcmFJaE5JM0d0eC9sMjhTQnBqZ2ZCdnliOHB0NmoKVnNLbzZJYjhnNElzdkJpdy9Da0paVHZvMnU3UHVoVEpTSlJVSG9TNzVWODB6TisvRW9lRXlMTDE1WFFCTWdkcwpKajBGaTJ0dm43MmdQNkxOb252TVA1YlZsVUROYUFqSlltVW1icksvQU5BUmNHa2VCc01Fcm5YZ3dsRmY4QT09Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg=="
+---
+# Source: featureform/charts/dashboard/templates/configmap.yaml
+apiVersion: v1
+data:
+  REACT_APP_API_URL: featureform-metadata-server
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: featureform-env
+---
+# Source: featureform/charts/ingress-nginx/templates/controller-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx-controller
+  namespace: featureform-6.9.9-rc.tgz
+data:
+  allow-snippet-annotations: "true"
+---
+# Source: featureform/charts/meilisearch/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: featureform-search-environment
+  labels:
+    helm.sh/chart: meilisearch-0.1.49
+    app.kubernetes.io/name: meilisearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/component: search-engine
+    app.kubernetes.io/part-of: meilisearch
+    app.kubernetes.io/managed-by: Helm
+data:
+  MEILI_ENV: "development"
+  MEILI_NO_ANALYTICS: "true"
+---
+# Source: featureform/charts/prometheus/templates/config-map.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: featureform-prometheus-server-conf
+  labels:
+    name: featureform-prometheus-server-conf
+data:
+  prometheus.rules: |-
+  prometheus.yml: |-
+    global:
+      scrape_interval: 5s
+      evaluation_interval: 5s
+    rule_files:
+      - /etc/prometheus/prometheus.rules
+    alerting:
+      alertmanagers:
+      - scheme: http
+        static_configs:
+        - targets:
+          - "alertmanager.monitoring.svc:9093"
+    scrape_configs:
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets: ['kube-state-metrics.kube-system.svc.cluster.local:9090']
+      - job_name: 'featureform-service-monitoring'
+        scrape_interval: 10s
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["featureform-feature-server:2112"]
+---
+# Source: featureform/charts/ingress-nginx/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-ingress-nginx
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+      - namespaces
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: featureform/charts/ingress-nginx/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-ingress-nginx
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-ingress-nginx
+subjects:
+  - kind: ServiceAccount
+    name: my-release-ingress-nginx
+    namespace: "featureform-6.9.9-rc.tgz"
+---
+# Source: featureform/charts/coordinator/templates/role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-coordinator
+rules:
+  - apiGroups: ["", "extensions", "apps", "batch"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+# Source: featureform/charts/ingress-nginx/templates/controller-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx
+  namespace: featureform-6.9.9-rc.tgz
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - ingress-controller-leader
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+# Source: featureform/charts/prometheus/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: featureform-prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups:
+      - extensions
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch"]
+---
+# Source: featureform/charts/coordinator/templates/rolebinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-coordinator-binding
+subjects:
+  - kind: ServiceAccount
+    name: my-release-coordinator
+    apiGroup: ""
+  - kind: ServiceAccount
+    name: default
+    apiGroup: ""
+roleRef:
+  kind: Role
+  name: my-release-coordinator
+  apiGroup: ""
+---
+# Source: featureform/charts/ingress-nginx/templates/controller-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx
+  namespace: featureform-6.9.9-rc.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-ingress-nginx
+subjects:
+  - kind: ServiceAccount
+    name: my-release-ingress-nginx
+    namespace: "featureform-6.9.9-rc.tgz"
+---
+# Source: featureform/charts/prometheus/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: featureform-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: featureform-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: default
+---
+# Source: featureform/charts/api-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-api-server
+  labels:
+    run: featureform-api-server
+spec:
+  # bypass kube-proxy
+  ports:
+    - port: 7878
+      protocol: TCP
+      targetPort: 7878
+  type: ClusterIP
+  selector:
+    app: featureform-api-server
+---
+# Source: featureform/charts/coordinator/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-coordinator
+  labels:
+    helm.sh/chart: coordinator-0.1.0
+    app.kubernetes.io/name: coordinator
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: coordinator
+    app.kubernetes.io/instance: featureform
+---
+# Source: featureform/charts/dashboard-metadata/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-dashboard-metadata
+  labels:
+    helm.sh/chart: dashboard-metadata-0.1.0
+    app.kubernetes.io/name: dashboard-metadata
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: dashboard-metadata
+    app.kubernetes.io/instance: featureform
+---
+# Source: featureform/charts/dashboard/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-dashboard
+spec:
+  type: ClusterIP
+  selector:
+    app: featureform-dashboard
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+---
+# Source: featureform/charts/etcd/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-etcd-headless
+  namespace: "featureform-6.9.9-rc.tgz"
+  labels:
+    app.kubernetes.io/name: etcd
+    helm.sh/chart: etcd-8.2.4
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: client
+      port: 2379
+      targetPort: client
+    - name: peer
+      port: 2380
+      targetPort: peer
+  selector:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+---
+# Source: featureform/charts/etcd/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-etcd
+  namespace: "featureform-6.9.9-rc.tgz"
+  labels:
+    app.kubernetes.io/name: etcd
+    helm.sh/chart: etcd-8.2.4
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: "client"
+      port: 2379
+      targetPort: client
+      nodePort: null
+    - name: "peer"
+      port: 2380
+      targetPort: peer
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/instance: my-release
+---
+# Source: featureform/charts/feature-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  name: featureform-feature-server
+spec:
+  ports:
+    - name: grpc
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: metrics
+      port: 2112
+      protocol: TCP
+      targetPort: 2112
+  selector:
+    run: featureform-feature-server
+status:
+  loadBalancer: {}
+---
+# Source: featureform/charts/ingress-nginx/templates/controller-service-webhook.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx-controller-admission
+  namespace: featureform-6.9.9-rc.tgz
+spec:
+  type: ClusterIP
+  ports:
+    - name: https-webhook
+      port: 443
+      targetPort: webhook
+      appProtocol: https
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: controller
+---
+# Source: featureform/charts/ingress-nginx/templates/controller-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx-controller
+  namespace: featureform-6.9.9-rc.tgz
+spec:
+  type: LoadBalancer
+  ipFamilyPolicy: SingleStack
+  ipFamilies: 
+    - IPv4
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+      appProtocol: http
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+      appProtocol: https
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: controller
+---
+# Source: featureform/charts/meilisearch/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-search
+  labels:
+    helm.sh/chart: meilisearch-0.1.49
+    app.kubernetes.io/name: meilisearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/component: search-engine
+    app.kubernetes.io/part-of: meilisearch
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7700
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: meilisearch
+    app.kubernetes.io/instance: my-release
+---
+# Source: featureform/charts/metadata/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  name: featureform-metadata-server
+spec:
+  ports:
+    - name: grpc
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    run: featureform-metadata-server
+status:
+  loadBalancer: {}
+---
+# Source: featureform/charts/prometheus/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-prometheus-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+
+spec:
+  selector:
+    app: featureform-prometheus-server
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: 9090
+---
+# Source: featureform/charts/api-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: featureform-api-server
+    chart: featureform
+  name: featureform-api-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-api-server
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: featureform-api-server
+    spec:
+      containers:
+        - image: "featureformcom/api-server:6.9.9-rc"
+          imagePullPolicy: Always
+          name: featureform-api-server
+          ports:
+            - containerPort: 7878
+              protocol: TCP
+          resources: {}
+          env:
+            - name: API_PORT
+              value: "7878"
+            - name: METADATA_HOST
+              value: featureform-metadata-server
+            - name: METADATA_PORT
+              value: "8080"
+            - name: SERVING_HOST
+              value: featureform-feature-server
+            - name: SERVING_PORT
+              value: "8080"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          livenessProbe:
+            httpGet:
+              path: /_ah/
+              port: 8443
+            initialDelaySeconds: 300
+            periodSeconds: 3
+status: {}
+---
+# Source: featureform/charts/coordinator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: featureform-coordinator
+  labels:
+    chart: featureform
+    helm.sh/chart: coordinator-0.1.0
+    app.kubernetes.io/name: coordinator
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      chart: featureform
+      app: featureform-coordinator
+      app.kubernetes.io/name: coordinator
+      app.kubernetes.io/instance: featureform
+  template:
+    metadata:
+      labels:
+        chart: featureform
+        app: featureform-coordinator
+        app.kubernetes.io/name: coordinator
+        app.kubernetes.io/instance: featureform
+    spec:
+      serviceAccountName: my-release-coordinator
+      securityContext:
+        {}
+      containers:
+        - name: coordinator
+          securityContext:
+            {}
+          image: "featureformcom/coordinator:6.9.9-rc"
+          imagePullPolicy: Always
+          env:
+            - name: ETCD_PORT
+              value: "2379"
+            - name: ETCD_HOST
+              value: featureform-etcd
+            - name: METADATA_PORT
+              value: "8080"
+            - name: METADATA_HOST
+              value: featureform-metadata-server
+            - name: K8S_RUNNER_ENABLE
+              value: "false"
+            - name: WORKER_IMAGE
+              value: "featureformcom/worker:6.9.9-rc"
+            - name: PANDAS_RUNNER_IMAGE
+              value: "featureformcom/k8s_runner:6.9.9-rc"
+            - name: DEBUG
+              value: "false"
+
+
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+#          livenessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+#          readinessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+          resources:
+            {}
+---
+# Source: featureform/charts/dashboard-metadata/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: featureform-dashboard-metadata
+  labels:
+    chart: featureform
+    helm.sh/chart: dashboard-metadata-0.1.0
+    app.kubernetes.io/name: dashboard-metadata
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-dashboard-metadata
+      app.kubernetes.io/name: dashboard-metadata
+      app.kubernetes.io/instance: featureform
+  template:
+    metadata:
+      labels:
+        app: featureform-dashboard-metadata
+        app.kubernetes.io/name: dashboard-metadata
+        app.kubernetes.io/instance: featureform
+    spec:
+      serviceAccountName: my-release-dashboard-metadata
+      securityContext:
+        {}
+      containers:
+        - name: dashboard-metadata
+          securityContext:
+            {}
+          image: "featureformcom/metadata-dashboard:6.9.9-rc"
+          imagePullPolicy: Always
+          env:
+            - name: METADATA_HOST
+              value: "featureform-metadata-server"
+            - name: METADATA_PORT
+              value: "8080"
+            - name: METADATA_HTTP_PORT
+              value: "3001"
+            - name: MEILISEARCH_PORT
+              value: "7700"
+            - name: MEILISEARCH_HOST
+              value: featureform-search
+            - name: MEILISEARCH_APIKEY
+              value: ""
+            - name: FEATUREFORM_VERSION
+              value: 6.9.9-rc
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+#          livenessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+#          readinessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+          resources:
+            {}
+---
+# Source: featureform/charts/dashboard/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: featureform-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-dashboard
+  template:
+    metadata:
+      labels:
+        chart: featureform
+        app: featureform-dashboard
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: featureform-dashboard
+          image: "featureformcom/dashboard:6.9.9-rc"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          env:
+            - name: REACT_APP_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: REACT_APP_API_URL
+                  name: featureform-env
+---
+# Source: featureform/charts/feature-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    chart: featureform
+    run: featureform-feature-server
+    app: featureform-feature-server
+  name: featureform-feature-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: featureform-feature-server
+      app: featureform-feature-server
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        chart: featureform
+        run: featureform-feature-server
+        app: featureform-feature-server
+    spec:
+      containers:
+        - image: "featureformcom/serving:6.9.9-rc"
+          imagePullPolicy: Always
+          name: featureform-feature-server
+          ports:
+            - containerPort: 8080
+            - containerPort: 2112
+          env:
+            - name: SERVING_PORT
+              value: "8080"
+            - name: METRICS_PORT
+              value: 0.0.0.0:2112
+            - name: METADATA_HOST
+              value: featureform-metadata-server
+            - name: METADATA_PORT
+              value: "8080"
+          resources: {}
+status: {}
+---
+# Source: featureform/charts/ingress-nginx/templates/controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: my-release-ingress-nginx-controller
+  namespace: featureform-6.9.9-rc.tgz
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: controller
+  replicas: 1
+  revisionHistoryLimit: 10
+  minReadySeconds: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: controller
+    spec:
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: controller
+          image: "k8s.gcr.io/ingress-nginx/controller:v1.2.0@sha256:d8196e3bc1e72547c5dec66d6556c0ff92a23f6d0919b206be170bc90d5f9185"
+          imagePullPolicy: IfNotPresent
+          lifecycle: 
+            preStop:
+              exec:
+                command:
+                - /wait-shutdown
+          args:
+            - /nginx-ingress-controller
+            - --publish-service=$(POD_NAMESPACE)/my-release-ingress-nginx-controller
+            - --election-id=ingress-controller-leader
+            - --controller-class=k8s.io/ingress-nginx
+            - --ingress-class=nginx
+            - --configmap=$(POD_NAMESPACE)/my-release-ingress-nginx-controller
+            - --validating-webhook=:8443
+            - --validating-webhook-certificate=/usr/local/certificates/cert
+            - --validating-webhook-key=/usr/local/certificates/key
+          securityContext: 
+            capabilities:
+              drop:
+              - ALL
+              add:
+              - NET_BIND_SERVICE
+            runAsUser: 101
+            allowPrivilegeEscalation: true
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LD_PRELOAD
+              value: /usr/local/lib/libmimalloc.so
+          livenessProbe: 
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe: 
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: https
+              containerPort: 443
+              protocol: TCP
+            - name: webhook
+              containerPort: 8443
+              protocol: TCP
+          volumeMounts:
+            - name: webhook-cert
+              mountPath: /usr/local/certificates/
+              readOnly: true
+          resources: 
+            requests:
+              cpu: 100m
+              memory: 90Mi
+      nodeSelector: 
+        kubernetes.io/os: linux
+      serviceAccountName: my-release-ingress-nginx
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: webhook-cert
+          secret:
+            secretName: my-release-ingress-nginx-admission
+---
+# Source: featureform/charts/metadata/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    chart: featureform
+    run: featureform-metadata-server
+    app: featureform-metadata-server
+  name: featureform-metadata-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      chart: featureform
+      run: featureform-metadata-server
+      app: featureform-metadata-server
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        chart: featureform
+        run: featureform-metadata-server
+        app: featureform-metadata-server
+    spec:
+      containers:
+        - image: "featureformcom/metadata:6.9.9-rc"
+          name: featureform-metadata-server
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          resources: {}
+          env:
+            - name: MEILISEARCH_PORT
+              value: "7700"
+            - name: MEILISEARCH_HOST
+              value: featureform-search
+            - name: MEILISEARCH_APIKEY
+              value: ""
+            - name: ETCD_HOST
+              value: featureform-etcd
+            - name: ETCD_PORT
+              value: "2379"
+status: {}
+---
+# Source: featureform/charts/prometheus/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: featureform-prometheus-deployment
+  labels:
+    app: featureform-prometheus-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-prometheus-server
+  template:
+    metadata:
+      labels:
+        app: featureform-prometheus-server
+    spec:
+      containers:
+        - name: featureform-prometheus
+          image: prom/prometheus
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--web.route-prefix=/prometheus"
+            - "--web.external-url=http://my-release-featureform.featureform.com/prometheus"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: featureform-prometheus-config-volume
+              mountPath: /etc/prometheus/
+            - name: featureform-prometheus-storage-volume
+              mountPath: /prometheus/
+      volumes:
+        - name: featureform-prometheus-config-volume
+          configMap:
+            defaultMode: 420
+            name: featureform-prometheus-server-conf
+
+        - name: featureform-prometheus-storage-volume
+          emptyDir: {}
+---
+# Source: featureform/charts/etcd/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: featureform-etcd
+  namespace: "featureform-6.9.9-rc.tgz"
+  labels:
+    app.kubernetes.io/name: etcd
+    helm.sh/chart: etcd-8.2.4
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: etcd
+      app.kubernetes.io/instance: my-release
+  serviceName: featureform-etcd-headless
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: etcd
+        helm.sh/chart: etcd-8.2.4
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        checksum/token-secret: bd87358e2c2d7188f22471f16a77a02bb4d35edd012a34f773a65f61d77418c6
+    spec:
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: etcd
+                    app.kubernetes.io/instance: my-release
+                namespaces:
+                  - "featureform-6.9.9-rc.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: "default"
+      containers:
+        - name: etcd
+          image: docker.io/bitnami/etcd:3.5.4-debian-10-r25
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_STS_NAME
+              value: "featureform-etcd"
+            - name: ETCDCTL_API
+              value: "3"
+            - name: ETCD_ON_K8S
+              value: "yes"
+            - name: ETCD_START_FROM_SNAPSHOT
+              value: "no"
+            - name: ETCD_DISASTER_RECOVERY
+              value: "no"
+            - name: ETCD_NAME
+              value: "$(MY_POD_NAME)"
+            - name: ETCD_DATA_DIR
+              value: "/bitnami/etcd/data"
+            - name: ETCD_LOG_LEVEL
+              value: "info"
+            - name: ALLOW_NONE_AUTHENTICATION
+              value: "no"
+            - name: ETCD_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: featureform-etcd
+                  key: etcd-root-password
+            - name: ETCD_AUTH_TOKEN
+              value: "jwt,priv-key=/opt/bitnami/etcd/certs/token/jwt-token.pem,sign-method=RS256,ttl=100h"
+            - name: ETCD_ADVERTISE_CLIENT_URLS
+              value: "http://$(MY_POD_NAME).featureform-etcd-headless.featureform-6.9.9-rc.tgz.svc.cluster.local:2379,http://featureform-etcd.featureform-6.9.9-rc.tgz.svc.cluster.local:2379"
+            - name: ETCD_LISTEN_CLIENT_URLS
+              value: "http://0.0.0.0:2379"
+            - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+              value: "http://$(MY_POD_NAME).featureform-etcd-headless.featureform-6.9.9-rc.tgz.svc.cluster.local:2380"
+            - name: ETCD_LISTEN_PEER_URLS
+              value: "http://0.0.0.0:2380"
+            - name: ETCD_INITIAL_CLUSTER_TOKEN
+              value: "etcd-cluster-k8s"
+            - name: ETCD_INITIAL_CLUSTER_STATE
+              value: "new"
+            - name: ETCD_INITIAL_CLUSTER
+              value: "featureform-etcd-0=http://featureform-etcd-0.featureform-etcd-headless.featureform-6.9.9-rc.tgz.svc.cluster.local:2380,featureform-etcd-1=http://featureform-etcd-1.featureform-etcd-headless.featureform-6.9.9-rc.tgz.svc.cluster.local:2380,featureform-etcd-2=http://featureform-etcd-2.featureform-etcd-headless.featureform-6.9.9-rc.tgz.svc.cluster.local:2380"
+            - name: ETCD_CLUSTER_DOMAIN
+              value: "featureform-etcd-headless.featureform-6.9.9-rc.tgz.svc.cluster.local"
+          envFrom:
+          ports:
+            - name: client
+              containerPort: 2379
+              protocol: TCP
+            - name: peer
+              containerPort: 2380
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - /opt/bitnami/scripts/etcd/healthcheck.sh
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - /opt/bitnami/scripts/etcd/healthcheck.sh
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /opt/bitnami/scripts/etcd/prestop.sh
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/etcd
+            - name: etcd-jwt-token
+              mountPath: /opt/bitnami/etcd/certs/token/
+              readOnly: true
+      volumes:
+        - name: etcd-jwt-token
+          secret:
+            secretName: featureform-etcd-jwt-token
+            defaultMode: 256
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: featureform/charts/meilisearch/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: featureform-search
+  labels:
+    helm.sh/chart: meilisearch-0.1.49
+    app.kubernetes.io/name: meilisearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/component: search-engine
+    app.kubernetes.io/part-of: meilisearch
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: featureform-search
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: meilisearch
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: meilisearch-0.1.49
+        app.kubernetes.io/name: meilisearch
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "v1.0.0"
+        app.kubernetes.io/component: search-engine
+        app.kubernetes.io/part-of: meilisearch
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: featureform-search
+      containers:
+        - name: meilisearch
+          image: "getmeili/meilisearch:v1.0.0"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+          - configMapRef:
+              name: featureform-search-environment
+          ports:
+            - name: http
+              containerPort: 7700
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 1
+            initialDelaySeconds: 1
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            initialDelaySeconds: 0
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            initialDelaySeconds: 0
+          resources:
+            {}
+---
+# Source: featureform/charts/ingress-nginx/templates/controller-ingressclass.yaml
+# We don't support namespaced ingressClass yet
+# So a ClusterRole and a ClusterRoleBinding is required
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: controller
+  name: nginx
+spec:
+  controller: k8s.io/ingress-nginx
+---
+# Source: featureform/charts/grpc-ingress/templates/grpc-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    allowed-values: CN=client
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "false"
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+    nginx.ingress.kubernetes.io/auth-tls-verify-depth: "1"
+    nginx.ingress.kubernetes.io/backend-protocol: GRPC
+    nginx.ingress.kubernetes.io/proxy-body-size: 64ms
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/issuer: letsencrypt-prod
+    kots.io/exclude: "true"
+  name: grpc-ingress
+spec:
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /featureform.serving.metadata.proto.Api/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-api-server
+                port:
+                  number: 7878
+
+          - path: /featureform.serving.proto.Feature/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-api-server
+                port:
+                  number: 7878
+
+
+
+  tls:
+    - hosts:
+        -  localhost
+      secretName: featureform-ca-secret
+---
+# Source: featureform/charts/grpc-ingress/templates/http-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    allowed-values: CN=client
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/proxy-body-size: 64ms
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/issuer: letsencrypt-prod
+    kots.io/exclude: "true"
+  name: http-ingress
+spec:
+  defaultBackend:
+    service:
+      name: featureform-dashboard
+      port:
+        number: 80
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /data/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-dashboard-metadata
+                port:
+                  number: 3001
+          - path: /search/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-dashboard-metadata
+                port:
+                  number: 3001
+          - path: /prometheus/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-prometheus-service
+                port:
+                  number: 9090
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-dashboard
+                port:
+                  number: 80
+---
+# Source: featureform/charts/grpc-ingress/templates/localhostcert.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: featureform-ca-cert
+spec:
+  secretName: featureform-ca
+  dnsNames:
+    - localhost
+  issuerRef:
+    name: letsencrypt-prod
+---
+# Source: featureform/charts/grpc-ingress/templates/localhostcert.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  selfSigned: {}
+---
+# Source: featureform/charts/ingress-nginx/templates/admission-webhooks/validating-webhook.yaml
+# before changing this value, check the required kubernetes version
+# https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#prerequisites
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+  name: my-release-ingress-nginx-admission
+webhooks:
+  - name: validate.nginx.ingress.kubernetes.io
+    matchPolicy: Equivalent
+    rules:
+      - apiGroups:
+          - networking.k8s.io
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - ingresses
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        namespace: "featureform-6.9.9-rc.tgz"
+        name: my-release-ingress-nginx-controller-admission
+        path: /networking/v1/ingresses
+---
+# Source: featureform/charts/ingress-nginx/templates/admission-webhooks/job-patch/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-ingress-nginx-admission
+  namespace: featureform-6.9.9-rc.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+---
+# Source: featureform/charts/ingress-nginx/templates/admission-webhooks/job-patch/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-ingress-nginx-admission
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+rules:
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - update
+---
+# Source: featureform/charts/ingress-nginx/templates/admission-webhooks/job-patch/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name:  my-release-ingress-nginx-admission
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-ingress-nginx-admission
+subjects:
+  - kind: ServiceAccount
+    name: my-release-ingress-nginx-admission
+    namespace: "featureform-6.9.9-rc.tgz"
+---
+# Source: featureform/charts/ingress-nginx/templates/admission-webhooks/job-patch/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name:  my-release-ingress-nginx-admission
+  namespace: featureform-6.9.9-rc.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+---
+# Source: featureform/charts/ingress-nginx/templates/admission-webhooks/job-patch/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-ingress-nginx-admission
+  namespace: featureform-6.9.9-rc.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade,post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-ingress-nginx-admission
+subjects:
+  - kind: ServiceAccount
+    name: my-release-ingress-nginx-admission
+    namespace: "featureform-6.9.9-rc.tgz"
+---
+# Source: featureform/charts/api-server/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-api-server-test-connection"
+  labels:
+    helm.sh/chart: api-server-0.1.0
+    app.kubernetes.io/name: api-server
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-api-server:7878']
+  restartPolicy: Never
+---
+# Source: featureform/charts/coordinator/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-coordinator-test-connection"
+  labels:
+    helm.sh/chart: coordinator-0.1.0
+    app.kubernetes.io/name: coordinator
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-coordinator:80']
+  restartPolicy: Never
+---
+# Source: featureform/charts/dashboard-metadata/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-dashboard-metadata-test-connection"
+  labels:
+    helm.sh/chart: dashboard-metadata-0.1.0
+    app.kubernetes.io/name: dashboard-metadata
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-dashboard-metadata:3001']
+  restartPolicy: Never
+---
+# Source: featureform/charts/dashboard/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-dashboard-test-connection"
+  labels:
+    helm.sh/chart: dashboard-0.1.0
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-dashboard:3001']
+  restartPolicy: Never
+---
+# Source: featureform/charts/feature-server/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-feature-server-test-connection"
+  labels:
+    helm.sh/chart: feature-server-0.1.0
+    app.kubernetes.io/name: feature-server
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-feature-server:80']
+  restartPolicy: Never
+---
+# Source: featureform/charts/meilisearch/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: featureform-search-test-connection
+  labels:
+    app.kubernetes.io/name: meilisearch
+    helm.sh/chart: meilisearch-0.1.49
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['featureform-search:7700']
+  restartPolicy: Never
+---
+# Source: featureform/charts/metadata/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-metadata-server-test-connection"
+  labels:
+    helm.sh/chart: metadata-0.1.0
+    app.kubernetes.io/name: metadata-server
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-metadata-server:80']
+  restartPolicy: Never
+---
+# Source: featureform/charts/prometheus/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-prometheus-test-connection"
+  labels:
+    helm.sh/chart: prometheus-0.1.0
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-prometheus:80']
+  restartPolicy: Never
+---
+# Source: featureform/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-featureform-test-connection"
+  labels:
+    helm.sh/chart: featureform-6.9.9-rc
+    app.kubernetes.io/name: featureform
+    app.kubernetes.io/instance: featureform
+    app.kubernetes.io/version: "6.9.9-rc"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-featureform:80']
+  restartPolicy: Never
+---
+# Source: featureform/charts/ingress-nginx/templates/admission-webhooks/job-patch/job-createSecret.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-ingress-nginx-admission-create
+  namespace: featureform-6.9.9-rc.tgz
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+spec:
+  template:
+    metadata:
+      name: my-release-ingress-nginx-admission-create
+      labels:
+        helm.sh/chart: ingress-nginx-4.1.0
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.2.0"
+        app.kubernetes.io/part-of: ingress-nginx
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: admission-webhook
+    spec:
+      containers:
+        - name: create
+          image: "k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1@sha256:64d8c73dca984af206adf9d6d7e46aa550362b1d7a01f3a0a91b20cc67868660"
+          imagePullPolicy: IfNotPresent
+          args:
+            - create
+            - --host=my-release-ingress-nginx-controller-admission,my-release-ingress-nginx-controller-admission.$(POD_NAMESPACE).svc
+            - --namespace=$(POD_NAMESPACE)
+            - --secret-name=my-release-ingress-nginx-admission
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext:
+            allowPrivilegeEscalation: false
+      restartPolicy: OnFailure
+      serviceAccountName: my-release-ingress-nginx-admission
+      nodeSelector: 
+        kubernetes.io/os: linux
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        fsGroup: 2000
+---
+# Source: featureform/charts/ingress-nginx/templates/admission-webhooks/job-patch/job-patchWebhook.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-ingress-nginx-admission-patch
+  namespace: featureform-6.9.9-rc.tgz
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  labels:
+    helm.sh/chart: ingress-nginx-4.1.0
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admission-webhook
+spec:
+  template:
+    metadata:
+      name: my-release-ingress-nginx-admission-patch
+      labels:
+        helm.sh/chart: ingress-nginx-4.1.0
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.2.0"
+        app.kubernetes.io/part-of: ingress-nginx
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: admission-webhook
+    spec:
+      containers:
+        - name: patch
+          image: "k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1@sha256:64d8c73dca984af206adf9d6d7e46aa550362b1d7a01f3a0a91b20cc67868660"
+          imagePullPolicy: IfNotPresent
+          args:
+            - patch
+            - --webhook-name=my-release-ingress-nginx-admission
+            - --namespace=$(POD_NAMESPACE)
+            - --patch-mutating=false
+            - --secret-name=my-release-ingress-nginx-admission
+            - --patch-failure-policy=Fail
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext:
+            allowPrivilegeEscalation: false
+      restartPolicy: OnFailure
+      serviceAccountName: my-release-ingress-nginx-admission
+      nodeSelector: 
+        kubernetes.io/os: linux
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        fsGroup: 2000

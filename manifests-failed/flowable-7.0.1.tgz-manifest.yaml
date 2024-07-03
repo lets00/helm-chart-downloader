@@ -1,0 +1,397 @@
+---
+# Source: flowable/charts/postgres/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgres
+  namespace: "flowable-7.0.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres
+    helm.sh/chart: postgres-12.10.0
+type: Opaque
+data:
+  postgres-password: "YmpXMklxRk0xRQ=="
+  password: "Zmxvd2FibGU="
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: flowable/templates/rest.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-rest-configmap
+data:
+  JAVA_OPTS: "-Xmx1g -Xms1g -Djava.security.egd=file:/dev/./urandom"
+  SERVER_SERVLET_CONTEXT_PATH: "/flowable-rest"
+  SERVER_SERVLET_SESSION_TIMEOUT: 1h
+  SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
+  SPRING_DATASOURCE_URL: jdbc:postgresql://my-release-postgres:5432/flowable
+  SPRING_DATASOURCE_USERNAME: flowable
+  SPRING_DATASOURCE_PASSWORD: flowable
+  FLOWABLE_REST_APP_ADMIN_USER-ID: rest-admin
+  FLOWABLE_REST_APP_ADMIN_PASSWORD: test
+---
+# Source: flowable/charts/postgres/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgres-hl
+  namespace: "flowable-7.0.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres
+    helm.sh/chart: postgres-12.10.0
+    app.kubernetes.io/component: primary
+  annotations:
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: primary
+---
+# Source: flowable/charts/postgres/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgres
+  namespace: "flowable-7.0.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres
+    helm.sh/chart: postgres-12.10.0
+    app.kubernetes.io/component: primary
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: primary
+---
+# Source: flowable/templates/rest.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-flowable-rest
+  labels:
+    app.kubernetes.io/name: rest
+    helm.sh/chart: flowable-7.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: my-release-rest
+    app.kubernetes.io/instance: my-release
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+---
+# Source: flowable/templates/rest.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-rest
+  labels:
+    app.kubernetes.io/name: rest
+    helm.sh/chart: flowable-7.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-rest
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-rest
+        app.kubernetes.io/instance: my-release
+    spec:
+      initContainers:
+        - name: check-db-ready
+          image: "docker.io/bitnami/postgresql:12.10.0"
+          command: ['sh', '-c', 'until pg_isready -h my-release-postgres -p 5432 -U flowable; do echo waiting for database; sleep 2; done;']
+      containers:
+      - name: my-release-rest
+        image: "flowable/flowable-rest:7.0.1"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /flowable-rest/actuator/health
+            port: 8080
+            httpHeaders:
+            - name: Authorization
+              ### is using the default rest-admin:test
+              ### generate new with; echo -n "<username:<passwd>" | base64
+              #value: Basic cmVzdC1hZG1pbjp0ZXN0
+              value: Basic:cmVzdC1hZG1pbjp0ZXN0
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /flowable-rest/actuator/health
+            port: 8080
+            httpHeaders:
+            - name: Authorization
+              ### is using the default rest-admin:test
+              ### generate new with; echo -n "<username:<passwd>" | base64
+              #value: Basic cmVzdC1hZG1pbjp0ZXN0
+              value: Basic:cmVzdC1hZG1pbjp0ZXN0
+          initialDelaySeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 10
+        envFrom:
+        - configMapRef:
+            name: my-release-rest-configmap
+        volumeMounts:
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 1Gi
+      volumes:
+      restartPolicy: Always
+---
+# Source: flowable/charts/postgres/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgres
+  namespace: "flowable-7.0.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgres
+    helm.sh/chart: postgres-12.10.0
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  serviceName: my-release-postgres-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgres
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: postgres
+        helm.sh/chart: postgres-12.10.0
+        app.kubernetes.io/component: primary
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: postgres
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      hostNetwork: false
+      hostIPC: false
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:12.10.0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            runAsGroup: 0
+            runAsNonRoot: true
+            runAsUser: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "flowable"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgres
+                  key: password
+            - name: POSTGRES_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgres
+                  key: postgres-password
+            - name: POSTGRES_DATABASE
+              value: "flowable"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "flowable" -d "dbname=flowable" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "flowable" -d "dbname=flowable" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits: {}
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: flowable/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-ingress
+  labels:
+    app.kubernetes.io/name: ingress
+    helm.sh/chart: flowable-7.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    # nginx.ingress.kubernetes.io/enable-access-log: "true"
+    # nginx.ingress.kubernetes.io/enable-rewrite-log: "true"
+    nginx.ingress.kubernetes.io/app-root: /flowable-rest
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: my-release-flowable-rest
+            port:
+              number: 8080
+---
+# Source: flowable/templates/tests/flowable-rest-test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-flowable-rest-test-connection"
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ["-q", "http://rest-admin:test@my-release-flowable-rest:8080/flowable-rest/actuator/health"]
+  restartPolicy: Never

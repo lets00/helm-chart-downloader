@@ -1,0 +1,164 @@
+---
+# Source: terraform-enterprise/templates/rbac.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: terraform-enterprise-1.2.0.tgz-agents
+---
+# Source: terraform-enterprise/templates/rbac.yaml
+apiVersion: v1
+automountServiceAccountToken: true
+kind: ServiceAccount
+metadata:
+  name: terraform-enterprise-1.2.0.tgz
+  namespace: terraform-enterprise-1.2.0.tgz
+---
+# Source: terraform-enterprise/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: terraform-enterprise-env-secrets
+  namespace: terraform-enterprise-1.2.0.tgz
+data:
+---
+# Source: terraform-enterprise/templates/config-map.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: terraform-enterprise-env-config
+  namespace: terraform-enterprise-1.2.0.tgz
+data:  
+  TFE_RUN_PIPELINE_DRIVER: kubernetes
+  TFE_RUN_PIPELINE_KUBERNETES_NAMESPACE: terraform-enterprise-1.2.0.tgz-agents
+  TFE_VAULT_DISABLE_MLOCK: "true"
+  TFE_HTTP_PORT: "8080"
+  TFE_HTTPS_PORT: "8443"
+  TFE_TLS_CERT_FILE: "/etc/ssl/private/terraform-enterprise/cert.pem"
+  TFE_TLS_KEY_FILE:  "/etc/ssl/private/terraform-enterprise/key.pem"
+---
+# Source: terraform-enterprise/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: terraform-enterprise-1.2.0.tgz
+  namespace: terraform-enterprise-1.2.0.tgz-agents
+rules:
+- apiGroups:
+  - ""
+  - "batch"
+  - "app"
+  resources:
+  - jobs
+  - pods
+  - configmaps
+  - "pods/log"
+  verbs:
+  - list
+  - watch
+  - create
+  - update
+  - get
+  - delete
+---
+# Source: terraform-enterprise/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: terraform-enterprise-1.2.0.tgz-agents
+  namespace: terraform-enterprise-1.2.0.tgz-agents
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: terraform-enterprise-1.2.0.tgz
+subjects:
+- kind: ServiceAccount
+  name: terraform-enterprise-1.2.0.tgz
+  namespace: terraform-enterprise-1.2.0.tgz
+---
+# Source: terraform-enterprise/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: terraform-enterprise
+  namespace: terraform-enterprise-1.2.0.tgz
+spec:
+  type: LoadBalancer
+  ports:
+    - name: https-port
+      port: 443
+      targetPort: 8443
+  selector:
+    app: terraform-enterprise
+---
+# Source: terraform-enterprise/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: terraform-enterprise
+  namespace: terraform-enterprise-1.2.0.tgz
+  labels:
+    app: terraform-enterprise
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: terraform-enterprise
+  template:
+    metadata:
+      annotations:
+      labels:
+        app: terraform-enterprise
+    spec:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      securityContext:
+        {}
+      volumes:
+        - name: certificates
+          secret:
+            secretName: terraform-enterprise-certificates
+      imagePullSecrets:
+        - name: terraform-enterprise
+      serviceAccountName: terraform-enterprise-1.2.0.tgz
+      initContainers:
+        
+        null
+      containers:
+      - name: terraform-enterprise
+        image: images.releases.hashicorp.com/hashicorp/terraform-enterprise:<vYYYYMM-#>
+        imagePullPolicy: Always
+        securityContext:
+          {}
+        envFrom:
+          - configMapRef:
+              name: terraform-enterprise-env-config
+          - secretRef:
+              name: terraform-enterprise-env-secrets
+        readinessProbe:
+          httpGet:
+            path: /_health_check
+            port: 8080
+            scheme: HTTP
+        resources:
+            requests:
+              cpu: 750m
+              memory: 2500Mi
+        volumeMounts:
+          - name: certificates
+            mountPath: /etc/ssl/private/terraform-enterprise/cert.pem
+            subPath: tls.crt
+          - name: certificates
+            mountPath: /etc/ssl/private/terraform-enterprise/key.pem
+            subPath: tls.key
+        ports:
+        - containerPort: 8080
+        - containerPort: 8443
+---
+# Source: terraform-enterprise/templates/config-map.yaml
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0

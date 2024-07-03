@@ -1,0 +1,164 @@
+---
+# Source: api-snap/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api-snap-my-release
+  labels:
+    helm/chart: api-snap-0.1.1
+    app.kubernetes.io/name: api-snap
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: api-snap/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-snap-my-release
+  labels:
+    helm/chart: api-snap-0.1.1
+    app.kubernetes.io/name: api-snap
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: api-snap/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: api-snap-my-release
+  labels:
+    helm/chart: api-snap-0.1.1
+    app.kubernetes.io/name: api-snap
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["list", "get"]
+---
+# Source: api-snap/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: api-snap-my-release
+  labels:
+    helm/chart: api-snap-0.1.1
+    app.kubernetes.io/name: api-snap
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: api-snap-my-release
+subjects:
+  - kind: ServiceAccount
+    name: api-snap-my-release
+    namespace: api-snap-0.1.1.tgz
+---
+# Source: api-snap/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-snap-my-release-svc
+  labels:
+    helm/chart: api-snap-0.1.1
+    app.kubernetes.io/name: api-snap
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "80"
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  selector:
+    helm/chart: api-snap-0.1.1
+    app.kubernetes.io/name: api-snap
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
+---
+# Source: api-snap/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-snap-my-release
+  labels:
+    helm/chart: api-snap-0.1.1
+    app.kubernetes.io/name: api-snap
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    checksum/configmap: a67e0f4b2d9a38a52f78b6b8a1b09a2dc1a07f9d573ad47d19a6397ccfdfc4bb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      helm/chart: api-snap-0.1.1
+      app.kubernetes.io/name: api-snap
+      app.kubernetes.io/version: "0.1.1"
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/managed-by: Helm
+  template:
+    metadata:
+      labels:
+        helm/chart: api-snap-0.1.1
+        app.kubernetes.io/name: api-snap
+        app.kubernetes.io/version: "0.1.1"
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: api-snap-my-release
+      containers:
+        - name: api-snap-my-release
+          image: "youkadev/api-snap:0.1.1"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: api-snap-my-release
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 1
+            timeoutSeconds: 3
+---
+# Source: api-snap/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-snap-my-release-test-connection
+  labels:
+    helm/chart: api-snap-0.1.1
+    app.kubernetes.io/name: api-snap
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['api-snap-my-release-svc:80']
+  restartPolicy: Never

@@ -1,0 +1,137 @@
+---
+# Source: keydb/templates/common.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-keydb-health
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: keydb
+    app.kubernetes.io/version: alpine_x86_64_v6.3.4
+    helm.sh/chart: keydb-0.0.1
+data:
+  probe_liveness.sh: |
+    #!/bin/sh
+    [[ -n "$KEYDB_PASSWORD" ]] && export REDISCLI_AUTH="$KEYDB_PASSWORD"
+    response=$(redis-cli -h localhost ping)
+    responseFirstWord="$(echo "$response" | head -n1 | cut -d' ' -f1)"
+    if [[ "$response" != PONG ]] && [[ "$responseFirstWord" != LOADING ]] && [[ "$responseFirstWord" != MASTERDOWN ]]; then
+      echo "$response"
+      exit 1
+    fi
+  probe_readiness.sh: |-
+    #!/bin/sh
+    [[ -n "$KEYDB_PASSWORD" ]] && export REDISCLI_AUTH="$KEYDB_PASSWORD"
+    response=$(redis-cli -h localhost ping)
+    if [[ "$response" != PONG ]]; then
+      echo "$response"
+      exit 1
+    fi
+---
+# Source: keydb/templates/common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-keydb
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: keydb
+    app.kubernetes.io/service: my-release-keydb
+    app.kubernetes.io/version: alpine_x86_64_v6.3.4
+    helm.sh/chart: keydb-0.0.1
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+      name: keydb
+  selector:
+    app.kubernetes.io/component: keydb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: keydb
+---
+# Source: keydb/templates/common.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-keydb
+  labels:
+    app.kubernetes.io/component: keydb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: keydb
+    app.kubernetes.io/version: alpine_x86_64_v6.3.4
+    helm.sh/chart: keydb-0.0.1
+spec:
+  revisionHistoryLimit: 3
+  replicas: 
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: keydb
+      app.kubernetes.io/name: keydb
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-keydb
+  template:
+    metadata:
+      annotations: 
+        checksum/configMaps: 09d8978ee8bd81cf23effce7560209abb221eecd4c09c1d9f5e1852a32a73320
+      labels: 
+        app.kubernetes.io/component: keydb
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: keydb
+    spec: 
+      enableServiceLinks: false
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      securityContext: 
+        fsGroup: 999
+        runAsNonRoot: true
+        runAsUser: 999
+      hostIPC: false
+      hostNetwork: false
+      hostPID: false
+      dnsPolicy: ClusterFirst
+      containers: 
+        - env:
+          - name: TZ
+            value: UTC
+          image: eqalpha/keydb:alpine_x86_64_v6.3.4
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+              - /health/probe_liveness.sh
+            failureThreshold: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+          name: app
+          readinessProbe:
+            exec:
+              command:
+              - /health/probe_readiness.sh
+            failureThreshold: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+          securityContext:
+            readOnlyRootFilesystem: true
+          startupProbe:
+            exec:
+              command:
+              - /health/probe_readiness.sh
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 2
+          volumeMounts:
+          - mountPath: /health
+            name: health
+      volumes: 
+        - configMap:
+            defaultMode: 493
+            name: keydb-health
+          name: health

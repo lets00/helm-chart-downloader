@@ -1,0 +1,98 @@
+---
+# Source: kibana/templates/service.yml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: kibana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/managed-by: helm
+spec:
+  selector:
+    app: my-release
+  ports:
+    - protocol: TCP
+      port: 5601
+      targetPort: kibana
+---
+# Source: kibana/templates/deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: kibana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/managed-by: helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+        app.kubernetes.io/name: kibana
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "7.17.8"
+        app.kubernetes.io/component: logging
+        app.kubernetes.io/managed-by: helm
+    spec:
+      containers:
+        - name: my-release
+          image: "kibana:7.17.8"
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: 1024Mi
+              cpu: 500m
+            limits:
+              memory: 1024Mi
+              cpu: 500m
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: http://elasticsearch:9200
+            - name: ELASTICSEARCH_USERNAME
+              value: "logging"
+            - name: ELASTICSEARCH_PASSWORD
+              value: "qwerty"
+          ports:
+            - name: kibana
+              containerPort: 5601
+---
+# Source: kibana/templates/ingress.yml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release
+  labels:
+    app.kubernetes.io/name: kibana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "7.17.8"
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  defaultBackend:
+    service:
+      name: my-release
+      port:
+        number: 5601
+  rules:
+    - host: kibana.romanow-alex.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release
+                port:
+                  number: 5601

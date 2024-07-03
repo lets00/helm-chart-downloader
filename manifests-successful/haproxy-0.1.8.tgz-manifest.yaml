@@ -1,0 +1,200 @@
+---
+# Source: haproxy/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-haproxy-config
+  labels:
+    helm.sh/chart: haproxy-0.1.8
+    app.kubernetes.io/name: haproxy
+    app.kubernetes.io/instance: my-release
+    app: haproxy
+    app.kubernetes.io/version: "2.6.14-alpine3.17"
+    app.kubernetes.io/managed-by: Helm
+data:
+  haproxy.cfg: |
+    global
+      log 127.0.0.1 local0 notice
+      maxconn 2000
+      user root
+      group root
+
+    defaults
+      log global
+      retries 2
+      maxconn 2000
+      timeout connect 10s
+      timeout server 10800s
+      timeout client 10800s
+
+    frontend mysql-cluster-front
+      bind 0.0.0.0:3306
+      mode tcp
+      option tcplog
+      default_backend mysql-cluster-back
+
+    resolvers mydns
+      nameserver dns1 10.96.0.10:53
+      parse-resolv-conf
+      resolve_retries       3
+      timeout resolve       2s
+      timeout retry         2s
+      hold other           30s
+      hold refused         30s
+      hold nx              30s
+      hold timeout         30s
+      hold valid           10s
+      hold obsolete        30s
+      accepted_payload_size 8192 # allow larger DNS payloads
+
+    backend mysql-cluster-back
+      mode tcp
+      option tcplog
+      option httpchk GET / HTTP/1.1
+      balance roundrobin
+      default-server port 8081 inter 5s downinter 5s rise 1 fall 2 slowstart 15s weight 1
+      
+      server mysql-0 percona-xtradb-cluster-pxc-0.percona-xtradb-cluster-pxc.haproxy-0.1.8.tgz.svc.cluster.local:3306 check resolvers mydns resolve-prefer ipv4
+      server mysql-1 percona-xtradb-cluster-pxc-1.percona-xtradb-cluster-pxc.haproxy-0.1.8.tgz.svc.cluster.local:3306 check resolvers mydns resolve-prefer ipv4 backup
+      server mysql-2 percona-xtradb-cluster-pxc-2.percona-xtradb-cluster-pxc.haproxy-0.1.8.tgz.svc.cluster.local:3306 check resolvers mydns resolve-prefer ipv4 backup
+
+    listen 0.0.0.0:8899
+      bind 0.0.0.0:8899
+      mode http
+      stats enable
+      stats uri /
+      stats realm Strictly\ Private
+      stats auth admin:admin
+      stats admin if TRUE
+---
+# Source: haproxy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-haproxy
+  labels:
+    helm.sh/chart: haproxy-0.1.8
+    app.kubernetes.io/name: haproxy
+    app.kubernetes.io/instance: my-release
+    app: haproxy
+    app.kubernetes.io/version: "2.6.14-alpine3.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: 3306
+      protocol: TCP
+      name: tcp-port
+    - port: 8899
+      targetPort: 8899
+      protocol: TCP
+      name: http-web-port
+  selector:
+    app.kubernetes.io/name: haproxy
+    app.kubernetes.io/instance: my-release
+    app: haproxy
+---
+# Source: haproxy/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-haproxy
+  labels:
+    helm.sh/chart: haproxy-0.1.8
+    app.kubernetes.io/name: haproxy
+    app.kubernetes.io/instance: my-release
+    app: haproxy
+    app.kubernetes.io/version: "2.6.14-alpine3.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  strategy:
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: haproxy
+      app.kubernetes.io/instance: my-release
+      app: haproxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: haproxy
+        app.kubernetes.io/instance: my-release
+        app: haproxy
+        app: "haproxy"
+        version: "2.6.14-alpine3.17"
+      annotations:
+    spec:
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 5
+      volumes:
+        - name: esconfig
+          configMap:
+            name: my-release-haproxy-config
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: haproxy
+          image: "haproxy:2.6.14-alpine3.17"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          ports:
+            - name: tcp-port
+              containerPort: 3306
+              protocol: TCP
+            - name: http-web-port
+              containerPort: 8899
+              protocol: TCP
+          resources:
+            {}
+          
+          livenessProbe:
+            tcpSocket:
+              port: 8899
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          
+          
+          readinessProbe:
+            tcpSocket:
+              port: 8899
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 2
+          
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - sleep 5
+          volumeMounts:
+            - name: esconfig
+              mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              readOnly: true
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - "haproxy"

@@ -1,0 +1,108 @@
+---
+# Source: drone/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-drone
+  labels:
+    helm.sh/chart: drone-22.5.8
+    app.kubernetes.io/name: drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: drone/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-drone-config
+data:
+  drone.env: "RFJPTkVfUFJPTUVUSEVVU19BTk9OWU1PVVNfQUNDRVNTPXRydWUKCkRST05FX0NMRUFOVVBfRElTQUJMRUQ9ZmFsc2UKRFJPTkVfQ0xFQU5VUF9ERUFETElORV9QRU5ESU5HPTI0aApEUk9ORV9DTEVBTlVQX0RFQURMSU5FX1JVTk5JTkc9MjRoCkRST05FX0NMRUFOVVBfSU5URVJWQUw9MjRoCgpEUk9ORV9DT09LSUVfU0VDUkVUPQpEUk9ORV9DT09LSUVfVElNRU9VVD03MjBoCgpEUk9ORV9DUk9OX0RJU0FCTEVEPWZhbHNlCkRST05FX0NST05fSU5URVJWQUw9MWgKCkRST05FX1JQQ19TRUNSRVQ9CkRST05FX1NFUlZFUl9IT1NUPQpEUk9ORV9TRVJWRVJfUFJPVE89aHR0cAoKRFJPTkVfU1RBVFVTX0RJU0FCTEVEPWZhbHNlCkRST05FX1NUQVRVU19OQU1FPWNvbnRpbnVvdXMtaW50ZWdyYXRpb24vZHJvbmUKCkRST05FX0RBVEFCQVNFX0RBVEFTT1VSQ0U9L2RhdGEvZHJvbmUuc3FsaXRlCkRST05FX0RBVEFCQVNFX0RSSVZFUj1zcWxpdGUzCkRST05FX0RBVEFCQVNFX01BWF9DT05ORUNUSU9OUz0w"
+---
+# Source: drone/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-drone
+  labels:
+    helm.sh/chart: drone-22.5.8
+    app.kubernetes.io/name: drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: drone
+    app.kubernetes.io/instance: my-release
+---
+# Source: drone/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-drone
+  labels:
+    helm.sh/chart: drone-22.5.8
+    app.kubernetes.io/name: drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: my-release-drone
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: drone
+      app.kubernetes.io/instance: my-release
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+  template:
+    metadata:
+      annotations:
+        checksum/secret: e3fa35fa2cebfb9823beef8f22bec81497e64ee557fc687b6401faba261d39f9
+      labels:
+        helm.sh/chart: drone-22.5.8
+        app.kubernetes.io/name: drone
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.11.1"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-drone
+      securityContext:
+        {}
+      containers:
+        - name: drone
+          securityContext:
+            {}
+          image: "img.pitz.tech/mya/drone-server:2.11.1-alpine"
+          imagePullPolicy: IfNotPresent
+          args:
+            - -env-file
+            - /etc/drone/drone.env
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /etc/drone
+              name: config
+            - mountPath: /data
+              name: data
+      volumes:
+        - name: config
+          secret:
+            secretName: my-release-drone-config

@@ -1,0 +1,357 @@
+---
+# Source: graylog/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-graylog
+  labels:
+    app: graylog
+    chart: graylog-1.0.0
+    release: my-release
+    heritage: Helm
+type: Opaque
+data:
+  GRAYLOG_PASSWORD_SECRET: bEtEdktWYVBndDFZdlVPaA==
+  GRAYLOG_ROOT_PASSWORD_SHA2: MDU3YmEwM2Q2YzQ0MTA0ODYzZGM3MzYxZmU0NTc4OTY1ZDE4ODczNjBmOTBhMDg5NTg4MmU1OGE2MjQ4ZmM4Ng==
+---
+# Source: graylog/charts/elasticsearch/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-elasticsearch
+  labels:
+    app: elasticsearch
+    chart: elasticsearch-1.0.0
+    release: my-release
+    heritage: Helm
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+---
+# Source: graylog/charts/mongodb/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-mongodb
+  labels:
+    app: mongodb
+    chart: mongodb-1.0.0
+    release: my-release
+    heritage: Helm
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+---
+# Source: graylog/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-graylog
+  labels:
+    app: graylog
+    chart: graylog-1.0.0
+    release: my-release
+    heritage: Helm
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+---
+# Source: graylog/charts/elasticsearch/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-elasticsearch
+  labels:
+    app: elasticsearch
+    release: my-release
+    chart: elasticsearch-1.0.0
+    heritage: Helm
+  annotations:
+    
+    {}
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 9200
+    targetPort: http
+  - name: transport
+    port: 9300
+    targetPort: transport
+  selector:
+    app: elasticsearch
+    release: my-release
+---
+# Source: graylog/charts/mongodb/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mongodb
+  labels:
+    app: mongodb
+    chart: mongodb-1.0.0
+    release: my-release
+    heritage: Helm
+  annotations:
+    
+    {}
+spec:
+  type: ClusterIP
+  ports:
+    - name: mongodb
+      port: 27017
+  selector:
+    app: mongodb
+    release: my-release
+---
+# Source: graylog/templates/service-input.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-graylog
+  labels:
+    app: graylog
+    chart: graylog-1.0.0
+    release: my-release
+    heritage: Helm
+  annotations:
+    
+    {}
+spec:
+  type: ClusterIP
+  ports:
+    - name: gelf-udp
+      port: 12201
+      protocol: UDP
+  selector:
+    app: graylog
+    release: my-release
+---
+# Source: graylog/templates/service-web.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-graylog-web
+  labels:
+    app: graylog
+    chart: graylog-1.0.0
+    release: my-release
+    heritage: Helm
+  annotations:
+    
+    {}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9000
+  selector:
+    app: graylog
+    release: my-release
+---
+# Source: graylog/charts/elasticsearch/templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: my-release-elasticsearch
+  labels:
+    app: elasticsearch
+    release: my-release
+    chart: elasticsearch-1.0.0
+    heritage: Helm
+spec:
+  revisionHistoryLimit: 0
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        release: my-release
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      containers:
+        - name: elasticsearch
+          image: "docker.elastic.co/elasticsearch/elasticsearch:5.3.3"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ES_JAVA_OPTS
+              value: "-Djava.net.preferIPv4Stack=true -Xms512m -Xmx512m "
+            - name: bootstrap.memory_lock
+              value: "true"
+            - name: discovery.type
+              value: ""
+            - name: http.host
+              value: "0.0.0.0"
+            - name: transport.host
+              value: "127.0.0.1"
+            - name: xpack.security.enabled
+              value: "false"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9200
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9200
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+          ports:
+            - name: http
+              containerPort: 9200
+            - name: transport
+              containerPort: 9300
+          resources:
+            
+            {}
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+              subPath: 
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-elasticsearch
+---
+# Source: graylog/charts/mongodb/templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: my-release-mongodb
+  labels:
+    app: mongodb
+    chart: mongodb-1.0.0
+    release: my-release
+    heritage: Helm
+spec:
+  revisionHistoryLimit: 0
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        release: my-release
+    spec:
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+      containers:
+        - name: mongodb
+          image: "mongo:3.6.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          livenessProbe:
+            exec:
+              command: ["mongo", "--eval", "db.adminCommand('ping')"]
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["mongo", "--eval", "db.adminCommand('ping')"]
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          resources:
+            
+            {}
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+              subPath: 
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-mongodb
+---
+# Source: graylog/templates/deployment.yaml
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: my-release-graylog
+  labels:
+    app: graylog
+    chart: graylog-1.0.0
+    release: my-release
+    heritage: Helm
+spec:
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      app: graylog
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: graylog
+        release: my-release
+    spec:
+      securityContext:
+        fsGroup: 1100
+        runAsUser: 1100
+      containers:
+        - name: graylog
+          image: "graylog2/server:2.4.3-3"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GRAYLOG_WEB_ENDPOINT_URI
+              value: "http://127.0.0.1/api"
+            - name: GRAYLOG_MONGODB_URI
+              value: "mongodb://my-release-mongo/graylog"
+            - name: GRAYLOG_ELASTICSEARCH_HOSTS
+              value: "http://my-release-elasticsearch:9200"
+            - name: GRAYLOG_ELASTICSEARCH_INDEX_PREFIX
+              value: "graylog"
+            - name: GRAYLOG_ELASTICSEARCH_MAX_NUMBER_OF_INDICES
+              value: "10"
+            - name: GRAYLOG_ELASTICSEARCH_MAX_TIME_PER_INDEX
+              value: "1d"
+            - name: GRAYLOG_ELASTICSEARCH_SHARDS
+              value: "1"
+            - name: GRAYLOG_ROTATION_STRATEGY
+              value: "time"
+            - name: GRAYLOG_MESSAGE_JOURNAL_DIR
+              value: "/usr/share/graylog/data/journal/journal"
+          envFrom:
+            - secretRef:
+                name: my-release-graylog
+          ports:
+            - name: http
+              containerPort: 9000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9000
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            
+            {}
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/graylog/data/journal
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-graylog

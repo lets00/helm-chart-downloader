@@ -1,0 +1,162 @@
+---
+# Source: registry/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-registry
+  labels:
+    helm.sh/chart: registry-22.4.11
+    app.kubernetes.io/name: registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.8.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: registry/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-registry-config
+data:
+  config.yml: "dmVyc2lvbjogMC4xCgpsb2c6CiAgbGV2ZWw6IGRlYnVnCgpodHRwOgogIHNlY3JldDogIiIKICBhZGRyOiAiOjUwMDAiCiAgZGVidWc6CiAgICBhZGRyOiAiOjUwMDEiCiAgICBwcm9tZXRoZXVzOgogICAgICBlbmFibGVkOiB0cnVlCiAgICAgIHBhdGg6IC9tZXRyaWNzCiAgaGVhZGVyczoKICAgIFgtQ29udGVudC1UeXBlLU9wdGlvbnM6IFtub3NuaWZmXQoKc3RvcmFnZToKICB7fQ=="
+---
+# Source: registry/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-registry
+  labels:
+    helm.sh/chart: registry-22.4.11
+    app.kubernetes.io/name: registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.8.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 5001
+      targetPort: debug
+      protocol: TCP
+      name: debug
+  selector:
+    app.kubernetes.io/name: registry
+    app.kubernetes.io/instance: my-release
+---
+# Source: registry/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-registry
+  labels:
+    helm.sh/chart: registry-22.4.11
+    app.kubernetes.io/name: registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.8.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: registry
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 51437452dbcd5c847593c752a1d886843a33fcbf15db6721c5c52d5ee4bf6c03
+      labels:
+        app.kubernetes.io/name: registry
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-registry
+      securityContext:
+        {}
+      containers:
+        - name: registry
+          securityContext:
+            {}
+          image: "distribution/distribution:2.8.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+            - name: debug
+              containerPort: 5001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          command:
+            - sh
+          args:
+            - -c
+            - |
+              env -i /bin/registry serve /etc/docker/registry/config.yml
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /etc/docker/registry
+              name: config
+      volumes:
+        - name: config
+          secret:
+            secretName: my-release-registry-config
+---
+# Source: registry/templates/cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-release-registry-garbage-collect
+  labels:
+    helm.sh/chart: registry-22.4.11
+    app.kubernetes.io/name: registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.8.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  suspend: true
+  schedule: "@daily"
+  jobTemplate:
+    metadata:
+      labels:
+        helm.sh/chart: registry-22.4.11
+        app.kubernetes.io/name: registry
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.8.3"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: my-release-registry
+          securityContext:
+            {}
+          containers:
+            - name: registry
+              securityContext:
+                {}
+              image: "distribution/distribution:2.8.3"
+              imagePullPolicy: IfNotPresent
+              command:
+                - sh
+              args:
+                - -c
+                - |
+                  env -i /bin/registry garbage-collect /etc/docker/registry/config.yml
+              resources:
+                {}
+              volumeMounts:
+                - mountPath: /etc/docker/registry
+                  name: config
+          volumes:
+            - name: config
+              secret:
+                secretName: my-release-registry-config

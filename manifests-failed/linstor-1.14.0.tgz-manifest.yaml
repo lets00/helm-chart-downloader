@@ -1,0 +1,1897 @@
+---
+# Source: linstor/templates/controller-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-linstor-controller
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-linstor-csi-controller-sa
+---
+# Source: linstor/templates/csi-node-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-linstor-csi-node-sa
+---
+# Source: linstor/templates/ha-controller-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-linstor-ha-controller
+---
+# Source: linstor/templates/stork-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-linstor-stork
+---
+# Source: linstor/templates/stork-scheduler-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-linstor-stork-scheduler
+---
+# Source: linstor/templates/controller-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-linstor-controller
+data:
+  linstor.toml: W2RiXQogIHVzZXIgPSAibGluc3RvciIKICBwYXNzd29yZCA9ICJsaW5zdG9yIgogIGNvbm5lY3Rpb25fdXJsID0gImpkYmM6aDI6L2RhdGEvbGluc3RvcmRiIgpbaHR0cF0KICBwb3J0ID0gMzM3MApbaHR0cHNdCiAgZW5hYmxlZCA9IHRydWUKICBwb3J0ID0gMzM3MQogIGtleXN0b3JlID0gIi9jb25maWcvc3NsL2tleXN0b3JlLmprcyIKICBrZXlzdG9yZV9wYXNzd29yZCA9ICJsaW5zdG9yIgogIHRydXN0c3RvcmUgPSAiL2NvbmZpZy9zc2wvdHJ1c3RvcmVfY2xpZW50LmprcyIKICB0cnVzdHN0b3JlX3Bhc3N3b3JkID0gImxpbnN0b3IiCg==
+---
+# Source: linstor/templates/configurator-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-linstor-configurator
+data:
+  functions.sh: |
+    #!/bin/bash
+    
+    curl_and_log() {
+      echo "request: $curl $@" | awk '{print "  " $0}'
+      $curl -o - -w "\n%{http_code}\n" "$@" | awk '{l[NR] = $0} END {printf "  response: "; for (i=1; i<=NR-1; i++) print l[i]}; END{printf "\n  status: " $0 ; if ($0<200||$0>299) {print " (error)"; exit 1} else print " (ok)"}'
+    }
+    
+    load_controller_params() {
+      echo "Loading controller parameters"
+      if [ -z "$LS_CONTROLLERS" ]; then
+        echo "Variable LS_CONTROLLERS is not set!"
+        exit 1
+      fi
+      curl="curl -sS -H Content-Type:application/json"
+      if [ -f /tls/client/ca.crt ]; then
+        curl="$curl --cacert /tls/client/ca.crt"
+      fi
+      if [ -f /tls/client/tls.crt ] && [ /tls/client/tls.key ]; then
+        curl="$curl --cert /tls/client/tls.crt --key /tls/client/tls.key"
+      fi
+      controller_port=$(echo "$LS_CONTROLLERS" | awk -F'[/:]+' '{print $NF}')
+      controller_address=$(echo "$LS_CONTROLLERS" | awk -F'[/:]+' '{print $(NF-1)}')
+    }
+    
+    load_satellite_params() {
+      echo "Loading satellite parameters"
+      case "" in
+        $NODE_NAME)
+        echo "Variable NODE_NAME is not set!"
+        exit 1
+        ;;
+        $NODE_IP)
+        echo "Variable NODE_IP is not set!"
+        exit 1
+        ;;
+      esac
+      satellite_config=/config/linstor_satellite.toml
+      satellite_encryption_type=${NODE_ENCRYPTION_TYPE:-$(awk -F= '$1 == "  type" {gsub("\"","",$2); print $2}' "$satellite_config")}
+      satellite_port=${NODE_PORT:-$(awk -F= '$1 == "  port" {gsub("\"","",$2); print $2}' "$satellite_config")}
+      satellite_encryption_type=${satellite_encryption_type:-Plain}
+      satellite_port=${satellite_port:-3366}
+    }
+    
+    wait_tcp_port(){
+      until printf "" 2>/dev/null >"/dev/tcp/$1/$2"; do
+        sleep 1
+      done
+    }
+    
+    wait_satellite(){
+      echo "Waiting linstor-satellite to launch on localhost:$satellite_port..."
+      wait_tcp_port localhost "$satellite_port"
+      echo "Service linstor-satellite launched"
+    }
+    
+    wait_controller(){
+      echo "Waiting linstor-controller to launch on $controller_address:$controller_port..."
+      wait_tcp_port "$controller_address" "$controller_port"
+      echo "Service linstor-controller launched"
+    }
+    
+    configure_controller_props(){
+      echo "Setting controller properties..."
+      curl_and_log -X POST -d "{\"override_props\": $1}" "$LS_CONTROLLERS/v1/controller/properties"
+      echo
+    }
+    
+    configure_resource_group(){
+      local rg_name=$1
+      local rg_selectfilter_json=$2
+      local rg_props_json=$3
+    
+      local rg_json="$(cat <<EOT
+    {
+      "name": "$rg_name",
+      "select_filter": $rg_selectfilter_json,
+      "props": $rg_props_json
+    }
+    EOT
+      )"
+    
+      echo "Checking if resouce-group $rg_name exists"
+      if $curl -f "$LS_CONTROLLERS/v1/resource-groups/$rg_name" >/dev/null; then
+        echo "Resource-group $rg_name already exists, updating..."
+        curl_and_log -X PUT -d "{\"select_filter\": $rg_selectfilter_json, \"override_props\": $rg_props_json}" "$LS_CONTROLLERS/v1/resource-groups/$rg_name"
+      else
+        echo "Resource-group $rg_name does not exists, adding..."
+        curl_and_log -X POST -d "$rg_json" "$LS_CONTROLLERS/v1/resource-groups"
+      fi
+      echo
+    }
+    
+    configure_volume_group(){
+      local rg_name=$1
+      local vg_number=$2
+      local vg_props_json=$3
+    
+      local vg_json="$(cat <<EOT
+    {
+      "volume_number": "$vg_number",
+      "props": $vg_props_json
+    }
+    EOT
+      )"
+    
+      echo "Checking if volume-group $vg_number exists for resouce-grep $rg_name"
+      if $curl -f "$LS_CONTROLLERS/v1/resource-groups/$rg_name/volume-groups/$vg_number" >/dev/null; then
+        echo "Volume-group $vg_number already exists for resource-group $rg_name, updating..."
+        curl_and_log -X PUT -d "{\"override_props\": $vg_props_json}" "$LS_CONTROLLERS/v1/resource-groups/$rg_name/volume-groups/$vg_number"
+      else
+        echo "Volume-group $vg_number does not exists for resource-group $rg_name, adding..."
+        curl_and_log -X POST -d "$vg_json" "$LS_CONTROLLERS/v1/resource-groups/$rg_name/volume-groups"
+      fi
+      echo
+    }
+    
+    register_node(){
+      echo "Checking if node $NODE_NAME exists in cluster"
+      if $curl -f "$LS_CONTROLLERS/v1/nodes/${NODE_NAME}" >/dev/null; then
+        echo "Node $NODE_NAME already exists in cluster, skip adding..."
+        return 0
+      fi
+      echo "Node $NODE_NAME does not exists in cluster"
+    
+      echo "Adding node $NODE_NAME to the cluster"
+      node_json="$(cat <<EOT
+    {
+      "name": "$NODE_NAME",
+      "type": "satellite",
+      "net_interfaces": [
+        {
+          "name": "default",
+          "address": "$NODE_IP",
+          "satellite_port": $satellite_port,
+          "satellite_encryption_type": "$satellite_encryption_type"
+        }
+      ]
+    }
+    EOT
+      )"
+    
+      curl_and_log -X POST -d "$node_json" "$LS_CONTROLLERS/v1/nodes"
+      echo
+    }
+    
+    src_ip(){
+      ip -o route get "$1" | awk -F "src " '{ gsub(" .*", "", $2); print $2 }'
+    }
+    
+    configure_interface(){
+      local interface_name=$1
+      local interface_ip=$(src_ip $2)
+    
+      echo "Compuited address for interface $interface_name: $interface_ip (determined from $2)"
+    
+      if [ "$interface_ip" = "$NODE_IP" ]; then
+        echo "IP address $interface_ip matches the default node IP address, assuming it does not existing on the node, skipping..."
+        return 0
+      fi
+    
+      local interface_json="$(cat <<EOT
+    {
+      "name": "${interface_name}",
+      "address": "${interface_ip}"
+    }
+    EOT
+      )"
+    
+      echo "Checking if interface $interface_name exists on node $NODE_NAME"
+      if $curl -f "$LS_CONTROLLERS/v1/nodes/${NODE_NAME}/net-interfaces/$interface_name" >/dev/null; then
+        echo "Interface $interface_name already exists on node $NODE_NAME, updating..."
+        curl_and_log -X PUT -d "$interface_json" "$LS_CONTROLLERS/v1/nodes/${NODE_NAME}/net-interfaces/$interface_name"
+      else
+        echo "Interface $interface_name does not exists on node $NODE_NAME, adding..."
+        curl_and_log -X POST -d "$interface_json" "$LS_CONTROLLERS/v1/nodes/${NODE_NAME}/net-interfaces"
+      fi
+      echo
+    }
+    
+    configure_node_props(){
+      echo "Setting node properties for $NODE_NAME..."
+      curl_and_log -X PUT -d "{\"override_props\": $1}" "$LS_CONTROLLERS/v1/nodes/${NODE_NAME}"
+      echo
+    }
+    
+    configure_storage_pool(){
+      local sp_name=$1
+      local sp_provider=$2
+      local sp_props_json=$3
+    
+      local sp_json="$(cat <<EOT
+    {
+      "storage_pool_name": "$sp_name",
+      "provider_kind": "$sp_provider",
+      "props": $sp_props_json
+    }
+    
+    EOT
+      )"
+    
+      echo "Checking if storage-pool $sp_name exists on node $NODE_NAME"
+      if $curl -f "$LS_CONTROLLERS/v1/nodes/${NODE_NAME}/storage-pools/$sp_name" >/dev/null; then
+        echo "Storage-pool $sp_name already exists on node $NODE_NAME, updating..."
+        curl_and_log -X PUT -d "{\"override_props\": $sp_props_json}" "$LS_CONTROLLERS/v1/nodes/${NODE_NAME}/storage-pools/$sp_name"
+      else
+        echo "Storage-pool $sp_name does not exists on node $NODE_NAME, adding..."
+        curl_and_log -X POST -d "$sp_json" "$LS_CONTROLLERS/v1/nodes/${NODE_NAME}/storage-pools"
+      fi
+      echo
+    }
+    
+    check_lvm_pool(){
+      if vgs "$1" >/dev/null 2>&1; then
+        echo "Volume group $1 found on node $NODE_NAME"
+        return 0
+      else
+        echo "Volume group $1 didn't found on node $NODE_NAME"
+        return 1
+      fi
+    }
+    
+    check_lvmthin_pool(){
+      if lvs "$1" >/dev/null 2>&1; then
+        echo "Logical volume $1 found on node $NODE_NAME"
+        return 0
+      else
+        echo "Logical volume $1 didn't found on node $NODE_NAME"
+        return 1
+      fi
+    }
+    
+    check_zfs_pool(){
+      if zfs list "$1" >/dev/null 2>&1; then
+        echo "ZFS dataset $1 found on node $NODE_NAME"
+        return 0
+      else
+        echo "zfs dataset $1 didn't found on node $NODE_NAME"
+        return 1
+      fi
+    }
+    
+    finish(){
+      echo "Configuration has been successfully finished"
+      exec sleep infinity
+    }
+    
+    
+  configurator.controller: |
+    #!/bin/bash
+    set -e
+    . $(dirname $0)/functions.sh
+    
+    load_controller_params
+    wait_controller
+    
+    finish
+    
+  configurator.node: |
+    #!/bin/bash
+    set -e
+    . $(dirname $0)/functions.sh
+    echo "Node hostname: $HOSTNAME"
+    
+    load_satellite_params
+    load_controller_params
+    wait_satellite
+    wait_controller
+    register_node
+    
+    finish
+---
+# Source: linstor/templates/controller-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-linstor-client
+  namespace: linstor-1.14.0.tgz
+data:
+  linstor-client.conf: |+
+    [global]
+      controllers = linstor+ssl://localhost:3371,linstor+ssl://my-release-linstor-controller:3371
+      certfile = /tls/tls.crt
+      keyfile = /tls/tls.key
+      cafile = /tls/ca.crt
+---
+# Source: linstor/templates/drbd-reactor-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-linstor-drbd-reactor
+  namespace: linstor-1.14.0.tgz
+data:
+  drbd-reactor.toml: |+
+    snippets = "/etc/drbd-reactor.d"
+    statistics-poll-interval = 60
+    [[log]]
+    level = "info"
+    file = "/dev/stdout"
+    [[prometheus]]
+    enums = true
+    address = "0.0.0.0:9942"
+---
+# Source: linstor/templates/satellite-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-linstor-satellite
+data:
+  drbd.conf: |+
+    include "drbd.d/global_common.conf";
+    include "drbd.d/*.res";
+
+  global_common.conf: |+
+    global {
+     usage-count no;
+     udev-always-use-vnr;
+    }
+    common {
+     handlers {
+     }
+     startup {
+     }
+     options {
+     }
+     disk {
+     }
+     net {
+     }
+    }
+  linstor_satellite.toml: |+
+    [netcom]
+      type="ssl"
+      port=3367
+      server_certificate="/config/ssl/keystore.jks"
+      trusted_certificates="/config/ssl/certificates.jks"
+      key_password="linstor"
+      keystore_password="linstor"
+      truststore_password="linstor"
+      ssl_protocol="TLSv1.2"
+---
+# Source: linstor/templates/stork-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-linstor-stork
+  namespace: linstor-1.14.0.tgz
+data:
+  policy.cfg: |-
+    {
+      "kind": "Policy",
+      "apiVersion": "v1",
+      "extenders": [
+        {
+          "urlPrefix": "http://my-release-linstor-stork.linstor-1.14.0.tgz.svc:8099",
+          "apiVersion": "v1beta1",
+          "filterVerb": "filter",
+          "prioritizeVerb": "prioritize",
+          "weight": 5,
+          "enableHttps": false,
+          "nodeCacheCapable": false
+        }
+      ]
+    }
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-linstor-csi-attacher-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-linstor-csi-provisioner-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-linstor-csi-resizer-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-csi-snapshotter-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents/status"]
+    verbs: ["update"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create", "list", "watch", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots/status"]
+    verbs: ["update"]
+---
+# Source: linstor/templates/csi-node-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-linstor-csi-driver-registrar-role
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+# Source: linstor/templates/ha-controller-rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-ha-controller
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "watch", "delete"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "update"]
+    resourceNames: ["my-release-linstor-ha-controller"]
+---
+# Source: linstor/templates/stork-rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-stork
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+# Source: linstor/templates/stork-scheduler-rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-stork-scheduler
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "update"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resourceNames: ["kube-scheduler"]
+    resources: ["endpoints"]
+    verbs: ["delete", "get", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["bindings", "pods/binding"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["patch", "update"]
+  - apiGroups: [""]
+    resources: ["replicationcontrollers", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["*"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csidrivers", "csistoragecapacities"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-linstor-csi-attacher-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-linstor-csi-attacher-role
+subjects:
+- kind: ServiceAccount
+  name: my-release-linstor-csi-controller-sa
+  namespace: linstor-1.14.0.tgz
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-linstor-csi-provisioner-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-linstor-csi-provisioner-role
+subjects:
+- kind: ServiceAccount
+  name: my-release-linstor-csi-controller-sa
+  namespace: linstor-1.14.0.tgz
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-csi-resizer-binding
+roleRef:
+  kind: ClusterRole
+  name: my-release-linstor-csi-resizer-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-linstor-csi-controller-sa
+    namespace: linstor-1.14.0.tgz
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-csi-snapshotter-binding
+roleRef:
+  kind: ClusterRole
+  name: my-release-linstor-csi-snapshotter-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-linstor-csi-controller-sa
+    namespace: linstor-1.14.0.tgz
+---
+# Source: linstor/templates/csi-node-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-linstor-csi-driver-registrar-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-linstor-csi-driver-registrar-role
+subjects:
+- kind: ServiceAccount
+  name: my-release-linstor-csi-node-sa
+  namespace: linstor-1.14.0.tgz
+---
+# Source: linstor/templates/ha-controller-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-ha-controller
+roleRef:
+  kind: ClusterRole
+  name: my-release-linstor-ha-controller
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-linstor-ha-controller
+    namespace: linstor-1.14.0.tgz
+---
+# Source: linstor/templates/stork-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-stork
+roleRef:
+  kind: ClusterRole
+  name: my-release-linstor-stork
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-linstor-stork
+    namespace: linstor-1.14.0.tgz
+---
+# Source: linstor/templates/stork-scheduler-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-stork-scheduler
+roleRef:
+  kind: ClusterRole
+  name: my-release-linstor-stork-scheduler
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-linstor-stork-scheduler
+    namespace: linstor-1.14.0.tgz
+---
+# Source: linstor/templates/controller-rbac.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-controller
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "update"]
+    resourceNames: ["my-release-linstor-controller"]
+  - apiGroups: [""]
+    resources: ["endpoints", "endpoints/restricted"]
+    verbs: ["create", "patch", "update"]
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-linstor-csi-attacher-role
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-linstor-csi-provisioner-role
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-linstor-csi-resizer-role
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-linstor-csi-snapshotter-role
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+# Source: linstor/templates/controller-rbac.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-linstor-controller
+roleRef:
+  kind: Role
+  name: my-release-linstor-controller
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-linstor-controller
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-linstor-csi-attacher-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-linstor-csi-attacher-role
+subjects:
+- kind: ServiceAccount
+  name: my-release-linstor-csi-controller-sa
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-linstor-csi-provisioner-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-linstor-csi-provisioner-role
+subjects:
+- kind: ServiceAccount
+  name: my-release-linstor-csi-controller-sa
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-linstor-csi-resizer-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-linstor-csi-resizer-role
+subjects:
+- kind: ServiceAccount
+  name: my-release-linstor-csi-controller-sa
+---
+# Source: linstor/templates/csi-controller-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-linstor-csi-snapshotter-bindin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-linstor-csi-snapshotter-role
+subjects:
+- kind: ServiceAccount
+  name: my-release-linstor-csi-controller-sa
+---
+# Source: linstor/templates/controller-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-linstor-controller
+  namespace: linstor-1.14.0.tgz
+  labels:
+    app: my-release-linstor-controller
+  annotations:
+    prometheus.io/path: /metrics?error_reports=false
+    prometheus.io/port: "3370"
+    prometheus.io/scrape: "true"
+spec:
+  ports:
+  - name: restapi
+    port: 3370
+  - name: ssl
+    port: 3371
+  # NOTE: No selector here! A selector would automatically add all matching and ready pods to the endpoint
+---
+# Source: linstor/templates/drbd-reactor-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-linstor-drbd-reactor
+  namespace: linstor-1.14.0.tgz
+  labels:
+    app: my-release-linstor-drbd-reactor
+  annotations:
+    prometheus.io/path: /
+    prometheus.io/port: "9942"
+    prometheus.io/scrape: "true"
+spec:
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 9942
+  selector:
+    app: my-release-linstor-satellite
+---
+# Source: linstor/templates/stork-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-linstor-stork
+  namespace: linstor-1.14.0.tgz
+  labels:
+    app: my-release-linstor-stork
+spec:
+  ports:
+    - name: extender
+      port: 8099
+    - name: webhook
+      port: 443
+  selector:
+    app: my-release-linstor-stork
+---
+# Source: linstor/templates/csi-node-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-release-linstor-csi-node
+spec:
+  selector:
+    matchLabels:
+      app: my-release-linstor-csi-node
+      role: linstor-csi
+  template:
+    metadata:
+      labels:
+        app: my-release-linstor-csi-node
+        role: linstor-csi
+    spec:
+      containers:
+      - name: csi-node-driver-registrar
+        image: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.2.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --v=5
+        # No --timeout here, it's a very recent addition and not very useful for a single call that should return
+        # static information
+        - --csi-address=$(ADDRESS)
+        - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: DRIVER_REG_SOCK_PATH
+          value: /var/lib/kubelet/plugins/linstor.csi.linbit.com/csi.sock
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - rm -rf /registration/linstor.csi.linbit.com /registration/linstor.csi.linbit.com-reg.sock
+        volumeMounts:
+        - mountPath: /csi/
+          name: plugin-dir
+        - mountPath: /registration/
+          name: registration-dir
+      - name: csi-livenessprobe
+        image: "k8s.gcr.io/sig-storage/livenessprobe:v2.3.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-address=$(CSI_ENDPOINT)
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:///csi/csi.sock
+        volumeMounts:
+        - mountPath: /csi/
+          name: plugin-dir
+      - name: linstor-csi-plugin
+        image: "ghcr.io/kvaps/linstor-csi:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-endpoint=$(CSI_ENDPOINT)
+        - --node=$(KUBE_NODE_NAME)
+        - --linstor-endpoint=$(LS_CONTROLLERS)
+        - --log-level=debug
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9808
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:///csi/csi.sock
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: LS_CONTROLLERS
+          value: https://my-release-linstor-controller:3371
+        - name: LS_USER_CERTIFICATE
+          valueFrom:
+            secretKeyRef:
+              key: tls.crt
+              name: my-release-linstor-client-tls
+        - name: LS_USER_KEY
+          valueFrom:
+            secretKeyRef:
+              key: tls.key
+              name: my-release-linstor-client-tls
+        - name: LS_ROOT_CA
+          valueFrom:
+            secretKeyRef:
+              key: ca.crt
+              name: my-release-linstor-client-tls
+        securityContext:
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+            - SYS_ADMIN
+          privileged: true
+        volumeMounts:
+        - mountPath: /csi
+          name: plugin-dir
+        - mountPath: /var/lib/kubelet
+          mountPropagation: Bidirectional
+          name: pods-mount-dir
+        - mountPath: /dev
+          name: device-dir
+      imagePullSecrets:
+        - name: regsecret
+      nodeSelector:
+        null
+      priorityClassName: system-node-critical
+      serviceAccount: my-release-linstor-csi-node-sa
+      volumes:
+      - name: registration-dir
+        hostPath:
+          path: /var/lib/kubelet/plugins_registry/
+          type: DirectoryOrCreate
+      - name: plugin-dir
+        hostPath:
+          path: /var/lib/kubelet/plugins/linstor.csi.linbit.com/
+          type: DirectoryOrCreate
+      - name: pods-mount-dir
+        hostPath:
+          path: /var/lib/kubelet
+          type: Directory
+      - name: device-dir
+        hostPath:
+          path: /dev
+---
+# Source: linstor/templates/satellite-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-release-linstor-satellite
+  namespace: linstor-1.14.0.tgz
+spec:
+  selector:
+    matchLabels:
+      app: my-release-linstor-satellite
+  template:
+    metadata:
+      labels:
+        app: my-release-linstor-satellite
+      annotations:
+        checksum/config: b770b3a7348a435ec51a11d2d437735eb1c5cf0ae266b732bea4d65b50dd5440
+        checksum/scripts: 3911a3b7b9c7cd64af76faafe3c45e537f0ceb6d7f9777476bbe0add2c1d9c4d
+    spec:
+      initContainers:
+      - name: load-certs
+        image: "ghcr.io/kvaps/linstor-satellite:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -exc
+        - |
+          tmp="$(mktemp -u).p12"
+          openssl pkcs12 -export -in /tls/satellite/tls.crt -inkey /tls/satellite/tls.key -out "$tmp" -name linstor-satellite -passin 'pass:linstor' -passout 'pass:linstor'
+          rm -f /config/ssl/keystore.jks /config/ssl/certificates.jks
+          keytool -importkeystore -srcstorepass linstor -deststorepass linstor -keypass linstor -srckeystore "$tmp" -destkeystore /config/ssl/keystore.jks
+          keytool -importcert -noprompt -deststorepass linstor -keypass linstor -file /tls/controller/ca.crt -alias linstor-ca -destkeystore /config/ssl/certificates.jks
+          keytool -importcert -noprompt -deststorepass linstor -keypass linstor -file /tls/controller/tls.crt -alias linstor-controller -destkeystore /config/ssl/certificates.jks
+          rm -f "$tmp"
+        volumeMounts:
+        - name: config-ssl
+          mountPath: /config/ssl
+        - name: controller-tls
+          mountPath: /tls/controller
+        - name: satellite-tls
+          mountPath: /tls/satellite
+      - command:
+        - /bin/sh
+        - -exc
+        - |
+          cat /config/drbd.conf > /etc/drbd.conf
+          cp -f /config/global_common.conf /etc/drbd.d/global_common.conf
+        image: "ghcr.io/kvaps/linstor-satellite:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        name: load-drbd-conf
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: etc-drbd-conf
+          mountPath: /etc/drbd.conf
+        - name: etc-drbd-d
+          mountPath: /etc/drbd.d
+        - name: usr-local-sbin
+          mountPath: /host-bin
+        - name: logs
+          mountPath: /logs
+      containers:
+      - name: linstor-satellite
+        image: "ghcr.io/kvaps/linstor-satellite:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        ports:
+        - containerPort: 3367
+          hostPort: 3367
+          protocol: TCP
+        readinessProbe:
+          tcpSocket:
+            port: 3367
+          periodSeconds: 10
+          initialDelaySeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: config-ssl
+          mountPath: /config/ssl
+          readOnly: true
+        - name: etc-drbd-conf
+          mountPath: /etc/drbd.conf
+        - name: etc-drbd-d
+          mountPath: /etc/drbd.d
+        - name: var-lib-drbd
+          mountPath: /var/lib/drbd
+        - name: var-lib-linstor
+          mountPath: /var/lib/linstor
+        - name: var-lib-linstor-d
+          mountPath: /var/lib/linstor.d
+        - name: lib-modules
+          mountPath: /lib/modules
+        - name: dev
+          mountPath: /dev
+        - name: etc-lvm
+          mountPath: /etc/lvm
+        - name: run-lock-lvm
+          mountPath: /run/lock/lvm
+        - name: logs
+          mountPath: /logs
+        - name: run-lvm
+          mountPath: /run/lvm
+        - name: run-udev
+          mountPath: /run/udev
+      - name: drbd-reactor
+        image: "ghcr.io/kvaps/linstor-satellite:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        ports:
+        - containerPort: 9942
+          name: metrics
+          protocol: TCP
+        command:
+        - /usr/sbin/drbd-reactor
+        volumeMounts:
+        - name: drbd-reactor-config
+          mountPath: /etc/drbd-reactor.toml
+          subPath: drbd-reactor.toml
+      - name: configurator
+        image: "ghcr.io/kvaps/linstor-satellite:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        - /scripts/configurator.node
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+               cn() { curl -sS --cacert /tls/client/ca.crt --cert /tls/client/tls.crt --key /tls/client/tls.key -X $1 $LS_CONTROLLERS/v1/nodes/$NODE_NAME$2; }
+               ! cn GET | grep -q '"connection_status":"OFFLINE"' || cn PUT /reconnect
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 10
+        env:
+        - name: LS_CONTROLLERS
+          value: https://my-release-linstor-controller:3371
+        - name: NODE_PORT
+          value: "3367"
+        - name: NODE_ENCRYPTION_TYPE
+          value: "ssl"
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        - name: client-tls
+          mountPath: /tls/client
+        - name: config
+          mountPath: /config
+        - name: config-ssl
+          mountPath: /config/ssl
+          readOnly: true
+        - name: etc-drbd-conf
+          mountPath: /etc/drbd.conf
+        - name: etc-drbd-d
+          mountPath: /etc/drbd.d
+        - name: var-lib-drbd
+          mountPath: /var/lib/drbd
+        - name: var-lib-linstor
+          mountPath: /var/lib/linstor
+        - name: var-lib-linstor-d
+          mountPath: /var/lib/linstor.d
+        - name: lib-modules
+          mountPath: /lib/modules
+        - name: dev
+          mountPath: /dev
+        - name: etc-lvm
+          mountPath: /etc/lvm
+        - name: run-lock-lvm
+          mountPath: /run/lock/lvm
+        - name: logs
+          mountPath: /logs
+        - name: run-lvm
+          mountPath: /run/lvm
+        - name: run-udev
+          mountPath: /run/udev
+      hostIPC: true
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      imagePullSecrets:
+        - name: regsecret
+      priorityClassName: system-node-critical
+      volumes:
+      - name: etc-drbd-conf
+        hostPath:
+          path: /etc/drbd.conf
+          type: FileOrCreate
+      - name: etc-drbd-d
+        hostPath:
+          path: /etc/drbd.d
+      - name: var-lib-drbd
+        hostPath:
+          path: /var/lib/drbd
+      - name: var-lib-linstor
+        hostPath:
+          path: /var/lib/linstor
+      - name: var-lib-linstor-d
+        hostPath:
+          path: /var/lib/linstor.d
+      - name: lib-modules
+        hostPath:
+          path: /lib/modules
+      - name: usr-local-sbin
+        hostPath:
+          path: /usr/local/sbin
+      - name: dev
+        hostPath:
+          path: /dev
+      - name: etc-lvm
+        hostPath:
+          path: /etc/lvm
+      - name: run-lock-lvm
+        hostPath:
+          path: /run/lock/lvm
+      - name: config
+        configMap:
+          name: my-release-linstor-satellite
+      - name: config-ssl
+        emptyDir: {}
+      - name: controller-tls
+        secret:
+          secretName: my-release-linstor-controller-tls
+      - name: satellite-tls
+        secret:
+          secretName: my-release-linstor-satellite-tls
+      - name: scripts
+        configMap:
+          name: my-release-linstor-configurator
+      - name: client-tls
+        secret:
+          secretName: my-release-linstor-client-tls
+      - name: logs
+        hostPath:
+          path: /var/log/my-release-linstor-satellite
+      - name: run-lvm
+        hostPath:
+          path: /run/lvm
+      - name: run-udev
+        hostPath:
+          path: /run/udev
+      - name: drbd-reactor-config
+        configMap:
+          name: my-release-linstor-drbd-reactor
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 40
+    type: RollingUpdate
+---
+# Source: linstor/templates/controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-release-linstor-controller
+  name: my-release-linstor-controller
+  namespace: linstor-1.14.0.tgz
+spec:
+  replicas: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: my-release-linstor-controller
+  template:
+    metadata:
+      labels:
+        app: my-release-linstor-controller
+      annotations:
+        checksum/config: 6556b957f13b5b4b8e433f725e506117329c5dbdef027ec204619c07840f3dcb
+    spec:
+      imagePullSecrets:
+        - name: regsecret
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-linstor-controller
+      initContainers:
+      - name: load-certs
+        image: "ghcr.io/kvaps/linstor-controller:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        - -xec
+        - |-
+          tmp="$(mktemp -u).p12"
+          openssl pkcs12 -export -in /tls/controller/tls.crt -inkey /tls/controller/tls.key -out "$tmp" -name linstor-controller -passin 'pass:linstor' -passout 'pass:linstor'
+          rm -f /config/ssl/keystore.jks /config/ssl/certificates.jks /config/ssl/trustore_client.jks
+          keytool -importkeystore -srcstorepass linstor -deststorepass linstor -keypass linstor -srckeystore "$tmp" -destkeystore /config/ssl/keystore.jks
+          keytool -importcert -noprompt -deststorepass linstor -keypass linstor -file /tls/client/ca.crt -alias linstor-ca -destkeystore /config/ssl/trustore_client.jks
+          keytool -importcert -noprompt -deststorepass linstor -keypass linstor -file /tls/satellite/tls.crt -alias linstor-satellite -destkeystore /config/ssl/certificates.jks
+          rm -f "$tmp"
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: config-ssl
+          mountPath: /config/ssl
+        - name: controller-tls
+          mountPath: /tls/controller
+        - name: client-tls
+          mountPath: /tls/client
+        - name: satellite-tls
+          mountPath: /tls/satellite
+      containers:
+      - name: linstor-controller
+        image: "ghcr.io/kvaps/linstor-controller:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        command:
+        - /k8s-await-election
+        - /usr/share/linstor-server/bin/Controller
+        - --logs=/logs
+        - --config-directory=/config
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 9999
+            scheme: HTTP
+        ports:
+        - name: restapi
+          containerPort: 3370
+        - name: ssl
+          containerPort: 3371
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: client-config
+          mountPath: /etc/linstor
+        - name: config-ssl
+          mountPath: /config/ssl
+          readOnly: true
+        - name: client-tls
+          mountPath: /tls
+        - name: logs
+          mountPath: /logs
+        env:
+        - name: K8S_AWAIT_ELECTION_ENABLED
+          value: "1"
+        - name: K8S_AWAIT_ELECTION_NAME
+          value: my-release-linstor-controller
+        - name: K8S_AWAIT_ELECTION_LOCK_NAME
+          value: my-release-linstor-controller
+        - name: K8S_AWAIT_ELECTION_LOCK_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: K8S_AWAIT_ELECTION_IDENTITY
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: K8S_AWAIT_ELECTION_STATUS_ENDPOINT
+          value: :9999
+        - name: K8S_AWAIT_ELECTION_SERVICE_NAME
+          value: my-release-linstor-controller
+        - name: K8S_AWAIT_ELECTION_SERVICE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: K8S_AWAIT_ELECTION_SERVICE_PORTS_JSON
+          value: '[{"name":"restapi","port":3370},{"name":"ssl","port":3371}]'
+        - name: K8S_AWAIT_ELECTION_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+      serviceAccountName: my-release-linstor-controller
+      priorityClassName: system-node-critical
+      volumes:
+      - name: config
+        secret:
+          secretName: my-release-linstor-controller
+      - name: logs
+        hostPath:
+          path: /var/log/my-release-linstor-controller
+      - name: client-config
+        configMap:
+          name: my-release-linstor-client
+      - name: config-ssl
+        emptyDir: {}
+      - name: controller-tls
+        secret:
+          secretName: my-release-linstor-controller-tls
+      - name: client-tls
+        secret:
+          secretName: my-release-linstor-client-tls
+      - name: satellite-tls
+        secret:
+          secretName: my-release-linstor-satellite-tls
+---
+# Source: linstor/templates/csi-controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-linstor-csi-controller
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-release-linstor-csi-controller
+      role: linstor-csi
+  template:
+    metadata:
+      labels:
+        app: my-release-linstor-csi-controller
+        role: linstor-csi
+    spec:
+      containers:
+      - name: csi-provisioner
+        image: "k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-address=$(ADDRESS)
+        - --v=5
+        - --timeout=1m
+        # restore old default fstype
+        - --default-fstype=ext4
+        - --feature-gates=Topology=false
+        - --leader-election=true
+        - --leader-election-namespace=$(NAMESPACE)
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - name: csi-attacher
+        image: "k8s.gcr.io/sig-storage/csi-attacher:v3.2.1"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --v=5
+        - --csi-address=$(ADDRESS)
+        - --timeout=1m
+        - --leader-election=true
+        - --leader-election-namespace=$(NAMESPACE)
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - name: csi-resizer
+        image: "k8s.gcr.io/sig-storage/csi-resizer:v1.2.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --v=5
+        - --csi-address=$(ADDRESS)
+        - --timeout=1m
+        # LINSTOR can resize while in use, no need to check if volume is in use
+        - --handle-volume-inuse-error=false
+        - --leader-election=true
+        - --leader-election-namespace=$(NAMESPACE)
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - name: csi-snapshotter
+        image: "k8s.gcr.io/sig-storage/csi-snapshotter:v4.1.1"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --timeout=1m
+        - --csi-address=$(ADDRESS)
+        - --leader-election=true
+        - --leader-election-namespace=$(NAMESPACE)
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - name: csi-livenessprobe
+        image: "k8s.gcr.io/sig-storage/livenessprobe:v2.3.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-address=$(CSI_ENDPOINT)
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets/pluginproxy/
+      - name: linstor-csi-plugin
+        image: "ghcr.io/kvaps/linstor-csi:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        - --csi-endpoint=$(CSI_ENDPOINT)
+        - --node=$(KUBE_NODE_NAME)
+        - --linstor-endpoint=$(LS_CONTROLLERS)
+        - --log-level=debug
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9808
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: LS_CONTROLLERS
+          value: https://my-release-linstor-controller:3371
+        - name: LS_USER_CERTIFICATE
+          valueFrom:
+            secretKeyRef:
+              key: tls.crt
+              name: my-release-linstor-client-tls
+        - name: LS_USER_KEY
+          valueFrom:
+            secretKeyRef:
+              key: tls.key
+              name: my-release-linstor-client-tls
+        - name: LS_ROOT_CA
+          valueFrom:
+            secretKeyRef:
+              key: ca.crt
+              name: my-release-linstor-client-tls
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets/pluginproxy/
+      imagePullSecrets:
+        - name: regsecret
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-linstor-controller
+      priorityClassName: system-cluster-critical
+      serviceAccount: my-release-linstor-csi-controller-sa
+      volumes:
+      - emptyDir: {}
+        name: socket-dir
+---
+# Source: linstor/templates/ha-controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-release-linstor-ha-controller
+  name: my-release-linstor-ha-controller
+  namespace: linstor-1.14.0.tgz
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-release-linstor-ha-controller
+  template:
+    metadata:
+      labels:
+        app: my-release-linstor-ha-controller
+    spec:
+      imagePullSecrets:
+        - name: regsecret
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-linstor-controller
+      containers:
+      - name: linstor-ha-controller
+        image: "ghcr.io/kvaps/linstor-ha-controller:v1.14.0"
+        imagePullPolicy: IfNotPresent
+        command:
+        - /piraeus-ha-controller
+        - --leader-election=true
+        - --leader-election-lease-name=$(NAME)
+        - --leader-election-namespace=$(NAMESPACE)
+        - --leader-election-resource-name=my-release-linstor-ha-controller
+        - --v=5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+        env:
+        - name: LS_CONTROLLERS
+          value: https://my-release-linstor-controller:3371
+        - name: LS_USER_CERTIFICATE
+          valueFrom:
+            secretKeyRef:
+              key: tls.crt
+              name: my-release-linstor-client-tls
+        - name: LS_USER_KEY
+          valueFrom:
+            secretKeyRef:
+              key: tls.key
+              name: my-release-linstor-client-tls
+        - name: LS_ROOT_CA
+          valueFrom:
+            secretKeyRef:
+              key: ca.crt
+              name: my-release-linstor-client-tls
+        - name: NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      serviceAccountName: my-release-linstor-ha-controller
+      priorityClassName: system-node-critical
+---
+# Source: linstor/templates/stork-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-release-linstor-stork
+  name: my-release-linstor-stork
+  namespace: linstor-1.14.0.tgz
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-release-linstor-stork
+  template:
+    metadata:
+      labels:
+        app: my-release-linstor-stork
+    spec:
+      imagePullSecrets:
+        - name: regsecret
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-linstor-controller
+      containers:
+      - name: stork
+        image: ghcr.io/kvaps/linstor-stork:v1.14.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - /stork
+        - --driver=linstor
+        - --leader-elect=true
+        - --lock-object-name=my-release-linstor-stork
+        - --lock-object-namespace=$(NAMESPACE)
+        - --health-monitor=false
+        - --snapshotter=false
+        - --cluster-domain-controllers=false
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: LS_CONTROLLERS
+          value: https://my-release-linstor-controller:3371
+        - name: LS_USER_CERTIFICATE
+          valueFrom:
+            secretKeyRef:
+              key: tls.crt
+              name: my-release-linstor-client-tls
+        - name: LS_USER_KEY
+          valueFrom:
+            secretKeyRef:
+              key: tls.key
+              name: my-release-linstor-client-tls
+        - name: LS_ROOT_CA
+          valueFrom:
+            secretKeyRef:
+              key: ca.crt
+              name: my-release-linstor-client-tls
+        ports:
+        - name: extender
+          containerPort: 8099
+        - name: webhook
+          containerPort: 443
+      serviceAccountName: my-release-linstor-stork
+      priorityClassName: system-node-critical
+---
+# Source: linstor/templates/stork-scheduler-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-release-linstor-stork-scheduler
+  name: my-release-linstor-stork-scheduler
+  namespace: linstor-1.14.0.tgz
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-release-linstor-stork-scheduler
+  template:
+    metadata:
+      labels:
+        app: my-release-linstor-stork-scheduler
+    spec:
+      imagePullSecrets:
+        - name: regsecret
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-linstor-controller
+      containers:
+      - name: stork
+        image: k8s.gcr.io/kube-scheduler:v1.20.6
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/kube-scheduler
+        - --address=0.0.0.0
+        - --scheduler-name=stork
+        - --policy-configmap=my-release-linstor-stork
+        - --policy-configmap-namespace=$(NAMESPACE)
+        - --leader-elect=true
+        - --leader-elect-resource-name=my-release-linstor-stork-scheduler
+        - --leader-elect-resource-namespace=$(NAMESPACE)
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 10251
+          initialDelaySeconds: 15
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - my-release-linstor-stork-scheduler
+              topologyKey: "kubernetes.io/hostname"
+      serviceAccountName: my-release-linstor-stork-scheduler
+      priorityClassName: system-node-critical
+---
+# Source: linstor/templates/csi-driver.yaml
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: linstor.csi.linbit.com
+spec:
+  attachRequired: true
+  podInfoOnMount: true
+---
+# Source: linstor/templates/controller-tls.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-linstor-controller-tls
+  annotations:
+    "helm.sh/resource-policy": "keep"
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+    "directives.qbec.io/update-policy": "never"
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQzVENDQXNXZ0F3SUJBZ0lSQU42RUIrQmNmLzVhZkU1RDF3cHh4cXd3RFFZSktvWklodmNOQVFFTEJRQXcKSURFZU1Cd0dBMVVFQXhNVmJYa3RjbVZzWldGelpTMXNhVzV6ZEc5eUxXTmhNQjRYRFRJME1EWXlNREUwTlRjMApObG9YRFRNME1EWXhPREUwTlRjME5sb3dLREVtTUNRR0ExVUVBeE1kYlhrdGNtVnNaV0Z6WlMxc2FXNXpkRzl5CkxXTnZiblJ5YjJ4c1pYSXdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDemhtR3MKaUdqSWNMajFrMWlabyt0aFZudzRyY3RUY3FoRm54NVA2SFl2eVBWdXgxYUdUUklBN2c1ZVkxTFAzNHBMR1B4VAozMjJzMjQvWkl2aU5WZTBJMWUxZHZML3FaQjg2cE84aUhjdXlxbVlVbnpnSmhlRUd1RkhBWGVLWEE0OHBaS3czCmFPYjFGdDlBWk1KaXkzTDF0UVNQMkQybjdGUHBXR1diYUIvbkhoVGdGM2h3amNUdDFhdTRkcTgzS0thK3duazkKemFJc3hhZ21EV3pkVnBiMXhJN3BRWWYzWjRCVVlmYXcrWDRUZ25OZjAzZ1JyWkR2QlZhT3g5WUJPWjJDZzhYaApNS3FpVFJMN05vRzJFR0N0SlFpVzkvNXY1TDNQVXRwVm5TRkUwWENiTnRtZ2lHWXA4R05hbHJybFBvYXM4c0VHCkZzakFacTd0MU8wYzhpaVRBZ01CQUFHamdnRUlNSUlCQkRBT0JnTlZIUThCQWY4RUJBTUNCYUF3SFFZRFZSMGwKQkJZd0ZBWUlLd1lCQlFVSEF3RUdDQ3NHQVFVRkJ3TUNNQXdHQTFVZEV3RUIvd1FDTUFBd0h3WURWUjBqQkJndwpGb0FVOWoxK2dSWml0Wlg5SnBleUVwQUJmc2ZUb1FNd2dhTUdBMVVkRVFTQm16Q0JtSUlkYlhrdGNtVnNaV0Z6ClpTMXNhVzV6ZEc5eUxXTnZiblJ5YjJ4c1pYS0NNRzE1TFhKbGJHVmhjMlV0YkdsdWMzUnZjaTFqYjI1MGNtOXMKYkdWeUxteHBibk4wYjNJdE1TNHhOQzR3TG5SbmVvSTBiWGt0Y21Wc1pXRnpaUzFzYVc1emRHOXlMV052Ym5SeQpiMnhzWlhJdWJHbHVjM1J2Y2kweExqRTBMakF1ZEdkNkxuTjJZNElKYkc5allXeG9iM04waHdSL0FBQUJNQTBHCkNTcUdTSWIzRFFFQkN3VUFBNElCQVFDcFVMQUpDNjVuc1BiS0E5K2NuOEhaUFZ3ZjJBcHoxTHp1RkRpSzNoUzEKQ3lLQVVGV04yZk1COHBOcWYwYWNLYUZNaU1NWSsyR2dxbXQvUHhoSHFOSXE0bTB2di95UHltcTB6ZXpBMlg0Kwp2MWFDbWVXa2RnaEl3MDFtbUxRYTRXYlV6WEU4MFgzRjZWeUk3SWhCK1lNU0FqNUpHc0poUFhNNWU1QTBPcTBnCjhqYVMzdVh3cnpSK3NiWW5wS1EzSUNVaWlMdy9qTnkyQ2VMSGFFeE1pNUdpb2dLQnBtR1V2b3p0eFkyWmwxM0gKd0dHcVV5MW94UzdpWFZXVk1uZnNGMnZWUEJjYVRHdEhlSjFtK2hnNEUvRGJJclR6d2lTOG9PekZFaTA5VFJCYwpBNjB3d1p1REVFUFFXZnhsL3NGZUFTaWViN1Q4V2FxYzFreFBDdlYxZWJlKwotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBczRaaHJJaG95SEM0OVpOWW1hUHJZVlo4T0szTFUzS29SWjhlVCtoMkw4ajFic2RXCmhrMFNBTzRPWG1OU3o5K0tTeGo4VTk5dHJOdVAyU0w0alZYdENOWHRYYnkvNm1RZk9xVHZJaDNMc3FwbUZKODQKQ1lYaEJyaFJ3RjNpbHdPUEtXU3NOMmptOVJiZlFHVENZc3R5OWJVRWo5ZzlwK3hUNlZobG0yZ2Y1eDRVNEJkNApjSTNFN2RXcnVIYXZOeWltdnNKNVBjMmlMTVdvSmcxczNWYVc5Y1NPNlVHSDkyZUFWR0gyc1BsK0U0SnpYOU40CkVhMlE3d1ZXanNmV0FUbWRnb1BGNFRDcW9rMFMremFCdGhCZ3JTVUlsdmYrYitTOXoxTGFWWjBoUk5Gd216YloKb0lobUtmQmpXcGE2NVQ2R3JQTEJCaGJJd0dhdTdkVHRIUElva3dJREFRQUJBb0lCQUFzTyt4TktyOUd4QitPdwp1T04xOG5qamYvRnAyejEvc1pmZ1RsaXp4QnY3Y0FycjRvdVJVY3VXM25HNEFwRGxmenBUQnJBUDhreVVsYzdWClZhUTNKOHZFaWNPZGJlRDlXK01iNTlNZExNQUx1UkFLSXNTTFo2b25Ubm5nRHFZb3hQZlN5THo5REVVS3JLUGwKMFFlTzZyeng4cDc5dmdhTEN6d3pnc2JJNmpZdFRMbkxvSlNRTFREYmMxeVluT2xsajdqWFVObXI2M1RLampBUApSWlpMdVllbU5XUU52Sit3ZGpkaFRsKzUzS3QzOHVJSGhoc0ZQbk9LTWdqbTdWNERVbzlYQUpyOFVCaTA2VWdsCktWVk5sTXZYQjRXRXUwKy9ESGNQcytOVVRuNEFKdU5zTzkrTUZWWFBhcXVjL3VvdWdBVnZINGR3Y2J2QWNZcHUKS2p1WlFZRUNnWUVBeUtteVJYbzVZaTEvQXdQYUxhUmVzVS8weUg1S3NrejZNV055VU5SRjJ1a3JyL0l3bjFIYgo3T203SnVscFRURGtHSzY5Tld4cHV0UzVnWVYzeDdTbkI1VUR2MkFiZmlxUDVCbnNnUG9pb1BoVjFRak9rby9sCjU0blVmYVVIWUEwYUt3WDlsL04yV1hNTnhlb0VmV29yUytwKzB2YVZyaTZwWXZENXJDUVA4OEVDZ1lFQTVRaGwKNzZzakFKWFBreFFkRTR6c3crR2tqZitTMkg0elpseEtlRlJSUExEN09QN2JtVG5kSWFtMi8yYW5EdC9xZmRMOAp3blBZQU91bGRscWNjN055NS9GVktWR25seENBWHRFbmFZYnJwbUNydXZpK1krc0JyVnpoN0tMZ0Zpd1NCZ0dXCjVqOXVjMUwySGFqblRyZk1ncnp0UGYwK01SR1IxdysxZXhMcVlWTUNnWUVBcUdnVEg5QTJQTGxtTVVlWVlsbmkKeHZrTnZQNlEvaGN3bXlhVkdGVXUwMHlCeDhhQkhCVDllRldwSmowYWpSZ05OdEhnSmVmNHpENGYraDNqcXcxbwphU3FjM0k1eVJHN0FHSFhSVVdXY2puQWN5US85SG0vNlNWb1pwZUZNMFVYdHdsSGl4UllsSzJrdUUvNFZDcFNDCkJkS2w0YlBsWnl2dUtRV0k1UG5YRVlFQ2dZQXZzd1VQMmpPSy9xaGhlRkhwN1hLdUJRTnhjMlhRNHMrdnBNNzUKcW8zVXR3TkxSb0RUczZKalRXWklZTWV3S0dBODNrRTMra3BsUHE2U0xLTGkwZCsvZ0pwODVYMml6NVA4cTFDcgpBS2Q1V2k3SjNONUNEd0tsYVcvQUNkZmpwa0FHc2pRTU5lKzU0dkJSRXdsQmNyUU1FbTdTZHppSm5hQWpDeWwvCnZWdkU4d0tCZ0dqN0IxNU5Xc0ZkZ2RHamZ4SFRLT203Y0hVSGZwSE0rTVlZVVhEUVpiQjU2OUVkV2xKR0o4Q0UKMS9GYXM2WkpDZFBHTTFhVEFpRG1OUENwRjdXT0RpekIzM0JsUmp5L3NOUEJBaURicVUxKzZlYmlpVmcvalo2MAp3bmtHdm4xWDlDazAxQ1FHdUVnczJINFJIcXRkc2tKd0tjMEVITHVOTG1RY1Z3WWE1WnllCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURLekNDQWhPZ0F3SUJBZ0lRYzFOR2FqTWswWWcxZVV6b243RFFlakFOQmdrcWhraUc5dzBCQVFzRkFEQWcKTVI0d0hBWURWUVFERXhWdGVTMXlaV3hsWVhObExXeHBibk4wYjNJdFkyRXdIaGNOTWpRd05qSXdNVFExTnpRMgpXaGNOTXpRd05qRTRNVFExTnpRMldqQWdNUjR3SEFZRFZRUURFeFZ0ZVMxeVpXeGxZWE5sTFd4cGJuTjBiM0l0ClkyRXdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDcllFOGlHek5ieG5zdVg2V3cKK2lFS3A4bEdmWjJrR2V1L2NxK3lldmRnS1dYQTZYWDdFMFA3UEJ2ek5QV2d1SjNNV3FpdG9yMDVaZXBreWx5bQppand4VmJvQ0xoYm45eHdnOFlkdER5VTdFcE9ycHcvUHZWdGZtaVNHbVdtNkMvRFJ1REpFcE9PL29NUktMcjlWCkZrYjYrTUlZMTA4VGljOFUzTHdIem9pa3h3QVN0NFVsbHNkcEptV0ptOEtKZGdqN3V2cC83enAranYrMllHbksKRUZVREVhMnVIRmYxNEdJQVdjNDgrYmEzenB2WXhmUy8rWFBpcENIQXRldk83aml0SzM2RkhUWlpQUmg3cFYwbAo5MTdIeTFtTi9ocCtJMnBpNFFVQW9HRHVUVTBLUUdxYW93bWo5MGdkUnRjeTRCUUVmS01PUTJMMDZBaC9RNG44Cko1ZGJBZ01CQUFHallUQmZNQTRHQTFVZER3RUIvd1FFQXdJQ3BEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0QKQVFZSUt3WUJCUVVIQXdJd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVTlqMStnUlppdFpYOQpKcGV5RXBBQmZzZlRvUU13RFFZSktvWklodmNOQVFFTEJRQURnZ0VCQUQzRTZSN25XOG1ySEhnK3BjSXkxNVk0Clh1TVpSeklPWGZFUy90aHJhSDd1cURpVGs4MnMwTUcvN2pQN0F2SCs5RGptUFl2dURoQTFhV1YwZXZ3Z1JWZm0KQ2c1NnN4djZMaHJuV1gwSWIrYzZsUm93TSsycE04ZUtleWRjZzVJSUdHcWhWWThrSTlObmYvOWFYQkFUeDBJeQp3T21XTlpaTUVUd1YwYmluMk9PZk45RGROUDBYNUR0STBsU1VQZEtYanpVL1dzdXRtRHhobU4yZjJrRU9Hc2JqCnNHMkJhN080cHplVWs3Z25DZHUxZXVFYVA3N3R1YTU0bzhUOVFhQTFNRHdZUGUvdkhFZENPQldNQlZQNytQbS8KWG1YbkZ3cE1GTzRtM3hiTno2VzlIVVNhYkYrTDUzZjR2SkZSZ2I5Y3NPdUVFbFBQN1NCNUNVMlNvbXFKbSs4PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+---
+# Source: linstor/templates/controller-tls.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-linstor-client-tls
+  annotations:
+    "helm.sh/resource-policy": "keep"
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+    "directives.qbec.io/update-policy": "never"
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURMakNDQWhhZ0F3SUJBZ0lRRUJFK24ydmtxSmcyN3ZVTVBMMzI4akFOQmdrcWhraUc5dzBCQVFzRkFEQWcKTVI0d0hBWURWUVFERXhWdGVTMXlaV3hsWVhObExXeHBibk4wYjNJdFkyRXdIaGNOTWpRd05qSXdNVFExTnpRMgpXaGNOTXpRd05qRTRNVFExTnpRMldqQWtNU0l3SUFZRFZRUURFeGx0ZVMxeVpXeGxZWE5sTFd4cGJuTjBiM0l0ClkyeHBaVzUwTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFwOUFmYVVpZmdsdUoKYVprcXVNeWRhQ1ZZN2l5ZThBcXV2Y3VPWTFPdFJDYWRtNFhpTkRmU2NDSmxQb0VCMzJKejhwNElrTGR1OU1xNgphNkRKTkZTRzZiS1VDTFEvWUd0WXdsWWZmM0lnT0w0RGJHSHNXZW5FRkJWL291RnNDL2tFUVRMalRGSEl3YWFCCmEyRTh5Y2lkVjhRekRDdzlZeVVMeXMzVGIzQlZpejRuM0M2WERwSThwRmN2eTRuL293YkZEdlJZMUJMcnBJeksKOCs4K3Z6OE41bmpxNUlJMVhrdW1iRk9uMUNEYlhnUmZSOUNFYVoyUkYrc0hQTzlkODhiMXVPeGNuMFhMVDBVVgp5ZmZ4Y2hiNWViaTduMXhmMmJNZ0VnZkF4RXRZSndaVGFNNEhWbS9wTXI1cFZldHdFSm1BQ2NaVk5GQmlMK1JBClpVaXRleG5vMlFJREFRQUJvMkF3WGpBT0JnTlZIUThCQWY4RUJBTUNCYUF3SFFZRFZSMGxCQll3RkFZSUt3WUIKQlFVSEF3RUdDQ3NHQVFVRkJ3TUNNQXdHQTFVZEV3RUIvd1FDTUFBd0h3WURWUjBqQkJnd0ZvQVU5ajErZ1JaaQp0Wlg5SnBleUVwQUJmc2ZUb1FNd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFBTm1mUmlUdlM0R1V5UHFDb1hYCkkrRXF6U0VwU0xwQ3Z5dzZybVNFaWxxUmxFVXhZcnpaT0Q2MDAvNUR3cW9WV2FPaDNHclZ0M3YyRUppVGRWd2YKMEVxVVNhS0w1TEgwT3gzdStpMXJvNEVTNFRjR1h4WDJQRDBNaVMwUllTVmhHblNwTWc0SzlMZmJ3V2pKeFZmVApwcldRb09zQ3lteFNRQk5ZNkNubFdwTk1pV0pacmxUdHhZUkNJUjZOTlhnYnd0elBPV0NxVUZ5QVZsRjQ4dkQ3CmppVkxmSDdSNExhcHU4UDlmMzFsd3JtT1k2Q1Z1bURNekhQN3BCWFpKUGNFWm45amNiUnZmWmtSU3RuTThNZEUKU3ZYNWdXQkpOK2R5bkhFeG5FMHlqT0s3TnJiZWdYRHZmUFl0NkdqOS85TTJ0dGxpT0hOWDBKM3hjeHIvSzRNQwpiN2c9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcGdJQkFBS0NBUUVBcDlBZmFVaWZnbHVKYVprcXVNeWRhQ1ZZN2l5ZThBcXV2Y3VPWTFPdFJDYWRtNFhpCk5EZlNjQ0psUG9FQjMySno4cDRJa0xkdTlNcTZhNkRKTkZTRzZiS1VDTFEvWUd0WXdsWWZmM0lnT0w0RGJHSHMKV2VuRUZCVi9vdUZzQy9rRVFUTGpURkhJd2FhQmEyRTh5Y2lkVjhRekRDdzlZeVVMeXMzVGIzQlZpejRuM0M2WApEcEk4cEZjdnk0bi9vd2JGRHZSWTFCTHJwSXpLOCs4K3Z6OE41bmpxNUlJMVhrdW1iRk9uMUNEYlhnUmZSOUNFCmFaMlJGK3NIUE85ZDg4YjF1T3hjbjBYTFQwVVZ5ZmZ4Y2hiNWViaTduMXhmMmJNZ0VnZkF4RXRZSndaVGFNNEgKVm0vcE1yNXBWZXR3RUptQUNjWlZORkJpTCtSQVpVaXRleG5vMlFJREFRQUJBb0lCQVFDZDVBWUo2MWlaTUVNRAo1aWI2SlJyZENIYTU4YVhCT0d2ZEM0NzNDWjMyaDFhM0k2c0hjcFkvQnoyM0oyNTVuWXAyZGhhZEF0b1UzRUcyClRsdkJMdDZaTjNwdERocXJQNVVObERhaWxPQ1lRcis1MUJDck1IVmFhRGZsS3ErY1BEbXlsb3lpSERrRmF3Sk4KNC9scjZhT1JGbnJwTXg2M0QvNGVYTFpaSFpwL0hRQUVQdkVVTXVIb3p5MVRBdm1rMXFLTWIxUTRhUVhEM2c5cgpSSjg5S0xvRlhJVEtVZUovNlBEVzdIOVcvQ1prT1QrZVFKd0pyNytMRmc4TWx2S2Q2Zk9sa3RJS1NwR3FXMjZsCjB3OVJjMExneC8vZkVpSHduTHRBdVQyT0R3Q3RvMk1qZ0c1MmVKazN6b3dnNXd1YUsrcVVJU1hhaVBFK25FRUsKdmwvbGhBY1pBb0dCQU5RdzB5VXFHZzBOMXg3WlVxSFNhNStZSWtJTFVCeHlPK2xsSEVhNTVSc2VIS3Z3RjNOcApNMkxYQ0hzU3JXeDI5c3JTZXlGUDE1Y2I5Q2tRYnRaVHphN1lTS2dWSXVwdTZ2MG5QZ2d6dFdtSWMvTWgwUEpPCi9LTHR2ZE1sOXBSbVBQbE45RXNEclQvYUlrejVOb29xRUYxdmsyaHZEV0hhemorTmlYVHJwK2t2QW9HQkFNcDEKdnpaVDh6MmxqdGgzVTJNeU9pWTlmclpvbGkyZ2F6ampCeXQyQUxkRGxud2ZOYWVKZkdZb3A5YkNuWkVnbUx4dwo0Y3VVakJzQXpHdXhjRHZQMlMreVVsRk5SMUpwaXhjTFpCTW9JbEtmUnllN3hSQy93SEh4WE1hTjRVRURzK3I0CksxZEd1NWFlMVFGblMvdTkxYkp5OVdGelJYWENpdVFHcStlY2tyeDNBb0dCQUl2UHQvQXU4NGRTYlVJSVUrZ0kKSzUyMnNpdnVKRlQ1OS92ckFWeWd0QkxRSG5nejlGKzVHNEN1eXdtODNzUXZCcUhSV2d3eS9ZeTFnSVZtTElIUQpLaUJncGs4SnpqM0Y0OVAxL1d1T0ZxUjRvbDI3RkYvMEo0WjdPNjVhdjBROHNVUmJWdkh1ZEVNMFNaR0tTNk54CjMrS1EyQUhoMm1GMXVKd3JlRHl2NGExRkFvR0JBSldScDFGYmM3ZDNON0J6ZHdjeGRBUU1LakJYMDVxaGlKVGUKSTgzWHYyK2tYdWdUcG0rL0FrZjJnUWdIZnFCWWxIMmlaeTBlOE9LQ0ZJTDY4dzg4M2haK2hwSEpwWWNjc2NTMApoWm9oYkRuZHNaT0pCR3o3UEJEeFhyalEyRGhQby90U203SStieGMyLytXcGlsalFSYTh2ZmxnZjhKQ3V5Q3p0ClFOSTZ1YXpCQW9HQkFKRFIrVFlCT0Jua08wVzEveEpXeG5wNXF5MldCMi9SYXJmb2M4Ny9tNXI5MzJzS3pOQkwKenVVa0RtS3ZvTDYvcXc2TWVacjdRSTRNUFJ1L212MW1VNVZiOWtkR1pKWVUwQmoyOXdYS3VadytFOVM3MWh6OQoxTzU0a21hTFA4cFFkQ1JhY1hSbkk2MVJzeTQzb0wvV0h2WkRKdWRsV3RndUo2ZExpU1N4N2RkLwotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURLekNDQWhPZ0F3SUJBZ0lRYzFOR2FqTWswWWcxZVV6b243RFFlakFOQmdrcWhraUc5dzBCQVFzRkFEQWcKTVI0d0hBWURWUVFERXhWdGVTMXlaV3hsWVhObExXeHBibk4wYjNJdFkyRXdIaGNOTWpRd05qSXdNVFExTnpRMgpXaGNOTXpRd05qRTRNVFExTnpRMldqQWdNUjR3SEFZRFZRUURFeFZ0ZVMxeVpXeGxZWE5sTFd4cGJuTjBiM0l0ClkyRXdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDcllFOGlHek5ieG5zdVg2V3cKK2lFS3A4bEdmWjJrR2V1L2NxK3lldmRnS1dYQTZYWDdFMFA3UEJ2ek5QV2d1SjNNV3FpdG9yMDVaZXBreWx5bQppand4VmJvQ0xoYm45eHdnOFlkdER5VTdFcE9ycHcvUHZWdGZtaVNHbVdtNkMvRFJ1REpFcE9PL29NUktMcjlWCkZrYjYrTUlZMTA4VGljOFUzTHdIem9pa3h3QVN0NFVsbHNkcEptV0ptOEtKZGdqN3V2cC83enAranYrMllHbksKRUZVREVhMnVIRmYxNEdJQVdjNDgrYmEzenB2WXhmUy8rWFBpcENIQXRldk83aml0SzM2RkhUWlpQUmg3cFYwbAo5MTdIeTFtTi9ocCtJMnBpNFFVQW9HRHVUVTBLUUdxYW93bWo5MGdkUnRjeTRCUUVmS01PUTJMMDZBaC9RNG44Cko1ZGJBZ01CQUFHallUQmZNQTRHQTFVZER3RUIvd1FFQXdJQ3BEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0QKQVFZSUt3WUJCUVVIQXdJd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVTlqMStnUlppdFpYOQpKcGV5RXBBQmZzZlRvUU13RFFZSktvWklodmNOQVFFTEJRQURnZ0VCQUQzRTZSN25XOG1ySEhnK3BjSXkxNVk0Clh1TVpSeklPWGZFUy90aHJhSDd1cURpVGs4MnMwTUcvN2pQN0F2SCs5RGptUFl2dURoQTFhV1YwZXZ3Z1JWZm0KQ2c1NnN4djZMaHJuV1gwSWIrYzZsUm93TSsycE04ZUtleWRjZzVJSUdHcWhWWThrSTlObmYvOWFYQkFUeDBJeQp3T21XTlpaTUVUd1YwYmluMk9PZk45RGROUDBYNUR0STBsU1VQZEtYanpVL1dzdXRtRHhobU4yZjJrRU9Hc2JqCnNHMkJhN080cHplVWs3Z25DZHUxZXVFYVA3N3R1YTU0bzhUOVFhQTFNRHdZUGUvdkhFZENPQldNQlZQNytQbS8KWG1YbkZ3cE1GTzRtM3hiTno2VzlIVVNhYkYrTDUzZjR2SkZSZ2I5Y3NPdUVFbFBQN1NCNUNVMlNvbXFKbSs4PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+---
+# Source: linstor/templates/satellite-tls.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-linstor-satellite-tls
+  annotations:
+    "helm.sh/resource-policy": "keep"
+    "helm.sh/hook": "pre-install"
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+    "directives.qbec.io/update-policy": "never"
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUR0ekNDQXArZ0F3SUJBZ0lSQU53S3RKd1N0UktTbTF6Ym1VZHBqU0F3RFFZSktvWklodmNOQVFFTEJRQXcKSnpFbE1DTUdBMVVFQXhNY2JYa3RjbVZzWldGelpTMXNhVzV6ZEc5eUxYTmhkR1ZzYkdsMFpUQWVGdzB5TkRBMgpNakF4TkRVM05EWmFGdzB6TkRBMk1UZ3hORFUzTkRaYU1DY3hKVEFqQmdOVkJBTVRIRzE1TFhKbGJHVmhjMlV0CmJHbHVjM1J2Y2kxellYUmxiR3hwZEdVd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUIKQVFEV200c2E3eS9LN2VSSGlicE9FSnRTZXB4SGRxQ0NBWVY5UnJlTU1JaDQvQjFnWjJCb0JneDVqNjkzM0xEcgpMdW5tMjA4QkFodUhoOTdIbUs0M3B4WldCUmpnb1JNMG1vRWN5VzI2MHVWSnkraHhFdExFM0RjZi9uVytLbFdDCityK0Z4TEtzM0RqV0h0ZFE3Z0pjeDFPUk42YWc4TzdnWDZ6SEpFUEpzMGwybVU4ekJMczl0ZXVYU1YreDZpNlEKTThZaVFWd2pYY3h0TnRXZHo4VkFJL2VXWDZhL3NLMWZqcGZsYnkrWjd6dXphU2J0bld2cklYT2UvSnk2YVhvQQpPVmQwOUNJenB3c05jekFza0ljQloxWmJ1NlcvaFVyWVpnb2xFRHNyUm9aQ0FGUXBpNTJOcW9DMnB1YXBFODNFCjhFTTgvbGp0a2grWU5WSm5TZjdIVjh1bEFnTUJBQUdqZ2Qwd2dkb3dEZ1lEVlIwUEFRSC9CQVFEQWdXZ01CMEcKQTFVZEpRUVdNQlFHQ0NzR0FRVUZCd01CQmdnckJnRUZCUWNEQWpBTUJnTlZIUk1CQWY4RUFqQUFNSUdhQmdOVgpIUkVFZ1pJd2dZK0NIRzE1TFhKbGJHVmhjMlV0YkdsdWMzUnZjaTF6WVhSbGJHeHBkR1dDTDIxNUxYSmxiR1ZoCmMyVXRiR2x1YzNSdmNpMXpZWFJsYkd4cGRHVXViR2x1YzNSdmNpMHhMakUwTGpBdWRHZDZnak50ZVMxeVpXeGwKWVhObExXeHBibk4wYjNJdGMyRjBaV3hzYVhSbExteHBibk4wYjNJdE1TNHhOQzR3TG5SbmVpNXpkbU9DQ1d4dgpZMkZzYUc5emREQU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FRRUFzd2ZocWNSd2VnRzBxeWdzTUxJbDNZOEl3SWlDClZJL01IWkJwOGlRbGx4YUxNWVV0ODNMYkRCb0kzZFZGRTlCVE15MEZ3Sm4vcTFLNUdkOXBWRkxsMGhPSzc1a1cKRFdJTTVwTkJWakRzdFhrc2RVQjJwRFdRVmJXRXNGSFRETjl5UTB1R1dTNWxXZnVTNTBreHF6bEthbHlqc3lySwpzRnJFemI1bkkyRVRzU3Q4SU41NFk4N3J6NmFpOFN3S25MMWJRS2M4cThUeGEwMlgrNlU5NDR5UG9uejJjam9DCmlvcWRZQXpPeE92eUdmZU1ZWmx2M01TZW81MDNnNkVaV2hqcjNZS1RYYXRqRDhDL3JlNzhKRy9ES3lmcElPYVYKZW9hbFpxRnpIUmQvTTlKYy9aTXN1ZS81S3ViK283YmlTVnNKWTcyNmxIZm4wYWxzSUJ1S252VXVjQT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBMXB1TEd1OHZ5dTNrUjRtNlRoQ2JVbnFjUjNhZ2dnR0ZmVWEzakRDSWVQd2RZR2RnCmFBWU1lWSt2ZDl5dzZ5N3A1dHRQQVFJYmg0ZmV4NWl1TjZjV1ZnVVk0S0VUTkpxQkhNbHR1dExsU2N2b2NSTFMKeE53M0gvNTF2aXBWZ3ZxL2hjU3lyTnc0MWg3WFVPNENYTWRUa1RlbW9QRHU0RitzeHlSRHliTkpkcGxQTXdTNwpQYlhybDBsZnNlb3VrRFBHSWtGY0kxM01iVGJWbmMvRlFDUDNsbCttdjdDdFg0Nlg1Vzh2bWU4N3Mya203WjFyCjZ5RnpudnljdW1sNkFEbFhkUFFpTTZjTERYTXdMSkNIQVdkV1c3dWx2NFZLMkdZS0pSQTdLMGFHUWdCVUtZdWQKamFxQXRxYm1xUlBOeFBCRFBQNVk3WklmbURWU1owbit4MWZMcFFJREFRQUJBb0lCQVFDd3dORTBNTlhESkdYRQp5ZG5KSEFKaFR4elIreEU5b2pVb3Rnck1pdGlNRk5HNUtjdU1RWmNhczg0SVFacnhTT1Zhdnp2MWo1L080NGdJCkNtZEs3UElIalJFdFNWMEJFVlBQdXRNR2NWWnBqbWoyWUZONTBnb1E3c3BaQXBNRldySk5ZWERyMEVGN2tWRXoKbGFRYWVBMEs2TFB6a0J5ZWJnNW13aWFXeEhSNEdWQVM5anY0L081NlpKeXRrODV3bmpIejA5L3ErQTdmbWNzTQpvV29aelpla05sbkdncWFjZDVGamw5L0Jqd213OEtxcGJBTk1DRHJCbDdLYWhFcFlhbzlrWGZZZW1LcFJycTc3ClpZcytMM05xVEZjOVlyV1hsMGJlbnExSGpVbXJxTS9sYnk0YnFjMHJyQnFyVnZqRlVaZThjekxtQWk0QUVkQUEKeXQ2K2o2NUJBb0dCQVBoZGhTMFA1L1VCNndRTGx5RTFjSkROZUhXQ3I5TmpjZXhhSUwvanY4VzVXaUJqWW1LMgpFUDhZcnlNc21HU0NhUUdpWVJHMWwvcWFHdEczSlltNWZaZjJNUklQVXV1YUpEc1BIckJKWVNpaHhVSjdSZWJ0CmROMnA0b1JXOFpBd1dJZEhBbThTUDF0cFVBZERCT09pNE5NVXBWVXRCSmZCalVZcXhqd2g2Q3FWQW9HQkFOMDAKWHZrUitYZGl4YnNiT2ZlMkdIbklpWk9tS0ZkdUllQXVGQVR4U0ViYkVvVWpPWVNOT1JDTndxVmErZW9jUWo5WApPT1Z2K1l6SE84TWpoWHE4NCtheHhmOGJwbjdhcWFRQ09UWStlNXg4UEpCWDFLb0FCamNYV2JDRlBTazEzVG1TCjFwRU9iMkNGMEpsR1cvNVA1dkI5NUtpcW5Ncnp2cU1oRXR4eDN1alJBb0dBZEExRzhHSnhVWU8rN0JuNldWTWUKTVJ0QmdTODZ0enpOZTlJMVlWU3JSRm15cWxXbUlGZlFvMUpHYTlvbnJ6ZGNsNTNuVzU0TjBOUjNXYTBKaGt3OQpTbWVJVUZjR3VQNUNsYklmOWVHajI1ZVRrOWdFTnI2WUVBZVV4NS9VcWpwYzg0RVR1eEM4dUJzQ2dSSW8wN0ZFCitueTRNSStqaU1HeElLdFdDNzBRUGUwQ2dZQjNoellPbGxUYjJ3YUhmVVhNZ1p3bUttT1U0Z01JZzExUXV2VmMKV2xpNDJPWGdCVkd1TzNWcmFYNlZSVnluMFU5RzFNWE16TDNuQVQxY3k1UHo1NStxWjhOYWYwRnZhSTZrTGdObQpPVXNvR3NYTEpYcW54YzJWOVVza3BFcVJPeWJvVmwwVkV0ekNKbXk2ZGhkOWl3VjZURHpEbXpXUVFUZHhCSTBoCmkzSnRFUUtCZ0VudEN2SC9DL2puL1V2WU5PcnhyTG9EZHE4YnZmNGd6VnozYTJ0Rm1vVmJTWkFyUkpncHI1aXEKa1V6SDFUQ0J2aUdlOENiSTJYdXkrSk1rZklzMzc1ejJJd3Y3S0ZFOTMwSnlzZk9lZXFoVnNuVm4xYm1WUjNwZQprcSthaC9UTVJ4QU5KL3RyK1h6di85UDY5S1dqbUdVK0p2bk03UU1lRmZ1cW5pMHJzVXBaCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==

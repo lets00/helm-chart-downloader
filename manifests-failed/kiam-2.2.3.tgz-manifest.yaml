@@ -1,0 +1,537 @@
+---
+# Source: kiam/templates/agent/agent-networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-kiam-agent
+  namespace: "kiam-2.2.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: agent
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: kiam
+      app.kubernetes.io/component: agent
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+---
+# Source: kiam/templates/server/server-networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-kiam-server
+  namespace: "kiam-2.2.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: kiam
+      app.kubernetes.io/component: server
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 8443
+---
+# Source: kiam/templates/agent/agent-service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kiam-agent
+  namespace: "kiam-2.2.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: agent
+automountServiceAccountToken: false
+---
+# Source: kiam/templates/server/server-service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kiam-server
+  namespace: "kiam-2.2.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+automountServiceAccountToken: false
+---
+# Source: kiam/templates/agent/agent-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: agent
+  name: my-release-kiam-agent
+  namespace: "kiam-2.2.3.tgz"
+type: Opaque
+data:
+  cert.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFVENDQWZtZ0F3SUJBZ0lRWGx3SGtGWDloMTVyVmI1SWpvU050REFOQmdrcWhraUc5dzBCQVFzRkFEQVMKTVJBd0RnWURWUVFERXdkcmFXRnRMV05oTUI0WERUSTBNRFl5TURFME5UY3lORm9YRFRJMU1EWXlNREUwTlRjeQpORm93RlRFVE1CRUdBMVVFQXhNS1MybGhiU0JCWjJWdWREQ0NBU0l3RFFZSktvWklodmNOQVFFQkJRQURnZ0VQCkFEQ0NBUW9DZ2dFQkFMeWdxSEduU1J5MmY1dFFKaWVuQitzV3A0WWZ6UndTbWRPU0F3TC9pMERGdUMwWkVueFoKOHo4cXovcG1zeERsL3FYUUkwYUp4aUJ2cXV3UEZ0N0ZvNkNJMEMvT2c1MmZwQ0c5NDl1SW1nOENvMWRKa0ZrRApjcWdFNTZTaFNJbElaWVV6RStiaE5nSC8vczJ6eEtEOXVBRm9SaHZNc1pWNGdvRThhZ0tnazhOV0RTdGpTUEJuCkFCVS9YK3FpbFhyUEZoLzlXTTRxcFNXdmhzZ2x5eCtBTU1QOEQ5ZGNIa2xPVCtNbW1JR0RLNFp1UzNnS0RjdncKTGxHQ25yR0Yzc2NSeDlWVXNMYXpNRnFuTmpqNmFuUjF6Uko3S1dzWVczTldSU2MvM3VVVkNtb3g2UlRQa2ZqVQovTzVPeVpWWVNEL29VWno5UkRkNGsrM2QrK200SjBGL0JNc0NBd0VBQWFOZ01GNHdEZ1lEVlIwUEFRSC9CQVFECkFnV2dNQjBHQTFVZEpRUVdNQlFHQ0NzR0FRVUZCd01CQmdnckJnRUZCUWNEQWpBTUJnTlZIUk1CQWY4RUFqQUEKTUI4R0ExVWRJd1FZTUJhQUZQM2xjTzRrdXQwcmdLQlVReXU0NlF3NHB6RUJNQTBHQ1NxR1NJYjNEUUVCQ3dVQQpBNElCQVFBaEoyMXNmNVl3eEsvb1VaQm5GanF3b0c0NC9rckFsQXhXRW5BNUZ6UU93TFVCeEYxNHR5Y0YvYXprCnlVL3MyZVFndi9zQmN5a1NTUEFxeGJjTGN0VDhiWVRUekMwdVJ4Q3E2djByZjIzdGx3QW9pR3Y0L2lGczVxRXIKcWU4RldmaDVJaGxRL1dvajNWS1VuYUZNVG5JTjdhSmpRV2JMV3VUcHZxQWRGZzVtWmh6V3ZhRXpXVVMxY2dqTQpBanZtcmRNVUJHbUVoN0RkVlNHdkg2eENsc0ZFQlBHN2pQeklHUDdLQzFXKzZYbjlYL1k5bUdKZENTbFBCZkJZCnF3NHpLaEwwYkRQYjVCdUNDeGNJc1crU0FOb0JkWnBMYUhIcFlNWnZNcktNeGZjQlVaODRDN3dJQXBSTzN1N1UKamx4S21hakRtL1MzTmFEWFdOaFV2UEZKK094YgotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  key.pem: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdktDb2NhZEpITFovbTFBbUo2Y0g2eGFuaGgvTkhCS1owNUlEQXYrTFFNVzRMUmtTCmZGbnpQeXJQK21hekVPWCtwZEFqUm9uR0lHK3E3QThXM3NXam9JalFMODZEblora0liM2oyNGlhRHdLalYwbVEKV1FOeXFBVG5wS0ZJaVVobGhUTVQ1dUUyQWYvK3piUEVvUDI0QVdoR0c4eXhsWGlDZ1R4cUFxQ1R3MVlOSzJOSQo4R2NBRlQ5ZjZxS1ZlczhXSC8xWXppcWxKYStHeUNYTEg0QXd3L3dQMTF3ZVNVNVA0eWFZZ1lNcmhtNUxlQW9OCnkvQXVVWUtlc1lYZXh4SEgxVlN3dHJNd1dxYzJPUHBxZEhYTkVuc3BheGhiYzFaRkp6L2U1UlVLYWpIcEZNK1IKK05UODdrN0psVmhJUCtoUm5QMUVOM2lUN2QzNzZiZ25RWDhFeXdJREFRQUJBb0lCQUJ1Ujgremd3WnZ6eE1VRAp1di95dHdLU2hodmhqQTQ5WGNTQncvVHRPd0pWbyt6YmpFc21ycG9kL05ZaHFxeWVvVkRGRWxMZUVscHRWL00yCjVXWGNSMlZRZWZWeTN1UHNFSVpxQmVMeG5XcnlQTU9tV2ZYWXZpcDJ4UkRZRGcwYXl0UGtPbFYxdDNvbFc2M2YKUjY4c1JuZldNT0VoVXhlQXpMcHRCU1dyS00zVkJqakgvdXpzeXBrQXdrZFR1MWpFVlV6Qnltb1BrNHJxSlg1UApHWGpBUEZ1dnlic3ZaYTIrbjFjMml5ZlprUXV2RjJCSGFmenVRTStYS1ptZ0NUSWh3MmZXU0cxZ2N4UGMyOTk5CjV3WkJCcDBkemU3aVRZZFlUYThQS21mRzkvaVdYbVBSbXpRc0JWaTZSSVBFWmxIL2I2RTN3V2EzN3k3dEJTUUYKcldSci9Ba0NnWUVBd0N6dkpaUEwzVmhQUDJQT21aTkZYM1AxdFJUdUVob3dWVnk1L1Nud2VRbFhnWjVFMkFXdQpmTCtEL0dPU3BoWlBnU01GTkVYWnA4a2hZMnhoYUNBVkdVdW5CUG1ia2JZNld0bWY1VTdTYW5HZUFxWDhZdTFpCmRablZyODQxQ2pMOWFJWWY5Z1RDekJ1YWNlVC9oV1Nqc2lpWnVrTmY5NVdSWFFSYnYvVEpyVDhDZ1lFQSswWVMKT2FBNlowc2lBKzJ4VzJGSGlsVWszMHhBZGN0a1BrTWhhRnF5ZFJyN3BEN0hxZmpKTVdjekRKNkZoRUZmMW5TVwpRUVZma251b3k5dlVGRDd5ZkRMR3orZ21WVVlCelptRGN2OFphQzd6UUhZTXpuNTVUVStvTTFjVjRxdGxtTXJECm9DNlEvTktibllWTGVmZHFoM0FoRld0VnJpWElpeGRzQnRHOGFYVUNnWUJaeEdPTlJRV0VobHkyT3BQbUR2SG4Kelkzbm9UZzN3bjN6VWRZYkdMMFlmTEdnZldLaEdiNVF6VkVFMHlwTVpMMk1qK1E5YjZkbEJjR1A1SzkzYVEwUgovTkd1dEQza0NhQW1rZU5yeEs3clE5bFFXV0tVZjFodm9JVTlrdkFackluTWltSmhsQVcrTytLZjh4MGNuVThOCnlJTk9pMnhIaFZrYWZ3K3drZEtuRndLQmdRQ2kvSXFwMG1MUHlZNWcyZmNtL095NHNBM2d3Y2MySVIzK3ZQQ1kKamV3ZnhjYmdmTkJxVWpPKzFkL3BHWklsZlhvNjB4ajdTQTc4SnpZUU5hRlZHSmVWTkNKOWpXbi8rZzhGVzhSRgovVzV2ZzdUSlpVbGRUL0JDMDU2WTNxNFZmM1BCTGhUQ2ZESVRyRkRBVmt2azZ6V3djRzBsUmFBbis5NGZTcXdKCnFGWDhXUUtCZ0ZtTkZkVy9HVjJNZ0RERWR5ek9XTjRnd0g4MG5QRFN6eDRFRGR1bEhxT1EycU5WV1hPdU4xK1oKZWllM1BMMVZoUkxDZmR1WUVZMkVDTE9PUjNkU0tGVU1xaHhMbXJ0RjV5Z1h5OGc5NzUwTW1QYUVraXAxNDhWVAp4OGg3T01qbDNONmZRcVpudTRhSUYzcnRRUFJLMkNIQ2tCV25aLzlmdE1zT3ZqRlptQldwCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+  ca.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU9ZRFpkTE5IZUxoTXBiY29NZzJFanN3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEybGhiUzFqWVRBZUZ3MHlOREEyTWpBeE5EVTNNak5hRncweU5UQTJNakF4TkRVMwpNak5hTUJJeEVEQU9CZ05WQkFNVEIydHBZVzB0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFESFhQZDY4NDk5ZTFvazJmMWN3aThJMFpnVDN0ajluWlFHdWs5Z1E1dXdCWkp0cW10cWVyVVYKa1djSnV4QlpGTzVlUHZGTHRxYlBXV3JiaVdqelY4TDRyUWtwNEMxendyWW9kd2V5cFVWdVdnNW5ZRndnTGl4egpHa0FXdm1mV1dpV1pZVzN2ZVN1T2VabFBqdWo4aTgzQTg3Q0s5TG1KaWFoTG45QmRtaXlvclI4ZTZQNFJaL0UwCjhnR0hRc0FWN3lxQS9lTTJXQ0d3bFZBTVZzcnNKZVVMSEs2aW5qK204T0pINXQzbHdRK2xQM1RVRlU0T2g4QXkKSUpkS0srQ0QyRWkxTzdrWk84bDZHNjNpSkNuelRSTXNzdmMva3RMVnpMVTdtYnpYT0xvZEI3Y2ZpWWF2R2lQRwpaeEFob2cwTHlLdlZNMi9pT1hIbk9FVVQ2N2ZqRTBMREFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVS9lVnc3aVM2M1N1QW9GUkRLN2pwRERpbk1RRXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUNiRXBwWG9qNU5PZEtXdThMR2dCSXJOaTBkdSs3QmxhT3cxY25aakdieEJsYXBJa2cyS2tSV3I4UituCkdMc3h2cithMHFIaXlwelh2K1ZOd0Jma0VqUnYwUDVIWENxMkFUM1A5V0FDdGRQb3VBbm9YakI4UDljNWhiYWEKZXVmYlJad1BrS0UwVkJvLzhEb1F4Uk8xckNzR204QTIzNmdwcVFlMHFHaTNjUmF3Zys2Z1MyVHlVTU50U0txYQpKa2RrSWNLNVhyV3ZPUGRFRGcxUlRPMGpDaEJSak9DYjh2UTZReXRQRW0rRkl2TUFTdXlST3BuUDlWVWhubXFlCmlaeHFZUUdjYnViWGVNbEFnbGl5dVE3U3pKbk5vcE9uM043cHdkWUg3SS9PYlBTOXI0VXFPdGtNT2JWM2ZXTWgKdmxSOUdLczcxWndZSGFoZyt5NkJiZFVzTjZBPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+---
+# Source: kiam/templates/server/server-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+  name: my-release-kiam-server
+  namespace: "kiam-2.2.3.tgz"
+type: Opaque
+data:
+  cert.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURoVENDQW0yZ0F3SUJBZ0lSQU5FaEpieFRmTkVhdmpQZXhiVlB2T2t3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEybGhiUzFqWVRBZUZ3MHlOREEyTWpBeE5EVTNNalJhRncweU5UQTJNakF4TkRVMwpNalJhTUJZeEZEQVNCZ05WQkFNVEMwdHBZVzBnVTJWeWRtVnlNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUZBQU9DCkFROEFNSUlCQ2dLQ0FRRUF5VEJjeklCaXd4NnkyTnMyTTREM3AzbXJqdkpCZXBmcXREWWYrZ2I4eGNsYW9CVTEKYXpONkZmNzA4SWZrWTNjeU52RzQ1OXB6RjYrRnJXRnNZTVFSME1iTUUzWW03ekRWdkxyUm9BN0RtOW9OdXVRcwpWTmNNZk56RlRQN0h3M0N1TC9EY2pYd0owV1JZT0dTWnB0NkdMcjVDallXbC9TWmR4dWQ1TjJQRXBRK3ArYjd6CnFERjFuZFhjVmxpMnJPS3pIR0RzNFMxZmV4RGpOL2d3UVZuSUNWVGxuMmxQbEtNdFYxWXd5SmllY2NLQVRtM3kKRENmb2UrR1dtL0x2N1h3UDJJY3VKeXBrZEhqYW8wamVxQU52UjRycXBPb2Y3QysyMGNld2dEc0UyNjZNY0o3OQptTGhPSUNxY0w3eEREalN3R2JSUnJNZTZFYjBVOHRCRWdKV1Z0d0lEQVFBQm80SFJNSUhPTUE0R0ExVWREd0VCCi93UUVBd0lGb0RBZEJnTlZIU1VFRmpBVUJnZ3JCZ0VGQlFjREFRWUlLd1lCQlFVSEF3SXdEQVlEVlIwVEFRSC8KQkFJd0FEQWZCZ05WSFNNRUdEQVdnQlQ5NVhEdUpMcmRLNENnVkVNcnVPa01PS2N4QVRCdUJnTlZIUkVFWnpCbApnaFp0ZVMxeVpXeGxZWE5sTFd0cFlXMHRjMlZ5ZG1WeWdpaHRlUzF5Wld4bFlYTmxMV3RwWVcwdGMyVnlkbVZ5Ck9pVWhaQ2htYkc5aGREWTBQVGcwTkRNcGdoc3hNamN1TUM0d0xqRTZKU0ZrS0dac2IyRjBOalE5T0RRME15bUgKQkg4QUFBRXdEUVlKS29aSWh2Y05BUUVMQlFBRGdnRUJBTGhna2M1ZlRaQ2IyVzJISk9oRlMvTmNGNEFscFVVdQptVHhjdnZ3bjBTRUtPdWFWTnhjUVFGcUwxSDRSS0hEOFBNWlZBL05oYk9UNmEyU2JDYm5HSVhaS3g0OTgrVkYzCkhENDMySXVkNmZ3cnMzbXhkMGczREVKR09WdkMxenlMOFBySlRVNHZrZzFOaC9ya25VM0pvVFlhWWJiYm9CTnIKUVBqdnFxenRnSmRzWTRUR3Raa1dQd3NNekRnMU5DTURhMEZQbkdrUHp5bkl4dk5ZelF3VWVpRmh3VGs0SWpJZQpvVUUwNkJZS00zN2VJNC91bEJxNzRZZGtuNFhZaWVLTE1aWXM3czRPMUFXMGhDa0YrK2gwd0lybUVBMW5lNys1CjdLcmNDbTdhOFliZGdzUDB4c0tMNnp2azJuTFFybkU0bms0c28rb2RnQW50cGp2Q2dNb1o2TGc9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  key.pem: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBeVRCY3pJQml3eDZ5Mk5zMk00RDNwM21yanZKQmVwZnF0RFlmK2diOHhjbGFvQlUxCmF6TjZGZjcwOElma1kzY3lOdkc0NTlwekY2K0ZyV0ZzWU1RUjBNYk1FM1ltN3pEVnZMclJvQTdEbTlvTnV1UXMKVk5jTWZOekZUUDdIdzNDdUwvRGNqWHdKMFdSWU9HU1pwdDZHTHI1Q2pZV2wvU1pkeHVkNU4yUEVwUStwK2I3egpxREYxbmRYY1ZsaTJyT0t6SEdEczRTMWZleERqTi9nd1FWbklDVlRsbjJsUGxLTXRWMVl3eUppZWNjS0FUbTN5CkRDZm9lK0dXbS9MdjdYd1AySWN1Snlwa2RIamFvMGplcUFOdlI0cnFwT29mN0MrMjBjZXdnRHNFMjY2TWNKNzkKbUxoT0lDcWNMN3hERGpTd0diUlJyTWU2RWIwVTh0QkVnSldWdHdJREFRQUJBb0lCQVFDN0owOGNPYzRsM3BmVwozVTAxYWlKM1c5cTQxaWtOUnViaGozdjlsYVJzeFZ1VmtVVXBIVERUNTJHcG8zQlZDdHZlZXN4Y2VqMFlhb0k3CkFHYldPVzZ0UFZFNFJYQUFqL2cwWWNHQldGcWt6NXA0SWF3UG5DRVV3amFUNG1xb0oxa1NaY2gxb1U1c3lDQzkKRFBCV1o2aUJNU0l1RG9hVDBLM3B5d2hhKzJkQmQ0T1VVdkpEZTRJN0JZSUVnajAxWVpIQ2kyeWpxeWhXdGNpNgpzLzJNNmQ0UjRuZmFOYVlqek90bXpabW5Cdmw4VWtZdUw1Z2xEbkpHNHNQZXZ6Tyt5cENmdVRmaUFPUlB1ZEZMCkQyNG5EbXc3KzJDd0Rrb1JOT0Vsc25vL0VTTWRVT3FZdzBYb3J6U3Fod0YzUGgyMWtTRkpYRTRsdTFkbjhDcDcKOG9kQk1uSVpBb0dCQU9HRkNtOVZJODR0R2gwR0x1YmE3eWI3WllSekkzSE9UTDA1NS82YXZVb0xaNjlTREFYMwpiOGVaa1NHcERoYjJBT2cvNWRrS2VFUUtYeHdwYlFvRndPS1FicVdOd2MwRktDclpYZmtHUm5BV1pNSXhmaVowCk01UDREeFNQK295RUlMSWVMeDNkOWpjY0JpR1VtMjQrbThlUjQ4eFNqSzIvNDA2WVNrNmRYaE5kQW9HQkFPUmgKZXJSNmJ3bU5BdTAydVZLTm9lY3cwZ1pVVU5XOGRrZzJteEVJU2lzVHNEM3BrZWpiRmxubnROdGUyRGNXL3JHRApvQlgvVFg2aklYRU9VclZtckh5UWIxYjB5V3NBVUpnZVpxcGMrOFhLMk9aTHd0WlI0LzkvOE90eVhVOFhrRDBBCndIcEdSaGVoWUVtRVgvcGZuSUh4bHBFSzdaTFdjOTlzQkUyWGZiQWpBb0dBREh2ODgrVFdzcGMwbHQ2OHdmTGsKd2xld2F3Q2t1YXdkKzJ1MU9CY0EyNVIrRE9xUjE5SzIwV25pNnVZYzdaQjR4R0tsS3JxMXBhNmRUVVhOejN3NgpEVkRKajBpbHJkL1hOV2dMRjdvTk5DOUpMS2Jvd09BMTZyOFV0cUt4MEEyUWNjdlI5K2xOdEFkTkg1YkdjL2ZyClQ4VDN3MXZlaGMvVm1ZZzh0TlZwVzlFQ2dZRUFrY3VoT0FKSlRJR1c4clRTemw3WWt1elp4MnlnUmpLUUdEMnoKOU1Xa0E2Z0lCUjVOSmFobnRuRnpSZkJnZTVyVWNhS2oyaWNuNDhaa25QWVYydlIyL1BaLy9iVTd1SEYxQWdlMgpadUFCWXgzQ0poTUxpU0t5T1BRR2EyaVJKT0xZRS9tYzV2Smg0TWdHM2lnQjFhYWdGVnlUVUhqM2Zad21VT1YyClFjcUtWSjBDZ1lBbE54WWpJL0I1QkZKb2xKa0pNY0lUc2pMVGlSSU43NHJWaHBBdTFxVVUyd0dCdms4UzVPa1AKQkY2RnVjUEVQQlZBTFhtTTI4MVE2eFEwbENSSFJrb2JuelIxbmZUOW51L0FzeWI3SFdOeUM3WW9pS1hTaXFPNwpGMnQ2amNoUnZTUmpQYWJmK1J3alpzSlQ0dTVQYW1wTzA2Z1VMeThvdnFuRzI0ZW5xNWc4Ync9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+  ca.pem: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU9ZRFpkTE5IZUxoTXBiY29NZzJFanN3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSGEybGhiUzFqWVRBZUZ3MHlOREEyTWpBeE5EVTNNak5hRncweU5UQTJNakF4TkRVMwpNak5hTUJJeEVEQU9CZ05WQkFNVEIydHBZVzB0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFESFhQZDY4NDk5ZTFvazJmMWN3aThJMFpnVDN0ajluWlFHdWs5Z1E1dXdCWkp0cW10cWVyVVYKa1djSnV4QlpGTzVlUHZGTHRxYlBXV3JiaVdqelY4TDRyUWtwNEMxendyWW9kd2V5cFVWdVdnNW5ZRndnTGl4egpHa0FXdm1mV1dpV1pZVzN2ZVN1T2VabFBqdWo4aTgzQTg3Q0s5TG1KaWFoTG45QmRtaXlvclI4ZTZQNFJaL0UwCjhnR0hRc0FWN3lxQS9lTTJXQ0d3bFZBTVZzcnNKZVVMSEs2aW5qK204T0pINXQzbHdRK2xQM1RVRlU0T2g4QXkKSUpkS0srQ0QyRWkxTzdrWk84bDZHNjNpSkNuelRSTXNzdmMva3RMVnpMVTdtYnpYT0xvZEI3Y2ZpWWF2R2lQRwpaeEFob2cwTHlLdlZNMi9pT1hIbk9FVVQ2N2ZqRTBMREFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVS9lVnc3aVM2M1N1QW9GUkRLN2pwRERpbk1RRXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUNiRXBwWG9qNU5PZEtXdThMR2dCSXJOaTBkdSs3QmxhT3cxY25aakdieEJsYXBJa2cyS2tSV3I4UituCkdMc3h2cithMHFIaXlwelh2K1ZOd0Jma0VqUnYwUDVIWENxMkFUM1A5V0FDdGRQb3VBbm9YakI4UDljNWhiYWEKZXVmYlJad1BrS0UwVkJvLzhEb1F4Uk8xckNzR204QTIzNmdwcVFlMHFHaTNjUmF3Zys2Z1MyVHlVTU50U0txYQpKa2RrSWNLNVhyV3ZPUGRFRGcxUlRPMGpDaEJSak9DYjh2UTZReXRQRW0rRkl2TUFTdXlST3BuUDlWVWhubXFlCmlaeHFZUUdjYnViWGVNbEFnbGl5dVE3U3pKbk5vcE9uM043cHdkWUg3SS9PYlBTOXI0VXFPdGtNT2JWM2ZXTWgKdmxSOUdLczcxWndZSGFoZyt5NkJiZFVzTjZBPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+---
+# Source: kiam/templates/server/server-read-clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-kiam-server-read
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - pods
+    verbs:
+      - watch
+      - get
+      - list
+---
+# Source: kiam/templates/server/server-write-clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+  name: my-release-kiam-server-write
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+# Source: kiam/templates/server/server-read-clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+  name: my-release-kiam-server-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kiam-server-read
+subjects:
+  - kind: ServiceAccount
+    name: my-release-kiam-server
+    namespace: "kiam-2.2.3.tgz"
+---
+# Source: kiam/templates/server/server-write-clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+  name: my-release-kiam-server-write
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kiam-server-write
+subjects:
+  - kind: ServiceAccount
+    name: my-release-kiam-server
+    namespace: "kiam-2.2.3.tgz"
+---
+# Source: kiam/templates/server/server-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+  name: my-release-kiam-server
+  namespace: "kiam-2.2.3.tgz"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  sessionAffinity: None
+  ports:
+    - name: grpclb
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/component: server
+---
+# Source: kiam/templates/agent/agent-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: agent
+  name: my-release-kiam-agent
+  namespace: "kiam-2.2.3.tgz"
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: kiam
+      app.kubernetes.io/component: agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kiam
+        app.kubernetes.io/version: 4.2.0
+        helm.sh/chart: kiam-2.2.3
+        app.kubernetes.io/component: agent
+    spec:
+      
+      automountServiceAccountToken: false
+      serviceAccountName: my-release-kiam-agent
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: kiam
+                    app.kubernetes.io/component: agent
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      containers:
+        - name: agent
+          image: docker.io/bitnami/kiam:4.2.0-debian-12-r30
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+              - NET_ADMIN
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 0
+            runAsNonRoot: false
+            runAsUser: 0
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - kiam
+            - agent
+          args:
+            - --no-iptables-remove
+            - --host-interface=cali+
+            - --json-log
+            - --level=info
+            - --port=8183
+            - --cert=/bitnami/kiam/tls/cert.pem
+            - --key=/bitnami/kiam/tls/key.pem
+            - --ca=/bitnami/kiam/tls/ca.pem
+            - --server-address=my-release-kiam-server:8443
+            - --gateway-timeout-creation=1s
+          env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+          ports:
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8183
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8183
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - mountPath: /bitnami/kiam/tls
+              name: tls
+            - mountPath: /etc/ssl/certs
+              name: ssl-certs
+              readOnly: true
+            - mountPath: /var/run/xtables.lock
+              name: xtables
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: tls
+          secret:
+            secretName: my-release-kiam-agent
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs
+        - name: xtables
+          hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
+---
+# Source: kiam/templates/server/server-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: kiam
+    app.kubernetes.io/version: 4.2.0
+    helm.sh/chart: kiam-2.2.3
+    app.kubernetes.io/component: server
+  name: my-release-kiam-server
+  namespace: "kiam-2.2.3.tgz"
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: kiam
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: kiam
+        app.kubernetes.io/version: 4.2.0
+        helm.sh/chart: kiam-2.2.3
+        app.kubernetes.io/component: server
+    spec:
+      
+      automountServiceAccountToken: true
+      serviceAccountName: my-release-kiam-server
+      dnsPolicy: Default
+      hostNetwork: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: kiam
+                    app.kubernetes.io/component: server
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      containers:
+        - name: server
+          image: docker.io/bitnami/kiam:4.2.0-debian-12-r30
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: false
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - kiam
+            - server
+          args:
+            - --json-log
+            - --level=info
+            - --bind=0.0.0.0:8443
+            - --cert=/bitnami/kiam/tls/cert.pem
+            - --key=/bitnami/kiam/tls/key.pem
+            - --ca=/bitnami/kiam/tls/ca.pem
+            - --role-base-arn-autodetect
+            - --session-duration=15m
+            - --sync=1m
+          ports:
+            - name: grpclb
+              containerPort: 8443
+              protocol: TCP
+          envFrom:
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          livenessProbe:
+            exec:
+              command:
+                - kiam
+                - health
+                - --cert=/bitnami/kiam/tls/cert.pem
+                - --key=/bitnami/kiam/tls/key.pem
+                - --ca=/bitnami/kiam/tls/ca.pem
+                - --server-address=127.0.0.1:8443
+                - --server-address-refresh=4s
+                - --timeout=10s
+                - --gateway-timeout-creation=1s
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - kiam
+                - health
+                - --cert=/bitnami/kiam/tls/cert.pem
+                - --key=/bitnami/kiam/tls/key.pem
+                - --ca=/bitnami/kiam/tls/ca.pem
+                - --server-address=127.0.0.1:8443
+                - --server-address-refresh=2s
+                - --timeout=5s
+                - --gateway-timeout-creation=1s
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - mountPath: /bitnami/kiam/tls
+              name: tls
+            - mountPath: /etc/ssl/certs
+              name: ssl-certs
+              readOnly: true
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: tls
+          secret:
+            secretName: my-release-kiam-server
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs

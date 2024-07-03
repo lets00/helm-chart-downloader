@@ -1,0 +1,223 @@
+---
+# Source: osrm/templates/configmap-files.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-osrm-files
+  labels: 
+    app.kubernetes.io/name: osrm
+    helm.sh/chart: osrm-0.6.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.22.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  download.sh: |- 
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    ensure_dependency() {
+      if ! which "$1" &>/dev/null ; then
+        echo "$1 not found"
+        exit 1
+      fi
+    }
+    
+    ensure_dependency wget
+    ensure_dependency md5sum
+    
+    version="unversioned"
+    uri="https://download.openstreetmap.fr/extracts/europe/monaco.osm.pbf"
+    file="monaco.osm.pbf"
+    checkMD5=""
+    
+    mkdir -p "/data/maps/${version}"
+    cd "/data/maps/${version}"
+    
+    if [ ! -r downloaded.lock ]; then
+      wget "${uri}"
+    
+      if [ -n "${checkMD5}" ]; then
+        wget "${uri}.md5"
+        md5sum -c "${file}.md5"
+        rm "${file}.md5"
+      fi
+    
+      # Rename the file so we have predictable argument name in statefulset.
+      echo "Rename ${file} -> map.osm.pbf"
+      mv "${file}" "map.osm.pbf"
+    
+      touch downloaded.lock
+    fi
+    
+    echo "Done!"
+    exit 0
+    
+  extract.sh: |- 
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    ensure_dependency() {
+      if ! which "$1" &>/dev/null ; then
+        echo "$1 not found"
+        exit 1
+      fi
+    }
+    
+    ensure_dependency osrm-extract
+    ensure_dependency osrm-partition
+    ensure_dependency osrm-customize
+    
+    version="unversioned"
+    file_pbf="map.osm.pbf"
+    file_osrm="map.osrm"
+    profile="car"
+    
+    cd "/data/maps/${version}"
+    
+    if [ ! -r extracted.lock ]; then
+      osrm-extract -p /opt/${profile}.lua "${file_pbf}"
+      osrm-partition "${file_osrm}"
+      osrm-customize "${file_osrm}"
+    
+      touch extracted.lock
+    fi
+    
+    echo "Done!"
+    exit 0
+---
+# Source: osrm/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-osrm-headless
+  labels:
+    app.kubernetes.io/name: osrm
+    helm.sh/chart: osrm-0.6.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.22.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: osrm
+    app.kubernetes.io/instance: my-release
+---
+# Source: osrm/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-osrm
+  labels:
+    app.kubernetes.io/name: osrm
+    helm.sh/chart: osrm-0.6.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.22.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: osrm
+    app.kubernetes.io/instance: my-release
+---
+# Source: osrm/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-osrm
+  labels:
+    app.kubernetes.io/name: osrm
+    helm.sh/chart: osrm-0.6.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.22.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: my-release-osrm-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: osrm
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: osrm
+        app.kubernetes.io/instance: my-release
+    spec:
+      initContainers:
+        - name: map-downloader
+          image: bash:5
+          imagePullPolicy: IfNotPresent
+          command:
+            - /scripts/download.sh
+          volumeMounts:
+            - name: config-files
+              mountPath: /scripts
+            - name: maps
+              mountPath: /data/maps
+        - name: map-extractor
+          image: osrm/osrm-backend:v5.22.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /scripts/extract.sh
+          volumeMounts:
+            - name: config-files
+              mountPath: /scripts
+            - name: maps
+              mountPath: /data/maps
+      containers:
+        - name: osrm
+          image: "osrm/osrm-backend:v5.22.0"
+          imagePullPolicy: IfNotPresent
+          command:
+            - osrm-routed
+            - --algorithm
+            - mld
+            - /data/maps/unversioned/map.osrm
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          resources: 
+            {}
+          volumeMounts:
+            - name: maps
+              mountPath: /data/maps
+      volumes:
+        - name: config-files
+          configMap:
+            name: my-release-osrm-files
+            defaultMode: 0755
+        - name: maps
+          emptyDir: {}
+---
+# Source: osrm/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-osrm-test-connection"
+  labels:
+    app.kubernetes.io/name: osrm
+    helm.sh/chart: osrm-0.6.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "5.22.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['my-release-osrm:80']
+  restartPolicy: Never

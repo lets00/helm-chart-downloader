@@ -1,0 +1,818 @@
+---
+# Source: puppetserver/charts/postgresql/templates/networkpolicy-egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-release-postgresql-egress
+  namespace: puppetserver-9.5.1.tgz
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-12.1.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: my-release
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - namespaceSelector: {}
+---
+# Source: puppetserver/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  namespace: "puppetserver-9.5.1.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-12.1.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  postgres-password: "dW5icmVha2FibGVBZG1pblBhc3N3b3Jk"
+  password: "dW5icmVha2FibGVQYXNzd29yZA=="
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: puppetserver/templates/puppetdb-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-puppetserver-puppetdb-postgresql
+  labels:
+    app.kubernetes.io/component: puppetdb
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+type: Opaque
+data:
+  username: "cHVwcGV0ZGI="
+  password: "dW5icmVha2FibGVQYXNzd29yZA=="
+---
+# Source: puppetserver/templates/postgresql-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-custom-extensions
+  labels:
+    app.kubernetes.io/component: postgresql
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+data:
+  extensions.sql: |
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+---
+# Source: puppetserver/templates/puppetserver-manifests-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-puppetserver-manifests-config
+  labels:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+data:
+  site.pp: |
+    hiera_include('classes')
+---
+# Source: puppetserver/templates/puppetdb-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-puppetserver-puppetdb-claim
+  labels:
+    app.kubernetes.io/component: puppetdb
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+  annotations:
+    
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "400Mi"
+---
+# Source: puppetserver/templates/puppetserver-ca-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-puppetserver-ca-claim
+  labels:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+  annotations:
+    
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "400Mi"
+---
+# Source: puppetserver/templates/puppetserver-code-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-puppetserver-code-claim
+  labels:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+  annotations:
+    
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "400Mi"
+---
+# Source: puppetserver/templates/puppetserver-confd-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-puppetserver-confd-claim
+  labels:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+  annotations:
+    
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "400Mi"
+---
+# Source: puppetserver/templates/puppetserver-data-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-puppetserver-serverdata-claim
+  labels:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+  annotations:
+    
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "400Mi"
+---
+# Source: puppetserver/templates/puppetserver-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-puppetserver-puppet-claim
+  labels:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+  annotations:
+    
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "400Mi"
+---
+# Source: puppetserver/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-hl
+  namespace: "puppetserver-9.5.1.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-12.1.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: puppetserver/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  namespace: "puppetserver-9.5.1.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-12.1.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: puppetserver/templates/puppetdb-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-puppetserver-puppetdb
+  labels:
+    app.kubernetes.io/component: puppetdb
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+spec:
+  ports:
+    - name: pdb-http
+      port: 8080
+      targetPort: pdb-http
+    - name: pdb-https
+      port: 8081
+      targetPort: pdb-https
+  clusterIP: 
+  selector:
+    app.kubernetes.io/component: puppetdb
+    app.kubernetes.io/name: puppetserver
+  type: ClusterIP
+---
+# Source: puppetserver/templates/puppetserver-service-masters.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-puppetserver-puppet
+  labels:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+spec:
+  ports:
+    - name: puppetserver
+      port: 8140
+  selector:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+  type: ClusterIP
+---
+# Source: puppetserver/templates/puppetdb-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-puppetserver-puppetdb
+  labels:
+    app.kubernetes.io/component: puppetdb
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: puppetdb
+      app.kubernetes.io/name: puppetserver
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: puppetdb
+        app.kubernetes.io/name: puppetserver
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        helm.sh/chart: puppetserver-9.5.1
+        app.kubernetes.io/version: 7.17.0
+      annotations:
+    spec:
+      hostname: puppetdb
+      initContainers:
+        - name: pgchecker
+          image: "docker.io/busybox:1.36"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+          command:
+            - sh
+            - -c
+            - |
+              echo 'Waiting for PostgreSQL to become ready...'
+              until printf "." && nc -z -w 2 my-release-postgresql-hl 5432; do
+                  sleep 2;
+              done;
+              echo 'PostgreSQL OK ✓'
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 20m
+              memory: 32Mi
+        - name: wait-puppetserver
+          image: "curlimages/curl:8.7.1"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+          command:
+            - sh
+            - -c
+            - |
+              echo 'Waiting for puppetserver to become ready...'
+              until printf "." && curl --silent --fail --insecure 'https://my-release-puppetserver-puppet:8140/status/v1/simple' | grep -q '^running$'; do
+                sleep 2;
+              done;
+              echo 'Puppetserver OK ✓'
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 20m
+              memory: 32Mi
+      containers:
+        - name: puppetdb
+          image: "ghcr.io/voxpupuli/container-puppetdb:7.18.0-v1.5.0"
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            {}
+          env:
+            - name: PUPPETSERVER_HOSTNAME
+              value: my-release-puppetserver-puppet
+            - name: PUPPETSERVER_PORT
+              value: "8140"
+            - name: DNS_ALT_NAMES
+              value: my-release-puppetserver-puppetdb
+            - name: PUPPETDB_POSTGRES_HOSTNAME
+              value: "my-release-postgresql-hl"
+            - name: PUPPETDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-puppetserver-puppetdb-postgresql
+                  key: password
+            - name: PUPPETDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-puppetserver-puppetdb-postgresql
+                  key: username
+            - name: PUPPETDB_JAVA_ARGS
+              value: ""
+          envFrom:
+          ports:
+            - name: pdb-http
+              containerPort: 8080
+            - name: pdb-https
+              containerPort: 8081
+          volumeMounts:
+            - name: puppetdb-storage
+              mountPath: /opt/puppetlabs/server/data/puppetdb
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+              - CAP_FOWNER
+              - CAP_CHOWN
+              - CAP_SETUID
+              - CAP_SETGID
+              - CAP_DAC_OVERRIDE
+              - FOWNER
+              - CHOWN
+              - SETUID
+              - SETGID
+              - DAC_OVERRIDE
+              drop:
+              - all
+      imagePullSecrets:
+      volumes:
+        - name: puppetdb-storage
+          persistentVolumeClaim:
+            claimName: my-release-puppetserver-puppetdb-claim
+---
+# Source: puppetserver/templates/puppetserver-deployment-masters.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-puppetserver-puppetserver-master
+  labels:
+    app.kubernetes.io/component: puppetserver
+    app.kubernetes.io/name: puppetserver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: puppetserver-9.5.1
+    app.kubernetes.io/version: 7.17.0
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: puppetserver
+      app.kubernetes.io/name: puppetserver
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: puppetserver
+        app.kubernetes.io/name: puppetserver
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        helm.sh/chart: puppetserver-9.5.1
+        app.kubernetes.io/version: 7.17.0
+      annotations:
+        checksum/hiera-configmap: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/r10k-code.configmap: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/r10k-hiera.configmap: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+    spec:
+      hostname: puppet
+      initContainers:
+        - name: perms-and-dirs
+          image: "ghcr.io/voxpupuli/container-puppetserver:7.17.0-v1.5.0"
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 200m
+            limits:
+              memory: 256Mi
+              cpu: 300m
+          env:
+          envFrom:
+          command: [ "sh", "-c" ]
+          args:
+            - mkdir -p /etc/puppetlabs/puppet/eyaml/keys;
+              mkdir -p /etc/puppetlabs/code/environments;
+              mkdir -p /etc/puppetlabs/puppet/manifests;
+              mkdir -p /etc/puppetlabs/code/r10k_cache;
+              chown -R puppet:puppet /etc/puppetlabs;
+              cp /tmp/puppet/configmap/site.pp /etc/puppetlabs/puppet/manifests/site.pp;
+              chown puppet:puppet /etc/puppetlabs/puppet/manifests/site.pp;
+              mkdir -p /opt/puppetlabs/server/data/puppetserver/dropsonde/bin/;
+              touch /opt/puppetlabs/server/data/puppetserver/dropsonde/bin/dropsonde;
+              chown puppet:puppet -R /opt/puppetlabs/server/data/puppetserver/;
+              cp -rp /etc/puppetlabs/puppetserver/conf.d/* /conf.d/;
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            capabilities:
+              drop:
+                - all
+              add:
+                - CAP_CHOWN
+                - CAP_SETUID
+                - CAP_SETGID
+                - CAP_DAC_OVERRIDE
+                - CAP_AUDIT_WRITE
+                - CAP_FOWNER
+                - CHOWN
+                - SETUID
+                - SETGID
+                - DAC_OVERRIDE
+                - AUDIT_WRITE
+                - FOWNER
+          volumeMounts:
+            - name: puppet-confd
+              mountPath: /conf.d/
+            - name: puppet-puppet-storage
+              mountPath: /etc/puppetlabs/puppet/
+            - name: manifests-volume
+              mountPath: /tmp/puppet/configmap/site.pp
+              subPath: site.pp
+            - name: puppet-serverdata-storage
+              mountPath: /opt/puppetlabs/server/data/puppetserver/
+      containers:
+        - name: my-release-puppetserver
+          image: "ghcr.io/voxpupuli/container-puppetserver:7.17.0-v1.5.0"
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            {}
+          env:
+            - name: PUPPETSERVER_HOSTNAME
+              value: puppet
+            # necessary to set certname and server in puppet.conf, required by
+            # puppetserver ca cli application
+            - name: PUPPET_MASTERPORT
+              value: "8140"
+            - name: DNS_ALT_NAMES
+              value: "puppet,my-release-puppetserver-agents-to-puppet,my-release-puppetserver-puppet"
+            - name: PUPPETDB_SERVER_URLS
+              value: "https://my-release-puppetserver-puppetdb:8081"
+            - name: CA_ALLOW_SUBJECT_ALT_NAMES
+              value: "true"
+          envFrom:
+          readinessProbe:
+            httpGet:
+              path: /status/v1/simple
+              port: 8140
+              scheme: HTTPS 
+            periodSeconds: 60
+            timeoutSeconds: 20
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            tcpSocket:
+              port: 8140
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          startupProbe:
+            tcpSocket:
+              port: 8140
+            periodSeconds: 60
+            failureThreshold: 30
+          ports:
+            - containerPort: 8140
+          volumeMounts:
+            - name: puppet-puppet-storage
+              mountPath: /etc/puppetlabs/puppet/
+            - name: puppet-serverdata-storage
+              mountPath: /opt/puppetlabs/server/data/puppetserver/
+            - name: puppet-ca-storage
+              mountPath: /etc/puppetlabs/puppetserver/ca/
+            - name: puppet-confd
+              mountPath: /etc/puppetlabs/puppetserver/conf.d/
+            - name: puppet-code-storage
+              mountPath: /etc/puppetlabs/code/
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+              - CAP_CHOWN
+              - CAP_SETUID
+              - CAP_SETGID
+              - CAP_DAC_OVERRIDE
+              - CAP_AUDIT_WRITE
+              - CAP_FOWNER
+              - CHOWN
+              - SETUID
+              - SETGID
+              - DAC_OVERRIDE
+              - AUDIT_WRITE
+              - FOWNER
+              drop:
+              - all
+      imagePullSecrets:
+      securityContext:
+        fsGroup: 999   # "puppet" GID
+      volumes:
+        - name: puppet-code-storage
+          persistentVolumeClaim:
+            claimName: my-release-puppetserver-code-claim
+        - name: puppet-ca-storage
+          persistentVolumeClaim:
+            claimName: my-release-puppetserver-ca-claim
+        - name: puppet-puppet-storage
+          persistentVolumeClaim:
+            claimName: my-release-puppetserver-puppet-claim
+        - name: puppet-serverdata-storage
+          persistentVolumeClaim:
+            claimName: my-release-puppetserver-serverdata-claim
+        - name: manifests-volume
+          configMap:
+            name: my-release-puppetserver-manifests-config
+        - name: puppet-confd
+          persistentVolumeClaim:
+            claimName: my-release-puppetserver-confd-claim
+---
+# Source: puppetserver/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  namespace: "puppetserver-9.5.1.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-12.1.11
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  replicas: 1
+  serviceName: my-release-postgresql-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/name: postgresql
+        helm.sh/chart: postgresql-12.1.11
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+      annotations:
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      hostNetwork: false
+      hostIPC: false
+      initContainers:
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:15.1.0-debian-11-r28
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "puppetdb"
+            - name: POSTGRES_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgres-password
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: password
+            - name: POSTGRES_DB
+              value: "puppetdb"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "puppetdb" -d "dbname=puppetdb" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                
+                - |
+                  exec pg_isready -U "puppetdb" -d "dbname=puppetdb" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits: {}
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: custom-init-scripts
+              mountPath: /docker-entrypoint-initdb.d/
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: custom-init-scripts
+          configMap:
+            name: postgresql-custom-extensions
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        annotations:
+          helm.sh/resource-policy: keep
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "10Gi"

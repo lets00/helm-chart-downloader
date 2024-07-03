@@ -1,0 +1,217 @@
+---
+# Source: cd-pipeline-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: edp-cd-pipeline-operator
+  labels:
+    helm.sh/chart: cd-pipeline-operator-2.21.0-SNAPSHOT.2
+    app.kubernetes.io/name: cd-pipeline-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.21.0-SNAPSHOT.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: cd-pipeline-operator/templates/clusterrole_kubernetes.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    helm.sh/chart: cd-pipeline-operator-2.21.0-SNAPSHOT.2
+    app.kubernetes.io/name: cd-pipeline-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.21.0-SNAPSHOT.2"
+    app.kubernetes.io/managed-by: Helm
+  name: edp-cd-pipeline-operator-cd-pipeline-operator-2.21.0-SNAPSHOT.2.tgz
+rules:
+- apiGroups:
+    - ""
+  resources:
+    - namespaces
+  verbs:
+    - get
+    - list
+    - create
+    - delete
+---
+# Source: cd-pipeline-operator/templates/clusterrolebinding_admin_kubernetes.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: cd-pipeline-operator-2.21.0-SNAPSHOT.2
+    app.kubernetes.io/name: cd-pipeline-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.21.0-SNAPSHOT.2"
+    app.kubernetes.io/managed-by: Helm
+  name: edp-cd-pipeline-operator-cd-pipeline-operator-2.21.0-SNAPSHOT.2.tgz-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - kind: ServiceAccount
+    name: edp-cd-pipeline-operator
+    namespace: cd-pipeline-operator-2.21.0-SNAPSHOT.2.tgz
+---
+# Source: cd-pipeline-operator/templates/clusterrolebinding_kubernetes.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: cd-pipeline-operator-2.21.0-SNAPSHOT.2
+    app.kubernetes.io/name: cd-pipeline-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.21.0-SNAPSHOT.2"
+    app.kubernetes.io/managed-by: Helm
+  name: edp-cd-pipeline-operator-cd-pipeline-operator-2.21.0-SNAPSHOT.2.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edp-cd-pipeline-operator-cd-pipeline-operator-2.21.0-SNAPSHOT.2.tgz
+subjects:
+  - kind: ServiceAccount
+    name: edp-cd-pipeline-operator
+    namespace: cd-pipeline-operator-2.21.0-SNAPSHOT.2.tgz
+---
+# Source: cd-pipeline-operator/templates/role_kubernetes.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    helm.sh/chart: cd-pipeline-operator-2.21.0-SNAPSHOT.2
+    app.kubernetes.io/name: cd-pipeline-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.21.0-SNAPSHOT.2"
+    app.kubernetes.io/managed-by: Helm
+  name: edp-cd-pipeline-operator
+rules:
+- apiGroups:
+    - argoproj.io
+  resources:
+    - applicationsets
+  verbs:
+    - get
+    - list
+    - patch
+    - update
+    - watch
+    - create
+- apiGroups:
+    - '*'
+  resources:
+    - cdpipelines
+    - cdpipelines/finalizers
+    - cdpipelines/status
+    - codebases
+    - codebases/finalizers
+    - codebases/status
+    - codebasebranches
+    - codebasebranches/finalizers
+    - codebasebranches/status
+    - stages
+    - stages/finalizers
+    - stages/status
+    - gitservers
+    - gitservers/status
+    - gitservers/finalizers
+    - edpcomponents
+    - edpcomponents/finalizers
+    - edpcomponents/status
+    - codebaseimagestreams
+    - codebaseimagestreams/status
+    - codebaseimagestreams/finalizers
+    - configmaps
+    - events
+  verbs:
+    - '*'
+- apiGroups:
+    - coordination.k8s.io
+  resources:
+    - leases
+  verbs:
+    - create
+    - get
+    - list
+    - update
+- apiGroups: [ "" ]
+  resources:
+    - secrets
+  verbs:
+    - create
+    - get
+    - list
+    - patch
+    - update
+    - watch
+---
+# Source: cd-pipeline-operator/templates/rolebinding_kubernetes.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    helm.sh/chart: cd-pipeline-operator-2.21.0-SNAPSHOT.2
+    app.kubernetes.io/name: cd-pipeline-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.21.0-SNAPSHOT.2"
+    app.kubernetes.io/managed-by: Helm
+  name: edp-cd-pipeline-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: edp-cd-pipeline-operator
+subjects:
+  - kind: ServiceAccount
+    name: edp-cd-pipeline-operator
+    namespace: cd-pipeline-operator-2.21.0-SNAPSHOT.2.tgz
+---
+# Source: cd-pipeline-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: cd-pipeline-operator-2.21.0-SNAPSHOT.2
+    app.kubernetes.io/name: cd-pipeline-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.21.0-SNAPSHOT.2"
+    app.kubernetes.io/managed-by: Helm
+  name: cd-pipeline-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: cd-pipeline-operator
+  template:
+    metadata:
+      labels:
+        name: cd-pipeline-operator
+    spec:
+      serviceAccountName: edp-cd-pipeline-operator
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: cd-pipeline-operator
+          image: epamedp/cd-pipeline-operator:2.21.0-SNAPSHOT.2
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - /manager
+          securityContext:
+            allowPrivilegeEscalation: false
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PLATFORM_TYPE
+              value: kubernetes
+            - name: TENANCY_ENGINE
+              value: "none"
+            - name: MANAGE_NAMESPACE
+              value: "true"
+            - name: SECRET_MANAGER
+              value: "none"
+          resources:
+            limits:
+              memory: 192Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi

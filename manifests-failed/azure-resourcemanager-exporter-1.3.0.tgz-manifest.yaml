@@ -1,0 +1,195 @@
+---
+# Source: azure-resourcemanager-exporter/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-release-azure-resourcem
+  namespace: azure-resourcemanager-exporter-1.3.0.tgz
+  labels: 
+    helm.sh/chart: azure-resourcemanager-exporter-1.3.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-resourcemanager-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-resourcemanager-exporter
+    app.kubernetes.io/version: "23.6.1"
+spec:
+  podSelector:
+    matchLabels: 
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: azure-resourcemanager-exporter
+  policyTypes: 
+    - Ingress
+    - Egress
+  ingress: 
+    []
+  egress: 
+    - ports:
+      - port: 53
+        protocol: TCP
+    - ports:
+      - port: 53
+        protocol: UDP
+    - ports:
+      - port: 443
+        protocol: TCP
+---
+# Source: azure-resourcemanager-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "azure-resourcemanager-exporter"
+  namespace: azure-resourcemanager-exporter-1.3.0.tgz
+  labels:
+    helm.sh/chart: azure-resourcemanager-exporter-1.3.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-resourcemanager-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-resourcemanager-exporter
+    app.kubernetes.io/version: "23.6.1"
+---
+# Source: azure-resourcemanager-exporter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-azure-resourcem
+  labels:
+    helm.sh/chart: azure-resourcemanager-exporter-1.3.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-resourcemanager-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-resourcemanager-exporter
+    app.kubernetes.io/version: "23.6.1"
+data:
+  config.yaml: |- 
+    {}
+---
+# Source: azure-resourcemanager-exporter/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-release-azure-resourcem
+  namespace: azure-resourcemanager-exporter-1.3.0.tgz
+  labels:
+    helm.sh/chart: azure-resourcemanager-exporter-1.3.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-resourcemanager-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-resourcemanager-exporter
+    app.kubernetes.io/version: "23.6.1"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http-metrics
+      appProtocol: http
+  selector: 
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-resourcemanager-exporter
+---
+# Source: azure-resourcemanager-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-azure-resourcem
+  namespace: azure-resourcemanager-exporter-1.3.0.tgz
+  labels: 
+    helm.sh/chart: azure-resourcemanager-exporter-1.3.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: azure-resourcemanager-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: azure-resourcemanager-exporter
+    app.kubernetes.io/version: "23.6.1"
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels: 
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: azure-resourcemanager-exporter
+
+  minReadySeconds: 
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: azure-resourcemanager-exporter
+      annotations:
+        checksum/config: "aaa302cdbfffe62bb4c1cb8b359a9615db2ce774e0bb88b8a6229aa635cb975e"
+    spec:
+      serviceAccountName: "azure-resourcemanager-exporter"
+      priorityClassName: ""
+
+      securityContext: 
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+        supplementalGroups:
+        - 1000
+      terminationGracePeriodSeconds: 60
+
+      containers:
+        #######################
+        # Kube pool manager
+        #######################
+        - name: azure-resourcemanager-exporter
+          image: "docker.io/webdevops/azure-resourcemanager-exporter:23.6.1"
+          imagePullPolicy: "IfNotPresent"
+
+          securityContext: 
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          env:
+            - name: CONFIG
+              value: "/config/config.yaml"
+          ports:
+            - containerPort: 8080
+              name: http-metrics
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /config/
+              name: config
+          resources: 
+            limits:
+              cpu: 500m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          startupProbe: 
+            failureThreshold: 5
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            tcpSocket:
+              port: http-metrics
+          livenessProbe: 
+            failureThreshold: 5
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            tcpSocket:
+              port: http-metrics
+          readinessProbe: 
+            failureThreshold: 5
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            tcpSocket:
+              port: http-metrics
+      nodeSelector: 
+        kubernetes.io/os: linux
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-azure-resourcem

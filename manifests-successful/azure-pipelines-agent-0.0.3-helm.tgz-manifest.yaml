@@ -1,0 +1,49 @@
+---
+# Source: azure-pipelines-agent/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-azure-pipelines-agent
+  labels:
+    helm.sh/chart: azure-pipelines-agent-0.0.3-helm
+    app.kubernetes.io/name: azure-pipelines-agent
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: azure-pipelines-agent
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-azure-pipelines-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: azure-pipelines-agent
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: azure-pipelines-agent
+          image: "woozx/azure-pipelines-agent:0.0.3"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: AZP_AGENT_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: AZP_URL
+              value: ""
+            - name: AZP_POOL
+              value: "Default"
+            - name: AZP_WORK
+              value: "_work"
+            - name: AZP_TOKEN
+              value: ""
+          resources:
+            {}

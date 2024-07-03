@@ -1,0 +1,925 @@
+---
+# Source: awx/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-9.8.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  postgresql-password: "YXd4"
+---
+# Source: awx/templates/awx/configmaps/config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-awx-config
+  labels:
+    helm.sh/chart: awx-0.1.6
+    app.kubernetes.io/name: awx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15.0.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  my-release-awx_nginx_conf: |
+    #user awx;
+
+    worker_processes  1;
+
+    pid        /tmp/nginx.pid;
+
+    events {
+        worker_connections  1024;
+    }
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+        server_tokens off;
+
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log /dev/stdout main;
+
+        map $http_upgrade $connection_upgrade {
+            default upgrade;
+            ''      close;
+        }
+
+        sendfile        on;
+        #tcp_nopush     on;
+        #gzip  on;
+
+        upstream uwsgi {
+            server 127.0.0.1:8050;
+            }
+
+        upstream daphne {
+            server 127.0.0.1:8051;
+        }
+
+        server {
+            listen 8052 default_server;
+
+            # If you have a domain name, this is where to add it
+            server_name _;
+            keepalive_timeout 65;
+
+            # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+            add_header Strict-Transport-Security max-age=15768000;
+            add_header Content-Security-Policy "default-src 'self'; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' *.pendo.io; img-src 'self' *.pendo.io data:; report-uri /csp-violation/";
+            add_header X-Content-Security-Policy "default-src 'self'; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' *.pendo.io; img-src 'self' *.pendo.io data:; report-uri /csp-violation/";
+
+            # Protect against click-jacking https://www.owasp.org/index.php/Testing_for_Clickjacking_(OTG-CLIENT-009)
+            add_header X-Frame-Options "DENY";
+
+            location /nginx_status {
+              stub_status on;
+              access_log off;
+              allow 127.0.0.1;
+              deny all;
+            }
+
+            location /static/ {
+                alias /var/lib/awx/public/static/;
+            }
+
+            location /favicon.ico { alias /var/lib/awx/public/static/favicon.ico; }
+
+            location /websocket {
+                # Pass request to the upstream alias
+                proxy_pass http://daphne;
+                # Require http version 1.1 to allow for upgrade requests
+                proxy_http_version 1.1;
+                # We want proxy_buffering off for proxying to websockets.
+                proxy_buffering off;
+                # http://en.wikipedia.org/wiki/X-Forwarded-For
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                # enable this if you use HTTPS:
+                proxy_set_header X-Forwarded-Proto https;
+                # pass the Host: header from the client for the sake of redirects
+                proxy_set_header Host $http_host;
+                # We've set the Host header, so we don't need Nginx to muddle
+                # about with redirects
+                proxy_redirect off;
+                # Depending on the request value, set the Upgrade and
+                # connection headers
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+            }
+
+            location / {
+                # Add trailing / if missing
+                rewrite ^(.*)$http_host(.*[^/])$ $1$http_host$2/ permanent;
+                uwsgi_read_timeout 120s;
+                uwsgi_pass uwsgi;
+                include /etc/nginx/uwsgi_params;
+                proxy_set_header X-Forwarded-Port 443;
+                uwsgi_param HTTP_X_FORWARDED_PORT 443;
+            }
+        }
+    }
+
+  my-release-awx_settings: |
+    import os
+    import socket
+    from django_auth_ldap.config import LDAPSearch
+    ADMINS = ()
+
+    AWX_PROOT_ENABLED = True
+
+    # Automatically deprovision pods that go offline
+    AWX_AUTO_DEPROVISION_INSTANCES = True
+
+    SYSTEM_TASK_ABS_CPU = 4
+    SYSTEM_TASK_ABS_MEM = 20
+
+    INSIGHTS_URL_BASE = "https://awx.example.com"
+    INSIGHTS_AGENT_MIME = "application/example"
+    AUTOMATION_ANALYTICS_URL = "https://awx.example.com"
+
+    #Autoprovisioning should replace this
+    CLUSTER_HOST_ID = socket.gethostname()
+    SYSTEM_UUID = os.environ.get('MY_POD_UID', '00000000-0000-0000-0000-000000000000')
+
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+
+    REMOTE_HOST_HEADERS = ['HTTP_X_FORWARDED_FOR']
+
+    STATIC_ROOT = '/var/lib/awx/public/static'
+    PROJECTS_ROOT = '/var/lib/awx/projects'
+    AWX_ANSIBLE_COLLECTIONS_PATHS = '/var/lib/awx/vendor/awx_ansible_collections'
+    JOBOUTPUT_ROOT = '/var/lib/awx/job_status'
+    SECRET_KEY = open('/etc/tower/SECRET_KEY', 'rb').read().strip()
+    ALLOWED_HOSTS = ['*']
+
+    LOGGING['handlers']['console'] = {
+        '()': 'logging.StreamHandler',
+        'level': 'DEBUG',
+        'formatter': 'simple',
+    }
+
+    LOGGING['loggers']['django.request']['handlers'] = ['console']
+    LOGGING['loggers']['rest_framework.request']['handlers'] = ['console']
+    LOGGING['loggers']['awx']['handlers'] = ['console', 'external_logger']
+    LOGGING['loggers']['awx.main.commands.run_callback_receiver']['handlers'] = ['console']
+    LOGGING['loggers']['awx.main.commands.inventory_import']['handlers'] = ['console']
+    LOGGING['loggers']['awx.main.tasks']['handlers'] = ['console', 'external_logger']
+    LOGGING['loggers']['awx.main.scheduler']['handlers'] = ['console', 'external_logger']
+    LOGGING['loggers']['django_auth_ldap']['handlers'] = ['console']
+    LOGGING['loggers']['social']['handlers'] = ['console']
+    LOGGING['loggers']['system_tracking_migrations']['handlers'] = ['console']
+    LOGGING['loggers']['rbac_migrations']['handlers'] = ['console']
+    LOGGING['loggers']['awx.isolated.manager.playbooks']['handlers'] = ['console']
+    LOGGING['handlers']['callback_receiver'] = {'class': 'logging.NullHandler'}
+    LOGGING['handlers']['fact_receiver'] = {'class': 'logging.NullHandler'}
+    LOGGING['handlers']['task_system'] = {'class': 'logging.NullHandler'}
+    LOGGING['handlers']['tower_warnings'] = {'class': 'logging.NullHandler'}
+    LOGGING['handlers']['rbac_migrations'] = {'class': 'logging.NullHandler'}
+    LOGGING['handlers']['system_tracking_migrations'] = {'class': 'logging.NullHandler'}
+    LOGGING['handlers']['management_playbooks'] = {'class': 'logging.NullHandler'}
+
+    USE_X_FORWARDED_PORT = True
+
+    AWX_CONTAINER_GROUP_DEFAULT_IMAGE = "ansible/ansible-runner"
+
+    BROADCAST_WEBSOCKET_PORT = 8052
+    BROADCAST_WEBSOCKET_PROTOCOL = 'http'
+
+  my-release-awx_redis_conf: |
+    unixsocket /var/run/redis/redis.sock
+    unixsocketperm 660
+    port 0
+    bind 127.0.0.1
+---
+# Source: awx/templates/awx/secrets/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-awx-secrets
+  labels:
+    helm.sh/chart: awx-0.1.6
+    app.kubernetes.io/name: awx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15.0.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  secret_key: qQoYusTYgMLThyQH
+  credentials_py: |
+    DATABASES = {
+      'default': {
+        'ATOMIC_REQUESTS': True,
+        'ENGINE': 'awx.main.db.profiled_pg',
+        'NAME': "awx",
+        'USER': "awx",
+        'PASSWORD': "awx",
+        'HOST': "my-release-postgresql",
+        'PORT': "5432",
+        'OPTIONS': { 'sslmode': "prefer",
+                    'sslrootcert': '/etc/pki/tls/certs/ca-bundle.crt',
+        },
+      }
+    }
+
+    BROADCAST_WEBSOCKET_SECRET = "cVFvWXVzVFlnTUxUaHlRSA=="
+
+  environment_sh: |
+    DATABASE_USER="awx"
+    DATABASE_NAME="awx"
+    DATABASE_HOST="my-release-postgresql"
+    DATABASE_PORT="5432"
+    DATABASE_PASSWORD="awx"
+---
+# Source: awx/templates/awx/configmaps/launch.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-awx-launch-awx
+  labels:
+    helm.sh/chart: awx-0.1.6
+    app.kubernetes.io/name: awx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  launch-awx-task: |
+    #!/usr/bin/env bash
+    if [ `id -u` -ge 500 ]; then
+        echo "awx:x:`id -u`:`id -g`:,,,:/var/lib/awx:/bin/bash" >> /tmp/passwd
+        cat /tmp/passwd > /etc/passwd
+        rm /tmp/passwd
+    fi
+
+    source /etc/tower/conf.d/environment.sh
+
+    ANSIBLE_REMOTE_TEMP=/tmp ANSIBLE_LOCAL_TEMP=/tmp ansible -i "127.0.0.1," -c local -v -m wait_for -a "host=$DATABASE_HOST port=$DATABASE_PORT" all
+    ANSIBLE_REMOTE_TEMP=/tmp ANSIBLE_LOCAL_TEMP=/tmp ansible -i "127.0.0.1," -c local -v -m wait_for -a "path=/var/run/redis/redis.sock" all
+        awx-manage migrate --noinput
+
+    echo "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@awx.com', 'awxPassword123')" | awx-manage shell
+    awx-manage create_preload_data
+    
+    echo 'from django.conf import settings; x = settings.AWX_TASK_ENV; x["HOME"] = "/var/lib/awx"; settings.AWX_TASK_ENV = x' | awx-manage shell
+    awx-manage provision_instance --hostname=$(hostname)
+    awx-manage register_queue --queuename=tower --instance_percent=100
+
+    unset $(cut -d = -f -1 /etc/tower/conf.d/environment.sh)
+
+    supervisord -c /etc/supervisord_task.conf
+
+  launch-awx-web: |
+    #!/usr/bin/env bash
+    if [ `id -u` -ge 500 ]; then
+        echo "awx:x:`id -u`:`id -g`:,,,:/var/lib/awx:/bin/bash" >> /tmp/passwd
+        cat /tmp/passwd > /etc/passwd
+        rm /tmp/passwd
+    fi
+
+    source /etc/tower/conf.d/environment.sh
+
+    ANSIBLE_REMOTE_TEMP=/tmp ANSIBLE_LOCAL_TEMP=/tmp ansible -i "127.0.0.1," -c local -v -m wait_for -a "host=$DATABASE_HOST port=$DATABASE_PORT" all
+    ANSIBLE_REMOTE_TEMP=/tmp ANSIBLE_LOCAL_TEMP=/tmp ansible -i "127.0.0.1," -c local -v -m wait_for -a "path=/var/run/redis/redis.sock" all
+
+    awx-manage collectstatic --noinput --clear
+
+    unset $(cut -d = -f -1 /etc/tower/conf.d/environment.sh)
+
+    supervisord -c /etc/supervisord.conf
+---
+# Source: awx/templates/awx/configmaps/supervisor.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-awx-supervisor-config
+  labels:
+    helm.sh/chart: awx-0.1.6
+    app.kubernetes.io/name: awx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  supervisor-web-config: |
+    [supervisord]
+    nodaemon = True
+    umask = 022
+    logfile = /dev/stdout
+    logfile_maxbytes = 0
+    pidfile = /var/run/supervisor/supervisor.web.pid
+
+    [program:nginx]
+    command = nginx -g "daemon off;"
+    autostart = true
+    autorestart = true
+    stopwaitsecs = 5
+    stdout_logfile=/dev/stdout
+    stdout_logfile_maxbytes=0
+    stderr_logfile=/dev/stderr
+    stderr_logfile_maxbytes=0
+
+    [program:uwsgi]
+    command = bash -c '/var/lib/awx/venv/awx/bin/uwsgi --socket 127.0.0.1:8050 --module=awx.wsgi:application --vacuum --processes=5 --harakiri=120 --no-orphans --master --max-requests=1000 --master-fifo=/var/lib/awx/awxfifo --lazy-apps -b 32768'
+    directory = /var/lib/awx
+    autostart = true
+    autorestart = true
+    stopwaitsecs = 15
+    stopsignal = INT
+    stdout_logfile=/dev/stdout
+    stdout_logfile_maxbytes=0
+    stderr_logfile=/dev/stderr
+    stderr_logfile_maxbytes=0
+
+    [program:daphne]
+    command = bash -c '/var/lib/awx/venv/awx/bin/daphne -b 127.0.0.1 -p 8051 awx.asgi:channel_layer'
+    directory = /var/lib/awx
+    autostart = true
+    autorestart = true
+    stopwaitsecs = 5
+    stdout_logfile=/dev/stdout
+    stdout_logfile_maxbytes=0
+    stderr_logfile=/dev/stderr
+    stderr_logfile_maxbytes=0
+
+    [program:wsbroadcast]
+    command = awx-manage run_wsbroadcast
+    directory = /var/lib/awx
+    autostart = true
+    autorestart = true
+    stopwaitsecs = 5
+    stdout_logfile=/dev/stdout
+    stdout_logfile_maxbytes=0
+    stderr_logfile=/dev/stderr
+    stderr_logfile_maxbytes=0
+
+    [program:awx-rsyslogd]
+    command = rsyslogd -n -i /var/run/awx-rsyslog/rsyslog.pid -f /var/lib/awx/rsyslog/rsyslog.conf
+    autostart = true
+    autorestart = true
+    stopwaitsecs = 5
+    stopsignal=TERM
+    stopasgroup=true
+    killasgroup=true
+    redirect_stderr=true
+    stdout_logfile=/dev/stderr
+    stdout_logfile_maxbytes=0
+
+    [group:tower-processes]
+    programs=nginx,uwsgi,daphne,wsbroadcast,awx-rsyslogd
+    priority=5
+
+    # TODO: Exit Handler
+
+    [eventlistener:awx-config-watcher]
+    command=/usr/bin/config-watcher
+    stderr_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stdout_logfile_maxbytes=0
+    events=TICK_60
+    priority=0
+
+    [unix_http_server]
+    file=/var/run/supervisor/supervisor.web.sock
+
+    [supervisorctl]
+    serverurl=unix:///var/run/supervisor/supervisor.web.sock ; use a unix:// URL  for a unix socket
+
+    [rpcinterface:supervisor]
+    supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+  supervisor-task-config: |
+    [supervisord]
+    nodaemon = True
+    umask = 022
+    logfile = /dev/stdout
+    logfile_maxbytes = 0
+    pidfile = /var/run/supervisor/supervisor.pid
+
+    [program:dispatcher]
+    command = awx-manage run_dispatcher
+    directory = /var/lib/awx
+    environment = LANGUAGE="en_US.UTF-8",LANG="en_US.UTF-8",LC_ALL="en_US.UTF-8",LC_CTYPE="en_US.UTF-8"
+    autostart = true
+    autorestart = true
+    stopwaitsecs = 5
+    stdout_logfile=/dev/stdout
+    stdout_logfile_maxbytes=0
+    stderr_logfile=/dev/stderr
+    stderr_logfile_maxbytes=0
+
+    [program:callback-receiver]
+    command = awx-manage run_callback_receiver
+    directory = /var/lib/awx
+    autostart = true
+    autorestart = true
+    stopwaitsecs = 5
+    stdout_logfile=/dev/stdout
+    stdout_logfile_maxbytes=0
+    stderr_logfile=/dev/stderr
+    stderr_logfile_maxbytes=0
+
+    [group:tower-processes]
+    programs=dispatcher,callback-receiver
+    priority=5
+
+    # TODO: Exit Handler
+
+    [eventlistener:awx-config-watcher]
+    command=/usr/bin/config-watcher
+    stderr_logfile=/dev/stdout
+    stderr_logfile_maxbytes=0
+    stdout_logfile=/dev/stdout
+    stdout_logfile_maxbytes=0
+    events=TICK_60
+    priority=0
+
+    [unix_http_server]
+    file=/var/run/supervisor/supervisor.sock
+
+    [supervisorctl]
+    serverurl=unix:///var/run/supervisor/supervisor.sock ; use a unix:// URL  for a unix socket
+
+    [rpcinterface:supervisor]
+    supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+---
+# Source: awx/charts/postgresql/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-headless
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-9.8.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+---
+# Source: awx/charts/postgresql/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-9.8.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    role: master
+---
+# Source: awx/templates/awx/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-awx
+  labels:
+    helm.sh/chart: awx-0.1.6
+    app.kubernetes.io/name: awx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    
+    prometheus.io/port: "9090"
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http 
+      port: 8052
+      targetPort: 8052
+  selector:
+    app.kubernetes.io/name: awx
+    app.kubernetes.io/instance: my-release
+---
+# Source: awx/templates/awx/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-awx
+  labels:
+    helm.sh/chart: awx-0.1.6
+    app.kubernetes.io/name: awx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: awx
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 3730169cd0875d734e378db4081a3f5d9e656ec1d1d56a5ec700d9236d53e35e
+        checksum/config: e425154bd8c0acae20c37869983f19050b78787a4f5f2b3224c1238a5b1d50d2
+        checksum/config: e96d801aeb209e47148cad6d23916edecfe57e06aaf668a300718751973a5f01
+      labels:
+        app.kubernetes.io/name: awx
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        fsGroup: 0
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: awx-web
+          image: "ansible/awx:15.0.0"
+          imagePullPolicy: Always
+          ports:
+            - name: awx-web
+              containerPort: 8052
+          livenessProbe:
+            httpGet:
+              path: /
+              port: awx-web
+            initialDelaySeconds: 200
+            timeoutSeconds: 2
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: awx-web
+            initialDelaySeconds: 200
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 10
+          volumeMounts:
+            - name: "my-release-awx-application-credentials"
+              mountPath: "/etc/tower/conf.d/"
+              readOnly: true
+            
+            - name: my-release-awx-application-config
+              mountPath: "/etc/tower/settings.py"
+              subPath: settings.py
+              readOnly: true
+            
+            - name: my-release-awx-nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            
+            - name: my-release-awx-launch-awx-web
+              mountPath: "/usr/bin/launch_awx.sh"
+              subPath: "launch_awx.sh"
+              readOnly: true
+            
+            - name: my-release-awx-launch-awx-task
+              mountPath: "/usr/bin/launch_awx_task.sh"
+              subPath: "launch_awx_task.sh"
+              readOnly: true
+            
+            - name: my-release-awx-supervisor-web-config
+              mountPath: "/etc/supervisord.conf"
+              subPath: supervisor.conf
+              readOnly: true
+            
+            - name: my-release-awx-supervisor-task-config
+              mountPath: "/etc/supervisord_task.conf"
+              subPath: supervisor_task.conf
+              readOnly: true
+            
+            - name: my-release-awx-secret-key
+              mountPath: "/etc/tower/SECRET_KEY"
+              subPath: SECRET_KEY
+              readOnly: true
+            
+            - name: my-release-awx-redis-socket
+              mountPath: "/var/run/redis"
+            - name: supervisor-socket
+              mountPath: "/var/run/supervisor"
+            - name: rsyslog-socket
+              mountPath: "/var/run/awx-rsyslog"
+            - name: rsyslog-dir
+              mountPath: "/var/lib/awx/rsyslog"
+          resources:
+            {}
+        - name: awx-task
+          image: "ansible/awx:15.0.0"
+          imagePullPolicy: Always
+          command:
+            - /usr/bin/launch_awx_task.sh
+          env:
+            - name: MY_POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: "my-release-awx-application-credentials"
+              mountPath: "/etc/tower/conf.d/"
+              readOnly: true
+            
+            - name: my-release-awx-application-config
+              mountPath: "/etc/tower/settings.py"
+              subPath: settings.py
+              readOnly: true
+            
+            - name: my-release-awx-nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            
+            - name: my-release-awx-launch-awx-web
+              mountPath: "/usr/bin/launch_awx.sh"
+              subPath: "launch_awx.sh"
+              readOnly: true
+            
+            - name: my-release-awx-launch-awx-task
+              mountPath: "/usr/bin/launch_awx_task.sh"
+              subPath: "launch_awx_task.sh"
+              readOnly: true
+            
+            - name: my-release-awx-supervisor-web-config
+              mountPath: "/etc/supervisord.conf"
+              subPath: supervisor.conf
+              readOnly: true
+            
+            - name: my-release-awx-supervisor-task-config
+              mountPath: "/etc/supervisord_task.conf"
+              subPath: supervisor_task.conf
+              readOnly: true
+            
+            - name: my-release-awx-secret-key
+              mountPath: "/etc/tower/SECRET_KEY"
+              subPath: SECRET_KEY
+              readOnly: true
+            
+            - name: my-release-awx-redis-socket
+              mountPath: "/var/run/redis"
+            - name: supervisor-socket
+              mountPath: "/var/run/supervisor"
+            - name: rsyslog-socket
+              mountPath: "/var/run/awx-rsyslog"
+            - name: rsyslog-dir
+              mountPath: "/var/lib/awx/rsyslog"
+          resources:
+            requests:
+              cpu: 1500m
+              memory: 2048Mi
+        - name: my-release-awx-redis
+          image: "redis:latest"
+          imagePullPolicy: Always
+          args: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+          volumeMounts:
+            - name: my-release-awx-redis-config
+              mountPath: "/usr/local/etc/redis/redis.conf"
+              subPath: redis.conf
+              readOnly: true
+
+            - name: my-release-awx-redis-socket
+              mountPath: "/var/run/redis"
+      volumes:
+        - name: my-release-awx-application-credentials
+          secret:
+            secretName: "my-release-awx-secrets"
+            items:
+              - key: credentials_py
+                path: 'credentials.py'
+              - key: environment_sh
+                path: 'environment.sh'
+        - name: my-release-awx-application-config
+          secret:
+            secretName: my-release-awx-config
+            items:
+              - key: my-release-awx_settings
+                path: settings.py
+
+        - name: my-release-awx-nginx-config
+          secret:
+            secretName: my-release-awx-config
+            items:
+              - key: my-release-awx_nginx_conf
+                path: nginx.conf
+
+        - name: my-release-awx-redis-config
+          secret:
+            secretName: my-release-awx-config
+            items:
+              - key: my-release-awx_redis_conf
+                path: redis.conf  
+
+        - name: my-release-awx-launch-awx-web
+          configMap:
+            name: my-release-awx-launch-awx
+            items:
+              - key: launch-awx-web
+                path: 'launch_awx.sh'
+            defaultMode: 0755
+
+        - name: my-release-awx-launch-awx-task
+          configMap:
+            name: my-release-awx-launch-awx
+            items:
+              - key: launch-awx-task
+                path: 'launch_awx_task.sh'
+            defaultMode: 0755
+
+        - name: my-release-awx-supervisor-web-config
+          configMap:
+            name: my-release-awx-supervisor-config
+            items:
+              - key: supervisor-web-config
+                path: 'supervisor.conf'
+
+        - name: my-release-awx-supervisor-task-config
+          configMap:
+            name: my-release-awx-supervisor-config
+            items:
+              - key: supervisor-task-config
+                path: 'supervisor_task.conf'
+        
+        - name: my-release-awx-secret-key
+          secret:
+            secretName: "my-release-awx-secrets"
+            items:
+              - key: secret_key
+                path: SECRET_KEY
+
+        - name: supervisor-socket
+          emptyDir: {}
+        - name: rsyslog-socket
+          emptyDir: {}
+        - name: rsyslog-dir
+          emptyDir: {}
+        - name: my-release-awx-redis-socket
+          emptyDir: {}
+---
+# Source: awx/charts/postgresql/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-9.8.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+spec:
+  serviceName: my-release-postgresql-headless
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: my-release
+      role: master
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/name: postgresql
+        helm.sh/chart: postgresql-9.8.1
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        role: master
+    spec:      
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: my-release-postgresql
+          image: docker.io/bitnami/postgresql:11.9.0-debian-10-r41
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            - name: POSTGRES_USER
+              value: "awx"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgresql-password
+            - name: POSTGRES_DB
+              value: "awx"
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "awx" -d "dbname=awx" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "awx" -d "dbname=awx" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+              subPath: 
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "20Gi"
+---
+# Source: awx/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-awx-test-connection"
+  labels:
+
+    helm.sh/chart: awx-0.1.6
+    app.kubernetes.io/name: awx
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "15.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['my-release-awx:8052']
+  restartPolicy: Never

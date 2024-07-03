@@ -1,0 +1,142 @@
+---
+# Source: kube-resource-report/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kube-resource-report
+  namespace: kube-resource-report-0.1.3.tgz
+  labels:
+    helm.sh/chart: kube-resource-report-0.1.3
+    app.kubernetes.io/name: kube-resource-report
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "21.2.1"
+    app.kubernetes.io/component: resources-reporting
+    app.kubernetes.io/managed-by: Helm
+data:
+  pricing.csv: |- 
+    dc-1,master,30.000
+    dc-1,worker,500.000
+---
+# Source: kube-resource-report/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kube-resource-report
+  namespace: kube-resource-report-0.1.3.tgz
+  labels:
+    helm.sh/chart: kube-resource-report-0.1.3
+    app.kubernetes.io/name: kube-resource-report
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "21.2.1"
+    app.kubernetes.io/component: resources-reporting
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: kube-resource-report
+    app.kubernetes.io/instance: my-release
+---
+# Source: kube-resource-report/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kube-resource-report
+  namespace: kube-resource-report-0.1.3.tgz
+  labels:
+    helm.sh/chart: kube-resource-report-0.1.3
+    app.kubernetes.io/name: kube-resource-report
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "21.2.1"
+    app.kubernetes.io/component: resources-reporting
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-resource-report
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-resource-report
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: kube-resource-report
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "hjacobs/kube-resource-report:21.2.1"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --update-interval-minutes=1
+            - --additional-cost-per-cluster=0
+            - --pricing-file=/config/pricing.csv
+            - /output
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /output
+              name: report-data
+            - mountPath: /config
+              name: config
+        - name: nginx
+          image: nginx:alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /usr/share/nginx/html
+              name: report-data
+              readOnly: true
+      volumes:
+        - name: report-data
+          emptyDir:
+            sizeLimit: 500Mi
+        - name: config
+          configMap:
+            name: my-release-kube-resource-report
+---
+# Source: kube-resource-report/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-kube-resource-report-test-connection"
+  namespace: kube-resource-report-0.1.3.tgz
+  labels:
+    helm.sh/chart: kube-resource-report-0.1.3
+    app.kubernetes.io/name: kube-resource-report
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "21.2.1"
+    app.kubernetes.io/component: resources-reporting
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-kube-resource-report:80']
+  restartPolicy: Never

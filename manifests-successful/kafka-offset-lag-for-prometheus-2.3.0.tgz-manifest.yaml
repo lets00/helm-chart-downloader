@@ -1,0 +1,85 @@
+---
+# Source: kafka-offset-lag-for-prometheus/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-metrics
+  labels:
+    app.kubernetes.io/name: kafka-offset-lag-for-prometheus
+    helm.sh/chart: kafka-offset-lag-for-prometheus-2.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.ca6fdf97"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 7979
+    name: metrics
+  clusterIP: None
+  selector:
+    app: my-release
+---
+# Source: kafka-offset-lag-for-prometheus/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kafka-offset-lag-for-prometheus
+  labels:
+    app.kubernetes.io/name: kafka-offset-lag-for-prometheus
+    helm.sh/chart: kafka-offset-lag-for-prometheus-2.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.ca6fdf97"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "7979"
+        prometheus.io/scrape: "true"
+      labels:
+        app: my-release
+        app.kubernetes.io/name: kafka-offset-lag-for-prometheus
+        helm.sh/chart: kafka-offset-lag-for-prometheus-2.3.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.3.ca6fdf97"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      containers:
+        - name: kafka-offset-lag-for-prometheus
+          image: "jhidalgo3/kafka-offset-lag-for-prometheus"
+          imagePullPolicy: Always
+          env:
+          #- name: SASL_USER
+          #  value: my-release
+          #- name: SASL_PASS
+          #  valueFrom:
+          #    secretKeyRef:
+          #      name: my-release
+          #      key: password
+            - name: SASL_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: kafka-offset-lag-for-prometheus
+          command:
+          - /kafka-offset-lag-for-prometheus
+          - --prometheus-addr=:7979
+          - --refresh-interval=30
+          - --algorithm=sha512
+          - --kafka-brokers
+          ports:
+            - name: metrics
+              containerPort: 7979
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /live
+              port: 8080

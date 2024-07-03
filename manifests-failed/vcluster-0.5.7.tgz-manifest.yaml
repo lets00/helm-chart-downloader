@@ -1,0 +1,4361 @@
+---
+# Source: vcluster/templates/components/autoscaler/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-autoscaler
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: autoscaler
+    app.kubernetes.io/component: autoscaler
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+---
+# Source: vcluster/templates/components/machine-controller/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-machine-controller
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: machine-controller
+    app.kubernetes.io/component: machine-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+---
+# Source: vcluster/templates/components/machine-controller/manifests.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-machine-controller-manifests
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: machine-controller
+    app.kubernetes.io/component: machine-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+  namespace: vcluster-0.5.7.tgz
+stringData:
+  
+    machinedeployments-crd.yaml: |
+      ---
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      metadata:
+        name: machinedeployments.cluster.k8s.io
+        labels:
+          local-testing: "true"
+        annotations:
+          "api-approved.kubernetes.io": "unapproved, legacy API"
+      spec:
+        group: cluster.k8s.io
+        scope: Namespaced
+        names:
+          kind: MachineDeployment
+          plural: machinedeployments
+          singular: machinedeployment
+          listKind: MachineDeploymentList
+          shortNames: ["md"]
+        versions:
+          - name: v1alpha1
+            served: true
+            storage: true
+            schema:
+              openAPIV3Schema:
+                x-kubernetes-preserve-unknown-fields: true
+                type: object
+            subresources:
+              scale:
+                specReplicasPath: .spec.replicas
+                statusReplicasPath: .status.replicas
+              status: {}
+            additionalPrinterColumns:
+              - name: Replicas
+                type: integer
+                jsonPath: .spec.replicas
+              - name: Available-Replicas
+                type: integer
+                jsonPath: .status.availableReplicas
+              - name: Provider
+                type: string
+                jsonPath: .spec.template.spec.providerSpec.value.cloudProvider
+              - name: OS
+                type: string
+                jsonPath: .spec.template.spec.providerSpec.value.operatingSystem
+              - name: Kubelet
+                type: string
+                jsonPath: .spec.template.spec.versions.kubelet
+              - name: Age
+                type: date
+                jsonPath: .metadata.creationTimestamp
+              - name: Deleted
+                type: date
+                jsonPath: .metadata.deletionTimestamp
+                priority: 1
+    
+    machines-crd.yaml: |
+      ---
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      metadata:
+        name: machines.cluster.k8s.io
+        labels:
+          local-testing: "true"
+        annotations:
+          "api-approved.kubernetes.io": "unapproved, legacy API"
+      spec:
+        group: cluster.k8s.io
+        scope: Namespaced
+        names:
+          kind: Machine
+          plural: machines
+          singular: machine
+          listKind: MachineList
+          shortNames: ["ma"]
+        versions:
+          - name: v1alpha1
+            served: true
+            storage: true
+            schema:
+              openAPIV3Schema:
+                x-kubernetes-preserve-unknown-fields: true
+                type: object
+            additionalPrinterColumns:
+              - name: Provider
+                type: string
+                jsonPath: .spec.providerSpec.value.cloudProvider
+              - name: OS
+                type: string
+                jsonPath: .spec.providerSpec.value.operatingSystem
+              - name: Node
+                type: string
+                jsonPath: .status.nodeRef.name
+              - name: Kubelet
+                type: string
+                jsonPath: .spec.versions.kubelet
+              - name: Address
+                type: string
+                jsonPath: .status.addresses[0].address
+              - name: Age
+                type: date
+                jsonPath: .metadata.creationTimestamp
+              - name: Deleted
+                type: date
+                jsonPath: .metadata.deletionTimestamp
+                priority: 1
+    
+    machinesets-crd.yaml: |
+      ---
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      metadata:
+        name: machinesets.cluster.k8s.io
+        labels:
+          local-testing: "true"
+        annotations:
+          "api-approved.kubernetes.io": "unapproved, legacy API"
+      spec:
+        group: cluster.k8s.io
+        scope: Namespaced
+        names:
+          kind: MachineSet
+          plural: machinesets
+          singular: machineset
+          listKind: MachineSetList
+          shortNames: ["ms"]
+        versions:
+          - name: v1alpha1
+            served: true
+            storage: true
+            schema:
+              openAPIV3Schema:
+                x-kubernetes-preserve-unknown-fields: true
+                type: object
+            subresources:
+              status: {}
+            additionalPrinterColumns:
+              - name: Replicas
+                type: integer
+                jsonPath: .spec.replicas
+              - name: Available-Replicas
+                type: integer
+                jsonPath: .status.availableReplicas
+              - name: Provider
+                type: string
+                jsonPath: .spec.template.spec.providerSpec.value.cloudProvider
+              - name: OS
+                type: string
+                jsonPath: .spec.template.spec.providerSpec.value.operatingSystem
+              - name: MachineDeployment
+                type: string
+                jsonPath: .metadata.ownerReferences[0].name
+              - name: Kubelet
+                type: string
+                jsonPath: .spec.template.spec.versions.kubelet
+              - name: Age
+                type: date
+                jsonPath: .metadata.creationTimestamp
+              - name: Deleted
+                type: date
+                jsonPath: .metadata.deletionTimestamp
+                priority: 1
+    
+    rbac.yaml: |
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: machine-controller:kubelet-bootstrap
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: system:node-bootstrapper
+      subjects:
+      - apiGroup: rbac.authorization.k8s.io
+        kind: Group
+        name: system:bootstrappers:machine-controller:default-node-token
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: machine-controller:node-autoapprove-bootstrap
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: system:certificates.k8s.io:certificatesigningrequests:nodeclient
+      subjects:
+      - apiGroup: rbac.authorization.k8s.io
+        kind: Group
+        name: system:bootstrappers:machine-controller:default-node-token
+---
+# Source: vcluster/templates/components/machine-controller/providers-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-machine-controller-providers
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: machine-controller
+    app.kubernetes.io/component: machine-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+  namespace: vcluster-0.5.7.tgz
+type: Opaque
+stringData:
+---
+# Source: vcluster/templates/components/machine-controller/webhooks.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-machine-controller-webhooks
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: machine-controller
+    app.kubernetes.io/component: machine-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+stringData:
+  
+    mutatingwebhookconfiguration.yaml: |
+      ---
+      apiVersion: admissionregistration.k8s.io/v1
+      kind: MutatingWebhookConfiguration
+      metadata:
+        name: machine-controller-mutating-webhook
+        labels:
+          helm.sh/chart: vcluster-0.5.7
+          app.kubernetes.io/version: "0.1.0"
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/part-of: machine-controller
+          app.kubernetes.io/component: machine-controller
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: my-release
+      webhooks:
+      - name: machinedeployments.machine-controller.kubermatic.io
+        failurePolicy: Fail
+        sideEffects: None
+        admissionReviewVersions: ["v1", "v1beta1"]
+        rules:
+        - apiGroups:
+          - "cluster.k8s.io"
+          apiVersions:
+          - v1alpha1
+          operations:
+          - CREATE
+          - UPDATE
+          resources:
+          - machinedeployments
+        clientConfig:
+          url: undefined/machinedeployments
+          caBundle: Cg==
+      - name: machines.machine-controller.kubermatic.io
+        failurePolicy: Fail
+        sideEffects: None
+        admissionReviewVersions: ["v1", "v1beta1"]
+        rules:
+        - apiGroups:
+          - "cluster.k8s.io"
+          apiVersions:
+          - v1alpha1
+          operations:
+          - CREATE
+          - UPDATE
+          resources:
+          - machines
+        clientConfig:
+          url: undefined/machines
+          caBundle: Cg==
+---
+# Source: vcluster/templates/components/operating-system-manager/manifests.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-operating-system-manager-manifests
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: operating-system-manager
+    app.kubernetes.io/component: operating-system-manager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+stringData:
+  
+    cloud-init-settings.yaml: |
+      ---
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: cloud-init-settings
+      ---
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: cloud-init-getter
+        namespace: cloud-init-settings
+      ---
+      apiVersion: v1
+      kind: Secret
+      type: kubernetes.io/service-account-token
+      metadata:
+        name: cloud-init-getter-token
+        namespace: cloud-init-settings
+        annotations:
+          kubernetes.io/service-account.name: "cloud-init-getter"
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: cloud-init-getter
+        namespace: cloud-init-settings
+      rules:
+        - apiGroups:
+            - ""
+          resources:
+            - secrets
+          verbs:
+            - get
+            - list
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: cloud-init-getter
+        namespace: cloud-init-settings
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: Role
+        name: cloud-init-getter
+      subjects:
+        - kind: ServiceAccount
+          name: cloud-init-getter
+          namespace: cloud-init-settings
+      
+    
+    operatingsystemconfigs-crd.yaml: |
+      ---
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      metadata:
+        annotations:
+          controller-gen.kubebuilder.io/version: v0.9.2
+        creationTimestamp: null
+        name: operatingsystemconfigs.operatingsystemmanager.k8c.io
+      spec:
+        group: operatingsystemmanager.k8c.io
+        names:
+          kind: OperatingSystemConfig
+          listKind: OperatingSystemConfigList
+          plural: operatingsystemconfigs
+          shortNames:
+          - osc
+          singular: operatingsystemconfig
+        scope: Namespaced
+        versions:
+        - name: v1alpha1
+          schema:
+            openAPIV3Schema:
+              description: OperatingSystemConfig is the object that represents the OperatingSystemConfig
+              properties:
+                apiVersion:
+                  description: 'APIVersion defines the versioned schema of this representation
+                    of an object. Servers should convert recognized schemas to the latest
+                    internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                  type: string
+                kind:
+                  description: 'Kind is a string value representing the REST resource this
+                    object represents. Servers may infer this from the endpoint the client
+                    submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                  type: string
+                metadata:
+                  type: object
+                spec:
+                  description: OperatingSystemConfigSpec represents the operating system
+                    configuration spec.
+                  properties:
+                    bootstrapConfig:
+                      description: BootstrapConfig is used for initial configuration of
+                        machine and to fetch the kubernetes secret that contains the provisioning
+                        config.
+                      properties:
+                        files:
+                          description: Files is a list of files that should exist in the
+                            instance
+                          items:
+                            description: File is a file that should get written to the host's
+                              file system. The content can either be inlined or referenced
+                              from a secret in the same namespace.
+                            properties:
+                              content:
+                                description: Content describe the file's content.
+                                properties:
+                                  inline:
+                                    description: Inline is a struct that contains information
+                                      about the inlined data.
+                                    properties:
+                                      data:
+                                        description: Data is the file's data.
+                                        type: string
+                                      encoding:
+                                        description: Encoding is the file's encoding (e.g.
+                                          base64).
+                                        type: string
+                                    required:
+                                    - data
+                                    type: object
+                                type: object
+                              path:
+                                description: Path is the path of the file system where the
+                                  file should get written to.
+                                type: string
+                              permissions:
+                                default: 644
+                                description: Permissions describes with which permissions
+                                  the file should get written to the file system. Should
+                                  be in decimal base and without any leading zeroes.
+                                format: int32
+                                type: integer
+                            required:
+                            - content
+                            - path
+                            type: object
+                          type: array
+                        modules:
+                          description: CloudInitModules contains the supported cloud-init
+                            modules
+                          properties:
+                            bootcmd:
+                              description: BootCMD module runs arbitrary commands very early
+                                in the boot process, only slightly after a boothook would
+                                run.
+                              items:
+                                type: string
+                              type: array
+                            rh_subscription:
+                              additionalProperties:
+                                type: string
+                              description: RHSubscription registers a Red Hat system either
+                                by username and password or activation and org
+                              type: object
+                            runcmd:
+                              description: RunCMD Run arbitrary commands at a rc.local like
+                                level with output to the console.
+                              items:
+                                type: string
+                              type: array
+                            yum_repo_dir:
+                              description: 'YumRepoDir the repo parts directory where individual
+                                yum repo config files will be written. Default: /etc/yum.repos.d'
+                              type: string
+                            yum_repos:
+                              additionalProperties:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              description: YumRepos adds yum repository configuration to
+                                the system.
+                              type: object
+                          type: object
+                        units:
+                          description: Units a list of the systemd unit files which will
+                            run on the instance
+                          items:
+                            description: Unit is a systemd unit used for the operating system
+                              config.
+                            properties:
+                              content:
+                                description: Content is the unit's content.
+                                type: string
+                              dropIns:
+                                description: DropIns is a list of drop-ins for this unit.
+                                items:
+                                  description: DropIn is a drop-in configuration for a systemd
+                                    unit.
+                                  properties:
+                                    content:
+                                      description: Content is the content of the drop-in.
+                                      type: string
+                                    name:
+                                      description: Name is the name of the drop-in.
+                                      type: string
+                                  required:
+                                  - content
+                                  - name
+                                  type: object
+                                type: array
+                              enable:
+                                description: Enable describes whether the unit is enabled
+                                  or not.
+                                type: boolean
+                              mask:
+                                description: Mask describes whether the unit is masked or
+                                  not.
+                                type: boolean
+                              name:
+                                description: Name is the name of a unit.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        userSSHKeys:
+                          description: UserSSHKeys is a list of attached user ssh keys
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    cloudProvider:
+                      description: CloudProvider represent the cloud provider that support
+                        the given operating system version
+                      properties:
+                        name:
+                          description: Name represents the name of the supported cloud provider
+                          enum:
+                          - aws
+                          - azure
+                          - digitalocean
+                          - gce
+                          - hetzner
+                          - kubevirt
+                          - linode
+                          - nutanix
+                          - openstack
+                          - equinixmetal
+                          - vsphere
+                          - fake
+                          - alibaba
+                          - anexia
+                          - scaleway
+                          - baremetal
+                          - external
+                          - vmware-cloud-director
+                          - opennebula
+                          type: string
+                        spec:
+                          description: Spec represents the os/image reference in the supported
+                            cloud provider
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                      required:
+                      - name
+                      type: object
+                    osName:
+                      description: 'OSType represent the operating system name e.g: ubuntu'
+                      enum:
+                      - flatcar
+                      - rhel
+                      - centos
+                      - ubuntu
+                      - amzn2
+                      - rockylinux
+                      type: string
+                    osVersion:
+                      description: OSVersion the version of the operating system
+                      type: string
+                    provisioningConfig:
+                      description: ProvisioningConfig is used for provisioning the worker
+                        node.
+                      properties:
+                        files:
+                          description: Files is a list of files that should exist in the
+                            instance
+                          items:
+                            description: File is a file that should get written to the host's
+                              file system. The content can either be inlined or referenced
+                              from a secret in the same namespace.
+                            properties:
+                              content:
+                                description: Content describe the file's content.
+                                properties:
+                                  inline:
+                                    description: Inline is a struct that contains information
+                                      about the inlined data.
+                                    properties:
+                                      data:
+                                        description: Data is the file's data.
+                                        type: string
+                                      encoding:
+                                        description: Encoding is the file's encoding (e.g.
+                                          base64).
+                                        type: string
+                                    required:
+                                    - data
+                                    type: object
+                                type: object
+                              path:
+                                description: Path is the path of the file system where the
+                                  file should get written to.
+                                type: string
+                              permissions:
+                                default: 644
+                                description: Permissions describes with which permissions
+                                  the file should get written to the file system. Should
+                                  be in decimal base and without any leading zeroes.
+                                format: int32
+                                type: integer
+                            required:
+                            - content
+                            - path
+                            type: object
+                          type: array
+                        modules:
+                          description: CloudInitModules contains the supported cloud-init
+                            modules
+                          properties:
+                            bootcmd:
+                              description: BootCMD module runs arbitrary commands very early
+                                in the boot process, only slightly after a boothook would
+                                run.
+                              items:
+                                type: string
+                              type: array
+                            rh_subscription:
+                              additionalProperties:
+                                type: string
+                              description: RHSubscription registers a Red Hat system either
+                                by username and password or activation and org
+                              type: object
+                            runcmd:
+                              description: RunCMD Run arbitrary commands at a rc.local like
+                                level with output to the console.
+                              items:
+                                type: string
+                              type: array
+                            yum_repo_dir:
+                              description: 'YumRepoDir the repo parts directory where individual
+                                yum repo config files will be written. Default: /etc/yum.repos.d'
+                              type: string
+                            yum_repos:
+                              additionalProperties:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              description: YumRepos adds yum repository configuration to
+                                the system.
+                              type: object
+                          type: object
+                        units:
+                          description: Units a list of the systemd unit files which will
+                            run on the instance
+                          items:
+                            description: Unit is a systemd unit used for the operating system
+                              config.
+                            properties:
+                              content:
+                                description: Content is the unit's content.
+                                type: string
+                              dropIns:
+                                description: DropIns is a list of drop-ins for this unit.
+                                items:
+                                  description: DropIn is a drop-in configuration for a systemd
+                                    unit.
+                                  properties:
+                                    content:
+                                      description: Content is the content of the drop-in.
+                                      type: string
+                                    name:
+                                      description: Name is the name of the drop-in.
+                                      type: string
+                                  required:
+                                  - content
+                                  - name
+                                  type: object
+                                type: array
+                              enable:
+                                description: Enable describes whether the unit is enabled
+                                  or not.
+                                type: boolean
+                              mask:
+                                description: Mask describes whether the unit is masked or
+                                  not.
+                                type: boolean
+                              name:
+                                description: Name is the name of a unit.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        userSSHKeys:
+                          description: UserSSHKeys is a list of attached user ssh keys
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    provisioningUtility:
+                      default: cloud-init
+                      description: ProvisioningUtility used for configuring the worker node.
+                        Defaults to cloud-init.
+                      enum:
+                      - cloud-init
+                      - ignition
+                      type: string
+                  required:
+                  - bootstrapConfig
+                  - cloudProvider
+                  - osName
+                  - osVersion
+                  - provisioningConfig
+                  type: object
+              required:
+              - spec
+              type: object
+          served: true
+          storage: true
+    
+    operatingsystemprofiles-crd.yaml: |
+      ---
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      metadata:
+        annotations:
+          controller-gen.kubebuilder.io/version: v0.9.2
+        creationTimestamp: null
+        name: operatingsystemprofiles.operatingsystemmanager.k8c.io
+      spec:
+        group: operatingsystemmanager.k8c.io
+        names:
+          kind: OperatingSystemProfile
+          listKind: OperatingSystemProfileList
+          plural: operatingsystemprofiles
+          shortNames:
+          - osp
+          singular: operatingsystemprofile
+        scope: Namespaced
+        versions:
+        - name: v1alpha1
+          schema:
+            openAPIV3Schema:
+              description: OperatingSystemProfile is the object that represents the OperatingSystemProfile
+              properties:
+                apiVersion:
+                  description: 'APIVersion defines the versioned schema of this representation
+                    of an object. Servers should convert recognized schemas to the latest
+                    internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                  type: string
+                kind:
+                  description: 'Kind is a string value representing the REST resource this
+                    object represents. Servers may infer this from the endpoint the client
+                    submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                  type: string
+                metadata:
+                  type: object
+                spec:
+                  description: OperatingSystemProfileSpec represents the operating system
+                    configuration spec.
+                  properties:
+                    bootstrapConfig:
+                      description: BootstrapConfig is used for initial configuration of
+                        machine and to fetch the kubernetes secret that contains the provisioning
+                        config.
+                      properties:
+                        files:
+                          description: Files is a list of files that should exist in the
+                            instance
+                          items:
+                            description: File is a file that should get written to the host's
+                              file system. The content can either be inlined or referenced
+                              from a secret in the same namespace.
+                            properties:
+                              content:
+                                description: Content describe the file's content.
+                                properties:
+                                  inline:
+                                    description: Inline is a struct that contains information
+                                      about the inlined data.
+                                    properties:
+                                      data:
+                                        description: Data is the file's data.
+                                        type: string
+                                      encoding:
+                                        description: Encoding is the file's encoding (e.g.
+                                          base64).
+                                        type: string
+                                    required:
+                                    - data
+                                    type: object
+                                type: object
+                              path:
+                                description: Path is the path of the file system where the
+                                  file should get written to.
+                                type: string
+                              permissions:
+                                default: 644
+                                description: Permissions describes with which permissions
+                                  the file should get written to the file system. Should
+                                  be in decimal base and without any leading zeroes.
+                                format: int32
+                                type: integer
+                            required:
+                            - content
+                            - path
+                            type: object
+                          type: array
+                        modules:
+                          description: CloudInitModules field contains the optional cloud-init
+                            modules which are supported by OSM
+                          properties:
+                            bootcmd:
+                              description: BootCMD module runs arbitrary commands very early
+                                in the boot process, only slightly after a boothook would
+                                run.
+                              items:
+                                type: string
+                              type: array
+                            rh_subscription:
+                              additionalProperties:
+                                type: string
+                              description: RHSubscription registers a Red Hat system either
+                                by username and password or activation and org
+                              type: object
+                            runcmd:
+                              description: RunCMD Run arbitrary commands at a rc.local like
+                                level with output to the console.
+                              items:
+                                type: string
+                              type: array
+                            yum_repo_dir:
+                              description: 'YumRepoDir the repo parts directory where individual
+                                yum repo config files will be written. Default: /etc/yum.repos.d'
+                              type: string
+                            yum_repos:
+                              additionalProperties:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              description: YumRepos adds yum repository configuration to
+                                the system.
+                              type: object
+                          type: object
+                        supportedContainerRuntimes:
+                          description: SupportedContainerRuntimes represents the container
+                            runtimes supported by the given OS
+                          items:
+                            description: ContainerRuntimeSpec aggregates information about
+                              a specific container runtime
+                            properties:
+                              files:
+                                description: Files to add to the main files list when the
+                                  containerRuntime is selected
+                                items:
+                                  description: File is a file that should get written to
+                                    the host's file system. The content can either be inlined
+                                    or referenced from a secret in the same namespace.
+                                  properties:
+                                    content:
+                                      description: Content describe the file's content.
+                                      properties:
+                                        inline:
+                                          description: Inline is a struct that contains
+                                            information about the inlined data.
+                                          properties:
+                                            data:
+                                              description: Data is the file's data.
+                                              type: string
+                                            encoding:
+                                              description: Encoding is the file's encoding
+                                                (e.g. base64).
+                                              type: string
+                                          required:
+                                          - data
+                                          type: object
+                                      type: object
+                                    path:
+                                      description: Path is the path of the file system where
+                                        the file should get written to.
+                                      type: string
+                                    permissions:
+                                      default: 644
+                                      description: Permissions describes with which permissions
+                                        the file should get written to the file system.
+                                        Should be in decimal base and without any leading
+                                        zeroes.
+                                      format: int32
+                                      type: integer
+                                  required:
+                                  - content
+                                  - path
+                                  type: object
+                                type: array
+                              name:
+                                description: Name of the Container runtime
+                                enum:
+                                - docker
+                                - containerd
+                                type: string
+                              templates:
+                                additionalProperties:
+                                  type: string
+                                description: Templates to add to the available templates
+                                  when the containerRuntime is selected
+                                type: object
+                            required:
+                            - files
+                            - name
+                            type: object
+                          type: array
+                        templates:
+                          additionalProperties:
+                            type: string
+                          description: Templates to be included in units and files
+                          type: object
+                        units:
+                          description: Units a list of the systemd unit files which will
+                            run on the instance
+                          items:
+                            description: Unit is a systemd unit used for the operating system
+                              config.
+                            properties:
+                              content:
+                                description: Content is the unit's content.
+                                type: string
+                              dropIns:
+                                description: DropIns is a list of drop-ins for this unit.
+                                items:
+                                  description: DropIn is a drop-in configuration for a systemd
+                                    unit.
+                                  properties:
+                                    content:
+                                      description: Content is the content of the drop-in.
+                                      type: string
+                                    name:
+                                      description: Name is the name of the drop-in.
+                                      type: string
+                                  required:
+                                  - content
+                                  - name
+                                  type: object
+                                type: array
+                              enable:
+                                description: Enable describes whether the unit is enabled
+                                  or not.
+                                type: boolean
+                              mask:
+                                description: Mask describes whether the unit is masked or
+                                  not.
+                                type: boolean
+                              name:
+                                description: Name is the name of a unit.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                      type: object
+                    osName:
+                      description: 'OSType represent the operating system name e.g: ubuntu'
+                      enum:
+                      - flatcar
+                      - rhel
+                      - centos
+                      - ubuntu
+                      - amzn2
+                      - rockylinux
+                      type: string
+                    osVersion:
+                      description: OSVersion the version of the operating system
+                      type: string
+                    provisioningConfig:
+                      description: ProvisioningConfig is used for provisioning the worker
+                        node.
+                      properties:
+                        files:
+                          description: Files is a list of files that should exist in the
+                            instance
+                          items:
+                            description: File is a file that should get written to the host's
+                              file system. The content can either be inlined or referenced
+                              from a secret in the same namespace.
+                            properties:
+                              content:
+                                description: Content describe the file's content.
+                                properties:
+                                  inline:
+                                    description: Inline is a struct that contains information
+                                      about the inlined data.
+                                    properties:
+                                      data:
+                                        description: Data is the file's data.
+                                        type: string
+                                      encoding:
+                                        description: Encoding is the file's encoding (e.g.
+                                          base64).
+                                        type: string
+                                    required:
+                                    - data
+                                    type: object
+                                type: object
+                              path:
+                                description: Path is the path of the file system where the
+                                  file should get written to.
+                                type: string
+                              permissions:
+                                default: 644
+                                description: Permissions describes with which permissions
+                                  the file should get written to the file system. Should
+                                  be in decimal base and without any leading zeroes.
+                                format: int32
+                                type: integer
+                            required:
+                            - content
+                            - path
+                            type: object
+                          type: array
+                        modules:
+                          description: CloudInitModules field contains the optional cloud-init
+                            modules which are supported by OSM
+                          properties:
+                            bootcmd:
+                              description: BootCMD module runs arbitrary commands very early
+                                in the boot process, only slightly after a boothook would
+                                run.
+                              items:
+                                type: string
+                              type: array
+                            rh_subscription:
+                              additionalProperties:
+                                type: string
+                              description: RHSubscription registers a Red Hat system either
+                                by username and password or activation and org
+                              type: object
+                            runcmd:
+                              description: RunCMD Run arbitrary commands at a rc.local like
+                                level with output to the console.
+                              items:
+                                type: string
+                              type: array
+                            yum_repo_dir:
+                              description: 'YumRepoDir the repo parts directory where individual
+                                yum repo config files will be written. Default: /etc/yum.repos.d'
+                              type: string
+                            yum_repos:
+                              additionalProperties:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              description: YumRepos adds yum repository configuration to
+                                the system.
+                              type: object
+                          type: object
+                        supportedContainerRuntimes:
+                          description: SupportedContainerRuntimes represents the container
+                            runtimes supported by the given OS
+                          items:
+                            description: ContainerRuntimeSpec aggregates information about
+                              a specific container runtime
+                            properties:
+                              files:
+                                description: Files to add to the main files list when the
+                                  containerRuntime is selected
+                                items:
+                                  description: File is a file that should get written to
+                                    the host's file system. The content can either be inlined
+                                    or referenced from a secret in the same namespace.
+                                  properties:
+                                    content:
+                                      description: Content describe the file's content.
+                                      properties:
+                                        inline:
+                                          description: Inline is a struct that contains
+                                            information about the inlined data.
+                                          properties:
+                                            data:
+                                              description: Data is the file's data.
+                                              type: string
+                                            encoding:
+                                              description: Encoding is the file's encoding
+                                                (e.g. base64).
+                                              type: string
+                                          required:
+                                          - data
+                                          type: object
+                                      type: object
+                                    path:
+                                      description: Path is the path of the file system where
+                                        the file should get written to.
+                                      type: string
+                                    permissions:
+                                      default: 644
+                                      description: Permissions describes with which permissions
+                                        the file should get written to the file system.
+                                        Should be in decimal base and without any leading
+                                        zeroes.
+                                      format: int32
+                                      type: integer
+                                  required:
+                                  - content
+                                  - path
+                                  type: object
+                                type: array
+                              name:
+                                description: Name of the Container runtime
+                                enum:
+                                - docker
+                                - containerd
+                                type: string
+                              templates:
+                                additionalProperties:
+                                  type: string
+                                description: Templates to add to the available templates
+                                  when the containerRuntime is selected
+                                type: object
+                            required:
+                            - files
+                            - name
+                            type: object
+                          type: array
+                        templates:
+                          additionalProperties:
+                            type: string
+                          description: Templates to be included in units and files
+                          type: object
+                        units:
+                          description: Units a list of the systemd unit files which will
+                            run on the instance
+                          items:
+                            description: Unit is a systemd unit used for the operating system
+                              config.
+                            properties:
+                              content:
+                                description: Content is the unit's content.
+                                type: string
+                              dropIns:
+                                description: DropIns is a list of drop-ins for this unit.
+                                items:
+                                  description: DropIn is a drop-in configuration for a systemd
+                                    unit.
+                                  properties:
+                                    content:
+                                      description: Content is the content of the drop-in.
+                                      type: string
+                                    name:
+                                      description: Name is the name of the drop-in.
+                                      type: string
+                                  required:
+                                  - content
+                                  - name
+                                  type: object
+                                type: array
+                              enable:
+                                description: Enable describes whether the unit is enabled
+                                  or not.
+                                type: boolean
+                              mask:
+                                description: Mask describes whether the unit is masked or
+                                  not.
+                                type: boolean
+                              name:
+                                description: Name is the name of a unit.
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                      type: object
+                    provisioningUtility:
+                      default: cloud-init
+                      description: ProvisioningUtility used for configuring the worker node.
+                        Defaults to cloud-init.
+                      enum:
+                      - cloud-init
+                      - ignition
+                      type: string
+                    supportedCloudProviders:
+                      description: SupportedCloudProviders represent the cloud providers
+                        that support the given operating system version
+                      items:
+                        description: CloudProviderSpec contains the os/image reference for
+                          a specific supported cloud provider
+                        properties:
+                          name:
+                            description: Name represents the name of the supported cloud
+                              provider
+                            enum:
+                            - aws
+                            - azure
+                            - digitalocean
+                            - gce
+                            - hetzner
+                            - kubevirt
+                            - linode
+                            - nutanix
+                            - openstack
+                            - equinixmetal
+                            - vsphere
+                            - fake
+                            - alibaba
+                            - anexia
+                            - scaleway
+                            - baremetal
+                            - external
+                            - vmware-cloud-director
+                            - opennebula
+                            type: string
+                          spec:
+                            description: Spec represents the os/image reference in the supported
+                              cloud provider
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                        required:
+                        - name
+                        type: object
+                      type: array
+                    version:
+                      description: Version is the version of the operating System Profile
+                      pattern: v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+                      type: string
+                  required:
+                  - bootstrapConfig
+                  - osName
+                  - osVersion
+                  - provisioningConfig
+                  - supportedCloudProviders
+                  - version
+                  type: object
+              required:
+              - spec
+              type: object
+          served: true
+          storage: true
+    
+    rbac.yaml: |
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: system:operating-system-manager
+      rules:
+        - apiGroups:
+            - operatingsystemmanager.k8c.io
+          resources:
+            - operatingsystemprofiles
+            - operatingsystemconfigs
+          verbs:
+            - "*"
+        - apiGroups:
+            - cluster.k8s.io
+          resources:
+            - machinedeployments
+          verbs:
+            - get
+            - list
+            - watch
+            - patch
+            - update
+        # Secrets and configmaps are needed for the bootstrap token creation and when a ref is used for a
+        # value in the machineSpec
+        - apiGroups:
+            - ""
+          resources:
+            - secrets
+            - configmaps
+          verbs:
+            - list
+            - get
+            - watch
+        - apiGroups:
+            - apps
+          resources:
+            - deployments
+          verbs:
+            - get
+            - list
+            - watch
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: system:operating-system-manager
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: system:operating-system-manager
+      subjects:
+        - kind: ServiceAccount
+          name: operating-system-manager
+          namespace: kube-system
+---
+# Source: vcluster/templates/components/operating-system-manager/webhooks.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-operating-system-manager-webhooks
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: operating-system-manager
+    app.kubernetes.io/component: operating-system-manager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+stringData:
+  
+    mutatingwebhookconfiguration.yaml: |
+      ---
+      apiVersion: admissionregistration.k8s.io/v1
+      kind: MutatingWebhookConfiguration
+      metadata:
+        name: operating-system-manager-webhook
+        labels:
+          helm.sh/chart: vcluster-0.5.7
+          app.kubernetes.io/version: "0.1.0"
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/part-of: operating-system-manager
+          app.kubernetes.io/component: operating-system-manager
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: my-release
+        #annotations:
+        #  cert-manager.io/inject-ca-from: kube-system/operating-system-manager-serving-cert
+      webhooks:
+        - name: machinedeployments.cluster.k8s.io
+          failurePolicy: Fail
+          sideEffects: None
+          admissionReviewVersions: ["v1", "v1beta1"]
+          rules:
+            - apiGroups:
+                - "cluster.k8s.io"
+              apiVersions:
+                - v1alpha1
+              operations:
+                - CREATE
+                - UPDATE
+              resources:
+                - machinedeployments
+          clientConfig:
+            url: undefined/mutate-v1alpha1-machinedeployment
+            caBundle: Cg==
+      
+    
+    validatingwebhookconfiguration.yaml: |
+      ---
+      apiVersion: admissionregistration.k8s.io/v1
+      kind: ValidatingWebhookConfiguration
+      metadata:
+        name: operating-system-manager-webhook
+        labels:
+          helm.sh/chart: vcluster-0.5.7
+          app.kubernetes.io/version: "0.1.0"
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/part-of: operating-system-manager
+          app.kubernetes.io/component: operating-system-manager
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: my-release
+        #annotation:
+        #  cert-manager.io/inject-ca-from: vcluster-0.5.7.tgz/my-release-operating-system-manager-admission
+      webhooks:
+        - name: operatingsystemprofiles.operatingsystemmanager.k8c.io
+          failurePolicy: Fail
+          sideEffects: None
+          admissionReviewVersions: ["v1", "v1beta1"]
+          rules:
+            - apiGroups:
+                - "operatingsystemmanager.k8c.io"
+              apiVersions:
+                - v1alpha1
+              operations:
+                - CREATE
+                - UPDATE
+              resources:
+                - operatingsystemprofiles
+          clientConfig:
+            url: undefined/operatingsystemprofile
+            caBundle: Cg==
+        - name: operatingsystemconfigs.operatingsystemmanager.k8c.io
+          failurePolicy: Fail
+          sideEffects: None
+          admissionReviewVersions: ["v1", "v1beta1"]
+          rules:
+            - apiGroups:
+                - "operatingsystemmanager.k8c.io"
+              apiVersions:
+                - v1alpha1
+              operations:
+                - CREATE
+                - UPDATE
+              resources:
+                - operatingsystemconfigs
+          clientConfig:
+            url: undefined/operatingsystemconfig
+            caBundle: Cg==
+---
+# Source: vcluster/templates/lifecycle/extra-manifests.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-vcluster-manifests
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+type: Opaque
+stringData:
+---
+# Source: vcluster/templates/components/kubernetes/apiserver/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-apiserver-config
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: apiserver
+data:
+  egress-selector-configuration.yaml: |
+    apiVersion: apiserver.k8s.io/v1beta1
+    kind: EgressSelectorConfiguration
+    egressSelections:
+    - name: cluster
+      connection:
+        proxyProtocol: GRPC
+        transport:
+          uds:
+            udsName: /run/konnectivity-server/konnectivity-server.socket
+    - name: master
+      connection:
+        proxyProtocol: Direct
+    - name: etcd
+      connection:
+        proxyProtocol: Direct
+---
+# Source: vcluster/templates/components/kubernetes/controller-manager/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-controller-manager-conf
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: controller-manager
+data:
+  controller-manager.conf: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority: /pki/controller-manager-client/ca.crt
+        server: https://my-release-kubernetes-apiserver.vcluster-0.5.7.tgz:6443
+      name: default-cluster
+    contexts:
+    - context:
+        cluster: default-cluster
+        namespace: default
+        user: default-auth
+      name: default-context
+    current-context: default-context
+    kind: Config
+    preferences: {}
+    users:
+    - name: default-auth
+      user:
+        client-certificate: /pki/controller-manager-client/tls.crt
+        client-key: /pki/controller-manager-client/tls.key
+---
+# Source: vcluster/templates/components/kubernetes/coredns-manifests.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-coredns-manifests
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubeadm
+  namespace: vcluster-0.5.7.tgz
+data:
+  coredns.yaml: |
+    # Source: https://github.com/kubernetes/kubernetes/blob/master/cluster/addons/dns/coredns/coredns.yaml.base
+    ---
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: coredns
+      namespace: kube-system
+      labels:
+          kubernetes.io/cluster-service: "true"
+          addonmanager.kubernetes.io/mode: Reconcile
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      labels:
+        kubernetes.io/bootstrapping: rbac-defaults
+        addonmanager.kubernetes.io/mode: Reconcile
+      name: system:coredns
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - endpoints
+      - services
+      - pods
+      - namespaces
+      verbs:
+      - list
+      - watch
+    - apiGroups:
+      - ""
+      resources:
+      - nodes
+      verbs:
+      - get
+    - apiGroups:
+      - discovery.k8s.io
+      resources:
+      - endpointslices
+      verbs:
+      - list
+      - watch
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      annotations:
+        rbac.authorization.kubernetes.io/autoupdate: "true"
+      labels:
+        kubernetes.io/bootstrapping: rbac-defaults
+        addonmanager.kubernetes.io/mode: EnsureExists
+      name: system:coredns
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: system:coredns
+    subjects:
+    - kind: ServiceAccount
+      name: coredns
+      namespace: kube-system
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: coredns
+      namespace: kube-system
+    data:
+      Corefile: |
+        .:53 {
+            errors
+            health {
+                lameduck 5s
+            }
+            ready
+            kubernetes cluster.local in-addr.arpa ip6.arpa {
+                pods insecure
+                fallthrough in-addr.arpa ip6.arpa
+                ttl 30
+            }
+            prometheus :9153
+            forward . /etc/resolv.conf {
+                max_concurrent 1000
+            }
+            cache 30
+            loop
+            reload
+            loadbalance
+        }
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: coredns
+      namespace: kube-system
+      labels:
+        k8s-app: kube-dns
+        kubernetes.io/cluster-service: "true"
+        addonmanager.kubernetes.io/mode: Reconcile
+        kubernetes.io/name: "CoreDNS"
+    spec:
+      replicas: 2
+      strategy: 
+        rollingUpdate:
+          maxUnavailable: 1
+        type: RollingUpdate
+      selector:
+        matchLabels:
+          k8s-app: kube-dns
+      template:
+        metadata:
+          labels:
+            k8s-app: kube-dns
+        spec:
+          securityContext:
+            runAsNonRoot: false
+            seccompProfile:
+              type: RuntimeDefault
+          priorityClassName: system-cluster-critical
+          serviceAccountName: coredns
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+              - podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                    - key: k8s-app
+                      operator: In
+                      values:
+                      - kube-dns
+                  topologyKey: kubernetes.io/hostname
+                weight: 100
+          tolerations:
+            - key: CriticalAddonsOnly
+              operator: Exists
+          nodeSelector:
+            kubernetes.io/os: linux
+          imagePullSecrets:
+          containers:
+          - name: coredns
+            image: %!s(<nil>)/coredns/coredns:1.10.0
+            imagePullPolicy: IfNotPresent
+            resources:
+              limits:
+                memory: 170Mi
+              requests:
+                cpu: 100m
+                memory: 70Mi
+            args: [ "-conf", "/etc/coredns/Corefile" ]
+            env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TZ
+              value: "Europe/Zurich"
+            volumeMounts:
+            - name: config-volume
+              mountPath: /etc/coredns
+              readOnly: true
+            ports:
+            - containerPort: 53
+              name: dns
+              protocol: UDP
+            - containerPort: 53
+              name: dns-tcp
+              protocol: TCP
+            - containerPort: 9153
+              name: metrics
+              protocol: TCP
+            livenessProbe:
+              httpGet:
+                path: /health
+                port: 8080
+                scheme: HTTP
+              initialDelaySeconds: 60
+              timeoutSeconds: 5
+              successThreshold: 1
+              failureThreshold: 5
+            readinessProbe:
+              httpGet:
+                path: /ready
+                port: 8181
+                scheme: HTTP
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                add:
+                - NET_BIND_SERVICE
+                drop:
+                - all
+              readOnlyRootFilesystem: true
+          dnsPolicy: Default
+          volumes:
+            - name: config-volume
+              configMap:
+                name: coredns
+                items:
+                - key: Corefile
+                  path: Corefile
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: kube-dns
+      namespace: kube-system
+      annotations:
+        prometheus.io/port: "9153"
+        prometheus.io/scrape: "true"
+      labels:
+        k8s-app: kube-dns
+        kubernetes.io/cluster-service: "true"
+        addonmanager.kubernetes.io/mode: Reconcile
+        kubernetes.io/name: "CoreDNS"
+    spec:
+      selector:
+        k8s-app: kube-dns
+      clusterIP: 10.2.0.10
+      ports:
+      - name: dns
+        port: 53
+        protocol: UDP
+      - name: dns-tcp
+        port: 53
+        protocol: TCP
+      - name: metrics
+        port: 9153
+        protocol: TCP
+---
+# Source: vcluster/templates/components/kubernetes/konnectivity/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-konnectivity-server-conf
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: konnectivity
+data:
+  konnectivity-server.conf: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority: /pki/konnectivity-server-client/ca.crt
+        server: https://my-release-kubernetes-apiserver.vcluster-0.5.7.tgz:6443
+      name: default-cluster
+    contexts:
+    - context:
+        cluster: default-cluster
+        namespace: default
+        user: default-auth
+      name: default-context
+    current-context: default-context
+    kind: Config
+    preferences: {}
+    users:
+    - name: default-auth
+      user:
+        client-certificate: /pki/konnectivity-server-client/tls.crt
+        client-key: /pki/konnectivity-server-client/tls.key
+---
+# Source: vcluster/templates/components/kubernetes/konnectivity/manifests.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-konnectivity-manifests
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: konnectivity
+data:
+  konnectivity-server.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: system:konnectivity-server
+      labels:
+        component: "konnectivity-server"
+        kubernetes.io/cluster-service: "true"
+        addonmanager.kubernetes.io/mode: Reconcile
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: system:auth-delegator
+    subjects:
+      - apiGroup: rbac.authorization.k8s.io
+        kind: User
+        name: system:konnectivity-server
+---
+# Source: vcluster/templates/components/kubernetes/kubeadm-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-kubeadm-config
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubeadm
+  namespace: vcluster-0.5.7.tgz
+data:
+  kubeadmcfg.yaml: |+
+    apiVersion: kubeadm.k8s.io/v1beta3
+    kind: ClusterConfiguration
+    clusterName: my-release
+    controlPlaneEndpoint: my-release-kubernetes-apiserver:6443
+    networking:
+      dnsDomain: cluster.local
+      podSubnet: 10.3.0.0/16
+      serviceSubnet: 10.2.0.0/16
+---
+# Source: vcluster/templates/components/kubernetes/kubeconfig.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-kubeconfig
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+data:
+  admin.conf: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority: /pki/admin-client/ca.crt
+        server: https://my-release-kubernetes-apiserver.vcluster-0.5.7.tgz:6443
+      name: default-cluster
+    contexts:
+    - context:
+        cluster: default-cluster
+        namespace: default
+        user: default-auth
+      name: default-context
+    current-context: default-context
+    kind: Config
+    preferences: {}
+    users:
+    - name: default-auth
+      user:
+        client-certificate: /pki/admin-client/tls.crt
+        client-key: /pki/admin-client/tls.key
+---
+# Source: vcluster/templates/components/kubernetes/scheduler/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kubernetes-scheduler-conf
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: scheduler
+data:
+  kubeconfig.conf: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority: /pki/scheduler-client/ca.crt
+        server: https://my-release-kubernetes-apiserver.vcluster-0.5.7.tgz:6443
+      name: default-cluster
+    contexts:
+    - context:
+        cluster: default-cluster
+        namespace: default
+        user: default-auth
+      name: default-context
+    current-context: default-context
+    kind: Config
+    preferences: {}
+    users:
+    - name: default-auth
+      user:
+        client-certificate: /pki/scheduler-client/tls.crt
+        client-key: /pki/scheduler-client/tls.key
+---
+# Source: vcluster/templates/lifecycle/scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-vcluster-lifecycle-scripts
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+data:
+  configure-vcluster.sh: |-
+    #!/bin/bash
+    ENDPOINT=$(awk -F'[ "]+' '$1 == "controlPlaneEndpoint:" {print $2}' /config/kubeadmcfg.yaml)
+    # Decrypt Cert Data to Base64
+    CA=$(base64 /pki/admin-client/ca.crt | tr -d '\n')
+    C_CERT=$(base64 /pki/admin-client/tls.crt | tr -d '\n')
+    C_KEY=$(base64 /pki/admin-client/tls.key | tr -d '\n')
+    
+    # ------------------------------------------------------------------------------
+    # Functions
+    # ------------------------------------------------------------------------------
+    # Perform Client Dry-Run
+    k8s::dry-run() {
+      object=${1}
+      if kubectl create --dry-run=client -f - <<< "$object" >/dev/null; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    
+    # Always Updates Object
+    k8s::replace_or_create() {
+      object=${1}
+      if k8s::dry-run "${object}"; then
+        if ! kubectl get -f - <<< "$object" >/dev/null 2>/dev/null; then
+          if kubectl create -f - <<< "$object" >/dev/null; then
+            echo "🦄 Created Object"
+            return 0
+          else
+            return 1
+          fi
+        else
+          if kubectl replace --force -f - <<< "$object" >/dev/null; then
+            echo "🦄 Updated Object"
+          else
+            return 1
+          fi
+          return 0
+        fi
+      else
+        return 1
+      fi
+    }
+    
+    ## Create an Object if it does not exist
+    k8s::create_if_not_present() {
+      object=${1}
+      if k8s::dry-run "${object}"; then
+        if kubectl create --dry-run=server -f - <<< "$object" >/dev/null 2>/dev/null; then
+          kubectl create -f - <<< "$object" >/dev/null
+          echo "🦄 Created Object"
+          return 0
+        else
+          echo "🦄 Object already present"
+          return 0
+        fi
+      else
+        return 1
+      fi
+    }
+    
+    ## Set Kubeconfig (Use Mounted)
+    kcfg::toggle() {
+      export KUBECONFIG="/etc/kubernetes/admin.conf"
+    }
+    
+    ## Unset Kubeconfig (Use Serviceaccount)
+    kcfg::untoggle() {
+      unset KUBECONFIG
+    }
+    
+    # ------------------------------------------------------------------------------
+    # Cluster configuration
+    # ------------------------------------------------------------------------------
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    
+    # upload configuration
+    # TODO: https://github.com/kvaps/kubernetes-in-kubernetes/issues/6
+    kubeadm init phase upload-config kubeadm --config /config/kubeadmcfg.yaml
+    
+    # upload configuration
+    # TODO: https://github.com/kvaps/kubernetes-in-kubernetes/issues/5
+    kubeadm init phase upload-config kubelet --config /config/kubeadmcfg.yaml -v1 2>&1 |
+      while read line; do echo "$line" | grep 'Preserving the CRISocket information for the control-plane node' && killall kubeadm || echo "$line"; done
+    
+    # setup bootstrap-tokens
+    # TODO: https://github.com/kvaps/kubernetes-in-kubernetes/issues/7
+    # TODO: https://github.com/kubernetes/kubernetes/issues/98881
+    flatconfig=$(mktemp)
+    kubectl config view --flatten > "$flatconfig"
+    kubeadm init phase bootstrap-token --config /config/kubeadmcfg.yaml --skip-token-print --kubeconfig="$flatconfig"
+    rm -f "$flatconfig"
+    
+    # correct apiserver address for the external clients
+    kubectl apply -n kube-public -f - <<EOT
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: cluster-info
+    data:
+      kubeconfig: |
+        apiVersion: v1
+        clusters:
+        - cluster:
+            certificate-authority-data: $(base64 /pki/admin-client/ca.crt | tr -d '\n')
+            server: https://${ENDPOINT}
+          name: ""
+        contexts: null
+        current-context: ""
+        kind: Config
+        preferences: {}
+        users: null
+    EOT
+    
+    kubectl delete secret my-release-regcred -n kube-system 2>/dev/null || true
+    
+    # install konnectivity server
+    kubectl apply -f /manifests/konnectivity-server.yaml
+    
+    # uninstall konnectivity agent
+    kubectl delete sa/ 2>/dev/null || true
+    
+    # install coredns addon
+    kubectl apply -f /manifests/coredns.yaml
+    
+    # install kube-proxy addon
+    # TODO: https://github.com/kvaps/kubernetes-in-kubernetes/issues/4
+    kubeadm init phase addon kube-proxy --config /config/kubeadmcfg.yaml
+    if kubectl get ds cilium -n kube-system &> /dev/null; then
+    	echo "Cilium already installed"
+    else
+    # install cilium
+    helm repo add cilium https://helm.cilium.io/
+    helm upgrade --install cilium cilium/cilium --version 1.9.18  \
+        --namespace kube-system
+    fi
+    
+    # ------------------------------------------------------------------------------
+    # Machine Controller
+    # ------------------------------------------------------------------------------
+    
+    if ! [ `find /tmp/machine/manifests/ -prune -empty 2>/dev/null` ]; then
+      # Apply Machine Controller Manifests
+      kubectl apply -f /tmp/machine/manifests/
+    fi
+    
+    # Remove Webhooks (Be explicit, since content may have changed)
+    kubectl delete mutatingwebhookconfiguration machine-controller-mutating-webhook 2>/dev/null || true
+    
+    # ------------------------------------------------------------------------------
+    # Operating System Manager
+    # ------------------------------------------------------------------------------
+    
+    if ! [ `find /tmp/osm/manifests/ -prune -empty 2>/dev/null` ]; then
+      kubectl delete -f /tmp/osm/manifests/ 2>/dev/null || true
+    fi
+    
+    # Remove Webhooks
+    kubectl delete validatingwebhookconfiguration operating-system-manager-webhook 2>/dev/null || true
+    kubectl delete mutatingwebhookconfiguration operating-system-manager-webhook 2>/dev/null || true
+    
+    # ------------------------------------------------------------------------------
+    # Additional Manifests
+    # ------------------------------------------------------------------------------
+    
+  configure-current.sh: |-
+    #!/bin/bash
+    
+    # ------------------------------------------------------------------------------
+    # Functions
+    # ------------------------------------------------------------------------------
+    # Perform Client Dry-Run
+    k8s::dry-run() {
+      object=${1}
+      if kubectl create --dry-run=client -f - <<< "$object" >/dev/null; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    
+    # Always Updates Object
+    k8s::replace_or_create() {
+      object=${1}
+      if k8s::dry-run "${object}"; then
+        if ! kubectl get -f - <<< "$object" >/dev/null 2>/dev/null; then
+          if kubectl create -f - <<< "$object" >/dev/null; then
+            echo "🦄 Created Object"
+            return 0
+          else
+            return 1
+          fi
+        else
+          if kubectl replace --force -f - <<< "$object" >/dev/null; then
+            echo "🦄 Updated Object"
+          else
+            return 1
+          fi
+          return 0
+        fi
+      else
+        return 1
+      fi
+    }
+    
+    ## Create an Object if it does not exist
+    k8s::create_if_not_present() {
+      object=${1}
+      if k8s::dry-run "${object}"; then
+        if kubectl create --dry-run=server -f - <<< "$object" >/dev/null 2>/dev/null; then
+          kubectl create -f - <<< "$object" >/dev/null
+          echo "🦄 Created Object"
+          return 0
+        else
+          echo "🦄 Object already present"
+          return 0
+        fi
+      else
+        return 1
+      fi
+    }
+    
+    ## Set Kubeconfig (Use Mounted)
+    kcfg::toggle() {
+      export KUBECONFIG="/etc/kubernetes/admin.conf"
+    }
+    
+    ## Unset Kubeconfig (Use Serviceaccount)
+    kcfg::untoggle() {
+      unset KUBECONFIG
+    }
+    
+    # Decrypt Cert Data to Base64
+    CA=$(base64 /pki/admin-client/ca.crt | tr -d '\n')
+    C_CERT=$(base64 /pki/admin-client/tls.crt | tr -d '\n')
+    C_KEY=$(base64 /pki/admin-client/tls.key | tr -d '\n')
+    # Iterate over all kubeconfigs
+---
+# Source: vcluster/templates/lifecycle/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-vcluster
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+  namespace: vcluster-0.5.7.tgz
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - watch
+  - list
+  - create
+  - update
+  - delete
+---
+# Source: vcluster/templates/lifecycle/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-vcluster
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+  namespace: argocd
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - watch
+  - list
+  - create
+  - update
+  - delete
+---
+# Source: vcluster/templates/lifecycle/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+# This role binding allows "jane" to read pods in the "default" namespace.
+# You need to already have a Role named "pod-reader" in that namespace.
+kind: RoleBinding
+metadata:
+  name: my-release-vcluster-installer
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: vcluster-0.5.7.tgz
+roleRef:
+  # "roleRef" specifies the binding to a Role / ClusterRole
+  kind: ClusterRole #this must be Role or ClusterRole
+  name: cluster-admin # this must match the name of the Role or ClusterRole you wish to bind to
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: vcluster/templates/lifecycle/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-vcluster
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+  namespace: vcluster-0.5.7.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-vcluster
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: vcluster-0.5.7.tgz
+---
+# Source: vcluster/templates/lifecycle/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-vcluster
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release  
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-vcluster
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: vcluster-0.5.7.tgz
+---
+# Source: vcluster/templates/components/kubernetes/apiserver/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubernetes-apiserver
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: apiserver
+    
+  annotations:
+    
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6443
+    name: client
+  - port: 8132
+    name: agent
+  selector:
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: apiserver
+---
+# Source: vcluster/templates/components/kubernetes/controller-manager/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubernetes-controller-manager
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    
+    app.kubernetes.io/component: controller-manager
+  annotations:
+    
+spec:
+  type: ClusterIP
+  ports:
+  - port: 10257
+    name: client
+  selector:
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: controller-manager
+---
+# Source: vcluster/templates/components/kubernetes/etcd/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubernetes-etcd
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+    
+  annotations:
+    
+  namespace: vcluster-0.5.7.tgz
+spec:
+  type: ClusterIP
+  publishNotReadyAddresses: true
+  clusterIP: None
+  ports:
+  - port: 2379
+    name: client
+  - port: 2380
+    name: peer
+  - port: 2381
+    name: http-metrics
+  selector:
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+---
+# Source: vcluster/templates/components/kubernetes/scheduler/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubernetes-scheduler
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    
+    app.kubernetes.io/component: scheduler
+  annotations:
+    
+spec:
+  type: ClusterIP
+  ports:
+  - port: 10259
+    name: client
+  selector:
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: scheduler
+---
+# Source: vcluster/templates/components/machine-controller/metrics-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-machine-controller-metrics
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: machine-controller
+    app.kubernetes.io/component: machine-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    
+  annotations:
+    
+spec:
+  sessionAffinity: None
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/part-of: machine-controller
+    app.kubernetes.io/component: machine-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+---
+# Source: vcluster/templates/components/autoscaler/deployment.yaml
+# https://github.com/kubermatic/kubeone/blob/main/addons/cluster-autoscaler/cluster-autoscaler.yaml---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-autoscaler
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: autoscaler
+    app.kubernetes.io/component: autoscaler
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+  annotations:
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: autoscaler
+      app.kubernetes.io/component: autoscaler
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: my-release
+  template:
+    metadata:
+      annotations:
+        
+      labels:
+        
+        app.kubernetes.io/part-of: autoscaler
+        app.kubernetes.io/component: autoscaler
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: my-release
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: my-release-autoscaler
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets: 
+        
+      initContainers:
+        - name: connectivity
+          image: registry-group.mgmtbi.ch/sre/gitops/cluster_bootstrap:dev.clusterbuild
+          imagePullPolicy: Always
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TZ
+              value: "Europe/Zurich"
+            - name: KUBECONFIG
+              value: /etc/kubernetes/admin.conf
+          command:
+            - sh
+            - -c
+            - |
+                # Wait for cluster Connectivity
+                echo "Waiting for api-server endpoint ..."
+                until kubectl cluster-info >/dev/null 2>/dev/null; do
+                  sleep 3
+                done
+          volumeMounts:
+            - mountPath: /etc/kubernetes
+              name: kubeconfig
+              readOnly: true
+            - mountPath: /pki/admin-client
+              name: pki-admin-client
+      containers:
+        - name: manager
+          image: registry.k8s.io/autoscaling/cluster-autoscaler:v1.23.0
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: TZ
+            value: "Europe/Zurich"
+          
+          - name: CAPI_GROUP
+            value: cluster.k8s.io
+          command:
+            - ./cluster-autoscaler
+            - --cluster-name=my-release
+            - --namespace=kube-system
+            - --kubeconfig=/etc/kubernetes/admin.conf
+            - --cloud-provider=clusterapi
+            
+            - --leader-elect=true
+            - --logtostderr=true
+            - --scale-down-enabled=true
+            - --stderrthreshold=info
+            - --v=4
+          ports:
+            - name: metrics
+              containerPort: 8085
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health-check
+              port: 8085
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health-check
+              port: 8085
+            periodSeconds: 5
+          resources:
+            {}
+          volumeMounts:
+          - mountPath: /etc/kubernetes
+            name: kubeconfig
+            readOnly: true
+          - mountPath: /pki/admin-client
+            name: pki-admin-client
+      volumes:
+        - name: kubeconfig
+          configMap:
+            defaultMode: 420
+            name: my-release-kubernetes-kubeconfig
+        - name: pki-admin-client
+          secret:
+            defaultMode: 420
+            secretName: my-release-kubernetes-pki-admin-client
+---
+# Source: vcluster/templates/components/kubernetes/admin/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kubernetes-admin"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: kubernetes
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: my-release
+      app.kubernetes.io/component: admin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: kubernetes
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: my-release
+        
+        app.kubernetes.io/component: admin
+      annotations:
+        
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-admin
+      imagePullSecrets: 
+        
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 5
+      initContainers:
+        - name: connectivity
+          image: registry-group.mgmtbi.ch/sre/gitops/cluster_bootstrap:dev.clusterbuild
+          imagePullPolicy: Always
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TZ
+              value: "Europe/Zurich"
+            - name: KUBECONFIG
+              value: /etc/kubernetes/admin.conf
+          command:
+            - sh
+            - -c
+            - |
+                # Wait for cluster Connectivity
+                echo "Waiting for api-server endpoint ..."
+                until kubectl cluster-info >/dev/null 2>/dev/null; do
+                  sleep 3
+                done
+          volumeMounts:
+            - mountPath: /etc/kubernetes
+              name: kubeconfig
+              readOnly: true
+            - mountPath: /pki/admin-client
+              name: pki-admin-client
+      containers:
+      - command: [ 'sleep', 'infinity' ]
+        image: registry-group.mgmtbi.ch/sre/gitops/cluster_bootstrap:dev.clusterbuild
+        imagePullPolicy:  IfNotPresent
+        name: admin
+        readinessProbe:
+          exec:
+            command:
+            - kubectl
+            - auth
+            - can-i
+            - '*'
+            - '*'
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: TZ
+          value: "Europe/Zurich"
+        
+        - name: "XDG_DATA_HOME"
+          value: "/cache"
+        - name: "XDG_CONFIG_HOME"
+          value: "/cache"
+        - name: "XDG_CACHE_HOME"
+          value: "/cache"
+        - name: KUBECONFIG
+          value: "/etc/kubernetes/admin.conf"
+        volumeMounts:
+        - mountPath: /etc/kubernetes
+          name: kubeconfig
+          readOnly: true
+        - mountPath: /pki/admin-client
+          name: pki-admin-client
+        - mountPath: /cache
+          name: cache
+        - mountPath: /manifests
+          name: manifests
+        - mountPath: /config
+          name: config
+      volumes:
+      - name: kubeconfig
+        configMap:
+          defaultMode: 420
+          name: my-release-kubernetes-kubeconfig
+      - name: pki-admin-client
+        secret:
+          defaultMode: 420
+          secretName: my-release-kubernetes-pki-admin-client
+      - name: cache
+        emptyDir:
+          sizeLimit: 500Mi
+      - name: manifests
+        projected:
+          sources:
+          - configMap:
+              name: "my-release-kubernetes-konnectivity-manifests"
+      - name: config
+        configMap:
+          name: "my-release-kubernetes-kubeadm-config"
+---
+# Source: vcluster/templates/components/kubernetes/apiserver/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kubernetes-apiserver"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: apiserver
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 30%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: kubernetes
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: my-release
+      app.kubernetes.io/component: apiserver
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: vcluster-0.5.7
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: kubernetes
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: my-release
+        
+        app.kubernetes.io/component: apiserver
+      annotations:
+        checksum/config: c31381b1f1491ecf1a93e23ebba0d00da047ad9d7efe075264434df3338f2f72
+        
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-apiserver
+      imagePullSecrets: 
+        
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - kube-apiserver
+        - --allow-privileged=true
+        - --authorization-mode=Node,RBAC
+        - --bind-address=0.0.0.0
+        - --client-ca-file=/pki/apiserver-server/ca.crt
+        - --enable-admission-plugins=NodeRestriction
+        - --enable-bootstrap-token-auth=true
+        - --etcd-cafile=/pki/apiserver-etcd-client/ca.crt
+        - --etcd-certfile=/pki/apiserver-etcd-client/tls.crt
+        - --etcd-keyfile=/pki/apiserver-etcd-client/tls.key
+        - --etcd-servers=https://my-release-kubernetes-etcd-0.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2379,https://my-release-kubernetes-etcd-1.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2379,https://my-release-kubernetes-etcd-2.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2379
+        - --kubelet-client-certificate=/pki/apiserver-kubelet-client/tls.crt
+        - --kubelet-client-key=/pki/apiserver-kubelet-client/tls.key
+        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+        - --proxy-client-cert-file=/pki/front-proxy-client/tls.crt
+        - --proxy-client-key-file=/pki/front-proxy-client/tls.key
+        - --requestheader-allowed-names=my-release-kubernetes-front-proxy-client
+        - --requestheader-client-ca-file=/pki/front-proxy-client/ca.crt
+        - --requestheader-extra-headers-prefix=X-Remote-Extra-
+        - --requestheader-group-headers=X-Remote-Group
+        - --requestheader-username-headers=X-Remote-User
+        - --secure-port=6443
+        - --service-account-key-file=/pki/sa/tls.crt
+        - --service-cluster-ip-range=10.2.0.0/16
+        - --tls-cert-file=/pki/apiserver-server/tls.crt
+        - --tls-private-key-file=/pki/apiserver-server/tls.key
+        - --egress-selector-config-file=/etc/kubernetes/egress-selector-configuration.yaml
+        - --service-account-issuer=https://kubernetes.default.svc.cluster.local
+        - --service-account-signing-key-file=/pki/sa/tls.key
+        ports:
+        - containerPort: 6443
+          name: client
+        image: registry.k8s.io/kube-apiserver:v1.25.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /livez
+            port: 6443
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          timeoutSeconds: 15
+        name: kube-apiserver
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: TZ
+          value: "Europe/Zurich"
+        volumeMounts:
+        - mountPath: /etc/kubernetes
+          name: apiserver-config
+        - mountPath: /pki/front-proxy-client
+          name: pki-front-proxy-client
+        - mountPath: /pki/apiserver-server
+          name: pki-apiserver-server
+        - mountPath: /pki/apiserver-etcd-client
+          name: pki-apiserver-etcd-client
+        - mountPath: /pki/apiserver-kubelet-client
+          name: pki-apiserver-kubelet-client
+        - mountPath: /pki/sa
+          name: pki-sa
+        - mountPath: /run/konnectivity-server
+          name: konnectivity-uds
+        
+      - command:
+        - /proxy-server
+        - --logtostderr=true
+        - --server-count=2
+        - --server-id=$(POD_NAME)
+        - --cluster-cert=/pki/apiserver/tls.crt
+        - --cluster-key=/pki/apiserver/tls.key
+        - --mode=grpc
+        - --uds-name=/run/konnectivity-server/konnectivity-server.socket
+        - --delete-existing-uds-file=true
+        - --server-port=0
+        - --agent-port=8132
+        - --admin-port=8133
+        - --health-port=8134
+        - --agent-namespace=kube-system
+        - --agent-service-account=konnectivity-agent
+        - --kubeconfig=/etc/kubernetes/konnectivity-server.conf
+        - --authentication-audience=system:konnectivity-server
+        ports:
+        - containerPort: 8132
+          name: agent
+        - containerPort: 8133
+          name: admin
+        - containerPort: 8134
+          name: health
+        image: registry.k8s.io/kas-network-proxy/proxy-server:v0.0.37
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /healthz
+            port: 8134
+            scheme: HTTP
+          initialDelaySeconds: 30
+          timeoutSeconds: 60
+        name: konnectivity-server
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+          runAsGroup: 65534
+          runAsUser: 65534
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: TZ
+          value: "Europe/Zurich"
+        volumeMounts:
+        - mountPath: /pki/apiserver
+          name: pki-apiserver
+        - mountPath: /run/konnectivity-server
+          name: konnectivity-uds
+        - mountPath: /pki/konnectivity-server-client
+          name: pki-konnectivity-server-client
+        - mountPath: /etc/kubernetes/
+          name: kubeconfig
+          readOnly: true
+      volumes:
+      - configMap:
+          name: "my-release-kubernetes-apiserver-config"
+        name: apiserver-config
+      - secret:
+          secretName: "my-release-kubernetes-pki-front-proxy-client"
+        name: pki-front-proxy-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-apiserver-server"
+        name: pki-apiserver-server
+      - secret:
+          secretName: "my-release-kubernetes-pki-apiserver-etcd-client"
+        name: pki-apiserver-etcd-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-apiserver-kubelet-client"
+        name: pki-apiserver-kubelet-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-sa"
+        name: pki-sa
+      - secret:
+          secretName: "my-release-kubernetes-pki-konnectivity-client"
+        name: pki-konnectivity-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-apiserver-server"
+        name: pki-apiserver
+      - secret:
+          secretName: "my-release-kubernetes-pki-konnectivity-server-client"
+        name: pki-konnectivity-server-client
+      - emptyDir: {}
+        name: konnectivity-uds
+      - configMap:
+          name: "my-release-kubernetes-konnectivity-server-conf"
+        name: kubeconfig
+---
+# Source: vcluster/templates/components/kubernetes/controller-manager/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kubernetes-controller-manager"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    
+    app.kubernetes.io/component: controller-manager
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 50%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: kubernetes
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: my-release
+      app.kubernetes.io/component: controller-manager
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: vcluster-0.5.7
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: kubernetes
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: my-release
+        
+        app.kubernetes.io/component: controller-manager
+      annotations:
+        
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-controller-manager
+      imagePullSecrets: 
+        
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - kube-controller-manager
+        - --authentication-kubeconfig=/etc/kubernetes/controller-manager.conf
+        - --authorization-kubeconfig=/etc/kubernetes/controller-manager.conf
+        - --bind-address=0.0.0.0
+        - --client-ca-file=/pki/ca/tls.crt
+        - --cluster-name=kubernetes
+        - --cluster-signing-cert-file=/pki/ca/tls.crt
+        - --cluster-signing-key-file=/pki/ca/tls.key
+        - --controllers=*,bootstrapsigner,tokencleaner
+        - --kubeconfig=/etc/kubernetes/controller-manager.conf
+        - --leader-elect=true
+        - --requestheader-client-ca-file=/pki/front-proxy-client/tls.crt
+        - --root-ca-file=/pki/ca/tls.crt
+        - --secure-port=10257
+        - --service-account-private-key-file=/pki/sa/tls.key
+        - --use-service-account-credentials=true
+        - --tls-cert-file=/pki/controller-manager-server/tls.crt
+        - --tls-private-key-file=/pki/controller-manager-server/tls.key
+        - --service-cluster-ip-range=10.2.0.0/16
+        
+        - --allocate-node-cidrs=true
+        - --cluster-cidr=10.3.0.0/16
+        image: registry.k8s.io/kube-controller-manager:v1.25.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /healthz
+            port: 10257
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          timeoutSeconds: 15
+        name: kube-controller-manager
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: TZ
+          value: "Europe/Zurich"
+        volumeMounts:
+        - mountPath: /etc/kubernetes/
+          name: kubeconfig
+          readOnly: true
+        - mountPath: /pki/controller-manager-server
+          name: pki-controller-manager-server
+        - mountPath: /pki/controller-manager-client
+          name: pki-controller-manager-client
+        - mountPath: /pki/ca
+          name: pki-ca
+        - mountPath: /pki/front-proxy-client
+          name: pki-front-proxy-client
+        - mountPath: /pki/sa
+          name: pki-sa
+      volumes:
+      - configMap:
+          name: "my-release-kubernetes-controller-manager-conf"
+        name: kubeconfig
+      - secret:
+          secretName: "my-release-kubernetes-pki-controller-manager-server"
+        name: pki-controller-manager-server
+      - secret:
+          secretName: "my-release-kubernetes-pki-controller-manager-client"
+        name: pki-controller-manager-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-ca"
+        name: pki-ca
+      - secret:
+          secretName: "my-release-kubernetes-pki-front-proxy-client"
+        name: pki-front-proxy-client
+      - secret:
+          secretName: "my-release-kubernetes-pki-sa"
+        name: pki-sa
+---
+# Source: vcluster/templates/components/kubernetes/scheduler/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kubernetes-scheduler"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: scheduler
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 50%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: kubernetes
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: my-release
+      app.kubernetes.io/component: scheduler
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: vcluster-0.5.7
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: kubernetes
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: my-release
+        
+        app.kubernetes.io/component: scheduler
+      annotations:
+        
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-scheduler
+      imagePullSecrets: 
+        
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - kube-scheduler
+        - --authentication-kubeconfig=/etc/kubernetes/kubeconfig.conf
+        - --authorization-kubeconfig=/etc/kubernetes/kubeconfig.conf
+        - --bind-address=0.0.0.0
+        - --kubeconfig=/etc/kubernetes/kubeconfig.conf
+        - --leader-elect=true
+        - --secure-port=10259
+        - --tls-cert-file=/pki/scheduler-server/tls.crt
+        - --tls-private-key-file=/pki/scheduler-server/tls.key
+        image: registry.k8s.io/kube-scheduler:v1.25.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /healthz
+            port: 10259
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          timeoutSeconds: 15
+        name: kube-scheduler
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: TZ
+          value: "Europe/Zurich"
+        volumeMounts:
+        - mountPath: /etc/kubernetes/
+          name: scheduler-conf
+          readOnly: true
+        - mountPath: /pki/scheduler-server
+          name: pki-scheduler-server
+        - mountPath: /pki/scheduler-client
+          name: pki-scheduler-client
+      volumes:
+      - configMap:
+          name: "my-release-kubernetes-scheduler-conf"
+        name: scheduler-conf
+      - secret:
+          secretName: "my-release-kubernetes-pki-scheduler-server"
+        name: pki-scheduler-server
+      - secret:
+          secretName: "my-release-kubernetes-pki-scheduler-client"
+        name: pki-scheduler-client
+---
+# Source: vcluster/templates/components/machine-controller/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-machine-controller
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: machine-controller
+    app.kubernetes.io/component: machine-controller
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+  annotations:
+    checksum/manifests: "ed9fdd3a260903055add0662fce9dadd9efa5289d0a4735adcc5933ef4b6c073"
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 50%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: machine-controller
+      app.kubernetes.io/component: machine-controller
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: my-release
+  template:
+    metadata:
+      annotations:
+        
+        checksum/manifests: "ed9fdd3a260903055add0662fce9dadd9efa5289d0a4735adcc5933ef4b6c073"
+        checksum/webhooks: "b4d97c277d9b0d737783bd06ebfae19c90c774d624a35e6c563868ae37fcfad0"
+      labels:
+        app.kubernetes.io/part-of: machine-controller
+        app.kubernetes.io/component: machine-controller
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: my-release
+        
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: my-release-machine-controller
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets: 
+        
+      initContainers:
+        - name: connectivity
+          image: registry-group.mgmtbi.ch/sre/gitops/cluster_bootstrap:dev.clusterbuild
+          imagePullPolicy: Always
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TZ
+              value: "Europe/Zurich"
+            - name: KUBECONFIG
+              value: /etc/kubernetes/admin.conf
+          command:
+            - sh
+            - -c
+            - |
+                # Wait for cluster Connectivity
+                echo "Waiting for api-server endpoint ..."
+                until kubectl cluster-info >/dev/null 2>/dev/null; do
+                  sleep 3
+                done
+          volumeMounts:
+            - mountPath: /etc/kubernetes
+              name: kubeconfig
+              readOnly: true
+            - mountPath: /pki/admin-client
+              name: pki-admin-client
+        
+        - name: machine-manifests
+          image: registry-group.mgmtbi.ch/sre/gitops/cluster_bootstrap:dev.clusterbuild
+          env:
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: TZ
+                value: "Europe/Zurich"
+              - name: KUBECONFIG
+                value: /etc/kubernetes/admin.conf
+          command:
+            - /bin/sh
+            - -c
+            - |
+                
+                if ! [ `find /tmp/machine/manifests/ -prune -empty 2>/dev/null` ]; then
+                  # Apply Machine Controller Manifests
+                  kubectl apply -f /tmp/machine/manifests/
+                fi
+                
+                # Remove Webhooks (Be explicit, since content may have changed)
+                kubectl delete mutatingwebhookconfiguration machine-controller-mutating-webhook 2>/dev/null || true
+          volumeMounts:
+            - mountPath: /etc/kubernetes
+              name: kubeconfig
+              readOnly: true
+            - mountPath: /pki/admin-client
+              name: pki-admin-client
+            - name: machine-webhooks
+              mountPath: /tmp/machine/webhooks/
+              readOnly: true
+            - name: machine-manifests
+              mountPath: /tmp/machine/manifests/
+              readOnly: true
+            
+      containers:
+        - name: manager
+          image: quay.io/kubermatic/machine-controller:v1.57.0
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: TZ
+            value: "Europe/Zurich"
+          envFrom:
+          - secretRef:
+              name: my-release-machine-controller-providers
+          command:
+            - /usr/local/bin/machine-controller
+            - -kubeconfig=/etc/kubernetes/admin.conf
+            - -cluster-dns=10.2.0.10
+            - -override-bootstrap-kubelet-apiserver=https://:6443
+            - -metrics-address=0.0.0.0:8080
+            - -health-probe-address=0.0.0.0:8085
+            - -node-container-runtime=containerd
+            - -node-pause-image=/pause:3.5
+            
+            - --join-cluster-timeout=25m
+            - --node-csr-approver=true
+            - --worker-count=10
+          ports:
+            - name: healthz
+              containerPort: 8085
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8085
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8085
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {}
+          volumeMounts:
+          - mountPath: /etc/kubernetes
+            name: kubeconfig
+            readOnly: true
+          - mountPath: /pki/admin-client
+            name: pki-admin-client
+
+          
+      volumes:
+        - name: kubeconfig
+          configMap:
+            defaultMode: 420
+            name: my-release-kubernetes-kubeconfig
+        - name: pki-admin-client
+          secret:
+            defaultMode: 420
+            secretName: my-release-kubernetes-pki-admin-client
+        - name: machine-webhooks
+          secret:
+            defaultMode: 420
+            secretName: my-release-machine-controller-webhooks
+        - name: machine-manifests
+          secret:
+            defaultMode: 420
+            secretName: my-release-machine-controller-manifests
+---
+# Source: vcluster/templates/components/kubernetes/etcd/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-kubernetes-etcd
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+  namespace: vcluster-0.5.7.tgz
+spec:
+  replicas: 3
+  serviceName: my-release-kubernetes-etcd
+  podManagementPolicy: OrderedReady
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: kubernetes
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: my-release
+      app.kubernetes.io/component: etcd
+  template:
+    metadata:
+      name: my-release-kubernetes-etcd
+      labels:
+        helm.sh/chart: vcluster-0.5.7
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: kubernetes
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: my-release
+        
+        app.kubernetes.io/component: etcd
+      annotations:
+        
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app: my-release-kubernetes-etcd
+      imagePullSecrets:
+        
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - etcd
+        - --advertise-client-urls=https://$(POD_NAME).my-release-kubernetes-etcd:2379
+        - --cert-file=/pki/etcd/server/tls.crt
+        - --client-cert-auth=true
+        - --data-dir=/var/lib/etcd
+        - --initial-advertise-peer-urls=https://$(POD_NAME).my-release-kubernetes-etcd:2380
+        - --initial-cluster=my-release-kubernetes-etcd-0=https://my-release-kubernetes-etcd-0.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2380,my-release-kubernetes-etcd-1=https://my-release-kubernetes-etcd-1.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2380,my-release-kubernetes-etcd-2=https://my-release-kubernetes-etcd-2.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2380
+        - --initial-cluster-state=new
+        - --initial-cluster-token=my-release-kubernetes-etcd
+        - --key-file=/pki/etcd/server/tls.key
+        - --listen-client-urls=https://0.0.0.0:2379
+        - --listen-peer-urls=https://0.0.0.0:2380
+        - --listen-metrics-urls=http://0.0.0.0:2381
+        - --name=$(POD_NAME)
+        - --peer-cert-file=/pki/etcd/peer/tls.crt
+        - --peer-client-cert-auth=true
+        - --peer-key-file=/pki/etcd/peer/tls.key
+        - --peer-trusted-ca-file=/pki/etcd/ca/tls.crt
+        - --trusted-ca-file=/pki/etcd/ca/tls.crt
+        
+        - --snapshot-count=10000
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: TZ
+          value: "Europe/Zurich"
+        - name: ETCDCTL_API
+          value: "3"
+        - name: ETCDCTL_CACERT
+          value: /pki/etcd/peer/ca.crt
+        - name: ETCDCTL_CERT
+          value: /pki/etcd/peer/tls.crt
+        - name: ETCDCTL_KEY
+          value: /pki/etcd/peer/tls.key
+        - name: ETCDCTL_ENDPOINTS
+          value: https://my-release-kubernetes-etcd-0.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2379,https://my-release-kubernetes-etcd-1.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2379,https://my-release-kubernetes-etcd-2.my-release-kubernetes-etcd.vcluster-0.5.7.tgz:2379
+        image: registry.k8s.io/etcd:3.5.7-0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 2379
+          name: client
+        - containerPort: 2380
+          name: peer
+        - containerPort: 2381
+          name: http-metrics
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /health
+            port: 2381
+            scheme: HTTP
+          initialDelaySeconds: 15
+          timeoutSeconds: 15
+        name: etcd
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /pki/etcd/ca
+          name: pki-etcd-certs-ca
+        - mountPath: /pki/etcd/peer
+          name: pki-etcd-certs-peer
+        - mountPath: /pki/etcd/server
+          name: pki-etcd-certs-server
+        - mountPath: /var/lib/etcd
+          name: etcd-data
+      volumes:
+      - secret:
+          secretName: my-release-kubernetes-pki-etcd-ca
+        name: pki-etcd-certs-ca
+      - secret:
+          secretName: my-release-kubernetes-pki-etcd-peer
+        name: pki-etcd-certs-peer
+      - secret:
+          secretName: my-release-kubernetes-pki-etcd-server
+        name: pki-etcd-certs-server
+  volumeClaimTemplates:
+  - metadata:
+      name: etcd-data
+      labels:
+        app: my-release-kubernetes-etcd
+      annotations:
+        helm.sh/resource-policy: keep
+      finalizers:
+        - kubernetes.io/pvc-protection
+    spec:
+      accessModes:
+        - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: "1Gi"
+---
+# Source: vcluster/templates/components/kubernetes/apiserver/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-front-proxy-ca"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+spec:
+  commonName: "my-release-kubernetes-front-proxy-ca"
+  secretName: "my-release-kubernetes-pki-front-proxy-ca"
+  duration: 87600h # 3650d
+  renewBefore: 8760h # 365d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "cert sign"
+  isCA: true
+  issuerRef:
+    
+    kind: Issuer
+    name: my-release-self-signed
+---
+# Source: vcluster/templates/components/kubernetes/apiserver/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-front-proxy-client"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+spec:
+  commonName: "my-release-kubernetes-front-proxy-client"
+  secretName: "my-release-kubernetes-pki-front-proxy-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-front-proxy-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/etcd/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-etcd-ca"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-etcd-ca"
+  secretName: "my-release-kubernetes-pki-etcd-ca"
+  duration: 87600h # 3650d
+  renewBefore: 8760h # 365d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "cert sign"
+  isCA: true
+  issuerRef:
+    
+    kind: Issuer
+    name: my-release-self-signed
+---
+# Source: vcluster/templates/components/kubernetes/etcd/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-etcd-peer"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-etcd-peer"
+  secretName: "my-release-kubernetes-pki-etcd-peer"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  - "client auth"
+  dnsNames:
+  - "my-release-kubernetes-etcd"
+  - "my-release-kubernetes-etcd.vcluster-0.5.7.tgz"
+  - "my-release-kubernetes-etcd.vcluster-0.5.7.tgz.svc"
+  - "*.my-release-kubernetes-etcd"
+  - "*.my-release-kubernetes-etcd.vcluster-0.5.7.tgz"
+  - "*.my-release-kubernetes-etcd.vcluster-0.5.7.tgz.svc"
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-etcd-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/etcd/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-etcd-server"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-etcd-server"
+  secretName: "my-release-kubernetes-pki-etcd-server"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  - "client auth"
+  dnsNames:
+  - "my-release-kubernetes-etcd"
+  - "my-release-kubernetes-etcd.vcluster-0.5.7.tgz"
+  - "my-release-kubernetes-etcd.vcluster-0.5.7.tgz.svc"
+  - "*.my-release-kubernetes-etcd"
+  - "*.my-release-kubernetes-etcd.vcluster-0.5.7.tgz"
+  - "*.my-release-kubernetes-etcd.vcluster-0.5.7.tgz.svc"
+  - "my-release-kubernetes-etcd-client"
+  - "my-release-kubernetes-etcd-client.vcluster-0.5.7.tgz"
+  - "my-release-kubernetes-etcd-client.vcluster-0.5.7.tgz.svc"
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-etcd-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/etcd/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-etcd-healthcheck-client"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-etcd-healthcheck-client"
+  secretName: "my-release-kubernetes-pki-etcd-healthcheck-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-etcd-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/etcd/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-apiserver-etcd-client"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-apiserver-etcd-client"
+  secretName: "my-release-kubernetes-pki-apiserver-etcd-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-etcd-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-ca"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-ca"
+  secretName: "my-release-kubernetes-pki-ca"
+  duration: 87600h # 3650d
+  renewBefore: 8760h # 365d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "cert sign"
+  isCA: true
+  issuerRef:
+    
+    kind: Issuer
+    name: my-release-self-signed
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-sa"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-sa"
+  secretName: "my-release-kubernetes-pki-sa"
+  duration: 87600h # 3650d
+  renewBefore: 8760h # 365d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "cert sign"
+  isCA: true
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-controller-manager-server"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-controller-manager-server"
+  secretName: "my-release-kubernetes-pki-controller-manager-server"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  dnsNames:
+  - "my-release-kubernetes-controller-manager"
+  - "my-release-kubernetes-controller-manager.vcluster-0.5.7.tgz"
+  - "my-release-kubernetes-controller-manager.vcluster-0.5.7.tgz.svc"
+  ipAddresses:
+  - "127.0.0.1"
+  - "10.2.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-scheduler-server"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-scheduler-server"
+  secretName: "my-release-kubernetes-pki-scheduler-server"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  dnsNames:
+  - "my-release-kubernetes-scheduler"
+  - "my-release-kubernetes-scheduler.vcluster-0.5.7.tgz"
+  - "my-release-kubernetes-scheduler.vcluster-0.5.7.tgz.svc"
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  - "10.2.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-apiserver-server"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-apiserver-server"
+  secretName: "my-release-kubernetes-pki-apiserver-server"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "my-release-kubernetes"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  dnsNames:
+  - "my-release-kubernetes-apiserver"
+  - "my-release-kubernetes-apiserver.vcluster-0.5.7.tgz"
+  - "my-release-kubernetes-apiserver.vcluster-0.5.7.tgz.svc"
+  - kubernetes.default
+  - kubernetes.default.svc
+  - kubernetes.default.svc.cluster.local
+  - "localhost"
+  ipAddresses:
+  - "127.0.0.1"
+  - "10.2.0.1"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-controller-manager-client"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "system:kube-controller-manager"
+  secretName: "my-release-kubernetes-pki-controller-manager-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:kube-controller-manager"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-scheduler-client"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "system:kube-scheduler"
+  secretName: "my-release-kubernetes-pki-scheduler-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:kube-scheduler"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-konnectivity-server-client"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "system:konnectivity-server"
+  secretName: "my-release-kubernetes-pki-konnectivity-server-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:konnectivity-server"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-admin-client"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-admin-client"
+  secretName: "my-release-kubernetes-pki-admin-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "my-release-kubernetes-pki-apiserver-kubelet-client"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  commonName: "my-release-kubernetes-apiserver-kubelet-client"
+  secretName: "my-release-kubernetes-pki-apiserver-kubelet-client"
+  duration: 8760h # 365d
+  renewBefore: 4380h # 178d
+  subject:
+    organizations:
+    - "system:masters"
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "client auth"
+  issuerRef:
+    name: "my-release-kubernetes-issuer"
+    kind: Issuer
+---
+# Source: vcluster/templates/expose/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: my-release-vcluster-ingress
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+spec:
+  dnsNames:
+  - my-release.example.com
+  usages:
+  - "signing"
+  - "key encipherment"
+  - "server auth"
+  issuerRef:
+    
+    kind: Issuer
+    name: my-release-self-signed
+  secretName: my-release-tls
+---
+# Source: vcluster/templates/components/kubernetes/apiserver/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: "my-release-kubernetes-front-proxy-issuer"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+spec:
+  ca:
+    secretName: "my-release-kubernetes-pki-front-proxy-ca"
+---
+# Source: vcluster/templates/components/kubernetes/etcd/certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: "my-release-kubernetes-etcd-issuer"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: etcd
+  namespace: vcluster-0.5.7.tgz
+spec:
+  ca:
+    secretName: "my-release-kubernetes-pki-etcd-ca"
+---
+# Source: vcluster/templates/components/kubernetes/kubernetes-certs.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: "my-release-kubernetes-issuer"
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kubernetes
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+    app.kubernetes.io/component: kubernetes
+  namespace: vcluster-0.5.7.tgz
+spec:
+  ca:
+    secretName: "my-release-kubernetes-pki-ca"
+---
+# Source: vcluster/templates/expose/issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name:  my-release-self-signed
+  namespace: vcluster-0.5.7.tgz
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+spec:
+  selfSigned: {}
+---
+# Source: vcluster/templates/lifecycle/setup.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-vcluster-setup
+  labels:
+    helm.sh/chart: vcluster-0.5.7
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: vcluster
+    app.kubernetes.io/component: vcluster
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: my-release
+  annotations:
+    checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 120
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: vcluster-0.5.7
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: kubernetes
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: my-release
+        
+      annotations:
+        
+    spec:
+      imagePullSecrets:
+        
+      serviceAccountName: default
+      # Reconciler Operates in the current Cluster, therefore automounting the ServiceAccountToken is required
+      automountServiceAccountToken: true
+      restartPolicy: OnFailure
+      initContainers:
+        - name: connectivity
+          image: registry-group.mgmtbi.ch/sre/gitops/cluster_bootstrap:dev.clusterbuild
+          imagePullPolicy: Always
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: TZ
+              value: "Europe/Zurich"
+            - name: KUBECONFIG
+              value: /etc/kubernetes/admin.conf
+          command:
+            - sh
+            - -c
+            - |
+                # Wait for cluster Connectivity
+                echo "Waiting for api-server endpoint ..."
+                until kubectl cluster-info >/dev/null 2>/dev/null; do
+                  sleep 3
+                done
+          volumeMounts:
+            - mountPath: /etc/kubernetes
+              name: kubeconfig
+              readOnly: true
+            - mountPath: /pki/admin-client
+              name: pki-admin-client
+      containers:
+      - name: current
+        image: registry-group.mgmtbi.ch/sre/gitops/cluster_bootstrap:dev.clusterbuild
+        imagePullPolicy: Always
+        command: [ '/bin/bash', '/scripts/configure-current.sh' ]
+        env:
+        
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: TZ
+          value: "Europe/Zurich"
+        
+        - name: "XDG_DATA_HOME"
+          value: "/cache"
+        - name: "XDG_CONFIG_HOME"
+          value: "/cache"
+        - name: "XDG_CACHE_HOME"
+          value: "/cache"
+        volumeMounts:
+        - mountPath: /pki/admin-client
+          name: pki-admin-client
+        - mountPath: /scripts
+          name: scripts
+        - mountPath: /cache
+          name: cache-current
+      - name: vcluster
+        image: registry-group.mgmtbi.ch/sre/gitops/cluster_bootstrap:dev.clusterbuild
+        imagePullPolicy: Always
+        command: [ '/bin/bash', '/scripts/configure-vcluster.sh' ]
+        env:
+        
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: TZ
+          value: "Europe/Zurich"
+        
+        - name: "XDG_DATA_HOME"
+          value: "/cache"
+        - name: "XDG_CONFIG_HOME"
+          value: "/cache"
+        - name: "XDG_CACHE_HOME"
+          value: "/cache"
+        - name: KUBECONFIG
+          value: "/etc/kubernetes/admin.conf"
+        volumeMounts:
+        - mountPath: /etc/kubernetes
+          name: kubeconfig
+          readOnly: true
+        - mountPath: /pki/admin-client
+          name: pki-admin-client
+        - name: machine-webhooks
+          mountPath: /tmp/machine/webhooks/
+          readOnly: true
+        - name: machine-manifests
+          mountPath: /tmp/machine/manifests/
+          readOnly: true
+        
+        - name: osm-webhooks
+          mountPath: /tmp/osm/webhooks/
+          readOnly: true
+        - name: osm-manifests
+          mountPath: /tmp/osm/manifests/
+          readOnly: true
+        
+        - mountPath: /scripts
+          name: scripts
+        - mountPath: /manifests
+          name: manifests
+        - mountPath: /config
+          name: config
+        - mountPath: /cache
+          name: cache-vcluster
+      volumes:
+      - name: kubeconfig
+        configMap:
+          defaultMode: 420
+          name: my-release-kubernetes-kubeconfig
+      - name: pki-admin-client
+        secret:
+          defaultMode: 420
+          secretName: my-release-kubernetes-pki-admin-client
+      - name: machine-webhooks
+        secret:
+          defaultMode: 420
+          secretName: my-release-machine-controller-webhooks
+      - name: machine-manifests
+        secret:
+          defaultMode: 420
+          secretName: my-release-machine-controller-manifests
+      - name: osm-webhooks
+        secret:
+          defaultMode: 420
+          secretName: my-release-operating-system-manager-webhooks
+      - name: osm-manifests
+        secret:
+          defaultMode: 420
+          secretName: my-release-operating-system-manager-manifests
+      # Create dedicated caches, otherwise the lock file might block concurrent helm operations
+      - name: cache-current
+        emptyDir: {}
+      - name: cache-vcluster
+        emptyDir: {}
+      - name: scripts
+        configMap:
+          name: my-release-vcluster-lifecycle-scripts
+          defaultMode: 0777
+      - name: config
+        configMap:
+          name: "my-release-kubernetes-kubeadm-config"
+      - name: manifests
+        projected:
+          sources:
+          - secret:
+              name: my-release-vcluster-manifests
+          - configMap:
+              name: "my-release-kubernetes-konnectivity-manifests"
+          - configMap:
+              name: "my-release-kubernetes-coredns-manifests"

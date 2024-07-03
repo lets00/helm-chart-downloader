@@ -1,0 +1,645 @@
+---
+# Source: activemq-artemis/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-activemq-artemis
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+type: Opaque
+data:
+  artemis-password: "c2ltZXRyYWVoY2FwYQ=="
+---
+# Source: activemq-artemis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-activemq-artemis-configure-common
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+data:
+
+  template-common.xml: |
+    <configuration xmlns="urn:activemq" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd">
+      <core xmlns="urn:activemq:core" xsi:schemaLocation="urn:activemq:core ">
+
+        <cluster-user>exampleUser</cluster-user>
+        <cluster-password>secret</cluster-password><connectors>
+          
+          
+          <connector name="my-release-activemq-artemis-master-0">tcp://my-release-activemq-artemis-master-0.my-release-activemq-artemis-master.activemq-artemis-0.3.6.tgz.svc.cluster.local:61616</connector>
+          
+          <connector name="my-release-activemq-artemis-slave-0">tcp://my-release-activemq-artemis-slave-0.my-release-activemq-artemis-slave.activemq-artemis-0.3.6.tgz.svc.cluster.local:61616</connector>
+          
+          
+          
+          <connector name="my-release-activemq-artemis-master-1">tcp://my-release-activemq-artemis-master-1.my-release-activemq-artemis-master.activemq-artemis-0.3.6.tgz.svc.cluster.local:61616</connector>
+          
+          <connector name="my-release-activemq-artemis-slave-1">tcp://my-release-activemq-artemis-slave-1.my-release-activemq-artemis-slave.activemq-artemis-0.3.6.tgz.svc.cluster.local:61616</connector>
+          
+          
+        </connectors>
+
+
+        <cluster-connections>
+          <cluster-connection name="my-release-activemq-artemis">
+            <connector-ref>netty-connector</connector-ref>
+            <retry-interval>500</retry-interval>
+            <retry-interval-multiplier>1.1</retry-interval-multiplier>
+            <max-retry-interval>5000</max-retry-interval>
+            <initial-connect-attempts>-1</initial-connect-attempts>
+            <reconnect-attempts>-1</reconnect-attempts>
+
+            <message-load-balancing>ON_DEMAND</message-load-balancing>
+            <max-hops>1</max-hops>
+
+            <static-connectors>
+            
+              
+                <connector-ref>my-release-activemq-artemis-master-0</connector-ref>
+              
+                <connector-ref>my-release-activemq-artemis-slave-0</connector-ref>
+              
+            
+              
+                <connector-ref>my-release-activemq-artemis-master-1</connector-ref>
+              
+                <connector-ref>my-release-activemq-artemis-slave-1</connector-ref>
+              
+            
+            </static-connectors>
+
+         </cluster-connection>
+       </cluster-connections>
+      </core>
+    </configuration>
+---
+# Source: activemq-artemis/templates/master-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-activemq-artemis-configure-master
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+data:
+
+  template-master.xml: |
+    <configuration xmlns="urn:activemq" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd">
+      <core xmlns="urn:activemq:core" xsi:schemaLocation="urn:activemq:core ">
+
+        <ha-policy>
+          <replication>
+            <master>
+              <group-name>to-be-set-by-configure-cluster.sh</group-name>
+              <!--we need this for auto failback-->
+              <check-for-live-server>true</check-for-live-server>
+            </master>
+          </replication>
+        </ha-policy>
+      </core>
+    </configuration>
+  
+  configure-cluster.sh: |
+    
+    
+    
+
+    set -e
+    echo Copying common configuration
+    cp /opt/configure-common/template-common.xml /var/lib/artemis/etc-override/broker-10.xml
+
+    echo Assigning node as master
+    cp /opt/configure-master/template-master.xml /var/lib/artemis/etc-override/broker-11.xml
+
+    GROUPNAME=$(echo ${HOSTNAME} | sed -re 's/(-slave|-master)//')
+    echo Setting the group-name for slave to ${GROUPNAME}
+    xmlstarlet ed -L \
+    -N activemq="urn:activemq" \
+    -N core="urn:activemq:core" \
+    -u "/activemq:configuration/core:core/core:ha-policy/core:replication/core:master/core:group-name" \
+    -v "${GROUPNAME}" /var/lib/artemis/etc-override/broker-11.xml
+
+    echo Setting the connector-ref to ${HOSTNAME}
+          xmlstarlet ed -L \
+            -N activemq="urn:activemq" \
+            -N core="urn:activemq:core" \
+            -u "/activemq:configuration/core:core/core:cluster-connections/core:cluster-connection[@name='my-release-activemq-artemis']/core:connector-ref" \
+            -v "${HOSTNAME}" /var/lib/artemis/etc-override/broker-10.xml
+---
+# Source: activemq-artemis/templates/slave-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-activemq-artemis-configure-slave
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+data:
+
+  template-slave.xml: |
+    <configuration xmlns="urn:activemq" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd">
+      <core xmlns="urn:activemq:core" xsi:schemaLocation="urn:activemq:core ">
+         <ha-policy>
+          <replication>
+            <slave>
+              <group-name>to-be-set-by-configure-cluster.sh</group-name>
+              <allow-failback>true</allow-failback>
+              <failback-delay>5000</failback-delay>
+            </slave>
+          </replication>
+        </ha-policy>
+      </core>
+    </configuration>
+
+  configure-cluster.sh: |
+    
+    
+    
+
+    MASTERNAME=$(echo ${HOSTNAME} | sed -re 's/-slave/-master/g')
+
+    set -e
+    echo Copying common configuration
+    cp /opt/configure-common/template-common.xml /var/lib/artemis/etc-override/broker-10.xml
+
+    echo Assigning node as slave
+    cp /opt/configure-slave/template-slave.xml /var/lib/artemis/etc-override/broker-11.xml 
+
+    GROUPNAME=$(echo ${HOSTNAME} | sed -re 's/(-slave|-master)//')
+    echo Setting the group-name for slave to ${GROUPNAME}
+    xmlstarlet ed -L \
+    -N activemq="urn:activemq" \
+    -N core="urn:activemq:core" \
+    -u "/activemq:configuration/core:core/core:ha-policy/core:replication/core:slave/core:group-name" \
+    -v "${GROUPNAME}" /var/lib/artemis/etc-override/broker-11.xml
+
+    echo Setting the connector-ref to ${HOSTNAME}
+    xmlstarlet ed -L \
+    -N activemq="urn:activemq" \
+    -N core="urn:activemq:core" \
+    -u "/activemq:configuration/core:core/core:cluster-connections/core:cluster-connection[@name='my-release-activemq-artemis']/core:connector-ref" \
+    -v "${HOSTNAME}" /var/lib/artemis/etc-override/broker-10.xml
+---
+# Source: activemq-artemis/templates/tests/test-cluster-formation.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tools-my-release-activemq-artemis-cluster-formation
+data:
+  cluster-formed.sh: |
+    MEMBERS="$(curl -sq http://${ARTEMIS_USERNAME}:${ARTEMIS_PASSWORD}@${ARTEMIS_HOST}:${ARTEMIS_PORT}/console/jolokia/read/org.apache.activemq.artemis:broker=%22*%22,component=cluster-connections,name=%22*%22/Topology | jq '[.value[] | .Topology][0]' | sed -re 's/.*nodes=([0-9]+).*/\1/')"
+
+    EXPECTED_MEMBERS=$(( 2 * 2))
+    if test "${MEMBERS}" = "${EXPECTED_MEMBERS}"; then
+      echo OK 
+    else 
+       echo Number of cluster nodes shall be equal to ${EXPECTED_MEMBERS} but found ${MEMBERS}
+       exit 1
+    fi
+---
+# Source: activemq-artemis/templates/master-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    # Make sure DNS is resolvable during initialization.
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: my-release-activemq-artemis-master
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+    component: artemis-node
+spec:
+  ports:
+  - name: http
+    port: 8161
+    targetPort: http
+  - name: core
+    port: 61616
+    targetPort: core
+  - name: amqp
+    port: 5672
+    targetPort: amqp
+  - name: jmx
+    port: 9494
+    targetPort: jmxexporter
+  clusterIP: None
+  selector:
+    app: activemq-artemis
+    release: "my-release"
+    component: master
+---
+# Source: activemq-artemis/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    # Exclude unready slave nodes from DNS
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "false"
+  name: my-release-activemq-artemis
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  ports:
+  - name: http
+    port: 8161
+    targetPort: http
+  - name: core
+    port: 61616
+    targetPort: core
+  - name: amqp
+    port: 5672
+    targetPort: amqp
+  type: ClusterIP
+  selector:
+    app: activemq-artemis
+    release: "my-release"
+  sessionAffinity: "ClientIP"
+---
+# Source: activemq-artemis/templates/slave-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    # Make sure DNS is resolvable during initialization.
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: my-release-activemq-artemis-slave
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+    component: artemis-node
+spec:
+  ports:
+  - name: http
+    port: 8161
+    targetPort: http
+  - name: core
+    port: 61616
+    targetPort: core
+  - name: amqp
+    port: 5672
+    targetPort: amqp
+  - name: jmx
+    port: 9494
+    targetPort: jmxexporter
+  clusterIP: None
+  selector:
+    app: activemq-artemis
+    release: "my-release"
+    component: slave
+---
+# Source: activemq-artemis/templates/master-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-activemq-artemis-master
+  annotations:
+    {}
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  serviceName: my-release-activemq-artemis-master
+  replicas: 2
+  revisionHistoryLimit: 10
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app: activemq-artemis
+      release: "my-release"
+      component: master
+  template:
+    metadata:
+      name: my-release-activemq-artemis
+      annotations:
+        {}
+      labels:
+        app: activemq-artemis
+        release: "my-release"
+        component: master
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  app: activemq-artemis
+                  release: "my-release"
+                  component: slave
+      initContainers:
+      - name: configure-cluster
+        image: docker.io/vromero/activemq-artemis:2.16.0
+        imagePullPolicy: "Always"
+        command: ["/bin/sh", "/opt/configure-master/configure-cluster.sh"]
+        volumeMounts:
+          - name: config-override
+            mountPath: /var/lib/artemis/etc-override
+          - name: configure-common
+            mountPath: /opt/configure-common
+          - name: configure-master
+            mountPath: /opt/configure-master
+      containers:
+      - name: my-release-activemq-artemis
+        image: docker.io/vromero/activemq-artemis:2.16.0
+        imagePullPolicy: 
+        securityContext:
+          allowPrivilegeEscalation: false
+          privileged: false
+          readOnlyRootFilesystem: false
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        env:
+        - name: ARTEMIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-activemq-artemis
+              key: artemis-password
+        - name: ARTEMIS_USERNAME
+          value: "artemis"
+        - name: ARTEMIS_PERF_JOURNAL
+          value: "AUTO"
+        - name: ENABLE_JMX_EXPORTER
+          value: "true"
+        ports:
+        - name: http
+          containerPort: 8161
+        - name: core
+          containerPort: 61616
+        - name: amqp
+          containerPort: 5672
+        - name: jmxexporter
+          containerPort: 9404
+        livenessProbe:
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          tcpSocket:
+            port: http
+        readinessProbe:
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          tcpSocket:
+            port: core
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/artemis/data
+        - name: config-override
+          mountPath: /var/lib/artemis/etc-override
+        - name: configure-common
+          mountPath: /opt/configure-common
+        - name: configure-master
+          mountPath: /opt/configure-master
+      volumes:
+      - name: config-override
+        emptyDir: {}
+      - name: configure-common
+        configMap:
+          name: my-release-activemq-artemis-configure-common
+      - name: configure-master
+        configMap:
+          name: my-release-activemq-artemis-configure-master
+      - name: data
+        emptyDir: {}
+---
+# Source: activemq-artemis/templates/slave-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-activemq-artemis-slave
+  annotations:
+    {}
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  serviceName: my-release-activemq-artemis-slave
+  replicas: 2
+  podManagementPolicy: "Parallel"
+  revisionHistoryLimit: 10
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app: activemq-artemis
+      release: "my-release"
+      component: slave
+  template:
+    metadata:
+      name: my-release-activemq-artemis
+      annotations:
+        {}
+      labels:
+        app: activemq-artemis
+        release: "my-release"
+        component: slave
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      initContainers:
+      - name: configure-cluster
+        image: docker.io/vromero/activemq-artemis:2.16.0
+        imagePullPolicy: "Always"
+        command: ["/bin/sh", "/opt/configure-slave/configure-cluster.sh"]
+        volumeMounts:
+          - name: config-override
+            mountPath: /var/lib/artemis/etc-override
+          - name: configure-common
+            mountPath: /opt/configure-common
+          - name: configure-slave
+            mountPath: /opt/configure-slave
+      containers:
+      - name: my-release-activemq-artemis
+        image: docker.io/vromero/activemq-artemis:2.16.0
+        imagePullPolicy: "Always"
+        securityContext:
+          allowPrivilegeEscalation: false
+          privileged: false
+          readOnlyRootFilesystem: false
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        env:
+        - name: ARTEMIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-activemq-artemis
+              key: artemis-password
+        - name: ARTEMIS_USERNAME
+          value: "artemis"
+        - name: ARTEMIS_PERF_JOURNAL
+          value: "AUTO"
+        - name: ENABLE_JMX_EXPORTER
+          value: "true"
+        ports:
+        - name: http
+          containerPort: 8161
+        - name: core
+          containerPort: 61616
+        - name: amqp
+          containerPort: 5672
+        - name: jmxexporter
+          containerPort: 9404
+        livenessProbe:
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          tcpSocket:
+            port: http
+        readinessProbe:
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          tcpSocket:
+            port: core
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/artemis/data
+        - name: config-override
+          mountPath: /var/lib/artemis/etc-override
+        - name: configure-common
+          mountPath: /opt/configure-common
+        - name: configure-slave
+          mountPath: /opt/configure-slave
+      volumes:
+      - name: config-override
+        emptyDir: {}
+      - name: configure-common
+        configMap:
+          name: my-release-activemq-artemis-configure-common
+      - name: configure-slave
+        configMap:
+          name: my-release-activemq-artemis-configure-slave
+      - name: data
+        emptyDir: {}
+---
+# Source: activemq-artemis/templates/tests/test-amqp-protocol.yaml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  annotations:
+    "helm.sh/hook": test-success
+  name: my-release-activemq-artemis-amqp
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  imagePullSecrets: null
+  containers:
+  - name: my-release-amqp-test
+    image: docker.io/vromero/activemq-artemis:2.16.0
+    imagePullPolicy: "Always"
+    env:
+      - name: ARTEMIS_HOST
+        value: my-release-activemq-artemis
+      - name: ARTEMIS_PORT
+        value: "5672"
+      - name: ARTEMIS_USER
+        value: "artemis"
+      - name: ARTEMIS_PASSWORD
+        value: "simetraehcapa"
+    command: ["sh", "-c", "./artemis producer --user ${ARTEMIS_USER} --password ${ARTEMIS_PASSWORD} --protocol amqp --url tcp://${ARTEMIS_HOST}:${ARTEMIS_PORT} --message-count 10000 --threads 10"]
+  restartPolicy: Never
+---
+# Source: activemq-artemis/templates/tests/test-cluster-formation.yaml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  annotations:
+    "helm.sh/hook": test-success
+  name: my-release-activemq-artemis-cluster-formation
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  volumes:
+    - name: tools-my-release-activemq-artemis-cluster-formation
+      configMap:
+        name: tools-my-release-activemq-artemis-cluster-formation
+  imagePullSecrets: null
+  containers:
+  - name: my-release-cluster-formation
+    image: docker.io/vromero/activemq-artemis:2.16.0
+    imagePullPolicy: "Always"
+    env:
+      - name: ARTEMIS_HOST
+        value: my-release-activemq-artemis.activemq-artemis-0.3.6.tgz.svc.cluster.local
+      - name: ARTEMIS_PORT
+        value: "8161"
+      - name: ARTEMIS_USERNAME
+        value: "artemis"
+      - name: ARTEMIS_PASSWORD
+        value: "simetraehcapa"
+    volumeMounts:
+      - name: tools-my-release-activemq-artemis-cluster-formation
+        mountPath: /opt/tools
+    command: ["sh", "/opt/tools/cluster-formed.sh"]
+  restartPolicy: Never
+---
+# Source: activemq-artemis/templates/tests/test-core-protocol.yaml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  annotations:
+    "helm.sh/hook": test-success
+  name: my-release-activemq-artemis-core
+  labels:
+    app: activemq-artemis
+    chart: activemq-artemis-0.3.6
+    heritage: "Helm"
+    release: "my-release"
+spec:
+  imagePullSecrets: null
+  containers:
+  - name: my-release-credentials-test
+    image: docker.io/vromero/activemq-artemis:2.16.0
+    imagePullPolicy: "Always"
+    env:
+      - name: ARTEMIS_HOST
+        value: my-release-activemq-artemis
+      - name: ARTEMIS_PORT
+        value: "61616"
+      - name: ARTEMIS_USER
+        value: "artemis"
+      - name: ARTEMIS_PASSWORD
+        value: "simetraehcapa"
+    command: ["sh", "-c", "./artemis producer --user ${ARTEMIS_USER} --password ${ARTEMIS_PASSWORD} --protocol core --url tcp://${ARTEMIS_HOST}:${ARTEMIS_PORT} --message-count 10000 --threads 10"]
+  restartPolicy: Never

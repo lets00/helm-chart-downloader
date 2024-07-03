@@ -1,0 +1,138 @@
+---
+# Source: deluge/templates/common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-deluge
+  labels:
+    app.kubernetes.io/service: my-release-deluge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deluge
+    helm.sh/chart: deluge-1.3.0
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8112
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: deluge
+---
+# Source: deluge/templates/common.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-deluge
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: deluge
+    helm.sh/chart: deluge-1.3.0
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: deluge
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: deluge
+        app.kubernetes.io/instance: my-release
+    spec:
+      
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 1000
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      initContainers:
+        - args:
+          - -c
+          - ([ ! -f /config/core.conf ] && cp -v /defaults/core.conf /config/core.conf) ||
+            true
+          command:
+          - /bin/sh
+          image: lib42/deluge:2
+          name: init-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          volumeMounts: null
+      containers:
+        - name: my-release-deluge
+          image: "lib42/deluge:2"
+          imagePullPolicy: 
+          command:
+              
+            - /usr/local/bin/deluge-web
+          args:
+            
+            - -d
+            - -c
+            - /config
+            - -L
+            - info
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          env:
+            - name: GUID
+              value: "1000"
+            - name: PUID
+              value: "1000"
+          ports:
+            - name: http
+              containerPort: 8112
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            tcpSocket:
+              port: 8112
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            tcpSocket:
+              port: 8112
+            timeoutSeconds: 1
+          startupProbe:
+            failureThreshold: 30
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            tcpSocket:
+              port: 8112
+            timeoutSeconds: 1
+        - image: lib42/deluge:2
+          name: deluge-daemon
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          volumeMounts: null

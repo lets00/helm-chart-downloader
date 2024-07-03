@@ -1,0 +1,117 @@
+---
+# Source: traefik-forward-auth/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-traefik-forward-auth
+  labels:
+    helm.sh/chart: traefik-forward-auth-1.0.2
+    app.kubernetes.io/name: traefik-forward-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.2.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: traefik-forward-auth/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-traefik-forward-auth
+  labels:
+    helm.sh/chart: traefik-forward-auth-1.0.2
+    app.kubernetes.io/name: traefik-forward-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.2.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  secret: "RXMzQlc0Rzh0R1JSUGJuTQ=="
+---
+# Source: traefik-forward-auth/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-traefik-forward-auth
+  labels:
+    helm.sh/chart: traefik-forward-auth-1.0.2
+    app.kubernetes.io/name: traefik-forward-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4181
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: traefik-forward-auth
+    app.kubernetes.io/instance: my-release
+---
+# Source: traefik-forward-auth/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-traefik-forward-auth
+  labels:
+    helm.sh/chart: traefik-forward-auth-1.0.2
+    app.kubernetes.io/name: traefik-forward-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik-forward-auth
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: traefik-forward-auth
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-traefik-forward-auth
+      containers:
+        - name: traefik-forward-auth
+          image: "thomseddon/traefik-forward-auth:2.2.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-traefik-forward-auth
+                  key: secret
+          ports:
+            - name: http
+              containerPort: 4181
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+---
+# Source: traefik-forward-auth/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-traefik-forward-auth-test-connection"
+  labels:
+    helm.sh/chart: traefik-forward-auth-1.0.2
+    app.kubernetes.io/name: traefik-forward-auth
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.2.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-traefik-forward-auth:4181']
+  restartPolicy: Never

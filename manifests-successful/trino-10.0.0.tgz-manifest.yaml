@@ -1,0 +1,384 @@
+---
+# Source: trino/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trino
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: trino/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: trino-connectors
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: trino/templates/configmap-coordinator.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-coordinator
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: coordinator
+data:
+  node.properties: |
+    node.environment=production
+    node.data-dir=/data/trino
+    plugin.dir=/usr/lib/trino/plugin
+
+  jvm.config: |
+    -server
+    -XX:InitialRAMPercentage=80
+    -XX:MaxRAMPercentage=80
+    -XX:+UseG1GC
+    -XX:G1HeapRegionSize=32M
+    -agentpath:/usr/lib/trino/bin/libjvmkill.so
+    -XX:+ExplicitGCInvokesConcurrent
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:+ExitOnOutOfMemoryError
+    -XX:-OmitStackTraceInFastThrow
+    -XX:ReservedCodeCacheSize=512M
+    -XX:PerMethodRecompilationCutoff=10000
+    -XX:PerBytecodeRecompilationCutoff=10000
+    -Djdk.attach.allowAttachSelf=true
+    -Djdk.nio.maxCachedBufferSize=2000000
+    -XX:+UnlockDiagnosticVMOptions
+    -XX:G1NumCollectionsKeepPinned=10000000
+
+  config.properties: |
+    coordinator=true
+    node-scheduler.include-coordinator=false
+    http-server.http.port=8080
+    query.max-memory=3GB
+    query.max-memory-per-node=1GB
+    query.max-total-memory=6GB
+    discovery.uri=http://localhost:8080
+    internal-communication.shared-secret=some-secret
+    
+
+  log.properties: |
+    io.trino=INFO
+---
+# Source: trino/templates/configmap-coordinator.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-schemas-volume-coordinator
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: coordinator
+data:
+---
+# Source: trino/templates/configmap-worker.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-worker
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: worker
+data:
+  node.properties: |
+    node.environment=production
+    node.data-dir=/data/trino
+    plugin.dir=/usr/lib/trino/plugin
+
+  jvm.config: |
+    -server
+    -agentpath:/usr/lib/trino/bin/libjvmkill.so
+    -XX:InitialRAMPercentage=80
+    -XX:MaxRAMPercentage=80
+    -XX:+UseG1GC
+    -XX:G1HeapRegionSize=32M
+    -agentpath:/usr/lib/trino/bin/libjvmkill.so
+    -XX:+ExplicitGCInvokesConcurrent
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:+ExitOnOutOfMemoryError
+    -XX:-OmitStackTraceInFastThrow
+    -XX:ReservedCodeCacheSize=512M
+    -XX:PerMethodRecompilationCutoff=10000
+    -XX:PerBytecodeRecompilationCutoff=10000
+    -Djdk.attach.allowAttachSelf=true
+    -Djdk.nio.maxCachedBufferSize=2000000
+    -XX:+UnlockDiagnosticVMOptions
+    -XX:G1NumCollectionsKeepPinned=10000000
+
+  config.properties: |
+    coordinator=false
+    http-server.http.port=8080
+    query.max-memory=3GB
+    query.max-memory-per-node=1GB
+    query.max-total-memory=6GB
+    discovery.uri=http://trino:8080
+    internal-communication.shared-secret=some-secret
+    
+
+  log.properties: |
+    io.trino=INFO
+---
+# Source: trino/templates/configmap-worker.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-worker-health-check
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: worker
+data:
+  health_check.sh: |
+    #!/bin/bash
+    curl -H 'X-trino-User: healthCheck' -m 3 --silent trino:8080/v1/info/state | grep --silent 'ACTIVE'
+---
+# Source: trino/templates/configmap-worker.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-schemas-volume-worker
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: worker
+data:
+---
+# Source: trino/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: trino
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm  
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http-coord
+      protocol: TCP
+      name: http-coord
+  selector:
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: coordinator
+---
+# Source: trino/templates/deployment-coordinator.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino-coordinator
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: coordinator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trino
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: coordinator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: trino
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: coordinator
+      annotations:
+        checksum/config: bacdd8db93fe7fa8c64e4861c12cf5adc908519a93bd2ec3c63d4a52134ac4e2
+    spec:
+      securityContext:
+        
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: config-volume
+          projected:
+            sources:
+            - configMap:
+                name: trino-coordinator
+        - name: catalog-volume
+          secret:
+            secretName: trino-connectors
+        - name: schemas-volume
+          configMap:
+            name: trino-schemas-volume-coordinator
+        - name: certs-shared
+          emptyDir: {}
+      serviceAccountName: trino
+      imagePullSecrets:
+        []
+      containers:
+        - name: trino-coordinator
+          image: "trinodb/trino:449"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+            - mountPath: /etc/trino/
+              name: config-volume
+            - mountPath: /etc/trino/schemas
+              name: schemas-volume
+            - mountPath: /etc/trino/catalog
+              name: catalog-volume
+            - mountPath: /etc/trino/certs
+              name: certs-shared
+          ports:
+            - name: http-coord
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /v1/status
+              port: http-coord
+          readinessProbe:
+            httpGet:
+              path: /v1/status
+              port: http-coord
+          resources:
+            {}
+---
+# Source: trino/templates/deployment-worker.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino-worker
+  labels:
+    helm.sh/chart: trino-10.0.0
+    app.kubernetes.io/name: trino
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "433"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trino
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: trino
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: worker
+      annotations:
+        checksum/config: e4bd9c289a58102cb32fce4e5870c509b58986064f45026664170bca2deb76af
+    spec:
+      securityContext:
+        
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: config-volume
+          projected:
+            sources:
+            - configMap:
+                name: trino-worker
+        - name: health-check-volume
+          configMap:
+            name: trino-worker-health-check
+            defaultMode: 0777
+        - name: catalog-volume
+          secret:
+            secretName: trino-connectors
+        - name: schemas-volume
+          configMap:
+            name: trino-schemas-volume-worker
+        - name: certs-shared
+          emptyDir: {}
+      serviceAccountName: trino
+      imagePullSecrets:
+        []
+      containers:
+        - name: trino-worker
+          image: "trinodb/trino:449"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+          volumeMounts:
+            - mountPath: /etc/trino
+              name: config-volume
+            - mountPath: /etc/trino/schemas
+              name: schemas-volume
+            - mountPath: /startup/
+              name: health-check-volume
+            - mountPath: /etc/trino/catalog
+              name: catalog-volume
+            - mountPath: /etc/trino/certs
+              name: certs-shared
+          livenessProbe:
+            exec:
+              command:
+                - /startup/health_check.sh
+            initialDelaySeconds: 10
+            periodSeconds: 25
+          readinessProbe:
+            exec:
+              command:
+                - /startup/health_check.sh
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {}
+---
+# Source: trino/templates/configmap-coordinator.yaml
+---
+---
+# Source: trino/templates/configmap-coordinator.yaml
+---
+---
+# Source: trino/templates/secret.yaml
+---

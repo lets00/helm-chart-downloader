@@ -1,0 +1,508 @@
+---
+# Source: jetic-bridge/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: jetic-bridge-2.3.6
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.6"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/namespace: jetic-bridge-2.3.6.tgz
+  name: my-release-jetic-bridge
+---
+# Source: jetic-bridge/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    helm.sh/chart: jetic-bridge-2.3.6
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.6"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/namespace: jetic-bridge-2.3.6.tgz
+  name: my-release-jetic-bridge
+data:
+  cluster.key: "dW5pcXVlLWlkZW50aWZpZXItZm9yLXlvdXItY2x1c3Rlcg=="
+  cluster.secret: "cmFuZG9tbHktZ2VuZXJhdGVkLXN0cmluZy1mb3ItYXV0aGVudGljYXRpbmc="
+  opensearch.username: "YWRtaW4="
+  opensearch.password: "YWRtaW4="
+type: Opaque
+---
+# Source: jetic-bridge/templates/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  labels:
+    helm.sh/chart: jetic-bridge-2.3.6
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.6"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/namespace: jetic-bridge-2.3.6.tgz
+  name: my-release-jetic-bridge-git
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 2Gi
+  hostPath:
+    path: /var/git-jetic
+    type: DirectoryOrCreate
+  storageClassName: standard
+  volumeMode: Filesystem
+---
+# Source: jetic-bridge/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    helm.sh/chart: jetic-bridge-2.3.6
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.6"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/namespace: jetic-bridge-2.3.6.tgz
+  name: my-release-jetic-bridge-git
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  volumeMode: Filesystem
+  storageClassName: standard
+  volumeName: my-release-jetic-bridge-git
+---
+# Source: jetic-bridge/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    helm.sh/chart: jetic-bridge-2.3.6
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.6"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/namespace: jetic-bridge-2.3.6.tgz
+  name: my-release-jetic-bridge
+rules:
+  - apiGroups:
+      - camel.apache.org
+    resources:
+      - "*"
+    verbs:
+      - "*"
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - namespaces
+      - persistentvolumeclaims
+      - pods
+      - pods/log
+      - secrets
+      - serviceaccounts
+      - services
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods/exec
+    verbs:
+      - create
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - create
+      - delete
+      - get
+      - update
+      - list
+      - patch
+      - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - roles
+      - rolebindings
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - cronjobs
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - networking.k8s.io
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+      - "build.openshift.io"
+    resources:
+      - buildconfigs
+      - buildconfigs/webhooks
+      - builds
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+      - "image.openshift.io"
+    resources:
+      - imagestreamimages
+      - imagestreammappings
+      - imagestreams
+      - imagestreams/secrets
+      - imagestreamtags
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+      - build.openshift.io
+    resources:
+      - buildconfigs/instantiate
+      - buildconfigs/instantiatebinary
+      - builds/clone
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+      - "route.openshift.io"
+    resources:
+      - routes
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+      - route.openshift.io
+    resources:
+      - routes/custom-host
+    verbs:
+      - create
+  - apiGroups:
+      - serving.knative.dev
+    resources:
+      - services
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - eventing.knative.dev
+      - messaging.knative.dev
+      - sources.knative.dev
+    resources:
+      - "*"
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterroles
+    verbs:
+      - bind
+    resourceNames:
+      - system:image-builder
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - podmonitors
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "kafka.strimzi.io"
+    resources:
+      - kafkatopics
+      - kafkas
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "operators.coreos.com"
+    resources:
+      - servicebindings
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - '*'
+    verbs:
+      - '*'
+---
+# Source: jetic-bridge/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    helm.sh/chart: jetic-bridge-2.3.6
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.6"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/namespace: jetic-bridge-2.3.6.tgz
+  name: my-release-jetic-bridge
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-jetic-bridge
+subjects:
+  - kind: ServiceAccount
+    name: my-release-jetic-bridge
+    namespace: jetic-bridge-2.3.6.tgz
+---
+# Source: jetic-bridge/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    helm.sh/chart: jetic-bridge-2.3.6
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.6"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/namespace: jetic-bridge-2.3.6.tgz
+  name: my-release-jetic-bridge
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+  type: ClusterIP
+---
+# Source: jetic-bridge/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: jetic-bridge-2.3.6
+    app.kubernetes.io/name: jetic-bridge
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.3.6"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/namespace: jetic-bridge-2.3.6.tgz
+  name: my-release-jetic-bridge
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jetic-bridge
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: Recreate  
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jetic-bridge
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-jetic-bridge
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: "OnRootMismatch"
+      containers:
+        - name: jetic-bridge
+          image: "jetic4main/jetic-bridge:2.3.6"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 50
+            periodSeconds: 20
+            timeoutSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 1Gi
+          env:
+            - name: CLUSTER_HOST
+              value: "cmd.jetic.io:61616"
+            - name: CLUSTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jetic-bridge
+                  key: cluster.key
+            - name: CLUSTER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jetic-bridge
+                  key: cluster.secret
+            - name: OPENSEARCH_ENABLED
+              value: "false"
+            - name: OPENSEARCH_SCHEME
+              value: "http"
+            - name: OPENSEARCH_HOSTNAME
+              value: "opensearch-cluster-master"
+            - name: OPENSEARCH_PORT
+              value: "9200"
+            - name: CLUSTER_DIRECTORY
+              value: "/var/git-jetic"
+            - name: OPENSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jetic-bridge
+                  key: opensearch.username
+            - name: OPENSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jetic-bridge
+                  key: opensearch.password
+          volumeMounts:
+            - mountPath: /var/git-jetic
+              name: my-release-jetic-bridge-git
+      volumes:
+        - name: my-release-jetic-bridge-git
+          persistentVolumeClaim:
+            claimName: my-release-jetic-bridge-git

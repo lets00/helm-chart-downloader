@@ -1,0 +1,117 @@
+---
+# Source: kf-app-eai/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kf-app-eai
+  labels:
+    helm.sh/chart: kf-app-eai-0.1.1
+    app.kubernetes.io/name: kf-app-eai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.3"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: kf-app-eai/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kf-app-eai
+  labels:
+    helm.sh/chart: kf-app-eai-0.1.1
+    app.kubernetes.io/name: kf-app-eai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: kf-app-eai
+    app.kubernetes.io/instance: my-release
+---
+# Source: kf-app-eai/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kf-app-eai
+  labels:
+    helm.sh/chart: kf-app-eai-0.1.1
+    app.kubernetes.io/name: kf-app-eai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kf-app-eai
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: kf-app-eai-0.1.1
+        app.kubernetes.io/name: kf-app-eai
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.1.3"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-kf-app-eai
+      securityContext:
+        {}
+      containers:
+        - name: kf-app-eai
+          securityContext:
+            {}
+          image: "ghcr.io/it-at-m/kf-app-eai:0.1.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            timeoutSeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 20
+          env:
+          resources:
+            {}
+---
+# Source: kf-app-eai/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-kf-app-eai-test-connection"
+  labels:
+    helm.sh/chart: kf-app-eai-0.1.1
+    app.kubernetes.io/name: kf-app-eai
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-kf-app-eai:8080/swagger-ui/index.html']
+  restartPolicy: Never

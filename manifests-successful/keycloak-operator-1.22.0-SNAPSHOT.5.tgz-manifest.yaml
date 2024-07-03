@@ -1,0 +1,478 @@
+---
+# Source: keycloak-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: edp-keycloak-operator
+  labels:
+    helm.sh/chart: keycloak-operator-1.22.0-SNAPSHOT.5
+    app.kubernetes.io/name: keycloak-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0-SNAPSHOT.5"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: keycloak-operator/templates/leader_election_role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: edp-keycloak-operator-leader-election-role
+  labels:
+    helm.sh/chart: keycloak-operator-1.22.0-SNAPSHOT.5
+    app.kubernetes.io/name: keycloak-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0-SNAPSHOT.5"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
+# Source: keycloak-operator/templates/operator_role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: edp-keycloak-operator-role
+  labels:
+    helm.sh/chart: keycloak-operator-1.22.0-SNAPSHOT.5
+    app.kubernetes.io/name: keycloak-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0-SNAPSHOT.5"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakauthflows
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakauthflows/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakauthflows/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakclients
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakclients/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakclients/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakclientscopes
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakclientscopes/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakclientscopes/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmcomponents
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmcomponents/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmcomponents/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmgroups
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmgroups/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmgroups/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmidentityproviders
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmidentityproviders/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmidentityproviders/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmrolebatches
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmrolebatches/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmrolebatches/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmroles
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmroles/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmroles/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealms
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealms/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealms/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmusers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmusers/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloakrealmusers/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloaks
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloaks/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - v1.edp.epam.com
+    resources:
+      - keycloaks/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+# Source: keycloak-operator/templates/leader_election_rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: edp-keycloak-operator-leader-election-rolebinding
+  labels:
+    helm.sh/chart: keycloak-operator-1.22.0-SNAPSHOT.5
+    app.kubernetes.io/name: keycloak-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0-SNAPSHOT.5"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: edp-keycloak-operator-leader-election-role
+subjects:
+  - kind: ServiceAccount
+    name: edp-keycloak-operator
+---
+# Source: keycloak-operator/templates/operator_rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: edp-keycloak-operator-rolebinding
+  labels:
+    helm.sh/chart: keycloak-operator-1.22.0-SNAPSHOT.5
+    app.kubernetes.io/name: keycloak-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0-SNAPSHOT.5"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: edp-keycloak-operator-role
+subjects:
+  - kind: ServiceAccount
+    name: edp-keycloak-operator
+---
+# Source: keycloak-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: keycloak-operator-1.22.0-SNAPSHOT.5
+    app.kubernetes.io/name: keycloak-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.22.0-SNAPSHOT.5"
+    app.kubernetes.io/managed-by: Helm
+  name: keycloak-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: keycloak-operator
+  template:
+    metadata:
+      labels:
+        name: keycloak-operator
+    spec:
+      serviceAccountName: edp-keycloak-operator
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: keycloak-operator
+          # Replace this with the built image name
+          image: epamedp/keycloak-operator:1.22.0-SNAPSHOT.5
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - /manager
+          securityContext:
+            allowPrivilegeEscalation: false
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OPERATOR_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              memory: 192Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi

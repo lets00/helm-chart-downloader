@@ -1,0 +1,89 @@
+---
+# Source: mongodb/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-mongodb
+  labels:
+    app: mongodb
+    chart: mongodb-1.0.0
+    release: my-release
+    heritage: Helm
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+---
+# Source: mongodb/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mongodb
+  labels:
+    app: mongodb
+    chart: mongodb-1.0.0
+    release: my-release
+    heritage: Helm
+  annotations:
+    
+    {}
+spec:
+  type: ClusterIP
+  ports:
+    - name: mongodb
+      port: 27017
+  selector:
+    app: mongodb
+    release: my-release
+---
+# Source: mongodb/templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: my-release-mongodb
+  labels:
+    app: mongodb
+    chart: mongodb-1.0.0
+    release: my-release
+    heritage: Helm
+spec:
+  revisionHistoryLimit: 0
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        release: my-release
+    spec:
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+      containers:
+        - name: mongodb
+          image: "mongo:3.6.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          livenessProbe:
+            exec:
+              command: ["mongo", "--eval", "db.adminCommand('ping')"]
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["mongo", "--eval", "db.adminCommand('ping')"]
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          resources:
+            
+            {}
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+              subPath: 
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-mongodb

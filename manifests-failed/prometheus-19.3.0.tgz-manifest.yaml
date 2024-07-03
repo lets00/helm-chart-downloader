@@ -1,0 +1,1092 @@
+---
+# Source: prometheus/charts/kube-state-metrics/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.24.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.0"
+  name: my-release-kube-state-metrics
+  namespace: prometheus-19.3.0.tgz
+imagePullSecrets:
+  []
+---
+# Source: prometheus/charts/prometheus-node-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-prometheus-node-exporter
+  namespace: prometheus-19.3.0.tgz
+  labels:
+    helm.sh/chart: prometheus-node-exporter-4.8.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: prometheus-node-exporter
+    app.kubernetes.io/name: prometheus-node-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.5.0"
+---
+# Source: prometheus/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.3.0
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: prometheus-19.3.0.tgz
+  annotations:
+    {}
+---
+# Source: prometheus/templates/cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.3.0
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: prometheus-19.3.0.tgz
+data:
+  allow-snippet-annotations: "false"
+  alerting_rules.yml: |
+    groups:
+    - name: kubeslice component status
+      rules:
+      - alert: kubeslice component pod status with labels_app
+        annotations:
+          description: ' Pod {{ $labels.pod }} is {{  $labels.phase }} ,  see the Details
+            for more info with labels'
+          summary: ' {{ $labels.pod }} Pod went down'
+        expr: (sum by (pod,namespace,kubernetes_node,phase,job,instance) (kube_pod_status_phase{namespace=~"^kubeslice.*|spire|istio-system",phase=~"Pending|Unknown|Failed"})>0)+on(instance,pod,kubernetes_node,namespace)group_left(label_app,label_cluster_name)(sum
+          by(pod,namespace,kubernetes_node,label_app,instance,label_cluster_name)(kube_pod_labels{namespace=~"^kubeslice.*|spire|istio-system",label_app=~"app_net_op|nsmgr|admission-webhook-k8s|kubeslice-dns|forwarder-kernel|cert-manager|controller-manager|kubeslice-api-gw|kubeslice-ui-proxy|kubeslice-ui|registry|spire-agent|spire-server|istiod"})>0)
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice operator pod status
+        annotations:
+          description: ' Pod {{ $labels.pod }} is {{  $labels.phase }} , see the Details
+            for more info with labels'
+          summary: ' {{ $labels.pod }} Pod went down'
+        expr: (sum by(pod,namespace,kubernetes_node,phase,job,instance)(kube_pod_status_phase{namespace=~"^kubeslice.*|spire|istio-system",phase=~"Pending|Unknown|Failed"})>0)+on(instance,pod,kubernetes_node,namespace)group_left(label_spoke_cluster,label_control_plane,label_cluster_name)(sum
+          by(pod, namespace,label_cluster_name,kubernetes_node,label_spoke_cluster,label_control_plane,instance)(kube_pod_labels{namespace=~"^kubeslice.*|spire|istio-system",label_spoke_cluster=~"^w.*|^c.*"})>0)
+        for: 1m
+        labels:
+          severity: slack
+      - alert: vl3 pod status
+        annotations:
+          description: Pod {{ $labels.pod }} is {{  $labels.phase }} , see the Details
+            for more info with labels
+          summary: '{{ $labels.pod }} Pod went down'
+        expr: (sum by(pod,namespace,kubernetes_node,phase,job,instance)(kube_pod_status_phase{namespace=~"^kubeslice.*|spire|istio-system",phase=~"Pending|Unknown|Failed"})>0)+on(instance,pod,kubernetes_node,namespace)group_left(label_networkservicemesh_io_app,label_cluster_name,label_networkservicemesh_io_impl,label_kubeslice_io_slice,label_pod_template_hash)(sum
+          by(pod,namespace,label_cluster_name,kubernetes_node,label_networkservicemesh_io_app,label_networkservicemesh_io_impl,label_kubeslice_io_slice,label_pod_template_hash,instance)(kube_pod_labels{namespace=~"^kubeslice.*|spire|istio-system",pod=~"^vl3-slice-router.*"})>0)
+        for: 1m
+        labels:
+          severity: slack
+      - alert: vpn gw pod status
+        annotations:
+          description: Pod {{ $labels.pod }} is {{  $labels.phase }} , see the Details
+            for more info with labels
+        expr: (sum by(pod,namespace,kubernetes_node,phase,job,instance)(kube_pod_status_phase{namespace=~"^kube.*|spire|istio-system",phase=~"Pending|Unknown|Failed"})>0)+on(instance,pod,kubernetes_node,namespace)group_left(label_kubeslice_io_slice,label_cluster_name,label_kubeslice_io_slice_gw,label_networkservicemesh_io_app,label_pod_template_hash,label_kubeslice_io_pod_type)(sum
+          by(pod,namespace,kubernetes_node,label_cluster_name,label_kubeslice_io_slice,label_kubeslice_io_slice_gw,label_networkservicemesh_io_app,label_pod_template_hash,label_kubeslice_io_pod_type,instance)(kube_pod_labels{namespace=~"^kubeslice.*|spire|istio-system",pod=~"^b.*|^i.*"})>0)
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice cluster health
+        annotations:
+          description: kubeslice cluster {{ $labels.slice_cluster }} is not up for project
+            {{  $labels.slice_project }}, see the Details for more info with labels
+        expr: kubeslice_cluster_up < 0
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice cluster component health
+        annotations:
+          description: cluster component {{ $labels.slice_cluster_component }} is unhealthy
+            for project {{  $labels.slice_project }} on cluster {{ $labels.slice_cluster
+            }}, see the Details for more info with labels
+        expr: kubeslice_cluster_component_up < 0
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice slice health
+        annotations:
+          description: slice component {{ $labels.slice }} is unhealthy for project {{  $labels.slice_project
+            }} on cluster {{ $labels.slice_cluster }}, see the Details for more info with
+            labels
+        expr: kubeslice_slice_up < 0
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice slice component health
+        annotations:
+          description: slice component {{ $labels.slice_component }} is unhealthy for
+            project {{  $labels.slice_project }} on cluster {{ $labels.slice_cluster }},
+            see the Details for more info with labels
+        expr: kubeslice_slice_component_up < 0
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice app pod details
+        annotations:
+          description: No app pod is active on slice {{ $labels.slice }} for project {{  $labels.slice_project
+            }} at cluster {{ $labels.slice_cluster }}, see the Details for more info with
+            labels
+        expr: kubeslice_app_pods < 0
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice service export endpoints
+        annotations:
+          description: for project {{ $labels.slice_project }} no service export endpoints
+            is active on slice {{ $labels.slice }} in namespace {{  $labels.slice_namespace
+            }}, see the Details for more info with labels
+        expr: kubeslice_serviceexport_endpoints < 0
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice service import endpoints
+        annotations:
+          description: for project {{ $labels.slice_project }} no service  import endpoints
+            is active on slice {{ $labels.slice }} in namespace {{  $labels.slice_namespace
+            }}, see the Details for more info with labels
+        expr: kubeslice_serviceimport_endpoints < 0
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice netpol validation
+        annotations:
+          description: netpol voilation is not active for project {{ $labels.slice_project
+            }} on cluster {{ $labels.slice_cluster }} and the slice reporting controller
+            is {{ $labels.slice_reporting_controller }}, see the Details for more info
+            with labels
+        expr: kubeslice_netpol_violations_active < 0
+        for: 1m
+        labels:
+          severity: slack
+      - alert: kubeslice slice gateway tunnel validation
+        annotations:
+          description: no vpn tunnel is active for project {{ $labels.slice_project }}
+            on cluster {{ $labels.slice_cluster }} and the slice reporting controller
+            is {{ $labels.slice_reporting_controller }}, see the Details for more info
+            with labels
+        expr: kubeslice_slicegateway_tunnel_up < 0
+        for: 1m
+        labels:
+          severity: slack
+  alerts: |
+    {}
+  prometheus.yml: |
+    global:
+      evaluation_interval: 1m
+      scrape_interval: 1m
+      scrape_timeout: 10s
+    rule_files:
+    - /etc/config/recording_rules.yml
+    - /etc/config/alerting_rules.yml
+    - /etc/config/rules
+    - /etc/config/alerts
+    scrape_configs:
+    - job_name: prometheus
+      static_configs:
+      - targets:
+        - localhost:9090
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-apiservers
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: default;kubernetes;https
+        source_labels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_service_name
+        - __meta_kubernetes_endpoint_port_name
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-nodes
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-nodes-cadvisor
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - honor_labels: true
+      job_name: kubernetes-service-endpoints
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape
+      - action: drop
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_service_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_service_name
+        target_label: service
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: node
+    - honor_labels: true
+      job_name: kubernetes-service-endpoints-slow
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_service_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_service_name
+        target_label: service
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: node
+      scrape_interval: 5m
+      scrape_timeout: 30s
+    - honor_labels: true
+      job_name: prometheus-pushgateway
+      kubernetes_sd_configs:
+      - role: service
+      relabel_configs:
+      - action: keep
+        regex: pushgateway
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+    - honor_labels: true
+      job_name: kubernetes-services
+      kubernetes_sd_configs:
+      - role: service
+      metrics_path: /probe
+      params:
+        module:
+        - http_2xx
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+      - source_labels:
+        - __address__
+        target_label: __param_target
+      - replacement: blackbox
+        target_label: __address__
+      - source_labels:
+        - __param_target
+        target_label: instance
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - source_labels:
+        - __meta_kubernetes_service_name
+        target_label: service
+    - honor_labels: true
+      job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+      - action: drop
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: pod
+      - action: drop
+        regex: Pending|Succeeded|Failed|Completed
+        source_labels:
+        - __meta_kubernetes_pod_phase
+    - honor_labels: true
+      job_name: kubernetes-pods-slow
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: (.+?)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_annotation_prometheus_io_param_(.+)
+        replacement: __param_$1
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: pod
+      - action: drop
+        regex: Pending|Succeeded|Failed|Completed
+        source_labels:
+        - __meta_kubernetes_pod_phase
+      scrape_interval: 5m
+      scrape_timeout: 30s
+  recording_rules.yml: |
+    {}
+  rules: |
+    {}
+---
+# Source: prometheus/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.3.0
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: prometheus-19.3.0.tgz
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: prometheus/charts/kube-state-metrics/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.24.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.0"
+  name: my-release-kube-state-metrics
+rules:
+
+- apiGroups: ["certificates.k8s.io"]
+  resources:
+  - certificatesigningrequests
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["list", "watch"]
+
+- apiGroups: ["batch"]
+  resources:
+  - cronjobs
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - daemonsets
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - deployments
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - endpoints
+  verbs: ["list", "watch"]
+
+- apiGroups: ["autoscaling"]
+  resources:
+  - horizontalpodautoscalers
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources:
+  - ingresses
+  verbs: ["list", "watch"]
+
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  verbs: ["list", "watch"]
+
+- apiGroups: ["coordination.k8s.io"]
+  resources:
+  - leases
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - limitranges
+  verbs: ["list", "watch"]
+
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources:
+    - mutatingwebhookconfigurations
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - namespaces
+  verbs: ["list", "watch"]
+
+- apiGroups: ["networking.k8s.io"]
+  resources:
+  - networkpolicies
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - nodes
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - persistentvolumeclaims
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - persistentvolumes
+  verbs: ["list", "watch"]
+
+- apiGroups: ["policy"]
+  resources:
+    - poddisruptionbudgets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - pods
+  verbs: ["list", "watch"]
+
+- apiGroups: ["extensions", "apps"]
+  resources:
+  - replicasets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - replicationcontrollers
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - resourcequotas
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - secrets
+  verbs: ["list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - services
+  verbs: ["list", "watch"]
+
+- apiGroups: ["apps"]
+  resources:
+  - statefulsets
+  verbs: ["list", "watch"]
+
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - storageclasses
+  verbs: ["list", "watch"]
+
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources:
+    - validatingwebhookconfigurations
+  verbs: ["list", "watch"]
+
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - volumeattachments
+  verbs: ["list", "watch"]
+---
+# Source: prometheus/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.3.0
+    heritage: Helm
+  name: my-release-prometheus-server
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+      - ingresses
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "extensions"
+      - "networking.k8s.io"
+    resources:
+      - ingresses/status
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+---
+# Source: prometheus/charts/kube-state-metrics/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.24.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.0"
+  name: my-release-kube-state-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kube-state-metrics
+subjects:
+- kind: ServiceAccount
+  name: my-release-kube-state-metrics
+  namespace: prometheus-19.3.0.tgz
+---
+# Source: prometheus/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.3.0
+    heritage: Helm
+  name: my-release-prometheus-server
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-server
+    namespace: prometheus-19.3.0.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-prometheus-server
+---
+# Source: prometheus/charts/kube-state-metrics/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kube-state-metrics
+  namespace: prometheus-19.3.0.tgz
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.24.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.0"
+  annotations:
+    prometheus.io/scrape: 'true'
+spec:
+  type: "ClusterIP"
+  ports:
+  - name: "http"
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  
+  selector:    
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+---
+# Source: prometheus/charts/prometheus-node-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-prometheus-node-exporter
+  namespace: prometheus-19.3.0.tgz
+  labels:
+    helm.sh/chart: prometheus-node-exporter-4.8.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: prometheus-node-exporter
+    app.kubernetes.io/name: prometheus-node-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.5.0"
+  annotations:
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9100
+      targetPort: 9100
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: prometheus-node-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: prometheus/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.3.0
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: prometheus-19.3.0.tgz
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 9090
+      nodePort: 32700
+  selector:
+    component: "server"
+    app: prometheus
+    release: my-release
+  sessionAffinity: None
+  type: "NodePort"
+---
+# Source: prometheus/charts/prometheus-node-exporter/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-release-prometheus-node-exporter
+  namespace: prometheus-19.3.0.tgz
+  labels:
+    helm.sh/chart: prometheus-node-exporter-4.8.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: prometheus-node-exporter
+    app.kubernetes.io/name: prometheus-node-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.5.0"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-node-exporter
+      app.kubernetes.io/instance: my-release
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+      labels:
+        helm.sh/chart: prometheus-node-exporter-4.8.1
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: metrics
+        app.kubernetes.io/part-of: prometheus-node-exporter
+        app.kubernetes.io/name: prometheus-node-exporter
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.5.0"
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      serviceAccountName: my-release-prometheus-node-exporter
+      containers:
+        - name: node-exporter
+          image: quay.io/prometheus/node-exporter:v1.5.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --path.rootfs=/host/root
+            - --web.listen-address=[$(HOST_IP)]:9100
+          securityContext:
+            allowPrivilegeEscalation: false
+          env:
+            - name: HOST_IP
+              value: 0.0.0.0
+          ports:
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              httpHeaders:
+              path: /
+              port: 9100
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              httpHeaders:
+              path: /
+              port: 9100
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly:  true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: root
+              mountPath: /host/root
+              mountPropagation: HostToContainer
+              readOnly: true
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: root
+          hostPath:
+            path: /
+---
+# Source: prometheus/charts/kube-state-metrics/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kube-state-metrics
+  namespace: prometheus-19.3.0.tgz
+  labels:    
+    helm.sh/chart: kube-state-metrics-4.24.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.7.0"
+spec:
+  selector:
+    matchLabels:      
+      app.kubernetes.io/name: kube-state-metrics
+      app.kubernetes.io/instance: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:        
+        helm.sh/chart: kube-state-metrics-4.24.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: metrics
+        app.kubernetes.io/part-of: kube-state-metrics
+        app.kubernetes.io/name: kube-state-metrics
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "2.7.0"
+    spec:
+      hostNetwork: false
+      serviceAccountName: my-release-kube-state-metrics
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsUser: 65534
+      containers:
+      - name: kube-state-metrics
+        args:
+        - --port=8080
+        - --resources=certificatesigningrequests,configmaps,cronjobs,daemonsets,deployments,endpoints,horizontalpodautoscalers,ingresses,jobs,leases,limitranges,mutatingwebhookconfigurations,namespaces,networkpolicies,nodes,persistentvolumeclaims,persistentvolumes,poddisruptionbudgets,pods,replicasets,replicationcontrollers,resourcequotas,secrets,services,statefulsets,storageclasses,validatingwebhookconfigurations,volumeattachments
+        imagePullPolicy: IfNotPresent
+        image: "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.7.0"
+        ports:
+        - containerPort: 8080
+          name: "http"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+---
+# Source: prometheus/templates/deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.3.0
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: prometheus-19.3.0.tgz
+spec:
+  selector:
+    matchLabels:
+      component: "server"
+      app: prometheus
+      release: my-release
+  replicas: 1
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+  template:
+    metadata:
+      labels:
+        component: "server"
+        app: prometheus
+        release: my-release
+        chart: prometheus-19.3.0
+        heritage: Helm
+    spec:
+      enableServiceLinks: true
+      serviceAccountName: my-release-prometheus-server
+      containers:
+        - name: prometheus-server-configmap-reload
+          image: "jimmidyson/configmap-reload:v0.8.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --volume-dir=/etc/config
+            - --webhook-url=http://127.0.0.1:9090/-/reload
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+              readOnly: true
+
+        - name: prometheus-server
+          image: "quay.io/prometheus/prometheus:v2.41.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --storage.tsdb.retention.time=15d
+            - --config.file=/etc/config/prometheus.yml
+            - --storage.tsdb.path=/data
+            - --web.console.libraries=/etc/prometheus/console_libraries
+            - --web.console.templates=/etc/prometheus/consoles
+            - --web.enable-lifecycle
+          ports:
+            - containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+            - name: storage-volume
+              mountPath: /data
+              subPath: ""
+      dnsPolicy: ClusterFirst
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-release-prometheus-server
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: my-release-prometheus-server

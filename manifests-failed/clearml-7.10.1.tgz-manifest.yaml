@@ -1,0 +1,1534 @@
+---
+# Source: clearml/charts/elasticsearch/templates/poddisruptionbudget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: "clearml-elastic-master-pdb"
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: "clearml-elastic-master"
+---
+# Source: clearml/charts/elasticsearch/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "clearml-elastic-master"
+  annotations:
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch-7.17.3"
+    app: "clearml-elastic-master"
+---
+# Source: clearml/charts/mongodb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mongodb
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: mongodb
+    helm.sh/chart: mongodb-12.1.31
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+secrets:
+  - name: my-release-mongodb
+automountServiceAccountToken: true
+---
+# Source: clearml/charts/redis/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: my-release-redis
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.8.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: clearml/templates/serviceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clearml-apiserver
+---
+# Source: clearml/templates/serviceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clearml-fileserver
+---
+# Source: clearml/templates/serviceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clearml-webserver
+---
+# Source: clearml/templates/clearml-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: clearml-conf
+data:
+  apiserver_key: R0dTOUY0TTZYQjJEWEo1QUZUOUY=
+  apiserver_secret: Mm9HdWpWRmhQZmFvemhwdXoyR3pRZkE1T3l4bU1zUjNXVkpwc0NSNWhyZ0hGczIwUE8=
+  fileserver_key: WFhDUkoxMjNDRUUyS1NRMDY4V08=
+  fileserver_secret: WUl5OEVWQUM3UUNUNEZ0Z2l0eEFRR3lXN3hSSERaNGpwWWxURTdIS2lzY3BPUmwxaEc=
+  secure_auth_token_secret: eW1MaDFvazVrNXhOVVFmUzk0NFhkeDl4amYwd3Vlb2txS00yZE1aZkh1SDlheUl0RzI=
+  test_user_key: RU5QMzlFUU00U0xBQ0dENUZYQjc=
+  test_user_secret: bFBjbTBpbWJjQlo4bXdnTzd0cGFkdXRpUzNnbkpEMDV4OWo3YWZ3WFBTMzVJS2JwaVE=
+---
+# Source: clearml/charts/elasticsearch/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clearml-elastic-master-config
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "clearml-elastic-master"
+data:
+  elasticsearch.yml: |
+    xpack.security.enabled: false
+---
+# Source: clearml/charts/mongodb/templates/common-scripts-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mongodb-common-scripts
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: mongodb
+    helm.sh/chart: mongodb-12.1.31
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: mongodb
+data:
+  startup-probe.sh: |
+    #!/bin/bash
+    mongosh  $TLS_OPTIONS --port $MONGODB_PORT_NUMBER --eval 'db.hello().isWritablePrimary || db.hello().secondary' | grep -q 'true'
+  readiness-probe.sh: |
+    #!/bin/bash
+    # Run the proper check depending on the version
+    [[ $(mongod -version | grep "db version") =~ ([0-9]+\.[0-9]+\.[0-9]+) ]] && VERSION=${BASH_REMATCH[1]}
+    . /opt/bitnami/scripts/libversion.sh
+    VERSION_MAJOR="$(get_sematic_version "$VERSION" 1)"
+    VERSION_MINOR="$(get_sematic_version "$VERSION" 2)"
+    VERSION_PATCH="$(get_sematic_version "$VERSION" 3)"
+    if [[ ( "$VERSION_MAJOR" -ge 5 ) || ( "$VERSION_MAJOR" -ge 4 && "$VERSION_MINOR" -ge 4 && "$VERSION_PATCH" -ge 2 ) ]]; then
+        mongosh $TLS_OPTIONS --port $MONGODB_PORT_NUMBER --eval 'db.hello().isWritablePrimary || db.hello().secondary' | grep -q 'true'
+    else
+        mongosh  $TLS_OPTIONS --port $MONGODB_PORT_NUMBER --eval 'db.isMaster().ismaster || db.isMaster().secondary' | grep -q 'true'
+    fi
+  ping-mongodb.sh: |
+    #!/bin/bash
+    mongosh  $TLS_OPTIONS --port $MONGODB_PORT_NUMBER --eval "db.adminCommand('ping')"
+---
+# Source: clearml/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-configuration
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.8.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  redis.conf: |-
+    # User-supplied common configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+    # End of common configuration
+  master.conf: |-
+    dir /data
+    # User-supplied master configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of master configuration
+  replica.conf: |-
+    dir /data
+    # User-supplied replica configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of replica configuration
+---
+# Source: clearml/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-health
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.8.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ] && [ "$responseFirstWord" != "MASTERDOWN" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: clearml/charts/redis/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-scripts
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.8.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  start-master.sh: |
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    if [[ -f /opt/bitnami/redis/mounted-etc/master.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+    fi
+    if [[ -f /opt/bitnami/redis/mounted-etc/redis.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+    fi
+    ARGS=("--port" "${REDIS_PORT}")
+    ARGS+=("--protected-mode" "no")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+    exec redis-server "${ARGS[@]}"
+---
+# Source: clearml/templates/webserver-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "my-release-clearml-webserver-configmap"
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: clearml/charts/mongodb/templates/standalone/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-mongodb
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: mongodb
+    helm.sh/chart: mongodb-12.1.31
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: mongodb
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "50Gi"
+---
+# Source: clearml/templates/fileserver-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-clearml-fileserver-data
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "50Gi"
+---
+# Source: clearml/charts/elasticsearch/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: "clearml-elastic-master"
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch-7.17.3"
+    app: "clearml-elastic-master"
+rules:
+  - apiGroups:
+      - extensions
+    resources:
+      - podsecuritypolicies
+    resourceNames:
+      - "clearml-elastic-master"
+    verbs:
+      - use
+---
+# Source: clearml/charts/elasticsearch/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: "clearml-elastic-master"
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch-7.17.3"
+    app: "clearml-elastic-master"
+subjects:
+  - kind: ServiceAccount
+    name: "clearml-elastic-master"
+    namespace: "clearml-7.10.1.tgz"
+roleRef:
+  kind: Role
+  name: "clearml-elastic-master"
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: clearml/charts/elasticsearch/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: clearml-elastic-master
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "clearml-elastic-master"
+  annotations:
+    {}
+spec:
+  type: ClusterIP
+  selector:
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "clearml-elastic-master"
+  publishNotReadyAddresses: false
+  ports:
+  - name: http
+    protocol: TCP
+    port: 9200
+  - name: transport
+    protocol: TCP
+    port: 9300
+---
+# Source: clearml/charts/elasticsearch/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: clearml-elastic-master-headless
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "clearml-elastic-master"
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None # This is needed for statefulset hostnames like elasticsearch-0 to resolve
+  # Create endpoints also if the related pod isn't ready
+  publishNotReadyAddresses: true
+  selector:
+    app: "clearml-elastic-master"
+  ports:
+  - name: http
+    port: 9200
+  - name: transport
+    port: 9300
+---
+# Source: clearml/charts/mongodb/templates/standalone/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mongodb
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: mongodb
+    helm.sh/chart: mongodb-12.1.31
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: mongodb
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: "mongodb"
+      port: 27017
+      targetPort: mongodb
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: mongodb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: mongodb
+---
+# Source: clearml/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-headless
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.8.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+---
+# Source: clearml/charts/redis/templates/master/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-master
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.8.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  internalTrafficPolicy: Cluster
+  sessionAffinity: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: master
+---
+# Source: clearml/templates/apiserver-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clearml-apiserver
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 8008
+      targetPort: 8008
+      nodePort: 30008
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release-clearml-apiserver
+---
+# Source: clearml/templates/fileserver-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clearml-fileserver
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 8081
+      targetPort: 8081
+      nodePort: 30081
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release-clearml-fileserver
+---
+# Source: clearml/templates/webserver-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clearml-webserver
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 80
+      nodePort: 30080
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release-clearml-webserver
+---
+# Source: clearml/charts/mongodb/templates/standalone/dep-sts.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mongodb
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: mongodb
+    helm.sh/chart: mongodb-12.1.31
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: mongodb
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mongodb
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: mongodb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mongodb
+        helm.sh/chart: mongodb-12.1.31
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: mongodb
+    spec:
+      
+      serviceAccountName: my-release-mongodb
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: mongodb
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: mongodb
+                namespaces:
+                  - "clearml-7.10.1.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        sysctls: []
+      
+      containers:
+        - name: mongodb
+          image: docker.io/bitnami/mongodb:5.0.10-debian-11-r3
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: MONGODB_SYSTEM_LOG_VERBOSITY
+              value: "0"
+            - name: MONGODB_DISABLE_SYSTEM_LOG
+              value: "no"
+            - name: MONGODB_DISABLE_JAVASCRIPT
+              value: "no"
+            - name: MONGODB_ENABLE_JOURNAL
+              value: "yes"
+            - name: MONGODB_PORT_NUMBER
+              value: "27017"
+            - name: MONGODB_ENABLE_IPV6
+              value: "no"
+            - name: MONGODB_ENABLE_DIRECTORY_PER_DB
+              value: "no"
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 10
+            exec:
+              command:
+                - /bitnami/scripts/ping-mongodb.sh
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bitnami/scripts/readiness-probe.sh
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: datadir
+              mountPath: /bitnami/mongodb
+              subPath: 
+            - name: common-scripts
+              mountPath: /bitnami/scripts
+      volumes:
+        - name: common-scripts
+          configMap:
+            name: my-release-mongodb-common-scripts
+            defaultMode: 0550
+        - name: datadir
+          persistentVolumeClaim:
+            claimName: my-release-mongodb
+---
+# Source: clearml/templates/apiserver-asyncdelete-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-clearml-apiserver-asyncdelete
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-clearml
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-clearml
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: clearml-apiserver
+      securityContext:
+        
+        {}
+      initContainers:
+        - name: init-apiserver
+          image: "docker.io/allegroai/clearml:1.15.1-478"
+          command:
+            - /bin/sh
+            - -c
+            - >
+              set -x;
+              while [ $(curl -sw '%{http_code}' "http://clearml-elastic-master:9200/_cluster/health" -o /dev/null) -ne 200 ] ; do
+                echo "waiting for elasticsearch" ;
+                sleep 5 ;
+              done ;
+              while [ $(curl --telnet-option BOGUS --connect-timeout 2 -s "telnet://my-release-mongodb:27017" -o /dev/null; echo $?) -ne 49 ] ; do
+                echo "waiting for mongodb" ;
+                sleep 5 ;
+              done ;
+              while [ $(curl --telnet-option BOGUS --connect-timeout 2 -s "telnet://my-release-redis-master:6379" -o /dev/null; echo $?) -ne 49 ] ; do
+                echo "waiting for redis" ;
+                sleep 5 ;
+              done ;
+          securityContext:
+            
+            {}
+          resources:
+            limits:
+              cpu: 10m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+      containers:
+        - name: clearml-apiserver
+          image: "docker.io/allegroai/clearml:1.15.1-478"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - >
+              python3 -m jobs.async_urls_delete --fileserver-host http://my-release-clearml-fileserver:8081
+          env:
+          - name: CLEARML_REDIS_SERVICE_HOST
+            value: my-release-redis-master
+          - name: CLEARML_REDIS_SERVICE_PORT
+            value: "6379"
+          - name: CLEARML_MONGODB_SERVICE_CONNECTION_STRING
+            value: "mongodb://my-release-mongodb:27017"
+          - name: CLEARML__HOSTS__ELASTIC__WORKERS__HOSTS
+            value: "[{\"host\":\"clearml-elastic-master\",\"port\":9200,\"scheme\":\"\"}]"
+          - name: CLEARML__HOSTS__ELASTIC__EVENTS__HOSTS
+            value: "[{\"host\":\"clearml-elastic-master\",\"port\":9200,\"scheme\":\"\"}]"
+          - name: CLEARML__HOSTS__ELASTIC__DATASETS__HOSTS
+            value: "[{\"host\":\"clearml-elastic-master\",\"port\":9200,\"scheme\":\"\"}]"
+          - name: CLEARML__HOSTS__ELASTIC__LOGS__HOSTS
+            value: "[{\"host\":\"clearml-elastic-master\",\"port\":9200,\"scheme\":\"\"}]"
+          - name: CLEARML__logging__handlers__text_file__filename
+            value: "/dev/null"
+          - name: PYTHONPATH
+            value: /opt/clearml/apiserver
+          - name: CLEARML__apiserver__default_company
+            value: ""
+          - name: CLEARML__services__async_urls_delete__fileserver__url_prefixes
+            value: "[\"http://my-release-clearml-fileserver:%!s(float64=8081)\"]"
+          - name: CLEARML__secure__auth__token_secret
+            valueFrom:
+              secretKeyRef:
+                name: "clearml-conf"
+                key: secure_auth_token_secret
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          securityContext:
+            
+            {}
+---
+# Source: clearml/templates/apiserver-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-clearml-apiserver
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-clearml
+      app.kubernetes.io/instance: my-release-clearml-apiserver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-clearml
+        app.kubernetes.io/instance: my-release-clearml-apiserver
+    spec:
+      serviceAccountName: clearml-apiserver
+      securityContext:
+        
+        {}
+      initContainers:
+        - name: init-apiserver
+          image: "docker.io/allegroai/clearml:1.15.1-478"
+          command:
+            - /bin/sh
+            - -c
+            - >
+              set -x;
+              while [ $(curl -sw '%{http_code}' "http://clearml-elastic-master:9200/_cluster/health" -o /dev/null) -ne 200 ] ; do
+                echo "waiting for elasticsearch" ;
+                sleep 5 ;
+              done ;
+              while [ $(curl --telnet-option BOGUS --connect-timeout 2 -s "telnet://my-release-mongodb:27017" -o /dev/null; echo $?) -ne 49 ] ; do
+                echo "waiting for mongodb" ;
+                sleep 5 ;
+              done ;
+              while [ $(curl --telnet-option BOGUS --connect-timeout 2 -s "telnet://my-release-redis-master:6379" -o /dev/null; echo $?) -ne 49 ] ; do
+                echo "waiting for redis" ;
+                sleep 5 ;
+              done ;
+          securityContext:
+            
+            {}
+          resources:
+            limits:
+              cpu: 10m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+      containers:
+        - name: clearml-apiserver
+          image: "docker.io/allegroai/clearml:1.15.1-478"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8008
+              protocol: TCP
+          env:
+          - name: CLEARML__HOSTS__ELASTIC__WORKERS__HOSTS
+            value: "[{\"host\":\"clearml-elastic-master\",\"port\":9200,\"scheme\":\"\"}]"
+          - name: CLEARML__HOSTS__ELASTIC__EVENTS__HOSTS
+            value: "[{\"host\":\"clearml-elastic-master\",\"port\":9200,\"scheme\":\"\"}]"
+          - name: CLEARML__HOSTS__ELASTIC__DATASETS__HOSTS
+            value: "[{\"host\":\"clearml-elastic-master\",\"port\":9200,\"scheme\":\"\"}]"
+          - name: CLEARML__HOSTS__ELASTIC__LOGS__HOSTS
+            value: "[{\"host\":\"clearml-elastic-master\",\"port\":9200,\"scheme\":\"\"}]"
+          - name: CLEARML_MONGODB_SERVICE_CONNECTION_STRING
+            value: "mongodb://my-release-mongodb:27017"
+          - name: CLEARML_REDIS_SERVICE_HOST
+            value: my-release-redis-master
+          - name: CLEARML_REDIS_SERVICE_PORT
+            value: "6379"
+          - name: CLEARML_CONFIG_PATH
+            value: /opt/clearml/config
+          - name: CLEARML__apiserver__default_company_name
+            value: "d1bd92a3b039400cbafc60a7a5b1e52b"
+          - name: CLEARML__APISERVER__AUTH__SESSION_AUTH_COOKIE_NAME
+            value: clearml-token-k8s
+          - name: CLEARML__secure__credentials__apiserver__user_key
+            valueFrom:
+              secretKeyRef:
+                name: "clearml-conf"
+                key: apiserver_key
+          - name: CLEARML__secure__credentials__apiserver__user_secret
+            valueFrom:
+              secretKeyRef:
+                name: "clearml-conf"
+                key: apiserver_secret
+          - name: CLEARML__secure__auth__token_secret
+            valueFrom:
+              secretKeyRef:
+                name: "clearml-conf"
+                key: secure_auth_token_secret
+          - name: CLEARML__APISERVER__PRE_POPULATE__ENABLED
+            value: "true"
+          - name: CLEARML__APISERVER__PRE_POPULATE__ZIP_FILES
+            value: "/opt/clearml/db-pre-populate"
+          - name: CLEARML__SECURE__CREDENTIALS__TESTS__USER_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "clearml-conf"
+                key: test_user_key
+          - name: CLEARML__SECURE__CREDENTIALS__TESTS__USER_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: "clearml-conf"
+                key: test_user_secret
+          - name: CLEARML_ENV
+            value: "helm-cloud"
+          args:
+            - apiserver
+          livenessProbe:
+            initialDelaySeconds: 60
+            httpGet:
+              path: /debug.ping
+              port: 8008
+          readinessProbe:
+            initialDelaySeconds: 60
+            failureThreshold: 8
+            httpGet:
+              path: /debug.ping
+              port: 8008
+              httpHeaders:
+                - name: Authorization
+                  value: Basic R0s0UFJUVlQzNzA2VDI1SzZCQTE6eW1MaDFvazVrNXhOVVFmUzk0NFhkeDl4amYwd3Vlb2txS00yZE1aZkh1SDlheUl0RzI=
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          securityContext:
+            
+            {}
+---
+# Source: clearml/templates/fileserver-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-clearml-fileserver
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-clearml
+      app.kubernetes.io/instance: my-release-clearml-fileserver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-clearml
+        app.kubernetes.io/instance: my-release-clearml-fileserver
+    spec:
+      serviceAccountName: clearml-fileserver
+      volumes:
+        - name: fileserver-data
+          persistentVolumeClaim:
+            claimName: my-release-clearml-fileserver-data
+      securityContext:
+        
+        {}
+      initContainers:
+        - name: init-fileserver
+          image: "docker.io/allegroai/clearml:1.15.1-478"
+          command:
+            - /bin/sh
+            - -c
+            - >
+              set -x;
+              while [ $(curl -sw '%{http_code}' "http://my-release-clearml-apiserver:8008/debug.ping" -o /dev/null) -ne 200 ] ; do
+                echo "waiting for apiserver" ;
+                sleep 5 ;
+              done
+          securityContext:
+            
+            {}
+          resources:
+            limits:
+              cpu: 10m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+      containers:
+        - name: clearml-fileserver
+          image: "docker.io/allegroai/clearml:1.15.1-478"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          env:
+          - name: CLEARML__HOSTS__API_SERVER
+            value: "http://my-release-clearml-apiserver:8008"
+          - name: CLEARML_REDIS_SERVICE_HOST
+            value: my-release-redis-master
+          - name: CLEARML_REDIS_SERVICE_PORT
+            value: "6379"
+          - name: USER_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "clearml-conf"
+                key: fileserver_key
+          - name: USER_SECRET
+            valueFrom:
+              secretKeyRef: 
+                name: "clearml-conf"
+                key: fileserver_secret
+          args:
+            - fileserver
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -X OPTIONS
+                - http://localhost:8081/
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -X OPTIONS
+                - http://localhost:8081/
+          volumeMounts:
+            - name: fileserver-data
+              mountPath: /mnt/fileserver
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          securityContext:
+            
+            {}
+---
+# Source: clearml/templates/webserver-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-clearml-webserver
+  labels:
+    helm.sh/chart: clearml-7.10.1
+    app.kubernetes.io/name: my-release-clearml
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.15"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: my-release-clearml
+      app.kubernetes.io/instance: my-release-clearml-webserver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: my-release-clearml
+        app.kubernetes.io/instance: my-release-clearml-webserver
+    spec:
+      serviceAccountName: clearml-webserver
+      volumes:
+        - name: webserver-config
+          configMap:
+            name: "my-release-clearml-webserver-configmap"
+      securityContext:
+        
+        {}
+      initContainers:
+        - name: init-webserver
+          image: "docker.io/allegroai/clearml:1.15.1-478"
+          command:
+            - /bin/sh
+            - -c
+            - >
+              set -x;
+              while [ $(curl -sw '%{http_code}' "http://my-release-clearml-apiserver:8008/debug.ping" -o /dev/null) -ne 200 ] ; do
+                echo "waiting for apiserver" ;
+                sleep 5 ;
+              done
+          securityContext:
+            
+            {}
+          resources:
+            limits:
+              cpu: 10m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 64Mi
+      containers:
+        - name: clearml-webserver
+          image: "docker.io/allegroai/clearml:1.15.1-478"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -X OPTIONS
+                - http://localhost:80/
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -X OPTIONS
+                - http://localhost:80/
+          env:
+          - name: NGINX_APISERVER_ADDRESS
+            value: "http://my-release-clearml-apiserver:8008"
+          - name: NGINX_FILESERVER_ADDRESS
+            value: "http://my-release-clearml-fileserver:8081"
+          args:
+            - webserver
+          volumeMounts:
+            - name: webserver-config
+              mountPath: /mnt/external_files/configs
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          securityContext:
+            
+            {}
+---
+# Source: clearml/charts/elasticsearch/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clearml-elastic-master
+  labels:
+    heritage: "Helm"
+    release: "my-release"
+    chart: "elasticsearch"
+    app: "clearml-elastic-master"
+  annotations:
+    esMajorVersion: "7"
+spec:
+  serviceName: clearml-elastic-master-headless
+  selector:
+    matchLabels:
+      app: "clearml-elastic-master"
+  replicas: 1
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: clearml-elastic-master
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 50Gi
+      storageClassName: null
+  template:
+    metadata:
+      name: "clearml-elastic-master"
+      labels:
+        release: "my-release"
+        chart: "elasticsearch"
+        app: "clearml-elastic-master"
+      annotations:
+        
+        configchecksum: 465a9c43fe6bf62effafafea1ce9f3094846f5c320e46e2409ac016d0fc7d0e
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      serviceAccountName: "clearml-elastic-master"
+      automountServiceAccountToken: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - "clearml-elastic-master"
+            topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 120
+      volumes:
+        - name: esconfig
+          configMap:
+            name: clearml-elastic-master-config
+      enableServiceLinks: true
+      initContainers:
+      - name: configure-sysctl
+        securityContext:
+          runAsUser: 0
+          privileged: true
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.3"
+        imagePullPolicy: "IfNotPresent"
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        resources:
+          {}
+
+      containers:
+      - name: "elasticsearch"
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.3"
+        imagePullPolicy: "IfNotPresent"
+        readinessProbe:
+          exec:
+            command:
+              - bash
+              - -c
+              - |
+                set -e
+                # If the node is starting up wait for the cluster to be ready (request params: "wait_for_status=yellow&timeout=1s" )
+                # Once it has started only check that the node itself is responding
+                START_FILE=/tmp/.es_start_file
+
+                # Disable nss cache to avoid filling dentry cache when calling curl
+                # This is required with Elasticsearch Docker using nss < 3.52
+                export NSS_SDB_USE_CACHE=no
+
+                http () {
+                  local path="${1}"
+                  local args="${2}"
+                  set -- -XGET -s
+
+                  if [ "$args" != "" ]; then
+                    set -- "$@" $args
+                  fi
+
+                  if [ -n "${ELASTIC_PASSWORD}" ]; then
+                    set -- "$@" -u "elastic:${ELASTIC_PASSWORD}"
+                  fi
+
+                  curl --output /dev/null -k "$@" "http://127.0.0.1:9200${path}"
+                }
+
+                if [ -f "${START_FILE}" ]; then
+                  echo 'Elasticsearch is already running, lets check the node is healthy'
+                  HTTP_CODE=$(http "/" "-w %{http_code}")
+                  RC=$?
+                  if [[ ${RC} -ne 0 ]]; then
+                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} http://127.0.0.1:9200/ failed with RC ${RC}"
+                    exit ${RC}
+                  fi
+                  # ready if HTTP code 200, 503 is tolerable if ES version is 6.x
+                  if [[ ${HTTP_CODE} == "200" ]]; then
+                    exit 0
+                  elif [[ ${HTTP_CODE} == "503" && "7" == "6" ]]; then
+                    exit 0
+                  else
+                    echo "curl --output /dev/null -k -XGET -s -w '%{http_code}' \${BASIC_AUTH} http://127.0.0.1:9200/ failed with HTTP code ${HTTP_CODE}"
+                    exit 1
+                  fi
+
+                else
+                  echo 'Waiting for elasticsearch cluster to become ready (request params: "wait_for_status=yellow&timeout=1s" )'
+                  if http "/_cluster/health?wait_for_status=yellow&timeout=1s" "--fail" ; then
+                    touch ${START_FILE}
+                    exit 0
+                  else
+                    echo 'Cluster is not yet ready (request params: "wait_for_status=yellow&timeout=1s" )'
+                    exit 1
+                  fi
+                fi
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 3
+          timeoutSeconds: 5
+        ports:
+        - name: http
+          containerPort: 9200
+        - name: transport
+          containerPort: 9300
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+          requests:
+            cpu: 100m
+            memory: 2Gi
+        env:
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: cluster.initial_master_nodes
+            value: "clearml-elastic-master-0,"
+          - name: discovery.seed_hosts
+            value: "clearml-elastic-master-headless"
+          - name: cluster.name
+            value: "clearml-elastic"
+          - name: network.host
+            value: "0.0.0.0"
+          - name: cluster.deprecation_indexing.enabled
+            value: "false"
+          - name: ES_JAVA_OPTS
+            value: "-Xmx2g -Xms2g"
+          - name: node.data
+            value: "true"
+          - name: node.ingest
+            value: "true"
+          - name: node.master
+            value: "true"
+          - name: node.ml
+            value: "true"
+          - name: node.remote_cluster_client
+            value: "true"
+          - name: bootstrap.memory_lock
+            value: "false"
+          - name: cluster.routing.allocation.node_initial_primaries_recoveries
+            value: "500"
+          - name: cluster.routing.allocation.disk.watermark.low
+            value: 500mb
+          - name: cluster.routing.allocation.disk.watermark.high
+            value: 500mb
+          - name: cluster.routing.allocation.disk.watermark.flood_stage
+            value: 500mb
+          - name: http.compression_level
+            value: "7"
+          - name: reindex.remote.whitelist
+            value: '*.*'
+          - name: xpack.monitoring.enabled
+            value: "false"
+          - name: xpack.security.enabled
+            value: "false"
+        volumeMounts:
+          - name: "clearml-elastic-master"
+            mountPath: /usr/share/elasticsearch/data
+
+          - name: esconfig
+            mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+            subPath: elasticsearch.yml
+---
+# Source: clearml/charts/redis/templates/master/application.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-redis-master
+  namespace: "clearml-7.10.1.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.8.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: master
+  serviceName: my-release-redis-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        helm.sh/chart: redis-17.8.3
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/configmap: 0e05649d61a104a23d8cdf001af37ed917ff63725dc08cb33a6e960185a33cf2
+        checksum/health: c0d1e8e82b622ad42e519608828245c3cd8937fb8d69a7b3f2db50f71ce90a29
+        checksum/scripts: 52abd28795694205102bede511470bbc12b22f06fb4ce0bf787a39802ef9449e
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: my-release-redis
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: redis
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: master
+                namespaces:
+                  - "clearml-7.10.1.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:7.0.9-debian-11-r1
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          command:
+            - /bin/bash
+          args:
+            - -c
+            - /opt/bitnami/scripts/start-scripts/start-master.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: REDIS_REPLICATION_MODE
+              value: master
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            # One second longer than command timeout should prevent generation of zombie processes.
+            timeoutSeconds: 6
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_liveness_local.sh 5
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_readiness_local.sh 1
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: start-scripts
+              mountPath: /opt/bitnami/scripts/start-scripts
+            - name: health
+              mountPath: /health
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /opt/bitnami/redis/mounted-etc
+            - name: redis-tmp-conf
+              mountPath: /opt/bitnami/redis/etc/
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: start-scripts
+          configMap:
+            name: my-release-redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: my-release-redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: my-release-redis-configuration
+        - name: redis-tmp-conf
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+        labels:
+          app.kubernetes.io/name: redis
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/component: master
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "5Gi"
+---
+# Source: clearml/charts/elasticsearch/templates/test/test-elasticsearch-health.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-eaynz-test"
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+  containers:
+  - name: "my-release-pfghi-test"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.3"
+    imagePullPolicy: "IfNotPresent"
+    command:
+      - "sh"
+      - "-c"
+      - |
+        #!/usr/bin/env bash -e
+        curl -XGET --fail 'clearml-elastic-master:9200/_cluster/health?wait_for_status=yellow&timeout=1s'
+  restartPolicy: Never

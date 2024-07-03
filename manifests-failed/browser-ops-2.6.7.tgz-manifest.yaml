@@ -1,0 +1,64 @@
+---
+# Source: browser-ops/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release
+  namespace: browser-ops-2.6.7.tgz
+---
+# Source: browser-ops/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release
+  namespace: browser-ops-2.6.7.tgz
+rules:
+- apiGroups:
+  - moon.aerokube.com
+  resources:
+  - browsersets
+  verbs:
+  - get
+  - update
+---
+# Source: browser-ops/templates/role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release
+  namespace: browser-ops-2.6.7.tgz
+roleRef:
+  kind: Role
+  name: my-release
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: my-release
+  namespace: browser-ops-2.6.7.tgz
+---
+# Source: browser-ops/templates/cron-job.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-release
+  namespace: browser-ops-2.6.7.tgz
+spec:
+  schedule: "0 1 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 0
+      template:
+        spec:
+          serviceAccountName: my-release
+          containers:
+          - name: browser-ops
+            image: quay.io/aerokube/browser-ops:2.6.7
+            args:
+            - default
+            env:
+            - name: TAGS
+              value: long
+            - name: LIST
+              value: "-1"
+          restartPolicy: Never

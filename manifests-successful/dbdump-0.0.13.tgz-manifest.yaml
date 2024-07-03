@@ -1,0 +1,75 @@
+---
+# Source: dbdump/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-dbdump
+  labels:
+    helm.sh/chart: dbdump-0.0.13
+    app.kubernetes.io/name: dbdump
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.9"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 8Gi
+---
+# Source: dbdump/templates/cron.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: example.com
+  labels:
+    helm.sh/chart: dbdump-0.0.13
+    app.kubernetes.io/name: dbdump
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.0.9"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  schedule: "0 3 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        helm.sh/chart: dbdump-0.0.13
+        app.kubernetes.io/name: dbdump
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.0.9"
+        app.kubernetes.io/managed-by: Helm
+        cronjob-name: example.com
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          containers:
+          - name: dbdump
+            image: "djjudas21/dbdump:0.0.9"
+            imagePullPolicy: "IfNotPresent"
+            env:
+            - name: DBDUMP_DEBUG
+              value: "false"
+            - name: DBDUMP_TYPE
+              value: ""
+            - name: DBDUMP_ALL_DB
+              value: "true"
+            - name: DBDUMP_PASSWORD
+              value: ""
+            - name: DBDUMP_HOST
+              value: "example.com"        
+            
+            - name: KEEP_DAYS
+              value: "10"
+            volumeMounts:
+            - name: backups
+              mountPath: /backup
+            resources: 
+              {}
+          restartPolicy: Never
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: my-release-dbdump

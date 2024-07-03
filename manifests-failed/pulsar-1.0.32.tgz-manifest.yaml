@@ -1,0 +1,2204 @@
+---
+# Source: pulsar/templates/bookkeeper-pdb.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: "pulsar-bookkeeper"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: bookkeeper
+    cluster: pulsar
+spec:
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: bookkeeper
+  maxUnavailable: 1
+---
+# Source: pulsar/templates/broker-deployment/broker-pdb.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: "pulsar-broker"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: broker
+    cluster: pulsar
+spec:
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: broker
+  maxUnavailable: 1
+---
+# Source: pulsar/templates/proxy-pdb.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: "pulsar-proxy"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: proxy
+    cluster: pulsar
+spec:
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: proxy
+  maxUnavailable: 1
+---
+# Source: pulsar/templates/zookeeper/zookeeper-pdb.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: "pulsar-zookeeper"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: zookeeper
+    cluster: pulsar
+spec:
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: zookeeper
+  maxUnavailable: 1
+---
+# Source: pulsar/templates/autorecovery-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pulsar-autorecovery"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: autorecovery
+    cluster: pulsar
+data:
+  zkServers:
+    pulsar-zookeeper-ca:2181
+  BOOKIE_MEM: '" -Xms512m -Xmx512m -XX:+ExitOnOutOfMemoryError"'
+  PULSAR_EXTRA_OPTS: -Dpulsar.log.root.level=info
+  PULSAR_LOG_LEVEL: info
+  PULSAR_LOG_ROOT_LEVEL: info
+---
+# Source: pulsar/templates/bastion-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pulsar-bastion"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: bastion
+    cluster: pulsar
+data:
+  tlsTrustCertsFilePath: "/etc/ssl/certs/ca-certificates.crt"
+  PULSAR_EXTRA_OPTS: -Dpulsar.log.root.level=info
+  PULSAR_LOG_LEVEL: info
+  PULSAR_LOG_ROOT_LEVEL: info
+  PULSAR_MEM: '"-Xms256m -Xmx256m -XX:MaxDirectMemorySize=256m -XX:+ExitOnOutOfMemoryError"'
+---
+# Source: pulsar/templates/bookkeeper-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pulsar-bookkeeper"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: bookkeeper
+    cluster: pulsar
+data:
+  zkServers:
+    pulsar-zookeeper-ca:2181
+  # disable auto recovery on bookies since we will start AutoRecovery in separated pods
+  autoRecoveryDaemonEnabled: "false"
+  # In k8s always want to use hostname as bookie ID since IP addresses are ephemeral
+  useHostNameAsBookieID: "true"
+  # HTTP server used by health check
+  httpServerEnabled: "true"
+  BOOKIE_GC: '"-XX:+UseG1GC"'
+  BOOKIE_MEM: '"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g -Dio.netty.leakDetectionLevel=disabled
+    -Dio.netty.recycler.linkCapacity=1024 -XX:+ExitOnOutOfMemoryError"'
+  PULSAR_EXTRA_OPTS: -Dpulsar.log.root.level=info
+  PULSAR_LOG_LEVEL: info
+  PULSAR_LOG_ROOT_LEVEL: info
+  statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
+---
+# Source: pulsar/templates/broker-deployment/broker-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pulsar-broker"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: broker
+    cluster: pulsar
+data:
+  zookeeperServers:
+    pulsar-zookeeper-ca:2181
+  configurationStoreServers:
+    pulsar-zookeeper-ca:2181
+  clusterName: pulsar
+  allowAutoTopicCreationType: "non-partitioned"
+  PULSAR_EXTRA_OPTS: -Dpulsar.log.root.level=info
+  PULSAR_GC: '"-XX:+UseG1GC"'
+  PULSAR_LOG_LEVEL: info
+  PULSAR_LOG_ROOT_LEVEL: info
+  PULSAR_MEM: '"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g -Dio.netty.leakDetectionLevel=disabled
+    -Dio.netty.recycler.linkCapacity=1024 -XX:+ExitOnOutOfMemoryError"'
+  backlogQuotaDefaultRetentionPolicy: producer_exception
+  brokerDeduplicationEnabled: "false"
+  exposeConsumerLevelMetricsInPrometheus: "true"
+  exposeTopicLevelMetricsInPrometheus: "true"
+---
+# Source: pulsar/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pulsar-health"
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: "health-check"
+    cluster: pulsar
+data:
+  proxy_health_check.sh: |
+    #!/bin/bash
+    curl -s --connect-timeout 2 --fail http://localhost:8080/metrics/ > /dev/null
+
+  broker_health_check.sh: |
+    #!/bin/bash
+    curl -s --connect-timeout 2 --fail http://localhost:8080/admin/v2/brokers/health
+---
+# Source: pulsar/templates/proxy-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pulsar-proxy"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: proxy
+    cluster: pulsar
+data:
+  brokerServiceURL: "pulsar://pulsar-broker:6650"
+  brokerServiceURLTLS: "pulsar+ssl://pulsar-broker:6651"
+  brokerWebServiceURL: "http://pulsar-broker:8080"
+  brokerWebServiceURLTLS: "https://pulsar-broker:8443"
+  zookeeperServers:
+    pulsar-zookeeper-ca:2181
+  configurationStoreServers:
+    pulsar-zookeeper-ca:2181
+  PULSAR_EXTRA_OPTS: -Dpulsar.log.root.level=info
+  PULSAR_LOG_LEVEL: info
+  PULSAR_LOG_ROOT_LEVEL: info
+  PULSAR_MEM: '"-Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g"'
+  numHttpServerThreads: "10"
+---
+# Source: pulsar/templates/proxy-ws-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pulsar-proxy-ws"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: proxy
+    cluster: pulsar
+data:
+  brokerServiceUrl: "pulsar://pulsar-broker:6650"
+  brokerServiceUrlTls: "pulsar+ssl://pulsar-broker:6651"
+  serviceUrl: "http://pulsar-broker:8080"
+  serviceUrlTls: "https://pulsar-broker:8443"
+  zookeeperServers:
+    "pulsar-zookeeper-ca:2181"
+  configurationStoreServers:
+    "pulsar-zookeeper-ca:2181"
+  clusterName: pulsar
+  webServicePort: "8000"
+  PULSAR_EXTRA_OPTS: -Dpulsar.log.root.level=info
+  PULSAR_LOG_LEVEL: info
+  PULSAR_LOG_ROOT_LEVEL: info
+  PULSAR_MEM: '"-Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g"'
+  numHttpServerThreads: "10"
+---
+# Source: pulsar/templates/zookeeper/zookeeper-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "pulsar-zookeeper"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: zookeeper
+    cluster: pulsar
+data:
+  PULSAR_PREFIX_quorumListenOnAllIPs: "true"
+  PULSAR_EXTRA_OPTS: -Dpulsar.log.root.level=info
+  PULSAR_GC: '"-XX:+UseG1GC"'
+  PULSAR_LOG_LEVEL: info
+  PULSAR_LOG_ROOT_LEVEL: info
+  PULSAR_MEM: '"-Xms1g -Xmx1g -Dcom.sun.management.jmxremote -Djute.maxbuffer=10485760"'
+---
+# Source: pulsar/templates/bookkeeper-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: "pulsar-bookkeeper"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: bookkeeper
+    cluster: pulsar
+  annotations:
+    publishNotReadyAddresses: "true"
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  ports:
+  - name: server
+    port: 3181
+  clusterIP: None
+  selector:
+    app: pulsar
+    release: my-release
+    component: bookkeeper
+---
+# Source: pulsar/templates/broker-deployment/broker-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: "pulsar-broker"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: broker
+    cluster: pulsar
+  annotations:
+spec:
+  ports:
+  - name: http
+    port: 8080
+  - name: pulsar
+    port: 6650
+  - name: https
+    port: 8443
+  - name: pulsarssl
+    port: 6651
+  type: ClusterIP
+  selector:
+    app: pulsar
+    release: my-release
+    component: broker
+---
+# Source: pulsar/templates/proxy-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: "pulsar-proxy"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: proxy
+    cluster: pulsar
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: pulsar.example.com
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+  - name: pulsar
+    port: 6650
+    protocol: TCP
+  - name: ws
+    port: 8000
+    protocol: TCP
+  selector:
+    app: pulsar
+    release: my-release
+    component: proxy
+---
+# Source: pulsar/templates/zookeeper/zookeeper-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: "pulsar-zookeeper"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: zookeeper
+    cluster: pulsar
+  annotations:
+    publishNotReadyAddresses: "true"
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  ports:
+  - name: server
+    port: 2888
+  - name: leader-election
+    port: 3888
+  - name: client
+    port: 2181
+  clusterIP: None
+  selector:
+    app: pulsar
+    release: my-release
+    component: zookeeper
+---
+# Source: pulsar/templates/zookeeper/zookeeper-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "pulsar-zookeeper-ca"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: zookeeper
+    cluster: pulsar
+  annotations:
+spec:
+  ports:
+  - name: server
+    port: 2888
+  - name: leader-election
+    port: 3888
+  - name: client
+    port: 2181
+  selector:
+    app: pulsar
+    release: my-release
+    component: zookeeper
+---
+# Source: pulsar/templates/autorecovery-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "pulsar-autorecovery"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: autorecovery
+    cluster: pulsar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: autorecovery
+  template:
+    metadata:
+      labels:
+        app: pulsar
+        release: my-release
+        component: autorecovery
+        cluster: pulsar
+      annotations:
+        {}
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: "app"
+                operator: In
+                values:
+                - "pulsar"
+              - key: "release"
+                operator: In
+                values:
+                - my-release
+              - key: "component"
+                operator: In
+                values:
+                - autorecovery
+            topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 60
+      initContainers:
+      # This init container will wait for zookeeper to be ready before
+      # deploying the bookies
+      - name: wait-zookeeper-ready
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+          - >-
+            until bin/pulsar zookeeper-shell -server pulsar-zookeeper ls /admin/clusters | grep "^\[.*pulsar.*\]"; do
+              sleep 3;
+            done;
+      volumes:
+      containers:
+      - name: "pulsar-autorecovery"
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 0.3
+            memory: 512Mi
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/bookkeeper.conf &&
+          bin/apply-config-from-env.py conf/bkenv.sh &&
+          exec bin/bookkeeper autorecovery
+        envFrom:
+        - configMapRef:
+            name: "pulsar-autorecovery"
+---
+# Source: pulsar/templates/bastion-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "pulsar-bastion"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: bastion
+    cluster: pulsar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: bastion
+  template:
+    metadata:
+      labels:
+        app: pulsar
+        release: my-release
+        component: bastion
+        cluster: pulsar
+      annotations:
+        {}
+    spec:
+      terminationGracePeriodSeconds: 60
+      volumes:
+      containers:
+      - name: "pulsar-bastion"
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 0.25
+            memory: 256Mi
+        command: ["sh", "-c"]
+        volumeMounts:
+        args:
+        - >
+          bin/apply-config-from-env.py conf/client.conf &&
+          exec /bin/bash -c "trap : TERM INT; sleep infinity & wait"
+        envFrom:
+        - configMapRef:
+            name: "pulsar-bastion"
+        env:
+        # If proxy is deployed, us that for web service URL to 
+        # properly forward command to broker or function worker
+        - name: webServiceUrl
+          value: http://pulsar-proxy:8080/
+        - name: brokerServiceUrl
+          value: pulsar://pulsar-broker:6650/
+---
+# Source: pulsar/templates/broker-deployment/broker-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "pulsar-broker"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: broker
+    cluster: pulsar
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: broker
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: pulsar
+        release: my-release
+        component: broker
+        cluster: pulsar
+      annotations:
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: "app"
+                operator: In
+                values:
+                - "pulsar"
+              - key: "release"
+                operator: In
+                values:
+                - my-release
+              - key: "component"
+                operator: In
+                values:
+                - broker
+            topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: health
+          configMap: 
+            name: "pulsar-health"
+            defaultMode: 0755
+      initContainers:
+      # This init container will wait for bookkeeper to be ready before
+      # deploying the broker
+      - name: wait-bookkeeper-ready
+        image: "apachepulsar/pulsar-all:2.6.1"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+          - >-
+            until nslookup pulsar-bookkeeper-2.pulsar-bookkeeper.pulsar-1.0.32.tgz; do
+              sleep 3;
+            done;
+      containers:
+      - name: "pulsar-broker"
+        image: "apachepulsar/pulsar-all:2.6.1"
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          exec:
+            command:
+            - "/pulsar/health/broker_health_check.sh"
+          initialDelaySeconds: 10 
+          periodSeconds:  30 
+        livenessProbe:
+          exec:
+            command:
+            - "/pulsar/health/broker_health_check.sh"
+          initialDelaySeconds: 10 
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: 1
+            memory: 2Gi
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/broker.conf &&
+          bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          bin/apply-config-from-env.py conf/client.conf &&
+          bin/gen-yml-from-env.py conf/functions_worker.yml &&
+          exec bin/pulsar broker
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: pulsar
+          containerPort: 6650
+        volumeMounts:
+          - name: health
+            mountPath: /pulsar/health
+        envFrom:
+        - configMapRef:
+            name: "pulsar-broker"
+        env:
+        - name: advertisedAddress
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+---
+# Source: pulsar/templates/proxy-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "pulsar-proxy"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: proxy
+    cluster: pulsar
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: proxy
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: pulsar
+        release: my-release
+        component: proxy
+        cluster: pulsar
+      annotations:
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: "app"
+                operator: In
+                values:
+                - "pulsar"
+              - key: "release"
+                operator: In
+                values:
+                - my-release
+              - key: "component"
+                operator: In
+                values:
+                - proxy
+            topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: health
+          configMap: 
+            name: "pulsar-health"
+            defaultMode: 0755
+      initContainers:
+      # This init container will wait for bookkeeper to be ready before
+      # deploying the booproxykies
+      - name: wait-bookkeeper-ready
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+          - >-
+            until nslookup pulsar-bookkeeper-2.pulsar-bookkeeper.pulsar-1.0.32.tgz; do
+              sleep 3;
+            done;
+      containers:
+      - name: "pulsar-proxy"
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          exec:
+            command:
+            - "/pulsar/health/proxy_health_check.sh"
+          initialDelaySeconds: 10 
+          periodSeconds:  30 
+        livenessProbe:
+          exec:
+            command:
+            - "/pulsar/health/proxy_health_check.sh"
+          initialDelaySeconds: 10 
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: 1
+            memory: 1Gi
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/proxy.conf &&
+          bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          exec bin/pulsar proxy
+        ports:
+        - name: wss
+          containerPort: 8001
+        volumeMounts:
+          - name: health
+            mountPath: /pulsar/health
+        envFrom:
+        - configMapRef:
+            name: "pulsar-proxy"
+      - name: "pulsar-proxy-ws"
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 1
+            memory: 1Gi
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/websocket.conf &&
+          bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          bin/pulsar websocket
+        ports:
+        - name: http
+          containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: "pulsar-proxy-ws"
+---
+# Source: pulsar/templates/bookkeeper-statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "pulsar-bookkeeper"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: bookkeeper
+    cluster: pulsar
+spec:
+  serviceName: "pulsar-bookkeeper"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: bookkeeper
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: pulsar
+        release: my-release
+        component: bookkeeper
+        cluster: pulsar
+      annotations:
+        prometheus.io/port: "8000"
+        prometheus.io/scrape: "true"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: "app"
+                operator: In
+                values:
+                - "pulsar"
+              - key: "release"
+                operator: In
+                values:
+                - my-release
+              - key: "component"
+                operator: In
+                values:
+                - bookkeeper
+            topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 60
+      initContainers:
+      # This init container will wait for zookeeper to be ready before
+      # deploying the bookies
+      - name: wait-zookeeper-ready
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+          - >-
+            until bin/pulsar zookeeper-shell -server pulsar-zookeeper ls /admin/clusters | grep "^\[.*pulsar.*\]"; do
+              sleep 3;
+            done;
+      # This initContainer will make sure that the bookkeeper
+      # metadata is in zookeeper
+      - name: pulsar-bookkeeper-metaformat
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/bookkeeper.conf &&
+          bin/apply-config-from-env.py conf/bkenv.sh &&
+          bin/bookkeeper shell metaformat --nonInteractive || true;
+        envFrom:
+        - configMapRef:
+            name: "pulsar-bookkeeper"
+      containers:
+      - name: "pulsar-bookkeeper"
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          httpGet:
+            path: /api/v1/bookie/is_ready
+            port: 8000
+          initialDelaySeconds: 10 
+          periodSeconds:  30 
+        livenessProbe:
+          httpGet:
+            path: /api/v1/bookie/is_ready
+            port: 8000
+          initialDelaySeconds: 10 
+          periodSeconds:  30
+        resources:
+          requests:
+            cpu: 1
+            memory: 2Gi
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/bookkeeper.conf &&
+          bin/apply-config-from-env.py conf/bkenv.sh &&
+          bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          exec bin/pulsar bookie
+        ports:
+        - name: client
+          containerPort: 3181
+        envFrom:
+        - configMapRef:
+            name: "pulsar-bookkeeper"
+        volumeMounts:
+        - name: "pulsar-bookkeeper-journal"
+          mountPath: /pulsar/data/bookkeeper/journal
+        - name: "pulsar-bookkeeper-ledgers"
+          mountPath: /pulsar/data/bookkeeper/ledgers
+      volumes:
+  volumeClaimTemplates:
+  - metadata:
+      name: "pulsar-bookkeeper-journal"
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 20Gi
+  - metadata:
+      name: "pulsar-bookkeeper-ledgers"
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 50Gi
+---
+# Source: pulsar/templates/zookeeper/zookeeper-statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "pulsar-zookeeper"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: zookeeper
+    cluster: pulsar
+spec:
+  serviceName: "pulsar-zookeeper"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pulsar
+      release: my-release
+      component: zookeeper
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: pulsar
+        release: my-release
+        component: zookeeper
+        cluster: pulsar
+      annotations:
+        prometheus.io/port: "8000"
+        prometheus.io/scrape: "true"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: "app"
+                operator: In
+                values:
+                - "pulsar"
+              - key: "release"
+                operator: In
+                values:
+                - my-release
+              - key: "component"
+                operator: In
+                values:
+                - zookeeper
+            topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 60
+      containers:
+      - name: "pulsar-zookeeper"
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 0.3
+            memory: 1Gi
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/zookeeper.conf &&
+          bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          bin/generate-zookeeper-config.sh conf/zookeeper.conf &&
+          exec bin/pulsar zookeeper
+        ports:
+        - name: client
+          containerPort: 2181
+        - name: server
+          containerPort: 2888
+        - name: leader-election
+          containerPort: 3888
+        env:
+        - name: ZOOKEEPER_SERVERS
+          value:
+            pulsar-zookeeper-0,pulsar-zookeeper-1,pulsar-zookeeper-2
+        envFrom:
+        - configMapRef:
+            name: "pulsar-zookeeper"
+        readinessProbe:
+          exec:
+            command:
+            - "bin/pulsar-zookeeper-ruok.sh"
+          initialDelaySeconds: 10
+          timeoutSeconds: 30
+        livenessProbe:
+          exec:
+            command:
+            - "bin/pulsar-zookeeper-ruok.sh"
+          initialDelaySeconds: 10
+          timeoutSeconds: 30
+        volumeMounts:
+        - name: "pulsar-zookeeper-data"
+          mountPath: /pulsar/data
+      volumes:
+  volumeClaimTemplates:
+  - metadata:
+      name: "pulsar-zookeeper-data"
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Gi
+---
+# Source: pulsar/templates/zookeeper/zookeeper-metadata.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "pulsar-zookeeper-metadata"
+  namespace: pulsar-1.0.32.tgz
+  labels:
+    app: pulsar
+    chart: pulsar-1.0.32
+    release: my-release
+    heritage: Helm
+    component: zookeeper-metadata
+    cluster: pulsar
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: wait-zookeeper-ready
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+          - >-
+            until nslookup pulsar-zookeeper-2.pulsar-zookeeper.pulsar-1.0.32.tgz; do
+              sleep 3;
+            done;
+      containers:
+      - name: "pulsar-zookeeper-metadata"
+        image: "apachepulsar/pulsar:2.6.1"
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+          - >
+            bin/pulsar initialize-cluster-metadata \
+              --cluster pulsar \
+              --zookeeper pulsar-zookeeper \
+              --configuration-store pulsar-zookeeper \
+              --web-service-url http://pulsar-broker.pulsar-1.0.32.tgz:8080/ \
+              --broker-service-url pulsar://pulsar-broker.pulsar-1.0.32.tgz:6650/ || true;
+      restartPolicy: Never
+---
+# Source: pulsar/templates/beamwh-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/beamwh-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/bookkeeper-storageclass.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/bookkeeper-storageclass.yaml
+---
+# End for if persistence for whole file
+---
+# Source: pulsar/templates/broker-sts/broker-sts-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/broker-sts/broker-sts-pdb.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/broker-sts/broker-sts-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/broker-sts/broker-sts-statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/dashboard-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# trigger a build
+---
+# Source: pulsar/templates/deprecated/dashboard-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/grafana-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/grafana-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/latencyMonitor-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/latencyMonitor-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/prometheus-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/prometheus-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/prometheus-pvc.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/prometheus-rbac.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/prometheus-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/prometheus-storageclass.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/state-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/state-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/state-statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/deprecated/state-storageclass.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/function-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/function-extra-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/function-pdb.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/function-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/function-statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/function-storageclass.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/pulsar-express-configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/pulsar-express-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/pulsar-express-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/zookeeper/zookeeper-storageclass.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/zoonavigator/zoonavigator-deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pulsar/templates/zoonavigator/zoonavigator-service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#

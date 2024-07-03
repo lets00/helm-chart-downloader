@@ -1,0 +1,288 @@
+---
+# Source: redirect/templates/pod-disruption-budget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-redirect
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redirect
+      app.kubernetes.io/instance: my-release
+---
+# Source: redirect/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-redirect
+  labels:
+    app: redirect
+    app.kubernetes.io/instance: redirect-1.1.0
+    app.kubernetes.io/name: redirect
+    app.kubernetes.io/version: "1.1.0"
+    appRevision: redirect___1
+    chart: redirect-1.1.0
+    helm.sh/chart: redirect-1.1.0
+    release: my-release
+    releaseRevision: "1"
+    heritage: Helm
+---
+# Source: redirect/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redirect
+  labels:
+    app: redirect
+    app.kubernetes.io/instance: redirect-1.1.0
+    app.kubernetes.io/name: redirect
+    app.kubernetes.io/version: "1.1.0"
+    appRevision: redirect___1
+    chart: redirect-1.1.0
+    helm.sh/chart: redirect-1.1.0
+    release: my-release
+    releaseRevision: "1"
+    heritage: Helm
+data:
+  config.yaml: |
+    defaultFallbackTarget: https://www.wyrihaximus.net/
+    enforceHttps: false
+    buildin:
+      wwwToNonWww: true
+      nonWwwToWww: false
+    hosts:
+      www.ceesjankiewiet.nl: wyrihaximus.net
+---
+# Source: redirect/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redirect
+  labels:
+    app: redirect
+    app.kubernetes.io/instance: redirect-1.1.0
+    app.kubernetes.io/name: redirect
+    app.kubernetes.io/version: "1.1.0"
+    appRevision: redirect___1
+    chart: redirect-1.1.0
+    helm.sh/chart: redirect-1.1.0
+    release: my-release
+    releaseRevision: "1"
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7132
+      targetPort: 7132
+      protocol: TCP
+      name: http
+    - port: 7133
+      targetPort: 7133
+      protocol: TCP
+      name: http-metrics
+  selector:
+    app.kubernetes.io/name: redirect
+    app.kubernetes.io/instance: my-release
+---
+# Source: redirect/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-redirect
+  labels:
+    app: redirect
+    app.kubernetes.io/instance: redirect-1.1.0
+    app.kubernetes.io/name: redirect
+    app.kubernetes.io/version: "1.1.0"
+    appRevision: redirect___1
+    chart: redirect-1.1.0
+    helm.sh/chart: redirect-1.1.0
+    release: my-release
+    releaseRevision: "1"
+    heritage: Helm
+    language: random
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redirect
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7133"
+      labels:
+        app: redirect
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/name: redirect
+        app.kubernetes.io/version: "1.1.0"
+        appRevision: redirect___1
+        chart: redirect-1.1.0
+        helm.sh/chart: redirect-1.1.0
+        release: my-release
+        releaseRevision: "1"
+        heritage: Helm
+        language: random
+    spec:
+      serviceAccountName: my-release-redirect
+      securityContext:
+        {}
+      containers:
+        - name: redirect
+          securityContext:
+            {}
+          image: "ghcr.io/wyrihaximusnet/redirect:random"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 7132
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 7133
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http-metrics
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http-metrics
+          startupProbe:
+            failureThreshold: 33
+            periodSeconds: 1
+            httpGet:
+              path: /ping
+              port: http-metrics
+          volumeMounts:
+            - name: my-release-redirect-volume
+              mountPath: /etc/redirect/
+          resources:
+            limits:
+              cpu: 50m
+              memory: 64Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+      volumes:
+        - name: my-release-redirect-volume
+          configMap:
+            name: my-release-redirect
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: appRevision
+                operator: In
+                values:
+                - redirect___1
+            topologyKey: "kubernetes.io/hostname"
+---
+# Source: redirect/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-redirect-www-wyrihaximus-net
+  labels:
+    app: redirect
+    app.kubernetes.io/instance: redirect-1.1.0
+    app.kubernetes.io/name: redirect
+    app.kubernetes.io/version: "1.1.0"
+    appRevision: redirect___1
+    chart: redirect-1.1.0
+    helm.sh/chart: redirect-1.1.0
+    release: my-release
+    releaseRevision: "1"
+    heritage: Helm
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+spec:
+  tls:
+    
+    - hosts:
+      - "www.wyrihaximus.net"
+      secretName: tls-www-wyrihaximus-net
+  rules:
+    
+    - host: "www.wyrihaximus.net"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-redirect
+                port:
+                  number: 7132
+---
+# Source: redirect/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-redirect-www-ceesjankiewiet-nl
+  labels:
+    app: redirect
+    app.kubernetes.io/instance: redirect-1.1.0
+    app.kubernetes.io/name: redirect
+    app.kubernetes.io/version: "1.1.0"
+    appRevision: redirect___1
+    chart: redirect-1.1.0
+    helm.sh/chart: redirect-1.1.0
+    release: my-release
+    releaseRevision: "1"
+    heritage: Helm
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+spec:
+  tls:
+    
+    - hosts:
+      - "www.ceesjankiewiet.nl"
+      secretName: tls-www-ceesjankiewiet-nl
+  rules:
+    
+    - host: "www.ceesjankiewiet.nl"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-redirect
+                port:
+                  number: 7132
+---
+# Source: redirect/templates/tests/test-metrics-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-redirect-test-metrics-connection"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['my-release-redirect:7133']
+  restartPolicy: Never
+---
+# Source: redirect/templates/tests/test-redirect-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-redirect-test-redirect-connection"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['my-release-redirect:7132']
+  restartPolicy: Never

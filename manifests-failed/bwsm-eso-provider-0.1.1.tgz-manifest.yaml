@@ -1,0 +1,163 @@
+---
+# Source: bwsm-eso-provider/templates/network-policy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: eso-ns-to-my-release-policy
+  namespace: bwsm-eso-provider-0.1.1.tgz
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: namespace
+                operator: In
+                values:
+                  - external-secrets
+      ports:
+        - port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: external-secrets
+---
+# Source: bwsm-eso-provider/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-bwsm-eso-provider
+  labels:
+    helm.sh/chart: bwsm-eso-provider-0.1.1
+    app.kubernetes.io/name: bwsm-eso-provider
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: bwsm-eso-provider/templates/credentials.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release
+  namespace: bwsm-eso-provider-0.1.1.tgz
+type: Opaque
+data:
+  BWS_ACCESS_TOKEN: ""
+---
+# Source: bwsm-eso-provider/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-bwsm-eso-provider
+  namespace: bwsm-eso-provider-0.1.1.tgz
+  labels:
+    helm.sh/chart: bwsm-eso-provider-0.1.1
+    app.kubernetes.io/name: bwsm-eso-provider
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: bwsm-eso-provider
+    app.kubernetes.io/instance: my-release
+---
+# Source: bwsm-eso-provider/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-bwsm-eso-provider
+  namespace: bwsm-eso-provider-0.1.1.tgz
+  labels:
+    helm.sh/chart: bwsm-eso-provider-0.1.1
+    app.kubernetes.io/name: bwsm-eso-provider
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bwsm-eso-provider
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: bwsm-eso-provider-0.1.1
+        app.kubernetes.io/name: bwsm-eso-provider
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "0.1.1"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: my-release-bwsm-eso-provider
+      securityContext:
+        {}
+      containers:
+        - name: bwsm-eso-provider
+          securityContext:
+            {}
+          image: "bojanraic/bwsm-eso:0.1.1"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: BWS_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "my-release"
+                  key: BWS_ACCESS_TOKEN
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - wget
+                - -q
+                - --spider 
+                - -O
+                - /dev/null
+                - http://127.0.0.1:8080/
+            initialDelaySeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          resources:
+            {}
+---
+# Source: bwsm-eso-provider/templates/cluster-secret-store.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ClusterSecretStore
+metadata:
+  name: my-release-cluster-store
+spec:
+  provider:
+    webhook:
+      url: "http://my-release-bwsm-eso-provider.bwsm-eso-provider-0.1.1.tgz.svc.cluster.local:8080/secret/{{ .remoteRef.key }}"
+      headers:
+        Content-Type: application/json
+      result:
+        jsonPath: "$.value"

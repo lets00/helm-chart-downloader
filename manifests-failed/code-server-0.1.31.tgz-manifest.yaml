@@ -1,0 +1,182 @@
+---
+# Source: code-server/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  # annotations:
+  #   template.openshift.io/expose-password: "{.data['application-password']}"
+  name: my-release-code-server
+  labels:
+    helm.sh/chart: code-server-0.1.31
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  application-password:
+---
+# Source: code-server/templates/pvc.yaml
+kind: "PersistentVolumeClaim"
+apiVersion: "v1"
+metadata:
+  name: my-release-code-server
+  labels:
+    helm.sh/chart: code-server-0.1.31
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - "ReadWriteMany"
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: code-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-code-server
+  labels:
+    helm.sh/chart: code-server-0.1.31
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+---
+# Source: code-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-code-server
+  labels:
+    helm.sh/chart: code-server-0.1.31
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: code-server
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: code-server
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: anyuid
+      securityContext:
+        {}
+      containers:
+        - name: code-server
+          securityContext:
+            {}
+          image: "ghcr.io/maastrichtu-ids/code-server:latest"
+          imagePullPolicy: IfNotPresent
+          workingDir: /home/coder/project
+          env:
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: application-password
+                  name: my-release-code-server
+            - name: GIT_URL
+              value: 
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15 
+            failureThreshold: 40
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15 
+            failureThreshold: 40
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            {}
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /home/coder/project
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-code-server
+---
+# Source: code-server/templates/openshiftRoute.yaml
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: my-release-code-server
+  labels:
+    helm.sh/chart: code-server-0.1.31
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+# Stub to solve ingress API validation issues
+status:
+  ingress:
+    - host: ""
+spec:
+  host: 
+  path: 
+  wildcardPolicy: None
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: my-release-code-server
+    weight: 100
+---
+# Source: code-server/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-code-server-test-connection"
+  labels:
+    helm.sh/chart: code-server-0.1.31
+    app.kubernetes.io/name: code-server
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-code-server:8080']
+  restartPolicy: Never

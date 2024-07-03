@@ -1,0 +1,530 @@
+---
+# Source: clickhouse/templates/configmap-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-clickhouse-config
+  labels:
+    app.kubernetes.io/name: clickhouse-config
+    app.kubernetes.io/instance: my-release-config
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.xml: |-
+    <?xml version="1.0"?>
+    <yandex>
+        <path>/var/lib/clickhouse/</path>
+        <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+        <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+        <format_schema_path>/var/lib/clickhouse/format_schemas/</format_schema_path>
+        
+        <include_from>/etc/clickhouse-server/metrica.d/metrica.xml</include_from>
+
+        <users_config>users.xml</users_config>
+        
+        <display_name>my-release-clickhouse</display_name>
+        <listen_host>0.0.0.0</listen_host>
+        <http_port>8123</http_port>
+        <tcp_port>9000</tcp_port>
+        <interserver_http_port>9009</interserver_http_port>
+        <max_connections>4096</max_connections>
+        <keep_alive_timeout>3</keep_alive_timeout>
+        <max_concurrent_queries>100</max_concurrent_queries>
+        <uncompressed_cache_size>8589934592</uncompressed_cache_size>
+        <mark_cache_size>5368709120</mark_cache_size>
+        <timezone>Asia/Shanghai</timezone>
+        <umask>022</umask>
+        <mlock_executable>false</mlock_executable>
+        <remote_servers incl="clickhouse_remote_servers" optional="true" />
+        <zookeeper incl="zookeeper-servers" optional="true" />
+        <macros incl="macros" optional="true" />
+        <builtin_dictionaries_reload_interval>3600</builtin_dictionaries_reload_interval>
+        <max_session_timeout>3600</max_session_timeout>
+        <default_session_timeout>60</default_session_timeout>
+        <disable_internal_dns_cache>1</disable_internal_dns_cache>
+
+        <query_log>
+            <database>system</database>
+            <table>query_log</table>
+            <partition_by>toYYYYMM(event_date)</partition_by>
+            <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        </query_log>
+
+        <query_thread_log>
+            <database>system</database>
+            <table>query_thread_log</table>
+            <partition_by>toYYYYMM(event_date)</partition_by>
+            <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        </query_thread_log>
+
+        <distributed_ddl>
+            <path>/clickhouse/task_queue/ddl</path>
+        </distributed_ddl>
+        <logger>
+            <level>trace</level>
+            <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+            <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+            <size>1000M</size>
+            <count>10</count>
+        </logger>
+    </yandex>
+---
+# Source: clickhouse/templates/configmap-metrika.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-clickhouse-metrica
+  labels:
+    app.kubernetes.io/name: clickhouse-metrica
+    app.kubernetes.io/instance: my-release-metrica
+    app.kubernetes.io/managed-by: Helm
+data:
+  metrica.xml: |-
+    <?xml version="1.0"?>
+    <yandex>
+        <clickhouse_remote_servers>
+            <my-release-clickhouse>
+                <shard>
+                    <replica>
+                        <internal_replication>false</internal_replication>
+                        <host>my-release-clickhouse-0.my-release-clickhouse-headless.clickhouse-1.0.1.tgz.svc.cluster.local</host>
+                        <port>9000</port>
+                        <user>default</user>
+                        <compression>true</compression>
+                    </replica>
+                    <replica>
+                        <host>my-release-clickhouse-replica-0.my-release-clickhouse-replica-headless.clickhouse-1.0.1.tgz.svc.cluster.local</host>
+                        <port>9000</port>
+                        <user>default</user>
+                        <compression>true</compression>
+                    </replica>
+                </shard>
+                <shard>
+                    <replica>
+                        <internal_replication>false</internal_replication>
+                        <host>my-release-clickhouse-1.my-release-clickhouse-headless.clickhouse-1.0.1.tgz.svc.cluster.local</host>
+                        <port>9000</port>
+                        <user>default</user>
+                        <compression>true</compression>
+                    </replica>
+                    <replica>
+                        <host>my-release-clickhouse-replica-1.my-release-clickhouse-replica-headless.clickhouse-1.0.1.tgz.svc.cluster.local</host>
+                        <port>9000</port>
+                        <user>default</user>
+                        <compression>true</compression>
+                    </replica>
+                </shard>
+                <shard>
+                    <replica>
+                        <internal_replication>false</internal_replication>
+                        <host>my-release-clickhouse-2.my-release-clickhouse-headless.clickhouse-1.0.1.tgz.svc.cluster.local</host>
+                        <port>9000</port>
+                        <user>default</user>
+                        <compression>true</compression>
+                    </replica>
+                    <replica>
+                        <host>my-release-clickhouse-replica-2.my-release-clickhouse-replica-headless.clickhouse-1.0.1.tgz.svc.cluster.local</host>
+                        <port>9000</port>
+                        <user>default</user>
+                        <compression>true</compression>
+                    </replica>
+                </shard>
+            </my-release-clickhouse>
+        </clickhouse_remote_servers>
+    </yandex>
+---
+# Source: clickhouse/templates/configmap-users.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-clickhouse-users
+  labels:
+    app.kubernetes.io/name: clickhouse-users
+    app.kubernetes.io/instance: my-release-users
+    app.kubernetes.io/managed-by: Helm
+data:
+  users.xml: |-
+    <?xml version="1.0"?>
+    <yandex>
+    </yandex>
+---
+# Source: clickhouse/templates/svc-clickhouse-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clickhouse-headless
+  labels:
+    app.kubernetes.io/name: clickhouse-headless
+    app.kubernetes.io/instance: my-release-headless
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: "None"
+  ports:
+  - port: 9000
+    targetPort: tcp-port
+    protocol: TCP
+    name: tcp-port
+  - port: 8123
+    targetPort: http-port
+    protocol: TCP
+    name: http-port
+  - port: 9009
+    targetPort: inter-http-port
+    protocol: TCP
+    name: inter-http-port
+  selector:
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+---
+# Source: clickhouse/templates/svc-clickhouse-replica-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clickhouse-replica-headless
+  labels:
+    app.kubernetes.io/name: clickhouse-replica-headless
+    app.kubernetes.io/instance: my-release-replica-headless
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: "None"
+  ports:
+  - port: 9000
+    targetPort: tcp-port
+    protocol: TCP
+    name: tcp-port
+  - port: 8123
+    targetPort: http-port
+    protocol: TCP
+    name: http-port
+  - port: 9009
+    targetPort: inter-http-port
+    protocol: TCP
+    name: inter-http-port
+  selector:
+    app.kubernetes.io/name: clickhouse-replica
+    app.kubernetes.io/instance: my-release-replica
+---
+# Source: clickhouse/templates/svc-clickhouse-replica.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clickhouse-replica
+  labels:
+    app.kubernetes.io/name: clickhouse-replica
+    app.kubernetes.io/instance: my-release-replica
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 9000
+    targetPort: tcp-port
+    protocol: TCP
+    name: tcp-port
+  - port: 8123
+    targetPort: http-port
+    protocol: TCP
+    name: http-port
+  - port: 9009
+    targetPort: inter-http-port
+    protocol: TCP
+    name: inter-http-port
+  selector:
+    app.kubernetes.io/name: clickhouse-replica
+    app.kubernetes.io/instance: my-release-replica
+---
+# Source: clickhouse/templates/svc-clickhouse.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clickhouse
+  labels:
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 9000
+    targetPort: tcp-port
+    protocol: TCP
+    name: tcp-port
+  - port: 8123
+    targetPort: http-port
+    protocol: TCP
+    name: http-port
+  - port: 9009
+    targetPort: inter-http-port
+    protocol: TCP
+    name: inter-http-port
+  selector:
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+---
+# Source: clickhouse/templates/svc-tabix.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-clickhouse-tabix
+  labels:
+    app.kubernetes.io/name: clickhouse-tabix
+    app.kubernetes.io/instance: my-release-tabix
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: clickhouse-tabix
+    app.kubernetes.io/instance: my-release-tabix
+---
+# Source: clickhouse/templates/deployment-tabix.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-clickhouse-tabix
+  labels:
+    app.kubernetes.io/name: clickhouse-tabix
+    app.kubernetes.io/instance: my-release-tabix
+    app.kubernetes.io/managed-by: Helm 
+spec: 
+  replicas: 1
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: clickhouse-tabix
+      app.kubernetes.io/instance: my-release-tabix
+  strategy: 
+    type: RollingUpdate
+    rollingUpdate: 
+      maxSurge: 3
+      maxUnavailable: 1
+  template: 
+    metadata: 
+      labels: 
+        app.kubernetes.io/name: clickhouse-tabix
+        app.kubernetes.io/instance: my-release-tabix
+    spec:
+      containers: 
+      - name: clickhouse-tabix
+        image: spoonest/clickhouse-tabix-web-client:stable
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 80
+        env:
+        - name: USER
+          value: admin
+        - name: PASSWORD
+          value: admin
+        livenessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+---
+# Source: clickhouse/templates/statefulset-clickhouse-replica.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-clickhouse-replica
+  labels:
+    app.kubernetes.io/name: clickhouse-replica
+    app.kubernetes.io/instance: my-release-replica
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  serviceName: my-release-clickhouse-replica-headless
+  selector: 
+    matchLabels: 
+      app.kubernetes.io/name: clickhouse-replica
+      app.kubernetes.io/instance: my-release-replica
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clickhouse-replica
+        app.kubernetes.io/instance: my-release-replica
+    spec:
+      initContainers:
+      - name: init
+        image: busybox:1.31.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - /bin/sh
+        - -c
+        - |
+          mkdir -p /etc/clickhouse-server/metrica.d
+      containers:
+      - name: my-release-clickhouse-replica
+        image: yandex/clickhouse-server:19.14
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http-port
+          containerPort: 8123 
+        - name: tcp-port
+          containerPort: 9000
+        - name: inter-http-port
+          containerPort: 9009
+        livenessProbe: 
+          tcpSocket:
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        volumeMounts:
+        - name: my-release-clickhouse-replica-data
+          mountPath: /var/lib/clickhouse
+        - name: my-release-clickhouse-replica-logs
+          mountPath: /var/log/clickhouse-server
+        - name: my-release-clickhouse-config
+          mountPath: /etc/clickhouse-server/config.d
+        - name: my-release-clickhouse-metrica
+          mountPath: /etc/clickhouse-server/metrica.d
+        - name: my-release-clickhouse-users
+          mountPath: /etc/clickhouse-server/users.d
+        securityContext:
+          privileged: true
+          runAsUser: 0
+      volumes: 
+      - name: my-release-clickhouse-replica-data
+        emptyDir: {}
+      - name: my-release-clickhouse-replica-logs
+        emptyDir: {}
+      - name: my-release-clickhouse-config
+        configMap:
+          name: my-release-clickhouse-config
+          items:
+          - key: config.xml
+            path: config.xml
+      - name: my-release-clickhouse-metrica
+        configMap:
+          name: my-release-clickhouse-metrica
+          items:
+          - key: metrica.xml
+            path: metrica.xml
+      - name: my-release-clickhouse-users
+        configMap:
+          name: my-release-clickhouse-users
+          items:
+          - key: users.xml
+            path: users.xml
+---
+# Source: clickhouse/templates/statefulset-clickhouse.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-clickhouse
+  labels:
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 3
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  serviceName: my-release-clickhouse-headless
+  selector: 
+    matchLabels: 
+      app.kubernetes.io/name: clickhouse
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata: 
+      labels: 
+        app.kubernetes.io/name: clickhouse
+        app.kubernetes.io/instance: my-release
+    spec:
+      initContainers:
+      - name: init
+        image: busybox:1.31.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - /bin/sh
+        - -c
+        - |
+          mkdir -p /etc/clickhouse-server/metrica.d
+      containers:
+      - name: my-release-clickhouse
+        image: yandex/clickhouse-server:19.14
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http-port
+          containerPort: 8123 
+        - name: tcp-port
+          containerPort: 9000
+        - name: inter-http-port
+          containerPort: 9009
+        livenessProbe: 
+          tcpSocket:
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        volumeMounts:
+        - name: my-release-clickhouse-data
+          mountPath: /var/lib/clickhouse
+        - name: my-release-clickhouse-logs
+          mountPath: /var/log/clickhouse-server
+        - name: my-release-clickhouse-config
+          mountPath: /etc/clickhouse-server/config.d
+        - name: my-release-clickhouse-metrica
+          mountPath: /etc/clickhouse-server/metrica.d
+        - name: my-release-clickhouse-users
+          mountPath: /etc/clickhouse-server/users.d
+        securityContext:
+          privileged: true
+          runAsUser: 0
+      volumes: 
+      - name: my-release-clickhouse-data
+        emptyDir: {}
+      - name: my-release-clickhouse-logs
+        emptyDir: {}
+      - name: my-release-clickhouse-config
+        configMap:
+          name: my-release-clickhouse-config
+          items:
+          - key: config.xml
+            path: config.xml
+      - name: my-release-clickhouse-metrica
+        configMap:
+          name: my-release-clickhouse-metrica
+          items:
+          - key: metrica.xml
+            path: metrica.xml
+      - name: my-release-clickhouse-users
+        configMap:
+          name: my-release-clickhouse-users
+          items:
+          - key: users.xml
+            path: users.xml

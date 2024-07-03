@@ -1,0 +1,187 @@
+---
+# Source: statping/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-statping
+  namespace: statping-0.1.14.tgz
+  labels: 
+    app.kubernetes.io/name: statping
+    helm.sh/chart: statping-0.1.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.90.74"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: statping
+---
+# Source: statping/templates/configmap.yaml
+apiVersion:  v1
+kind: ConfigMap
+metadata:
+  name: my-release-statping
+  namespace: statping-0.1.14.tgz
+data:
+    PORT: "8080"
+    DB_CONN: "sqlite"
+    DB_HOST: "localhost"
+    DB_PORT: "5432"
+    DB_USER: "root"
+    DB_PASS: "password123"
+    DB_DATABASE: "statping_db"
+    POSTGRES_SSLMODE: "ssl_mode=disable"
+    READ_ONLY: "false"
+    DISABLE_COLORS: "true"
+    DEBUG: "1"
+---
+# Source: statping/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-statping
+  namespace: statping-0.1.14.tgz
+  labels: 
+    app.kubernetes.io/name: statping
+    helm.sh/chart: statping-0.1.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.90.74"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: statping
+spec:
+  storageClassName: "do-block-storage"
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "10Gi"
+---
+# Source: statping/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-statping
+  namespace: statping-0.1.14.tgz
+  labels: 
+    app.kubernetes.io/name: statping
+    helm.sh/chart: statping-0.1.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.90.74"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: statping
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8080"
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: statping
+    app.kubernetes.io/instance: my-release
+---
+# Source: statping/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-statping
+  namespace: statping-0.1.14.tgz
+  labels: 
+    app.kubernetes.io/name: statping
+    helm.sh/chart: statping-0.1.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.90.74"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: statping
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: statping
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 78782bbe2b36b5acb9ee78533e6daad1b4b5e4ea93004cb8cc4059db150981ce
+      labels:
+        app.kubernetes.io/name: statping
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-statping
+      securityContext:
+        {}
+      containers:
+        - name: statping
+          securityContext:
+            {}
+          image: "statping/statping:v0.90.74"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: my-release-statping
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            limits:
+              cpu: 50m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-statping
+---
+# Source: statping/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-statping
+  namespace: statping-0.1.14.tgz
+  labels: 
+    app.kubernetes.io/name: statping
+    helm.sh/chart: statping-0.1.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.90.74"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: statping
+spec:
+  rules:
+    - host: grafana.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-statping
+                port:
+                  name: http
+---
+# Source: statping/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-statping-test-connection"
+  labels:
+    app.kubernetes.io/name: statping
+    helm.sh/chart: statping-0.1.14
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.90.74"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['my-release-statping:8080']
+  restartPolicy: Never

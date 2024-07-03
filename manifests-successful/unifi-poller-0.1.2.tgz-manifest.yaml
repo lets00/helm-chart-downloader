@@ -1,0 +1,132 @@
+---
+# Source: unifi-poller/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-unifi-poller
+  labels:
+    app.kubernetes.io/name: unifi-poller
+    helm.sh/chart: unifi-poller-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: unifi-poller/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-unifi-poller
+  labels:
+    app.kubernetes.io/name: unifi-poller
+    helm.sh/chart: unifi-poller-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  up.yaml: "influxdb:\n  db: unifi\n  disable: false\n  interval: 30s\n  pass: unifipoller\n  url: http://127.0.0.1:8086\n  user: unifipoller\n  verify_ssl: false\npoller:\n  debug: false\n  plugins: []\n  quiet: false\nprometheus:\n  disable: false\n  http_listen: 0.0.0.0:9130\n  report_errors: false\nunifi:\n  controllers: []\n  defaults:\n    pass: unifipoller\n    role: main controller\n    save_dpi: false\n    save_ids: false\n    save_sites: true\n    sites:\n    - all\n    url: https://127.0.0.1:8443\n    user: unifipoller\n    verify_ssl: false\n  dynamic: false"
+---
+# Source: unifi-poller/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-unifi-poller
+  labels:
+    app.kubernetes.io/name: unifi-poller
+    helm.sh/chart: unifi-poller-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "9130"
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9130
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: unifi-poller
+    app.kubernetes.io/instance: my-release
+---
+# Source: unifi-poller/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-unifi-poller
+  labels:
+    app.kubernetes.io/name: unifi-poller
+    helm.sh/chart: unifi-poller-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: unifi-poller
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: 053cce4939232902faa80f5cd361ef4e67eb7cd295b039562084352341bf20da
+      labels:
+        app.kubernetes.io/name: unifi-poller
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-unifi-poller
+      securityContext:
+        {}
+      containers:
+        - name: unifi-poller
+          securityContext:
+            {}
+          image: "golift/unifi-poller:2.0.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-c"
+            - "/etc/unifi-poller/up.yaml"
+          ports:
+            - name: http
+              containerPort: 9130
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+          - name: config
+            mountPath: /etc/unifi-poller
+          resources:
+            {}
+      volumes:
+      - name: config
+        configMap:
+          name: my-release-unifi-poller
+---
+# Source: unifi-poller/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-unifi-poller-test-connection"
+  labels:
+    app.kubernetes.io/name: unifi-poller
+    helm.sh/chart: unifi-poller-0.1.2
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['my-release-unifi-poller:9130']
+  restartPolicy: Never

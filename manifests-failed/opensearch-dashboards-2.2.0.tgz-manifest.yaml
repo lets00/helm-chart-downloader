@@ -1,0 +1,404 @@
+---
+# Source: opensearch-dashboards/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-opensearch-dashboards
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/version: 2.13.0
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/component: opensearch-dashboards
+automountServiceAccountToken: false
+---
+# Source: opensearch-dashboards/templates/configmap-scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-opensearch-dashboards-scripts
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/version: 2.13.0
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/component: opensearch-dashboards
+data:
+  readiness-probe-script.sh: |-
+    #!/usr/bin/env bash
+
+    # fail should be called as a last resort to help the user to understand why the probe failed
+    function fail {
+    timestamp=$(date --iso-8601=seconds)
+    echo "{\"timestamp\": \"${timestamp}\", \"message\": \"readiness probe failed\", "$1"}" | tee /proc/1/fd/2 2> /dev/null
+    exit 1
+    }
+
+    READINESS_PROBE_TIMEOUT=${READINESS_PROBE_TIMEOUT:=3}
+
+    BASIC_AUTH="-u ${OPENSEARCH_USERNAME}:${OPENSEARCH_PASSWORD}"
+
+    # Check if we are using IPv6
+    if [[ $POD_IP =~ .*:.* ]]; then
+    LOOPBACK="[::1]"
+    else
+    LOOPBACK=127.0.0.1
+    fi
+
+    # request Opensearch on /
+    # we are turning globbing off to allow for unescaped [] in case of IPv6
+    ENDPOINT="${READINESS_PROBE_PROTOCOL:-https}://${LOOPBACK}:5601/api/status"
+    status=$(curl -o /dev/null -w "%{http_code}" --max-time ${READINESS_PROBE_TIMEOUT} -XGET -g -s -k ${BASIC_AUTH} $ENDPOINT)
+    curl_rc=$?
+
+    if [[ ${curl_rc} -ne 0 ]]; then
+    fail "\"curl_rc\": \"${curl_rc}\""
+    fi
+
+    # ready if status code 200
+    if [[ ${status} == "200" ]] || [[ ${status} == "401" ]]; then
+    exit 0
+    else
+    fail " \"status\": \"${status}\" "
+    fi
+---
+# Source: opensearch-dashboards/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-opensearch-dashboards-conf
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/version: 2.13.0
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/component: opensearch-dashboards
+data:
+  opensearch_dashboards.yml: |
+    server.host: "::"
+    server.port: 5601
+
+    # This setting is for communications between OpenSearch Dashboards and the web browser.
+    # Set to true for HTTPS, false for HTTP.
+    server.ssl.enabled: true
+    server.ssl.supportedProtocols: ["TLSv1.3"]
+    server.ssl.certificate: /usr/share/opensearch-dashboards/config/server-certs/tls.crt
+    server.ssl.key: /usr/share/opensearch-dashboards/config/server-certs/tls.key
+    #server.ssl.certificateAuthorities: []
+    server.rewriteBasePath: false
+
+    opensearch.hosts: []
+    # Configure the OpenSearch Dashboards internal server user
+    opensearch.username: "${OPENSEARCH_USERNAME}"
+    opensearch.password: "${OPENSEARCH_PASSWORD}"
+
+    # This setting is for communications between OpenSearch and OpenSearch Dashboards. 
+    # Valid values are full, certificate, or none.
+    # We recommend full if you enable TLS, which enables hostname verification. certificate just checks the certificate, not the hostname, and none performs no checks (suitable for HTTP).
+    # Default is full.
+    opensearch.ssl.verificationMode: full
+
+    # Whitelist basic headers and multi-tenancy header
+    opensearch.requestHeadersWhitelist: [ authorization,securitytenant ]
+
+    opensearch_security.multitenancy.enabled: true
+    opensearch_security.multitenancy.tenants.preferred: ["Private", "Global"]
+    opensearch_security.cookie.secure: "true"
+
+    # OpenSearch Dashboards uses an index in OpenSearch to store saved searches, visualizations and
+    # dashboards. OpenSearch Dashboards creates a new index if the index doesn't already exist.
+    opensearchDashboards.index: ".opensearch_dashboards"
+---
+# Source: opensearch-dashboards/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-opensearch-dashboards
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/version: 2.13.0
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/component: opensearch-dashboards
+  annotations:
+
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ipFamilyPolicy: PreferDualStack
+  ports:
+    - name: http
+      port: 5601
+      protocol: TCP
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/component: opensearch-dashboards
+---
+# Source: opensearch-dashboards/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-opensearch-dashboards
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/version: 2.13.0
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/component: opensearch-dashboards
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opensearch-dashboards
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: opensearch-dashboards
+  template:
+    metadata:
+      annotations:
+        checksum/tls-certificate: 5d2cde70cdbed6d2463a0490f9358bcc4e2d08c9b3be7961b500391386e19a0a
+        checksum/config: 471e8c534099c615d3d51da2ccbad22660b77af6589625ba2f354c81b5c67841
+      labels:
+        app.kubernetes.io/name: opensearch-dashboards
+        helm.sh/chart: opensearch-dashboards-2.2.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/version: "2.13.0"
+        app.kubernetes.io/component: opensearch-dashboards
+    spec:
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: opensearch-dashboards
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1000
+      serviceAccountName: my-release-opensearch-dashboards
+      containers:
+        - name: opensearch-dashboards
+          image: docker.io/opensearchproject/opensearch-dashboards:2.13.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+          env:
+            - name: OPENSEARCH_USERNAME
+              value: dashboards
+            - name: OPENSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-opensearch-dashboards
+                  key: dashboards-password
+          ports:
+            - name: http
+              containerPort: 5601
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - /opt/opensearch/scripts/readiness-probe-script.sh
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /opt/opensearch/scripts/readiness-probe-script.sh
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: opensearch-dashboards-config
+              mountPath: /usr/share/opensearch-dashboards/config/
+            - name: opensearch-dashboards-certificates
+              mountPath: /usr/share/opensearch-dashboards/config/server-certs/
+              readOnly: true
+            - name: scripts
+              mountPath: /opt/opensearch/scripts/
+              readOnly: true
+      volumes:
+        - name: opensearch-dashboards-certificates
+          secret:
+            secretName: my-release-opensearch-dashboards-crt
+            defaultMode: 256
+        - name: opensearch-dashboards-config
+          configMap:
+            name: my-release-opensearch-dashboards-conf
+        - name: scripts
+          configMap:
+            name: my-release-opensearch-dashboards-scripts
+            defaultMode: 493
+---
+# Source: opensearch-dashboards/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-opensearch-dashboards
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: opensearch-dashboards
+    app.kubernetes.io/version: 2.13.0
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/component: opensearch-dashboards
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/proxy-ssl-name: my-release-opensearch-dashboards.opensearch-dashboards-2.2.0.tgz.svc.cluster.local
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: opensearch-dashboards-2.2.0.tgz/my-release-opensearch-dashboards-crt
+    nginx.ingress.kubernetes.io/proxy-ssl-server-name: my-release-opensearch-dashboards.opensearch-dashboards-2.2.0.tgz.svc.cluster.local
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: "true"
+spec:
+  rules:
+    - host: opensearch-dashboards.local
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-opensearch-dashboards
+                port:
+                  name: http
+---
+# Source: opensearch-dashboards/templates/ca-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: my-release-opensearch-dashboards-http-ca
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: opensearch-dashboards
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/component: http-ca
+spec:
+  secretTemplate:
+    labels:
+      app.kubernetes.io/name: opensearch-dashboards
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: http-ca
+  subject:
+    organizationalUnits:
+      - my-release-opensearch-dashboards
+    organizations:
+      - opensearch
+    countries:
+      - org
+  isCA: true
+  commonName: my-release-opensearch-dashboards-http-ca
+  secretName: my-release-opensearch-dashboards-http-ca-crt
+  privateKey:
+    algorithm: RSA
+    size: 4096
+  duration: 87600h # 10y
+  issuerRef:
+    name: my-release-opensearch-dashboards-self-signed
+    kind: Issuer
+    group: cert-manager.io
+---
+# Source: opensearch-dashboards/templates/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: my-release-opensearch-dashboards-http-crt
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: opensearch-dashboards
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/component: opensearch
+spec:
+  secretTemplate:
+    labels:
+      app.kubernetes.io/name: opensearch-dashboards
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: http
+  secretName: my-release-opensearch-dashboards-crt
+  duration: 4320h # 180d
+  renewBefore: 2160h # 90d
+  dnsNames:
+    - "my-release-opensearch-dashboards.opensearch-dashboards-2.2.0.tgz.svc.cluster.local"
+    - my-release-opensearch-dashboards
+    - "localhost"
+  ipAddresses:
+    - "127.0.0.1"
+    - "::1"
+  usages:
+    - server auth
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS8
+    size: 2048
+  issuerRef:
+    name: my-release-opensearch-dashboards-http
+    kind: Issuer
+    group: cert-manager.io
+---
+# Source: opensearch-dashboards/templates/ca-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: my-release-opensearch-dashboards-self-signed
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: opensearch-dashboards
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/component: self-signed-issuer
+spec:
+  selfSigned: {}
+---
+# Source: opensearch-dashboards/templates/ca-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: my-release-opensearch-dashboards-http
+  namespace: "opensearch-dashboards-2.2.0.tgz"
+  labels:
+    app.kubernetes.io/name: opensearch-dashboards
+    helm.sh/chart: opensearch-dashboards-2.2.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "2.13.0"
+    app.kubernetes.io/component: issuer
+spec:
+  ca:
+    secretName: my-release-opensearch-dashboards-http-ca-crt

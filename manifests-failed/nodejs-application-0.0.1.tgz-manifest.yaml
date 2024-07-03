@@ -1,0 +1,162 @@
+---
+# Source: nodejs-application/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: Exposes and load balances the application pods
+  labels:
+    app: nodejs-example
+    template: nodejs-example
+  name: nodejs-example
+spec:
+  ports:
+  - name: web
+    port: 8080
+    targetPort: 8080
+  selector:
+    name: nodejs-example
+---
+# Source: nodejs-application/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    description: Defines how to deploy the application server
+    image.openshift.io/triggers: |-
+      [
+        {
+          "from": {
+            "kind": "ImageStreamTag",
+            "name": "nodejs-example:latest"
+          },
+          "fieldPath": "spec.template.spec.containers[0].image"
+        }
+      ]
+    template.alpha.openshift.io/wait-for-ready: "true"
+  labels:
+    app: nodejs-example
+    template: nodejs-example
+  name: nodejs-example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: nodejs-example
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: nodejs-example
+      name: nodejs-example
+    spec:
+      containers:
+      - image: " "
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          timeoutSeconds: 3
+        name: nodejs-example
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 3
+          timeoutSeconds: 3
+        resources:
+          limits:
+            memory: 512Mi
+---
+# Source: nodejs-application/templates/buildconfig.yaml
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  annotations:
+    description: Defines how to build the application
+    template.alpha.openshift.io/wait-for-ready: "true"
+  labels:
+    app: nodejs-example
+    template: nodejs-example
+  name: nodejs-example
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: nodejs-example:latest
+  source:
+    contextDir: 
+    git:
+      ref: master
+      uri: https://github.com/sclorg/nodejs-ex.git
+    type: Git
+  strategy:
+    sourceStrategy:
+      env:
+      - name: NPM_MIRROR
+        value: 
+      from:
+        kind: ImageStreamTag
+        name: nodejs:20-ubi8
+        namespace: openshift
+    type: Source
+  triggers:
+  - type: ImageChange
+  - type: ConfigChange
+  - github:
+      secret: SOMETHING
+    type: GitHub
+  - generic:
+      secret: FOO
+    type: Generic
+---
+# Source: nodejs-application/templates/imagestream.yaml
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  annotations:
+    description: Keeps track of changes in the application image
+  labels:
+    app: nodejs-example
+    template: nodejs-example
+  name: nodejs-example
+---
+# Source: nodejs-application/templates/route.yaml
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: nodejs-example
+    template: nodejs-example
+  name: nodejs-example
+spec:
+  host: 
+  to:
+    kind: Service
+    name: nodejs-example
+---
+# Source: nodejs-application/templates/tests/test-nodejs-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-connection-test"
+  annotations:
+    "helm.sh/hook": test
+  labels:
+    name: nodejs-example
+    template: nodejs-example
+spec:
+  containers:
+    - name: "my-release-connection-test"
+      image: "registry.redhat.io/ubi8/ubi:latest"
+      imagePullPolicy: IfNotPresent
+      command:
+        - '/bin/bash'
+        - '-exc'
+        - >
+          curl nodejs-example.nodejs-application-0.0.1.tgz:8080 | grep "Node.js Crud Application"
+  restartPolicy: Never

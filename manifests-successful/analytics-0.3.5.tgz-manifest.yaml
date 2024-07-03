@@ -1,0 +1,143 @@
+---
+# Source: analytics/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-service
+  namespace: kafka
+data:
+  application.yaml: |-
+            security.basic.enabled: "false"
+            server.port: "9998"
+            spring:
+              cloud:
+                stream:
+                  bindings:
+                    process-in-0:
+                      destination: quote
+                    process-out-0:
+                      destination: quote-aggregation
+                      producer:
+                        useNativeEncoding: "true"
+                  function.definition: process
+                  kafka:
+                    binder:
+                      brokers: my-kafka-cluster-kafka-bootstrap:9092
+                    bindings:
+                      process-in-0:
+                        consumer:
+                          configuration:
+                            key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+                            schema.registry.url: http://strimzi-registry-operator:8081
+                            value.deserializer: com.investment.serializer.SensorDeserializer
+                      process-out-0:
+                        producer:
+                          configuration:
+                            key.serializer: org.apache.kafka.common.serialization.StringSerializer
+                            schema.registry.url: http://strimzi-registry-operator:8081
+                            value.serializer: com.investment.serializer.SensorSerializer
+                    streams:
+                      binder:
+                        brokers: my-kafka-cluster-kafka-bootstrap:9092
+                      bindings:
+                        process-in-0:
+                          consumer:
+                            keySerde: org.apache.kafka.common.serialization.Serdes$StringSerde
+                            valueSerde: com.investment.serde.SensorSerde
+                        process-out-0:
+                          producer:
+                            keySerde: org.apache.kafka.common.serialization.Serdes$StringSerde
+                            valueSerde: com.investment.serde.SensorSerde
+                      configuration:
+                        schema.registry.url: http://strimzi-registry-operator:8081
+                      specific.avro.reader: "true"
+              security:
+                oauth2:
+                  client:
+                    provider:
+                      my-keycloak-provider:
+                        authorization-uri: http://192.168.64.8:31760/auth/realms/My-Realm/protocol/openid-connect/auth
+                        issuer-uri: http://192.168.64.8:31760/auth/realms/My-Realm
+                        jwk-set-uri: http://192.168.64.8:31760/auth/realms/My-Realm/protocol/openid-connect/certs
+                    registration:
+                      keycloak-spring-gateway-client:
+                        authorization-grant-type: authorization_code
+                        client-id: spring-gateway-client
+                        client-secret: 3RhEF8pqKTANrQ6BhfxaYVmcjTXsDK0u
+                        provider: my-keycloak-provider
+                        redirect-uri: '{baseUrl}/login/oauth2/code/keycloak'
+                        scope: openid
+---
+# Source: analytics/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-service
+  namespace: kafka
+spec:
+  ports:
+  - targetPort: 8080
+    name: http
+    port: 8080
+  selector:
+    app: analytics-service
+  type: LoadBalancer
+  externalIPs:
+    - 192.168.64.8
+---
+# Source: analytics/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service
+  namespace: kafka
+  labels:
+    app: analytics-service
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: analytics-service
+
+  template:
+    metadata:
+      labels:
+        app: analytics-service
+        env: dev
+    spec:
+      containers:
+        - name: analytics-service
+          image: vitalii1992/analytics-service:latest
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          livenessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              port: http
+              path: /actuator/health/liveness
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 3
+            periodSeconds: 5
+          readinessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              port: http
+              path: /actuator/health/readiness
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 3
+            periodSeconds: 5
+          ports:
+          - containerPort: 8080
+            name: http
+          env:
+          - name: SPRING_PROFILES_ACTIVE
+            value: deployment
+          imagePullPolicy: Always

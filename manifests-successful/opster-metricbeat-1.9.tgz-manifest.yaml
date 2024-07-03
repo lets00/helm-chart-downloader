@@ -1,0 +1,97 @@
+---
+# Source: opster-metricbeat/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "my-release-opster-metricbeat-conf"
+  labels:
+    app: "my-release-opster-metricbeat"
+    chart: "opster-metricbeat"
+    heritage: "Helm"
+    release: "my-release"
+type: Opaque
+data:
+  ES_URL: ""
+  OPSTER_HOST: ""
+  OPSTER_PORT: ""
+  OPSTER_TOKEN: ""
+---
+# Source: opster-metricbeat/templates/deployment.yaml
+# Deploy singleton instance in the whole cluster for some unique data sources, like kube-state-metrics---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 'my-release-opster-metricbeat-metrics'
+  labels:
+    app: 'my-release-opster-metricbeat-metrics'
+    chart: 'opster-metricbeat-1.9'
+    heritage: 'Helm'
+    release: 'my-release'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: 'my-release-opster-metricbeat-metrics'
+      release: 'my-release'
+  template:
+    metadata:
+      annotations:
+        
+      labels:
+        app: 'my-release-opster-metricbeat-metrics'
+        chart: 'opster-metricbeat-1.9'
+        release: 'my-release'
+    spec:
+      affinity: 
+        null
+      nodeSelector: 
+        null
+      tolerations: 
+        null
+      terminationGracePeriodSeconds: 
+      volumes:
+      containers:
+      - name: "metricbeat"
+        image: "public.ecr.aws/opsterio/opster-metricbeat:latest"
+        imagePullPolicy: "Always"
+        livenessProbe:
+          null
+        readinessProbe:
+          null
+        resources: 
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 2Gi
+        env:
+          - name: "MODE"
+            value: "ONE_TO_ALL"
+          - name: "STATS_PULL_INTERVAL"
+            value: "10s"
+          - name: ES_URL
+            valueFrom:
+              secretKeyRef:
+                name: "my-release-opster-metricbeat-conf"
+                key: ES_URL
+          - name: OPSTER_HOST
+            valueFrom:
+              secretKeyRef:
+                name: "my-release-opster-metricbeat-conf"
+                key: OPSTER_HOST
+          - name: OPSTER_PORT
+            valueFrom:
+              secretKeyRef:
+                name: "my-release-opster-metricbeat-conf"
+                key: OPSTER_PORT
+          - name: OPSTER_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: "my-release-opster-metricbeat-conf"
+                key: OPSTER_TOKEN
+        envFrom: 
+          null
+        securityContext: 
+          runAsUser: 1000
+        volumeMounts:

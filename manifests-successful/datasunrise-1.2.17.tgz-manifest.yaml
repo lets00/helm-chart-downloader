@@ -1,0 +1,144 @@
+---
+# Source: datasunrise/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-datasunrise
+  labels:
+    helm.sh/chart: datasunrise-1.2.17
+    app.kubernetes.io/name: datasunrise
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.0.9.31842"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: datasunrise/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-datasunrise
+  labels:
+    helm.sh/chart: datasunrise-1.2.17
+    app.kubernetes.io/name: datasunrise
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.0.9.31842"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+        - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+---
+# Source: datasunrise/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-datasunrise
+  labels:
+    helm.sh/chart: datasunrise-1.2.17
+    app.kubernetes.io/name: datasunrise
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.0.9.31842"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get","list","watch"]
+---
+# Source: datasunrise/templates/role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-datasunrise
+  labels:
+    helm.sh/chart: datasunrise-1.2.17
+    app.kubernetes.io/name: datasunrise
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.0.9.31842"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-datasunrise
+subjects:
+  - kind: ServiceAccount
+    name: my-release-datasunrise
+    namespace: "datasunrise-1.2.17.tgz"
+---
+# Source: datasunrise/templates/service-ui.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-datasunrise
+  labels:
+    helm.sh/chart: datasunrise-1.2.17
+    app.kubernetes.io/name: datasunrise
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.0.9.31842"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 11000
+      targetPort: ui
+      protocol: TCP
+      name: ui
+  selector:
+    app.kubernetes.io/name: datasunrise
+    app.kubernetes.io/instance: my-release
+---
+# Source: datasunrise/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-datasunrise
+  labels:
+    helm.sh/chart: datasunrise-1.2.17
+    app.kubernetes.io/name: datasunrise
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.0.9.31842"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: datasunrise
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: datasunrise
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-datasunrise
+      securityContext:
+        {}
+      volumes:
+        - name: local-settings-volume
+          persistentVolumeClaim:
+            claimName: my-release-datasunrise
+      containers:
+        - name: datasunrise
+          image: "datasunrise/datasunrise:10.0.9.31842"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: ui
+              containerPort: 11000
+          env:
+            - name: DS_DISABLE_SERVERNAME_PREFIX
+              value: "1"
+          readinessProbe:
+            httpGet:
+              path: /healthcheck/basic
+              port: ui
+              scheme: HTTPS
+            failureThreshold: 3
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            successThreshold: 2
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: local-settings-volume
+              mountPath: "/opt/config"
+          resources:
+            {}

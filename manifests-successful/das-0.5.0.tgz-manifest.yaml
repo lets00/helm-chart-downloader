@@ -1,0 +1,183 @@
+---
+# Source: das/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-das
+  labels:
+    helm.sh/chart: das
+    app.kubernetes.io/name: das
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: das/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-das
+  labels:
+    helm.sh/chart: das
+    app.kubernetes.io/name: das
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.json: |
+    {
+      "conf": {
+        "env-prefix": "NITRO"
+      },
+      "data-availability": {
+        "local-cache": {
+          "capacity": 20000,
+          "enable": false
+        },
+        "local-db-storage": {
+          "data-dir": "",
+          "discard-after-timeout": "",
+          "enable": false
+        },
+        "local-file-storage": {
+          "data-dir": "",
+          "enable": false
+        },
+        "parent-chain-node-url": "",
+        "rest-aggregator": {
+          "enable": false,
+          "sync-to-storage": {
+            "eager": false,
+            "eager-lower-bound-block": "",
+            "state-dir": ""
+          }
+        },
+        "s3-storage": {
+          "access-key": "",
+          "bucket": "",
+          "discard-after-timeout": "",
+          "enable": false,
+          "object-prefix": "",
+          "region": "",
+          "secret-key": ""
+        },
+        "sequencer-inbox-address": ""
+      },
+      "enable-rest": true,
+      "enable-rpc": false,
+      "log-level": "warn",
+      "log-type": "json",
+      "metrics": false,
+      "metrics-server": {
+        "addr": "0.0.0.0",
+        "port": 6070,
+        "update-interval": "5s"
+      },
+      "rest-addr": "0.0.0.0",
+      "rest-port": 9877,
+      "rpc-addr": "0.0.0.0",
+      "rpc-port": 9876
+    }
+---
+# Source: das/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-das
+  labels:
+    helm.sh/chart: das
+    app.kubernetes.io/name: das
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9877
+      targetPort: http-rest
+      protocol: TCP
+      name: http-rest
+  selector:
+    app.kubernetes.io/name: das
+    app.kubernetes.io/instance: my-release
+  publishNotReadyAddresses: false
+---
+# Source: das/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-das
+  labels:
+    helm.sh/chart: das
+    app.kubernetes.io/name: das
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.0.0-e6f81cb"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: "my-release-das"
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: das
+      app.kubernetes.io/instance: my-release
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: c38c9180f37b8c199f7fcd034715a05d64e8cc808d845c3350b737a7f6a4d778
+      labels:
+        app.kubernetes.io/name: das
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-das
+      securityContext:
+        
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      initContainers:
+      containers:
+        - name: das
+          securityContext:
+            {}
+          image: "offchainlabs/nitro-node:v3.0.0-e6f81cb"
+          imagePullPolicy: Always
+          command: [/usr/local/bin/daserver]
+          args:
+            - --conf.file=/config/config.json
+          ports:
+            - name: http-rest
+              containerPort: 9877
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            httpGet:
+              path: /health
+              port: 9877
+          readinessProbe:
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            httpGet:
+              path: /health
+              port: 9877
+          env:
+          volumeMounts:
+          - name: config
+            mountPath: /config/
+          resources:
+            {}
+      volumes:
+      - name: config
+        configMap:
+          name: my-release-das
+      
+      terminationGracePeriodSeconds: 600
+  volumeClaimTemplates:

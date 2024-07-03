@@ -1,0 +1,96 @@
+---
+# Source: drone-runner/templates/serviceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-drone-runner
+---
+# Source: drone-runner/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-drone-runner
+type: Opaque
+stringData:
+
+  
+  
+  DRONE_NAMESPACE_DEFAULT: "drone-runner-0.5.3.tgz"
+---
+# Source: drone-runner/templates/role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-drone-runner
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/log
+  verbs:
+  - get
+  - create
+  - delete
+  - list
+  - watch
+  - update
+---
+# Source: drone-runner/templates/roleBinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-drone-runner
+subjects:
+- kind: ServiceAccount
+  name: my-release-drone-runner
+roleRef:
+  kind: Role
+  name: my-release-drone-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: drone-runner/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-drone-runner
+  labels:
+    helm.sh/chart: drone-runner-0.5.3
+    app.kubernetes.io/name: drone-runner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.0-rc.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: drone-runner
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: drone-runner
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      containers:
+      - name: drone-runner
+        envFrom:
+        - secretRef:
+            name: my-release-drone-runner
+        image: "docker.io/drone/drone-runner-kube:1.0.0-rc.3"
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        resources:
+            {}
+      serviceAccountName: my-release-drone-runner

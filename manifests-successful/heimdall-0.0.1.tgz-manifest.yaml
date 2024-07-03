@@ -1,0 +1,342 @@
+---
+# Source: heimdall/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-heimdall
+  labels:
+    helm.sh/chart: heimdall-0.0.1
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: heimdall/templates/configmap-scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-heimdall-scripts
+  labels:
+    helm.sh/chart: heimdall-0.0.1
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  init-genesis.sh: |-
+    #!/bin/sh
+    
+    set -e
+    
+    if [ ! -f /data/.initialized ]; then
+      /usr/bin/heimdalld init --home /data
+      wget -O /data/config/genesis.json https://raw.githubusercontent.com/maticnetwork/heimdall/master/builder/files/genesis-mainnet-v1.json
+      touch /data/.initialized
+    else
+      echo "Heimdall is already initialized, skipping init."
+    fi
+    
+  download-snapshot.sh: |-
+    #!/bin/sh
+    
+    set -e
+    
+    if [ ! -f /data/.downloaded ]; then
+      apt-get -y update && apt-get -y install wget
+      wget -qO download.sh https://snapshot-download.polygon.technology/snapdown.sh
+      sed -i 's/sudo//g' download.sh
+      chmod +x download.sh
+    
+      ./download.sh --network mainnet --client heimdall --extract-dir /data/data --validate-checksum true
+      touch /data/.downloaded
+    else
+      echo "Initial snapshot already downloaded, skipping."
+    fi
+---
+# Source: heimdall/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-heimdall-config
+  labels:
+    helm.sh/chart: heimdall-0.0.1
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.toml: |-    
+    abci = "socket"
+    db_backend = "goleveldb"
+    db_dir = "data"
+    fast_sync = true
+    filter_peers = false
+    genesis_file = "config/genesis.json"
+    log_format = "plain"
+    log_level = "main:info,state:info,*:error"
+    moniker = "my-release-heimdall"
+    node_key_file = "config/node_key.json"
+    priv_validator_key_file = "config/priv_validator_key.json"
+    priv_validator_laddr = ""
+    priv_validator_state_file = "data/priv_validator_state.json"
+    prof_laddr = "localhost:6060"
+    proxy_app = "tcp://127.0.0.1:26658"
+    
+    [consensus]
+    create_empty_blocks = true
+    create_empty_blocks_interval = "0s"
+    peer_gossip_sleep_duration = "100ms"
+    peer_query_maj23_sleep_duration = "2s"
+    skip_timeout_commit = false
+    timeout_commit = "5s"
+    timeout_precommit = "1s"
+    timeout_precommit_delta = "500ms"
+    timeout_prevote = "1s"
+    timeout_prevote_delta = "500ms"
+    timeout_propose = "3s"
+    timeout_propose_delta = "500ms"
+    wal_file = "data/cs.wal/wal"
+    
+    [fastsync]
+    version = "v0"
+    
+    [instrumentation]
+    max_open_connections = 3
+    namespace = "tendermint"
+    prometheus = false
+    prometheus_listen_addr = "0.0.0.0:9090"
+    
+    [mempool]
+    broadcast = true
+    cache_size = 10000
+    max_tx_bytes = 1048576
+    max_txs_bytes = 1073741824
+    recheck = true
+    size = 5000
+    wal_dir = ""
+    
+    [p2p]
+    addr_book_file = "config/addrbook.json"
+    addr_book_strict = true
+    allow_duplicate_ip = false
+    dial_timeout = "3s"
+    external_address = ""
+    flush_throttle_timeout = "100ms"
+    handshake_timeout = "20s"
+    laddr = "tcp://0.0.0.0:30656"
+    max_num_inbound_peers = 40
+    max_num_outbound_peers = 10
+    max_packet_msg_payload_size = 1024
+    persistent_peers = ""
+    pex = true
+    private_peer_ids = ""
+    recv_rate = 5120000
+    seed_mode = false
+    seeds = ""
+    send_rate = 5120000
+    upnp = false
+    
+    [rpc]
+    cors_allowed_headers = ["Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time"]
+    cors_allowed_methods = ["HEAD", "GET", "POST"]
+    cors_allowed_origins = []
+    grpc_laddr = ""
+    grpc_max_open_connections = 900
+    laddr = "tcp://0.0.0.0:26657"
+    max_body_bytes = 1000000
+    max_header_bytes = 1048576
+    max_open_connections = 900
+    max_subscription_clients = 100
+    max_subscriptions_per_client = 5
+    timeout_broadcast_tx_commit = "10s"
+    tls_cert_file = ""
+    tls_key_file = ""
+    unsafe = false
+    
+    [tx_index]
+    index_all_tags = true
+    index_tags = ""
+    indexer = "kv"
+  heimdall-config.toml: |-    
+    amqp_url = "amqp://guest:guest@localhost:5672/"
+    bor_rpc_url = "http://localhost:8545"
+    chain = "mainnet"
+    checkpoint_poll_interval = "5m0s"
+    clerk_poll_interval = "10s"
+    enable_self_heal = "false"
+    eth_rpc_url = "http://localhost:9545"
+    heimdall_rest_server = "http://0.0.0.0:1317"
+    main_chain_gas_limit = "5000000"
+    main_chain_max_gas_price = "400000000000"
+    milestone_poll_interval = "30s"
+    no_ack_wait_time = "30m0s"
+    noack_poll_interval = "16m50s"
+    sh_max_depth_duration = "1h0m0s"
+    sh_stake_update_interval = "3h0m0s"
+    sh_state_synced_interval = "15m0s"
+    span_poll_interval = "1m0s"
+    sub_graph_url = ""
+    syncer_poll_interval = "1m0s"
+    tendermint_rpc_url = "http://localhost:26657"
+  app.toml: |-    
+    halt-height = 0
+    halt-time = 0
+    minimum-gas-prices = ""
+---
+# Source: heimdall/templates/service-p2p.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-heimdall-p2p
+  labels:
+    service-type: p2p
+    helm.sh/chart: heimdall-0.0.1
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  publishNotReadyAddresses: true
+  ports:
+    - name: p2p
+      port: 30656
+      targetPort: p2p
+      nodePort: 30656
+  selector:
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+---
+# Source: heimdall/templates/service-rest.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-heimdall-rest
+  labels:
+    service-type: rest
+    helm.sh/chart: heimdall-0.0.1
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: rest
+      port: 1317
+      targetPort: rest
+  selector:
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+---
+# Source: heimdall/templates/service-rpc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-heimdall-rpc
+  labels:
+    service-type: rpc
+    helm.sh/chart: heimdall-0.0.1
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: rpc
+      port: 26657
+      targetPort: rpc
+  selector:
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+---
+# Source: heimdall/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-heimdall
+  labels:
+    helm.sh/chart: heimdall-0.0.1
+    app.kubernetes.io/name: heimdall
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.0.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: heimdall
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: heimdall
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 3f3a9a5063672977929d1435ce967108fa456da0a749ded7b62d3521a5e2f9f8
+        checksum/scripts: 966698adcd76fb7a527614ce4940a52bafd2d8e08c4dabac5adf9870ad6d8b13
+      labels:
+        app.kubernetes.io/name: heimdall
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-heimdall
+      initContainers:
+      - name: init-genesis
+        image: "0xpolygon/heimdall:1.0.1"
+        imagePullPolicy: "IfNotPresent"
+        command: ["sh", "/scripts/init-genesis.sh"]
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        - name: data
+          mountPath: /data
+      containers:
+      - name: heimdall
+        image: "0xpolygon/heimdall:1.0.1"
+        imagePullPolicy: "IfNotPresent" 
+        args:
+          - start
+          - --home
+          - /data
+          - --rest-server
+        ports:
+          - name: p2p
+            containerPort: 30656
+            protocol: TCP
+          - name: rest
+            containerPort: 1317
+          - name: rpc
+            containerPort: 26657
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: config
+          mountPath: /data/config/config.toml
+          subPath: config.toml
+        - name: config
+          mountPath: /data/config/heimdall-config.toml
+          subPath: heimdall-config.toml
+        - name: config
+          mountPath: /data/config/app.toml
+          subPath: app.toml
+        resources:
+          {}
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-heimdall-config
+        - name: scripts
+          configMap:
+            name: my-release-heimdall-scripts
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app.kubernetes.io/name: heimdall
+        app.kubernetes.io/instance: my-release
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: "700Gi"

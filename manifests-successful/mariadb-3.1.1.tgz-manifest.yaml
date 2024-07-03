@@ -1,0 +1,191 @@
+---
+# Source: mariadb/templates/scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mariadb-scripts
+  labels:
+    helm.sh/chart: mariadb-3.1.1
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.11.8"
+    app.kubernetes.io/managed-by: Helm
+data:
+  init.sh: |
+    #!/bin/sh
+    echo "Start initialization"
+    if [ -d /extrascripts ]; then
+      echo "Copy extra scripts"
+      cp /extrascripts/* /scripts
+    fi
+    if [ -d /customscripts ]; then
+      echo "Copy custom scripts"
+      cp /customscripts/* /scripts
+    fi    
+    if [ -d /extraconfigs ]; then
+      echo "Copy extra configs"
+      cp /extraconfigs/* /configs
+    fi
+    if [ -d /customconfig ]; then
+      echo "Copy custom config"
+      cp /customconfig/* /configs
+    fi
+    echo "Initialization done."
+---
+# Source: mariadb/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mariadb
+  labels:
+    helm.sh/chart: mariadb-3.1.1
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.11.8"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: sql
+      protocol: TCP
+      name: sql
+  selector:
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+---
+# Source: mariadb/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-mariadb
+  labels:
+    helm.sh/chart: mariadb-3.1.1
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "10.11.8"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: my-release-mariadb
+  podManagementPolicy: OrderedReady
+  updateStrategy: 
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/customconfig: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/secureconfig: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/customscripts: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/scripts: fbb7ac0f34b4861003956c7213e85a48879551b72d0b2af46eb637832ee2ca79
+      labels:
+        app.kubernetes.io/name: mariadb
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 999
+        supplementalGroups:
+        - 999
+      initContainers:
+        - name: mariadb-init
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "docker.io/mariadb:10.11.8"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /initscripts
+              name: initscripts
+            - mountPath: /scripts
+              name: scripts
+            - mountPath: /configs
+              name: configs
+          command: [ "/initscripts/init.sh" ]
+      containers:
+        - name: mariadb
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 999
+            runAsNonRoot: true
+            runAsUser: 999
+          image: "docker.io/mariadb:10.11.8"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: sql
+              containerPort: 3306
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - healthcheck.sh --connect --innodb_initialized
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+            successThreshold: 1
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - healthcheck.sh --connect --innodb_initialized
+            initialDelaySeconds: 120
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - healthcheck.sh --connect --innodb_initialized
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: db-volume
+            - mountPath: /tmp
+              name: tmp-volume
+            - mountPath: /var/run/mysqld
+              name: tmp-volume         
+            - mountPath: /etc/mysql/conf.d
+              name: configs
+            - mountPath: /docker-entrypoint-initdb.d
+              name: scripts
+          env:
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+        - name: configs
+          emptyDir: {}
+        - name: scripts
+          emptyDir: {}
+        - name: initscripts
+          configMap:
+            name: my-release-mariadb-scripts
+            defaultMode: 0555
+        - name: db-volume
+          emptyDir: {}

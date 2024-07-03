@@ -1,0 +1,445 @@
+---
+# Source: matomo/charts/mysql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mysql
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mysql-0.1.0
+type: Opaque
+data:
+  mysql-root-password: "NUpkeXRTdXpoeg=="
+  mysql-password: "bWF0b21v"
+---
+# Source: matomo/templates/secret.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: my-release-matomo-envs
+  labels:
+    app.kubernetes.io/name: matomo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: matomo-1.3.1
+data:
+  MATOMO_DATABASE_USERNAME: "bWF0b21v"
+  MATOMO_DATABASE_PASSWORD: "bWF0b21v"
+---
+# Source: matomo/charts/mysql/templates/tests/test-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mysql-test
+  namespace: matomo-1.3.1.tgz
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mysql-0.1.0
+data:
+  run.sh: |-
+---
+# Source: matomo/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-matomo
+  labels:
+    app.kubernetes.io/name: matomo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: matomo-1.3.1
+data:
+  matomo.conf: |
+    upstream php-handler {
+      server localhost:9000;
+    }
+
+    server {
+      listen 80;
+
+      add_header Referrer-Policy origin; # make sure outgoing links don't show the URL to the Matomo instance
+      root /var/www/html; # replace with path to your matomo instance
+      index index.php;
+      try_files $uri $uri/ =404;
+      
+      ## Rewrite matomo.js and matomo.php to reduce adblocking rate
+      rewrite ^/mj /matomo.js last;
+      rewrite ^/mp /matomo.php last;
+
+      ## only allow accessing the following php files
+      location ~ ^/(index|matomo|piwik|js/index|plugins/HeatmapSessionRecording/configs).php {
+        # regex to split $uri to $fastcgi_script_name and $fastcgi_path
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+
+        # Check that the PHP script exists before passing it
+        try_files $fastcgi_script_name =404;
+
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_param HTTP_PROXY ""; # prohibit httpoxy: https://httpoxy.org/
+        fastcgi_pass php-handler;
+      }
+
+      ## deny access to all other .php files
+      location ~* ^.+\.php$ {
+        deny all;
+        return 403;
+      }
+
+      ## disable all access to the following directories
+      location ~ /(config|tmp|core|lang) {
+        deny all;
+        return 403; # replace with 404 to not show these directories exist
+      }
+      location ~ /\.ht {
+        deny all;
+        return 403;
+      }
+
+      location ~ js/container_.*_preview\.js$ {
+        expires off;
+        add_header Cache-Control 'private, no-cache, no-store';
+      }
+
+      location ~ \.(gif|ico|jpg|png|svg|js|css|htm|html|mp3|mp4|wav|ogg|avi|ttf|eot|woff|woff2|json)$ {
+        allow all;
+        ## Cache images,CSS,JS and webfonts for an hour
+        ## Increasing the duration may improve the load-time, but may cause old files to show after an Matomo upgrade
+        expires 1h;
+        add_header Pragma public;
+        add_header Cache-Control "public";
+      }
+
+      location ~ /(mj|mp) {
+        expires 365d;
+        add_header Pragma public;
+        add_header Cache-Control "public";
+      }
+
+      location ~ /(libs|vendor|plugins|misc/user) {
+        deny all;
+        return 403;
+      }
+
+      ## properly display textfiles in root directory
+      location ~/(.*\.md|LEGALNOTICE|LICENSE) {
+        default_type text/plain;
+      }
+    }
+  
+  update-ipdb.sh: |
+    #!/bin/sh
+  
+    DATE=$(date +"%Y-%m")
+  
+    printf "Downloading IP-DB Database for date: %s\\n" "$DATE"
+    wget -O geoip.gz "https://download.db-ip.com/free/dbip-city-lite-$(date +%Y-%m).mmdb.gz"
+    printf "Unzipping...\\n"
+    gunzip -c geoip.gz > /data/geoip/DBIP-City.mmdb
+    printf "Setting permission for DBIP-City\\n"
+    chown 82:82 /data/geoip/DBIP-City.mmdb
+---
+# Source: matomo/charts/mysql/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-mysql
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mysql-0.1.0
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: matomo/templates/persistentvolumeclaim.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-matomo
+  labels:
+    app.kubernetes.io/name: matomo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: matomo-1.3.1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: matomo/charts/mysql/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mysql
+  namespace: matomo-1.3.1.tgz
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mysql-0.1.0
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: mysql
+  selector:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: my-release
+---
+# Source: matomo/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-matomo
+  labels:
+    app.kubernetes.io/name: matomo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: matomo-1.3.1
+    app.kubernetes.io/component: app
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: matomo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: app
+---
+# Source: matomo/charts/mysql/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mysql
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: mysql-0.1.0
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      initContainers:
+      - name: "remove-lost-found"
+        image: "busybox:1.32"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          requests:
+            cpu: 10m
+            memory: 10Mi
+        command:  ["rm", "-fr", "/var/lib/mysql/lost+found"]
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+      containers:
+      - name: my-release-mysql
+        image: "mysql:8.0.22"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-mysql
+              key: mysql-root-password
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-release-mysql
+              key: mysql-password
+        - name: MYSQL_USER
+          value: "matomo"
+        - name: MYSQL_DATABASE
+          value: "matomo"
+        ports:
+        - name: mysql
+          containerPort: 3306
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "mysqladmin ping -u root -p${MYSQL_ROOT_PASSWORD}"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "mysqladmin ping -u root -p${MYSQL_ROOT_PASSWORD}"
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 3
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-release-mysql
+---
+# Source: matomo/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-matomo
+  labels:
+    app.kubernetes.io/name: matomo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: matomo-1.3.1
+    app.kubernetes.io/component: app
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: matomo
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: matomo
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: app
+      annotations:
+        checksum/config: f6104537544f9491a26b79523bfd5a788346a59c1910e43ef5c3f7ed1a1d86f
+        checksum/secret: 90b51695f9bb7248b767a1a8327bd29e801802e3391d6cbb90f36d40d2b7a7b
+    spec:
+      containers:
+        - name: matomo
+          image: "t3nde/matomo:4.3.1-fpm-alpine"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MATOMO_GENERAL_ENABLE_TRUSTED_HOST_CHECK
+              value: "0"
+            - name: MATOMO_DATABASE_HOST
+              value: "my-release-mysql"
+            - name: MATOMO_DATABASE_ADAPTER
+              value: "PDO\\MYSQL"
+            - name: MATOMO_DATABASE_TABLES_PREFIX
+              value: "matomo_"
+            - name: MATOMO_DATABASE_DBNAME
+              value: "matomo"
+            - name: MATOMO_GENERAL_SALT
+              value: "76wiocvetjpe47xzeqzm9ic4d8nx3go5"
+          envFrom:
+            - secretRef:
+                name: my-release-matomo-envs
+          ports:
+            - name: fpm
+              containerPort: 9000
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              subPath: 
+            - name: html-files
+              mountPath: /var/www/html
+        - name: nginx
+          image: "nginx:1.18.0-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /matomo.php
+              port: http
+            initialDelaySeconds: 60
+            timeoutSeconds: 1
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /matomo.php
+              port: http
+            initialDelaySeconds: 0
+            timeoutSeconds: 5
+            periodSeconds: 25
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: matomo.conf
+            - name: html-files
+              mountPath: /var/www/html
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-matomo
+        - name: config
+          configMap:
+            name: my-release-matomo
+        - name: html-files
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: matomo
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: app
+---
+# Source: matomo/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: my-release-matomo
+  labels:
+    app.kubernetes.io/name: matomo
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: matomo-1.3.1
+spec:
+  rules:
+    - host: matomo.local
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: my-release-matomo
+              servicePort: http

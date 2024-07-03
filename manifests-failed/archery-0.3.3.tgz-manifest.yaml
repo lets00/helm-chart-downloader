@@ -1,0 +1,1174 @@
+---
+# Source: archery/charts/mysql/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mysql
+  namespace: archery-0.3.3.tgz
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-8.8.35
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+secrets:
+  - name: my-release-mysql
+---
+# Source: archery/charts/redis/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: my-release-redis
+  namespace: "archery-0.3.3.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-15.7.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: archery/charts/mysql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mysql
+  namespace: archery-0.3.3.tgz
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-8.8.35
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  mysql-root-password: "TVlTUUxfUk9PVF9QQVNTV09SRA=="
+  mysql-password: "YUtLQTNMZ2tUYQ=="
+---
+# Source: archery/charts/redis/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-redis
+  namespace: "archery-0.3.3.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-15.7.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  redis-password: "UkVESVNfUEFTU1dPUkQ="
+---
+# Source: archery/charts/goinception/templates/configMap.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: goinception-config
+  labels:
+    app.kubernetes.io/name: goinception
+    helm.sh/chart: goinception-0.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.toml.template: |-
+    host="0.0.0.0"
+    advertise_address=""
+    port=4000
+    [inc]
+    check_autoincrement_datatype=true
+    check_autoincrement_init_value=true
+    check_autoincrement_name=true
+    check_column_comment=true
+    check_column_default_value=true
+    check_column_position_change=true
+    check_column_type_change=true
+    check_dml_limit=true
+    check_dml_orderby=true
+    check_dml_where=true
+    check_identifier=true
+    check_index_prefix=true
+    check_insert_field=true
+    check_primary_key=true
+    check_table_comment=true
+    check_timestamp_default=true
+    check_timestamp_count=false
+    enable_autoincrement_unsigned=true
+    enable_blob_type=true
+    enable_column_charset=true
+    enable_drop_database=true
+    enable_drop_table=true
+    enable_enum_set_bit=false
+    enable_fingerprint=true
+    enable_foreign_key=false
+    enable_json_type=true
+    enable_identifer_keyword=false
+    enable_not_innodb=false
+    enable_nullable=false
+    enable_null_index_name=false
+    enable_orderby_rand=true
+    enable_partition_table=true
+    enable_pk_columns_only_int=true
+    enable_select_star=false
+    enable_set_charset=true
+    enable_set_collation=false
+    enable_set_engine=false
+    max_char_length=0
+    max_insert_rows=0
+    max_keys=5
+    max_key_parts=5
+    max_update_rows=5000
+    max_primary_key_parts=1
+    max_allowed_packet=33554432
+    merge_alter_table=true
+    check_float_double=true
+    support_charset="utf8,utf8mb4"
+    support_collation="utf8_general_ci,utf8mb4_general_ci"
+    backup_host="BACKUP_HOST_PLACEHOLDER"
+    backup_port=BACKUP_PORT_PLACEHOLDER
+    backup_user="BACKUP_USER_PLACEHOLDER"
+    backup_password="BACKUP_PASSWORD_PLACEHOLDER"
+    #安全更新是否开启.
+    #-1表示不做操作,基于远端数据库[默认值]
+    #0表示关闭安全更新
+    #1表示开启安全更新
+    sql_safe_updates=0
+    #lang="en-US"
+    lang="zh-CN"
+    #是否记录全量日志
+    general_log=false
+    #开启统计功能
+    enable_sql_statistic=true
+    [inc_level]
+    er_cant_set_engine=2
+    er_cant_set_collation=2
+    er_table_must_have_comment=2
+    er_column_have_no_comment=2
+    er_table_must_have_pk=2
+    er_index_name_idx_prefix=1
+    er_index_name_uniq_prefix=1
+    er_autoinc_unsigned=2
+    er_alter_table_once=2
+    er_pk_too_many_parts=2
+    [osc]
+    osc_on=false
+    osc_min_table_size=16
+    osc_print_none=false
+    osc_bin_dir="/usr/local/bin"
+    [ghost]
+    ghost_on=false
+    ghost_allow_on_master=true
+    ghost_assume_rbr=true
+    ghost_chunk_size=1000
+    ghost_concurrent_rowcount=true
+    ghost_cut_over="atomic"
+    ghost_cut_over_lock_timeout_seconds=3
+    ghost_default_retries=60
+    ghost_heartbeat_interval_millis=500
+    ghost_max_lag_millis=1500
+    ghost_approve_renamed_columns=true
+    ghost_exponential_backoff_max_interval=64
+    ghost_dml_batch_size=10
+    [log]
+    # Log level: debug, info, warn, error, fatal.
+    level="error"
+    # Log format, one of json, text, console.
+    format="console"
+---
+# Source: archery/charts/mysql/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mysql
+  namespace: archery-0.3.3.tgz
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-8.8.35
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+data:
+  my.cnf: |-
+    
+    [mysqld]
+    default_authentication_plugin=mysql_native_password
+    skip-name-resolve
+    explicit_defaults_for_timestamp
+    basedir=/opt/bitnami/mysql
+    plugin_dir=/opt/bitnami/mysql/lib/plugin
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    datadir=/bitnami/mysql/data
+    tmpdir=/opt/bitnami/mysql/tmp
+    bind-address=0.0.0.0
+    pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+    log-error=/opt/bitnami/mysql/logs/mysqld.log
+    port            = 3306
+    skip-external-locking
+    lower_case_table_names=1
+    default-time_zone = '+8:00'
+    innodb_buffer_pool_size = 512M
+    server-id              = 100
+    log_bin                        = mysql-bin.log
+    expire_logs_days        = 1
+    max_binlog_size         = 500M
+    character-set-server = utf8mb4
+    collation-server = utf8mb4_general_ci
+    slow_query_log_file = mysql-slow.log
+    slow_query_log      = 1
+    long_query_time = 1
+    [client]
+    default-character-set=utf8mb4
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    plugin_dir=/opt/bitnami/mysql/lib/plugin
+    [mysqldump]
+    quick
+    quote-names
+    max_allowed_packet      = 1024M
+    [manager]
+    port=3306
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+---
+# Source: archery/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-configuration
+  namespace: "archery-0.3.3.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-15.7.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  redis.conf: |-
+    # User-supplied common configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+    # End of common configuration
+  master.conf: |-
+    dir /data
+    # User-supplied master configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of master configuration
+  replica.conf: |-
+    dir /data
+    slave-read-only yes
+    # User-supplied replica configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of replica configuration
+---
+# Source: archery/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-health
+  namespace: "archery-0.3.3.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-15.7.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$response" != "PONG" ] && [ "$response" != "LOADING Redis is loading the dataset in memory" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$response" != "PONG" ] && [ "$response" != "LOADING Redis is loading the dataset in memory" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: archery/charts/redis/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-scripts
+  namespace: "archery-0.3.3.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-15.7.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  start-master.sh: |
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    if [[ ! -f /opt/bitnami/redis/etc/master.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+    fi
+    if [[ ! -f /opt/bitnami/redis/etc/redis.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+    fi
+    ARGS=("--port" "${REDIS_PORT}")
+    ARGS+=("--requirepass" "${REDIS_PASSWORD}")
+    ARGS+=("--masterauth" "${REDIS_PASSWORD}")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+    exec redis-server "${ARGS[@]}"
+---
+# Source: archery/templates/configMap.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: archery-config
+  labels:
+    app.kubernetes.io/name: archery
+    helm.sh/chart: archery-0.3.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  init-archery.sh: |-
+    #!/bin/bash
+    mkdir -p /opt/archery/downloads/{binlog2sql,log,schemasync}
+    cd /opt/archery
+    echo 切换python运行环境
+    source /opt/venv4archery/bin/activate
+    
+    python3 manage.py makemigrations sql
+    python3 manage.py migrate -v 3
+    #数据初始化
+    python3 manage.py dbshell<sql/fixtures/auth_group.sql
+    python3 manage.py dbshell<src/init_sql/mysql_slow_query_review.sql
+    #创建管理用户
+    #python3 manage.py createsuperuser
+    cat /opt/archery/src/docker/createsuperuser.py | python3 manage.py shell
+  createsuperuser.py: |-
+    #/usr/bin/python3 env
+    from django.contrib.auth import get_user_model
+    DJANGO_SU_NAME = "admin"
+    DJANGO_SU_EMAIL = "archery@example.com"
+    DJANGO_SU_PASSWORD = "archery"
+    User = get_user_model()
+    try:
+      superuser=User.objects.create_superuser(
+      username=DJANGO_SU_NAME,
+      email=DJANGO_SU_EMAIL,
+      password=DJANGO_SU_PASSWORD)
+    except:
+      print('Error,用户重复创建或创建失败，请登录pod检查!')
+      exit(0)
+    else:
+      superuser.save()
+  startup.sh: |-
+    #!/bin/bash
+    cd /opt/archery
+
+    echo 切换python运行环境
+    source /opt/venv4archery/bin/activate
+    echo 修改重定向端口
+    if [[ -z $NGINX_PORT ]]; then
+        sed -i "s/:nginx_port//g" /etc/nginx/nginx.conf
+    else
+        sed -i "s/nginx_port/$NGINX_PORT/g" /etc/nginx/nginx.conf
+    fi
+
+    echo 启动nginx
+    /usr/sbin/nginx
+
+    echo 收集所有的静态文件到STATIC_ROOT
+    python3 manage.py collectstatic -v0 --noinput
+
+    echo 启动Django Q cluster
+    supervisord -c /etc/supervisord.conf
+
+
+    echo 启动服务
+    settings=${1:-"archery.settings"}
+    ip=${2:-"127.0.0.1"}
+    port=${3:-8888}
+
+    gunicorn -w 4 --env DJANGO_SETTINGS_MODULE=${settings} --log-level=debug --error-logfile=/tmp/archery.err -b ${ip}:${port} --preload --timeout 600  archery.wsgi:application
+  analysis_slow_query.sh: |-
+    #!/bin/bash
+    DIR="$( cd "$( dirname "$0"  )" && pwd  )"
+    cd $DIR
+    #配置archery数据库的连接地址
+    monitor_db_host="archery-mysql"
+    monitor_db_port=3306
+    monitor_db_user="root"
+    monitor_db_password="MYSQL_ROOT_PASSWORD"
+    monitor_db_database="archery"
+    #实例慢日志位置
+    slowquery_file="/home/mysql/log_slow.log"
+    pt_query_digest="/usr/bin/pt-query-digest"
+    #实例连接信息
+    hostname="mysql_host:mysql_port" # 和archery实例配置内容保持一致，用于archery做筛选
+    #获取上次分析时间，初始化时请删除last_analysis_time_$hostname文件，可分析全部日志数据
+    if [ -s last_analysis_time_$hostname ]; then
+        last_analysis_time=`cat last_analysis_time_$hostname`
+    else
+        last_analysis_time='1000-01-01 00:00:00'
+    fi
+    #收集日志
+    #RDS需要增加--no-version-check选项
+    $pt_query_digest \
+    --user=$monitor_db_user --password=$monitor_db_password --port=$monitor_db_port \
+    --review h=$monitor_db_host,D=$monitor_db_database,t=mysql_slow_query_review  \
+    --history h=$monitor_db_host,D=$monitor_db_database,t=mysql_slow_query_review_history  \
+    --no-report --limit=100% --charset=utf8 \
+    --since "$last_analysis_time" \
+    --filter="\$event->{Bytes} = length(\$event->{arg}) and \$event->{hostname}=\"$hostname\"  and \$event->{client}=\$event->{ip} " \
+    $slowquery_file > /tmp/analysis_slow_query.log
+    echo `date +"%Y-%m-%d %H:%M:%S"`>last_analysis_time_$hostname
+  local_settings.py: |-
+    # -*- coding: UTF-8 -*-
+    # override your configs here
+  soar.yaml: |-
+    # 是否允许测试环境与线上环境配置相同
+    allow-online-as-test: false
+    # 是否清理测试时产生的临时文件
+    drop-test-temporary: true
+    # 语法检查小工具
+    only-syntax-check: false
+    sampling-data-factor: 100
+    sampling: false
+    sampling-statistic-target: 100
+    profiling: false
+    trace: false
+    # 日志级别，[0:Emergency, 1:Alert, 2:Critical, 3:Error, 4:Warning, 5:Notice, 6:Informational, 7:Debug]
+    log-level: 3
+    log-output: /opt/archery/logs/soar.log
+    # 优化建议输出格式
+    report-type: markdown
+    ignore-rules:
+    - ""
+    # 启发式算法相关配置
+    max-join-table-count: 5
+    max-group-by-cols-count: 5
+    max-distinct-count: 5
+    max-index-cols-count: 5
+    max-total-rows: 9999999
+    spaghetti-query-length: 2048
+    allow-drop-index: false
+    # EXPLAIN相关配置
+    explain-sql-report-type: pretty
+    explain-type: extended
+    explain-format: traditional
+    explain-warn-select-type:
+    - ""
+    explain-warn-access-type:
+    - ALL
+    explain-max-keys: 3
+    explain-min-keys: 0
+    explain-max-rows: 10000
+    explain-warn-extra:
+    - ""
+    explain-max-filtered: 100
+    explain-warn-scalability:
+    - O(n)
+    query: ""
+    list-heuristic-rules: false
+    list-test-sqls: false
+    verbose: true
+---
+# Source: archery/charts/goinception/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-goinception
+  labels:
+    app.kubernetes.io/name: goinception
+    helm.sh/chart: goinception-0.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4000
+      targetPort: 4000
+      protocol: TCP
+      name: goinception
+  selector:
+    app.kubernetes.io/name: goinception
+    app.kubernetes.io/instance: my-release
+---
+# Source: archery/charts/mysql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mysql-headless
+  namespace: archery-0.3.3.tgz
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-8.8.35
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+  selector: 
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: archery/charts/mysql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mysql
+  namespace: archery-0.3.3.tgz
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-8.8.35
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - name: mysql
+      port: 3306
+      protocol: TCP
+      targetPort: mysql
+      nodePort: null
+  selector: 
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: archery/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-headless
+  namespace: "archery-0.3.3.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-15.7.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+---
+# Source: archery/charts/redis/templates/master/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-master
+  namespace: "archery-0.3.3.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-15.7.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: master
+---
+# Source: archery/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-archery
+  labels:
+    app.kubernetes.io/name: archery
+    helm.sh/chart: archery-0.3.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9123
+      targetPort: 9123
+      protocol: TCP
+      name: archery
+  selector:
+    app.kubernetes.io/name: archery
+    app.kubernetes.io/instance: my-release
+---
+# Source: archery/charts/goinception/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-goinception
+  labels:
+    app.kubernetes.io/name: goinception
+    helm.sh/chart: goinception-0.3.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: goinception
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: goinception
+        app.kubernetes.io/instance: my-release
+    spec:
+      initContainers:
+        - name: override-configs
+          image: busybox:1.28
+          env:
+            - name: BACKUP_HOST
+              value: ""
+            - name: BACKUP_PORT
+              value: ""
+            - name: BACKUP_USER
+              value: ""
+            - name: BACKUP_PASSWORD
+              value: ""
+          command: ['sh', '-c',
+                    'sed "s/BACKUP_HOST_PLACEHOLDER/${BACKUP_HOST}/g;s/BACKUP_PORT_PLACEHOLDER/${BACKUP_PORT}/g;s/BACKUP_USER_PLACEHOLDER/${BACKUP_USER}/g;s/BACKUP_PASSWORD_PLACEHOLDER/${BACKUP_PASSWORD}/g" /etc/goinception-template/config.toml.template > /etc/goinception/config.toml; cat /etc/goinception/config.toml']
+          volumeMounts:
+            - name: goinception-config-volume
+              mountPath: /etc/goinception
+            - name: goinception-config-template
+              mountPath: /etc/goinception-template
+      containers:
+        - name: goinception
+          image: "hanchuanchuan/goinception:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: goinception
+              containerPort: 4000
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: goinception
+          resources:
+            {}
+          command:
+            - "/usr/local/bin/dumb-init"
+            - "/goInception"
+            - "--config=/etc/goinception/config.toml"
+          volumeMounts:
+            - name: goinception-config-volume
+              mountPath: /etc/goinception
+      volumes:
+        - name: goinception-config-volume
+          emptyDir: {}
+        - name: goinception-config-template
+          configMap:
+            name: goinception-config
+---
+# Source: archery/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-archery
+  labels:
+    app.kubernetes.io/name: archery
+    helm.sh/chart: archery-0.3.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: archery
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: archery
+        app.kubernetes.io/instance: my-release
+    spec:
+      initContainers:
+        - image: busybox
+          name: init-mysql
+          imagePullPolicy: IfNotPresent
+          command: ['sh', '-c', 'until nslookup archery-mysql; do echo waiting for mysql; sleep 10; done;']
+        - image: "hhyo/archery:v1.9.1"
+          name: init-archery
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_URL
+              value: mysql://root:MYSQL_ROOT_PASSWORD@my-release-archery-mysql/archery
+            - name: CACHE_URL
+              value: redis://root:@my-release-archery-redis:6379/0
+            - name: DINGDING_CACHE_URL
+              value: redis://root:@my-release-archery-redis:6379/1
+          command: ['/bin/bash','/opt/archery/src/docker/init-archery.sh']
+          volumeMounts:
+            - mountPath: /opt/archery/local_settings.py
+              name: archery-settings
+              subPath: local_settings.py
+            - mountPath: /etc/soar.yaml
+              name: archery-settings
+              subPath: soar.yaml
+            - mountPath: /opt/archery/src/script/analysis_slow_query.sh
+              name: archery-settings
+              subPath: analysis_slow_query.sh
+            - mountPath: /opt/archery/src/docker/startup.sh
+              name: archery-settings
+              subPath: startup.sh
+            - mountPath: /opt/archery/src/docker/init-archery.sh
+              name: archery-settings
+              subPath: init-archery.sh
+            - mountPath: /opt/archery/src/docker/createsuperuser.py
+              name: archery-settings
+              subPath: createsuperuser.py
+      containers:
+        - name: archery
+          image: "hhyo/archery:v1.9.1"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_URL
+              value: mysql://root:MYSQL_ROOT_PASSWORD@my-release-archery-mysql/archery
+            - name: CACHE_URL
+              value: redis://root:@my-release-archery-redis:6379/0
+            - name: DINGDING_CACHE_URL
+              value: redis://root:@my-release-archery-redis:6379/1
+          ports:
+            - name: archery
+              containerPort: 9123
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: archery
+            initialDelaySeconds: 180
+            periodSeconds: 60
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /opt/archery/local_settings.py
+              name: archery-settings
+              subPath: local_settings.py
+            - mountPath: /etc/soar.yaml
+              name: archery-settings
+              subPath: soar.yaml
+            - mountPath: /opt/archery/src/script/analysis_slow_query.sh
+              name: archery-settings
+              subPath: analysis_slow_query.sh
+            - mountPath: /opt/archery/src/docker/startup.sh
+              name: archery-settings
+              subPath: startup.sh
+            - mountPath: /opt/archery/src/docker/init-archery.sh
+              name: archery-settings
+              subPath: init-archery.sh
+            - mountPath: /opt/archery/src/docker/createsuperuser.py
+              name: archery-settings
+              subPath: createsuperuser.py
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: archery-config
+          name: archery-settings
+        - hostPath:
+            path: /data/archery/downloads
+          name: archery-download
+        - hostPath:
+            path: /data/archery/scripts
+          name: archery-script
+---
+# Source: archery/charts/mysql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-mysql
+  namespace: archery-0.3.3.tgz
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-8.8.35
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: primary
+  serviceName: my-release-mysql
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configuration: 3158f6901e68738f6ba591d57863765301b410195f97082949c9fcf8f1ff006d
+      labels:
+        app.kubernetes.io/name: mysql
+        helm.sh/chart: mysql-8.8.35
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+    spec:
+      
+      serviceAccountName: my-release-mysql
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: mysql
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: primary
+                namespaces:
+                  - "archery-0.3.3.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: mysql
+          image: docker.io/bitnami/mysql:8.0.28-debian-10-r61
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mysql
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              value: "archery"
+          ports:
+            - name: mysql
+              containerPort: 3306
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          startupProbe:
+            failureThreshold: 10
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          resources: 
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mysql
+            - name: config
+              mountPath: /opt/bitnami/mysql/conf/my.cnf
+              subPath: my.cnf
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-mysql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels: 
+          app.kubernetes.io/name: mysql
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/component: primary
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "20Gi"
+---
+# Source: archery/charts/redis/templates/master/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-redis-master
+  namespace: "archery-0.3.3.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-15.7.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: master
+  serviceName: my-release-redis-headless
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        helm.sh/chart: redis-15.7.6
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/configmap: 89f0a2296cac4d980e9dbeecd0a6425fab5618f06b57f79618e14c5d9995eb30
+        checksum/health: a6d22d4d11bf5c42a34e550973b8741f7d4e2a739ff384d6c464a7eef4a93062
+        checksum/scripts: fc4a3b616f4482785532549b199aeab92c0fd40aad5202d8afa27c9a3ce2e932
+        checksum/secret: 3e6f122f7f75ed9b951952ffd4c43519d0725a377bf2f4e5c65a70e1fd22274f
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: my-release-redis
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: redis
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: master
+                namespaces:
+                  - "archery-0.3.3.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:6.2.6-debian-10-r97
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          command:
+            - /bin/bash
+          args:
+            - -c
+            - /opt/bitnami/scripts/start-scripts/start-master.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: REDIS_REPLICATION_MODE
+              value: master
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "no"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-redis
+                  key: redis-password
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            # One second longer than command timeout should prevent generation of zombie processes.
+            timeoutSeconds: 6
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_liveness_local.sh 5
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_readiness_local.sh 1
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: start-scripts
+              mountPath: /opt/bitnami/scripts/start-scripts
+            - name: health
+              mountPath: /health
+            - name: redis-data
+              mountPath: /data
+              subPath: 
+            - name: config
+              mountPath: /opt/bitnami/redis/mounted-etc
+            - name: redis-tmp-conf
+              mountPath: /opt/bitnami/redis/etc/
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: start-scripts
+          configMap:
+            name: my-release-redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: my-release-redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: my-release-redis-configuration
+        - name: redis-tmp-conf
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: redis-data
+          emptyDir: {}
+---
+# Source: archery/templates/ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: my-release-archery
+  labels:
+    app.kubernetes.io/name: archery
+    helm.sh/chart: archery-0.3.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: dba.archery.local
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: my-release-archery
+              servicePort: 9123

@@ -1,0 +1,93 @@
+---
+# Source: transmission-exporter/templates/secret.yaml
+apiVersion: v1
+metadata:
+  name: my-release-transmission-exporter
+  labels:
+    app.kubernetes.io/name: transmission-exporter
+    helm.sh/chart: transmission-exporter-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+kind: Secret
+type: Opaque
+---
+# Source: transmission-exporter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-transmission-exporter
+  labels:
+    app.kubernetes.io/name: transmission-exporter
+    helm.sh/chart: transmission-exporter-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  WEB_PATH: "/metrics"
+  WEB_ADDR: ":19091"
+  TRANSMISSION_ADDR: "http://transmission:9091"
+---
+# Source: transmission-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-transmission-exporter
+  labels:
+    app.kubernetes.io/name: transmission-exporter
+    helm.sh/chart: transmission-exporter-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 19091
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: transmission-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: transmission-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-transmission-exporter
+  labels:
+    app.kubernetes.io/name: transmission-exporter
+    helm.sh/chart: transmission-exporter-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: transmission-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: transmission-exporter
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/configmap: 2647d457d7193b03f5c980b6a1113b29cee2c441340587b96de28e7b4bf131dc
+        checksum/secret: 5a231abacf681f43e7c6264d11ca83512a94c6f8cfc818e70a0e0a29819f23b1
+    spec:
+      containers:
+        - envFrom:
+            - configMapRef:
+                name: my-release-transmission-exporter
+            - secretRef:
+                name: my-release-transmission-exporter
+          image: "metalmatze/transmission-exporter:0.3.0"
+          imagePullPolicy: IfNotPresent
+          name: transmission-exporter
+          ports:
+            - containerPort: 19091
+              name: metrics
+          resources:
+            {}

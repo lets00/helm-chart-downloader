@@ -1,0 +1,786 @@
+---
+# Source: solr/charts/zookeeper/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-zookeeper
+  namespace: solr-9.3.3.tgz
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.4.1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: zookeeper
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # Allow inbound connections to ZooKeeper
+    - ports:
+        - port: 2181
+    # Allow internal communications between nodes
+    - ports:
+        - port: 2888
+        - port: 3888
+      from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: my-release
+              app.kubernetes.io/name: zookeeper
+---
+# Source: solr/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-solr
+  namespace: "solr-9.3.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 9.6.1
+    helm.sh/chart: solr-9.3.3
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: solr
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 8983
+        - port: 8983
+---
+# Source: solr/charts/zookeeper/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-zookeeper
+  namespace: solr-9.3.3.tgz
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.4.1
+    app.kubernetes.io/component: zookeeper
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: zookeeper
+      app.kubernetes.io/component: zookeeper
+---
+# Source: solr/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-solr
+  namespace: "solr-9.3.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 9.6.1
+    helm.sh/chart: solr-9.3.3
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: solr
+      app.kubernetes.io/component: solr
+---
+# Source: solr/charts/zookeeper/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-zookeeper
+  namespace: solr-9.3.3.tgz
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.4.1
+    app.kubernetes.io/component: zookeeper
+    role: zookeeper
+automountServiceAccountToken: false
+---
+# Source: solr/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-solr
+  namespace: "solr-9.3.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 9.6.1
+    helm.sh/chart: solr-9.3.3
+    app.kubernetes.io/component: solr
+automountServiceAccountToken: false
+---
+# Source: solr/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-solr
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 9.6.1
+    helm.sh/chart: solr-9.3.3
+    app.kubernetes.io/component: solr
+  namespace: "solr-9.3.3.tgz"
+type: Opaque
+data:
+  solr-password: "Vnc3RHQwc0k0WA=="
+---
+# Source: solr/charts/zookeeper/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-zookeeper-scripts
+  namespace: solr-9.3.3.tgz
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.4.1
+    app.kubernetes.io/component: zookeeper
+data:
+  init-certs.sh: |-
+    #!/bin/bash
+  setup.sh: |-
+    #!/bin/bash
+
+    # Execute entrypoint as usual after obtaining ZOO_SERVER_ID
+    # check ZOO_SERVER_ID in persistent volume via myid
+    # if not present, set based on POD hostname
+    if [[ -f "/bitnami/zookeeper/data/myid" ]]; then
+        export ZOO_SERVER_ID="$(cat /bitnami/zookeeper/data/myid)"
+    else
+        HOSTNAME="$(hostname -s)"
+        if [[ $HOSTNAME =~ (.*)-([0-9]+)$ ]]; then
+            ORD=${BASH_REMATCH[2]}
+            export ZOO_SERVER_ID="$((ORD + 1 ))"
+        else
+            echo "Failed to get index from hostname $HOSTNAME"
+            exit 1
+        fi
+    fi
+    exec /entrypoint.sh /run.sh
+---
+# Source: solr/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-solr-scripts
+  namespace: "solr-9.3.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 9.6.1
+    helm.sh/chart: solr-9.3.3
+    app.kubernetes.io/component: solr
+data:
+  init-certs.sh: |-
+    #!/bin/bash
+
+    . /opt/bitnami/scripts/liblog.sh
+
+    if [[ -f "/certs/keystore.p12" ]] && [[ -f "/certs/truststore.p12" ]]; then
+        # the user provided keystore.p12 and truststore.p12 files (prefered)
+        cp "/certs/keystore.p12" "/opt/bitnami/solr/certs/keystore.p12"
+        cp "/certs/truststore.p12" "/opt/bitnami/solr/certs/truststore.p12"
+    elif [[ -f "/certs/ca.crt" ]] && [[ -f "/certs/tls.key" ]] && [[ -f "/certs/tls.crt" ]]; then
+        # the user provided ca.crt & tls.key & tls.crt so we "calculate" keystore.p12 and truststore.p12
+        openssl pkcs12 -export -in "/certs/tls.crt" \
+            -inkey "/certs/tls.key" -out "/tmp/keystore.p12" \
+            -passin pass:"/certs/tls.key" -passout pass:"${SOLR_SSL_KEY_STORE_PASSWORD}"
+        keytool -importkeystore -srckeystore "/tmp/keystore.p12" \
+            -srcstoretype PKCS12 \
+            -srcstorepass "${SOLR_SSL_KEY_STORE_PASSWORD}" \
+            -deststorepass "${SOLR_SSL_KEY_STORE_PASSWORD}" \
+            -destkeystore "/opt/bitnami/solr/certs/keystore.p12" \
+            -noprompt
+        rm "/tmp/keystore.p12"
+        keytool -import -file "/certs/ca.crt" -keystore "/opt/bitnami/solr/certs/truststore.p12" -storepass "${SOLR_SSL_TRUST_STORE_PASSWORD}" -noprompt
+    else
+        info "No certificate files provided ... nothing to do ..."
+    fi
+  setup.sh: |-
+    #!/bin/bash
+    NODE_ID="${MY_POD_NAME#"my-release-solr-"}"
+    if [[ "$NODE_ID" -eq "0" ]]; then
+        export SOLR_CLOUD_BOOTSTRAP=yes
+    fi
+    # Use hostname instead of IP to register in ZooKeeper
+    export SOLR_HOST="${MY_POD_NAME}.my-release-solr-headless.solr-9.3.3.tgz.svc.cluster.local"
+    /opt/bitnami/scripts/solr/entrypoint.sh /opt/bitnami/scripts/solr/run.sh
+---
+# Source: solr/charts/zookeeper/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-zookeeper-headless
+  namespace: solr-9.3.3.tgz
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.4.1
+    app.kubernetes.io/component: zookeeper
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-client
+      port: 2181
+      targetPort: client
+    - name: tcp-follower
+      port: 2888
+      targetPort: follower
+    - name: tcp-election
+      port: 3888
+      targetPort: election
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/component: zookeeper
+---
+# Source: solr/charts/zookeeper/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-zookeeper
+  namespace: solr-9.3.3.tgz
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.4.1
+    app.kubernetes.io/component: zookeeper
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-client
+      port: 2181
+      targetPort: client
+      nodePort: null
+    - name: tcp-follower
+      port: 2888
+      targetPort: follower
+    - name: tcp-election
+      port: 3888
+      targetPort: election
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/component: zookeeper
+---
+# Source: solr/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-solr-headless
+  namespace: "solr-9.3.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 9.6.1
+    helm.sh/chart: solr-9.3.3
+    app.kubernetes.io/component: solr
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-client
+      port: 8983
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/component: solr
+---
+# Source: solr/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-solr
+  namespace: "solr-9.3.3.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 9.6.1
+    helm.sh/chart: solr-9.3.3
+    app.kubernetes.io/component: solr
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-client
+      port: 8983
+      protocol: TCP
+      targetPort: http
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/component: solr
+---
+# Source: solr/charts/zookeeper/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-zookeeper
+  namespace: solr-9.3.3.tgz
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.4.1
+    app.kubernetes.io/component: zookeeper
+    role: zookeeper
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: zookeeper
+      app.kubernetes.io/component: zookeeper
+  serviceName: my-release-zookeeper-headless
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: zookeeper
+        app.kubernetes.io/version: 3.9.2
+        helm.sh/chart: zookeeper-13.4.1
+        app.kubernetes.io/component: zookeeper
+    spec:
+      enableServiceLinks: true
+      serviceAccountName: my-release-zookeeper
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: zookeeper
+                    app.kubernetes.io/component: zookeeper
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+      containers:
+        - name: zookeeper
+          image: docker.io/bitnami/zookeeper:3.9.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /scripts/setup.sh
+          resources:
+            limits:
+              cpu: 375m
+              ephemeral-storage: 1024Mi
+              memory: 384Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 50Mi
+              memory: 256Mi
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: ZOO_DATA_LOG_DIR
+              value: ""
+            - name: ZOO_PORT_NUMBER
+              value: "2181"
+            - name: ZOO_TICK_TIME
+              value: "2000"
+            - name: ZOO_INIT_LIMIT
+              value: "10"
+            - name: ZOO_SYNC_LIMIT
+              value: "5"
+            - name: ZOO_PRE_ALLOC_SIZE
+              value: "65536"
+            - name: ZOO_SNAPCOUNT
+              value: "100000"
+            - name: ZOO_MAX_CLIENT_CNXNS
+              value: "60"
+            - name: ZOO_4LW_COMMANDS_WHITELIST
+              value: "srvr,mntr,conf,ruok"
+            - name: ZOO_LISTEN_ALLIPS_ENABLED
+              value: "no"
+            - name: ZOO_AUTOPURGE_INTERVAL
+              value: "1"
+            - name: ZOO_AUTOPURGE_RETAIN_COUNT
+              value: "10"
+            - name: ZOO_MAX_SESSION_TIMEOUT
+              value: "40000"
+            - name: ZOO_SERVERS
+              value: my-release-zookeeper-0.my-release-zookeeper-headless.solr-9.3.3.tgz.svc.cluster.local:2888:3888::1 my-release-zookeeper-1.my-release-zookeeper-headless.solr-9.3.3.tgz.svc.cluster.local:2888:3888::2 my-release-zookeeper-2.my-release-zookeeper-headless.solr-9.3.3.tgz.svc.cluster.local:2888:3888::3 
+            - name: ZOO_ENABLE_AUTH
+              value: "no"
+            - name: ZOO_ENABLE_QUORUM_AUTH
+              value: "no"
+            - name: ZOO_HEAP_SIZE
+              value: "1024"
+            - name: ZOO_LOG_LEVEL
+              value: "ERROR"
+            - name: ALLOW_ANONYMOUS_LOGIN
+              value: "yes"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: ZOO_ADMIN_SERVER_PORT_NUMBER
+              value: "8080"
+          ports:
+            - name: client
+              containerPort: 2181
+            - name: follower
+              containerPort: 2888
+            - name: election
+              containerPort: 3888
+            - name: http-admin
+              containerPort: 8080
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - ZOO_HC_TIMEOUT=3 /opt/bitnami/scripts/zookeeper/healthcheck.sh
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - ZOO_HC_TIMEOUT=2 /opt/bitnami/scripts/zookeeper/healthcheck.sh
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/zookeeper/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/zookeeper/logs
+              subPath: app-logs-dir
+            - name: scripts
+              mountPath: /scripts/setup.sh
+              subPath: setup.sh
+            - name: data
+              mountPath: /bitnami/zookeeper
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: my-release-zookeeper-scripts
+            defaultMode: 493
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: solr/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-solr
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 9.6.1
+    helm.sh/chart: solr-9.3.3
+    app.kubernetes.io/component: solr
+  namespace: "solr-9.3.3.tgz"
+spec:
+  podManagementPolicy: Parallel
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: solr
+      app.kubernetes.io/component: solr
+  serviceName: my-release-solr-headless
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: 4eab16ec09cf4333aba1ad7fd22427a6e5d63518185717f165235c7d68b68ca2
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: solr
+        app.kubernetes.io/version: 9.6.1
+        helm.sh/chart: solr-9.3.3
+        app.kubernetes.io/component: solr
+    spec:
+      serviceAccountName: my-release-solr
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: solr
+                    app.kubernetes.io/component: solr
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      enableServiceLinks: true
+      initContainers:
+        - name: prepare-server-dir
+          image: docker.io/bitnami/solr:9.6.1-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            limits:
+              cpu: 750m
+              ephemeral-storage: 1024Mi
+              memory: 1536Mi
+            requests:
+              cpu: 500m
+              ephemeral-storage: 50Mi
+              memory: 1024Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+
+              . /opt/bitnami/scripts/liblog.sh
+
+              info "Copying server dir to empty dir"
+              # In order to not break the application functionality (such as upgrades or plugins) we need
+              # to make the base directory writable, so we need to copy it to an empty dir volume
+              cp -r --preserve=mode /opt/bitnami/solr/server /emptydir/app-server-dir
+
+              info "Copy operation completed"
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /emptydir
+      containers:
+        - name: solr
+          image: docker.io/bitnami/solr:9.6.1-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /scripts/setup.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SOLR_ENABLE_CLOUD_MODE
+              value: "yes"
+            - name: SOLR_NUMBER_OF_NODES
+              value: "3"
+            - name: SOLR_PORT_NUMBER
+              value: "8983"
+            - name: SOLR_SERVER_DIRECTORY
+              value: "server"
+            - name: SOLR_COLLECTION
+              value: "my-collection"
+            - name: SOLR_COLLECTION_SHARDS
+              value: "1"
+            - name: SOLR_COLLECTION_REPLICAS
+              value: "2"
+            - name: SOLR_ENABLE_AUTHENTICATION
+              value: "yes"
+            - name: SOLR_ADMIN_USERNAME
+              value: "admin"
+            - name: SOLR_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-solr
+                  key: solr-password
+            - name: SOLR_ZK_HOSTS
+              value: "my-release-zookeeper-0.my-release-zookeeper-headless.solr-9.3.3.tgz.svc.cluster.local:2181,my-release-zookeeper-1.my-release-zookeeper-headless.solr-9.3.3.tgz.svc.cluster.local:2181,my-release-zookeeper-2.my-release-zookeeper-headless.solr-9.3.3.tgz.svc.cluster.local:2181"
+          ports:
+            - name: http
+              containerPort: 8983
+          resources:
+            limits:
+              cpu: 750m
+              ephemeral-storage: 1024Mi
+              memory: 1536Mi
+            requests:
+              cpu: 500m
+              ephemeral-storage: 50Mi
+              memory: 1024Mi
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
+            exec:
+              command:
+              - /bin/bash
+              - -ec
+              - |
+                curl --silent --connect-timeout 15000 --user ${SOLR_ADMIN_USERNAME}:${SOLR_ADMIN_PASSWORD} http://localhost:${SOLR_PORT_NUMBER}/solr/admin/info/system | grep --quiet  '\"status\":0'
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
+            exec:
+              command:
+              - /bin/bash
+              - -ec
+              - |
+                curl --silent --connect-timeout 15000 --user ${SOLR_ADMIN_USERNAME}:${SOLR_ADMIN_PASSWORD} http://localhost:${SOLR_PORT_NUMBER}/api/node/health | grep --quiet  '\"status\":\"OK\"'
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/solr/server
+              subPath: app-server-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/solr/logs
+              subPath: app-logs-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/solr/tmp
+              subPath: app-tmp-dir
+            - name: scripts
+              mountPath: /scripts/setup.sh
+              subPath: setup.sh
+            - name: data
+              mountPath: /bitnami/solr
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: my-release-solr-scripts
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        annotations:
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"

@@ -1,0 +1,115 @@
+---
+# Source: certs/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-certs
+---
+# Source: certs/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-certs
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "update", "create", "patch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["list"]
+---
+# Source: certs/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-certs
+subjects:
+- kind: ServiceAccount
+  name: my-release-certs
+  namespace: "certs-2.1.0.tgz"
+roleRef:
+  kind: Role
+  name: my-release-certs
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: certs/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-certs
+  labels:
+    app: certs
+    chart: certs-2.1.0
+    release: my-release
+    heritage: Helm
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 120
+  template:
+    metadata:
+      labels:
+        app: certs
+        release: my-release
+    spec:
+      serviceAccountName: my-release-certs
+      containers:
+      - name: my-release-certs
+        image: mathnao/certs:2.1.0
+        imagePullPolicy: Always
+        env:
+        - name: ACME_MANAGE_ALL_NAMESPACES
+          value: "false"
+        - name: ACME_NAMESPACES_WHITELIST
+          value: ""
+        - name: ACME_DEMO_ENABLED
+          value: "false"
+        - name: ACME_GATEWAY_ENABLED
+          value: "false"
+        - name: ACME_DEBUG
+          value: "false"
+      restartPolicy: Never
+---
+# Source: certs/templates/cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-release-certs
+  labels:
+    app: certs
+    chart: certs-2.1.0
+    release: my-release
+    heritage: Helm
+spec:
+  schedule: "0 0,12 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        app: certs
+        release: my-release
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      ttlSecondsAfterFinished: 120
+      template:
+        spec:
+          serviceAccountName: my-release-certs
+          containers:
+          - name: my-release-certs
+            image: mathnao/certs:2.1.0
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: ACME_MANAGE_ALL_NAMESPACES
+              value: "false"
+            - name: ACME_NAMESPACES_WHITELIST
+              value: ""
+            - name: ACME_DEMO_ENABLED
+              value: "false"
+            - name: ACME_GATEWAY_ENABLED
+              value: "false"
+            - name: ACME_DEBUG
+              value: "false"
+          restartPolicy: Never

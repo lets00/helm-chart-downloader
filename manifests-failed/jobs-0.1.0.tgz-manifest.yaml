@@ -1,0 +1,52 @@
+---
+# Source: jobs/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "my-release-nginx"
+  namespace: jobs-0.1.0.tgz
+  labels:
+    app: "my-release-nginx"
+    version: "demo"
+    chart: "jobs-0.1.0"
+spec:
+      template:
+        metadata:
+          labels:
+            app: my-release
+            version: "demo"
+                    
+        spec:
+          containers:
+          - image: "nginx:%!s(<nil>)"
+            imagePullPolicy: IfNotPresent
+            name: nginx                                                  
+            resources:
+              limits:
+                memory: 64Mi
+              requests:
+                cpu: 10m
+                memory: 10Mi                                        
+          restartPolicy: Never                
+      backoffLimit: 0
+---
+# Source: jobs/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-jobs-test-connection"
+  labels:
+    helm.sh/chart: jobs-0.1.0
+    app.kubernetes.io/name: jobs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-jobs']
+  restartPolicy: Never

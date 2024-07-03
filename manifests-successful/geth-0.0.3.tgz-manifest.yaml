@@ -1,0 +1,178 @@
+---
+# Source: geth/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-geth-secret
+stringData:
+  jwt-secret.txt: abf3a433bfe1f8faa262ad82b3ec5fa572e9c045a4c44bd3b21998e77fd3632a
+---
+# Source: geth/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-geth
+  labels:
+    helm.sh/chart: geth-0.0.3
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    release: my-release
+    app.kubernetes.io/version: "v1.10.26"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  ports:
+    # HTTP RPC
+    - name: rpc-http-port
+      port: 8545
+      targetPort: 8545
+    # WS RPC
+    - name: rpc-ws-port
+      port: 8546
+      targetPort: 8546
+    # AuthRPC
+    - name: authrpc-port
+      port: 8551
+      targetPort: 8551
+    # Metrics
+    - name: metrics-port
+      port: 7300
+      targetPort: 7300
+    # pprof
+    - name: pprof-port
+      port: 6060
+      targetPort: 6060
+  selector:
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    release: my-release
+---
+# Source: geth/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-geth
+  labels:
+    helm.sh/chart: geth-0.0.3
+    app.kubernetes.io/name: geth
+    app.kubernetes.io/instance: my-release
+    release: my-release
+    app.kubernetes.io/version: "v1.10.26"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: geth
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: geth
+      app.kubernetes.io/instance: my-release
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: geth
+        app.kubernetes.io/instance: my-release
+        release: my-release
+    spec:
+      initContainers:
+      - name: preprocess
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            rm -rf /root/data/geth/LOCK  # remove lock
+            rm -rf /root/data/geth/nodekey  # remove nodekey
+        image: busybox
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: data
+          mountPath: /root
+      containers:
+        - name: my-release-geth
+          image: "ethereum/client-go:v1.10.26"
+          imagePullPolicy: IfNotPresent
+          ports:
+            # HTTP RPC
+            - name: rpc-http-port
+              containerPort: 8545
+            # WS RPC
+            - name: rpc-ws-port
+              containerPort: 8546
+            # AuthRPC
+            - name: authrpc-port
+              containerPort: 8551
+            # Metrics
+            - name: metrics-port
+              containerPort: 7300
+            # pprof
+            - name: pprof-port
+              containerPort: 6060
+          command: ["/usr/local/bin/geth"]
+          args:
+            - --maxpeers=50
+            - --cache=4096
+            - --syncmode=snap
+            - --datadir=/root/data
+            # HTTP RPC
+            - --http
+            - --http.api=net,eth,personal,web3,debug,engine,txpool
+            - --http.addr=0.0.0.0
+            - --http.port=8545
+            - --http.corsdomain=*
+            # WS RPC
+            - --ws
+            - --ws.addr=0.0.0.0
+            - --ws.port=8546
+            - --ws.api=net,eth,personal,web3,engine,txpool
+            - --ws.origins=*
+            # network settings
+            - --networkid=1
+            - --mainnet
+            # Auth RPC
+            - --authrpc.addr=0.0.0.0
+            - --authrpc.port=8551
+            - --authrpc.vhosts=*
+            - --authrpc.jwtsecret=/secrets/jwt-secret.txt
+            # pprof
+            - --pprof
+            - --pprof.addr=0.0.0.0
+            - --pprof.port=6060
+            # metrics
+            - --metrics
+            - --metrics.addr=0.0.0.0
+            - --metrics.port=7300
+          livenessProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            tcpSocket:
+              port: rpc-http-port
+          readinessProbe:
+            # TODO: replace it to real http request.
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            tcpSocket:
+              port: rpc-http-port
+          volumeMounts:
+          - name: data
+            mountPath: /root
+          - mountPath: /secrets # mounts all files in the Secrets.
+            name: my-release-geth-secret
+          resources:
+            {}
+      volumes:
+        - name: my-release-geth-secret
+          secret:
+            secretName: my-release-geth-secret
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      annotations:
+        "helm.sh/resource-policy": keep
+      labels:
+        app.kubernetes.io/name: geth
+        app.kubernetes.io/instance: my-release
+        release: my-release
+    spec:
+      accessModes:
+      - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: 200Gi

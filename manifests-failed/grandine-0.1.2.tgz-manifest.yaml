@@ -1,0 +1,322 @@
+---
+# Source: grandine/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-grandine
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  namespace: grandine-0.1.2.tgz
+---
+# Source: grandine/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-grandine-env
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: grandine/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-grandine-jwt
+type: Opaque
+data:
+  jwt.hex: ZWNiMjJiYzI0ZTdkNDA2MWY3ZWQ2OTBjY2Q1ODQ2ZDdkNzNmNWQyYjk3MzMyNjdlMTJmNTY3OTAzOThkOTA4YQ==
+---
+# Source: grandine/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: grandine-0.1.2.tgz-my-release-grandine
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Source: grandine/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grandine-0.1.2.tgz-my-release-grandine
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: grandine-0.1.2.tgz-my-release-grandine
+subjects:
+  - kind: ServiceAccount
+    name: my-release-grandine
+    namespace: grandine-0.1.2.tgz
+---
+# Source: grandine/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-grandine
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Source: grandine/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-grandine
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-grandine
+subjects:
+  - kind: ServiceAccount
+    name: my-release-grandine
+---
+# Source: grandine/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-grandine-headless
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None
+  ports:
+    - port: 9000
+      targetPort: p2p-tcp
+      protocol: TCP
+      name: p2p-tcp
+    - port: 9000
+      targetPort: p2p-udp
+      protocol: UDP
+      name: p2p-udp
+    - port: 5052
+      targetPort: http-api
+      protocol: TCP
+      name: http-api
+    - port: 5054
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+---
+# Source: grandine/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-grandine
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: p2p-tcp
+      protocol: TCP
+      name: p2p-tcp
+    - port: 9000
+      targetPort: p2p-udp
+      protocol: UDP
+      name: p2p-udp
+    - port: 5052
+      targetPort: http-api
+      protocol: TCP
+      name: http-api
+    - port: 5054
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+---
+# Source: grandine/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-grandine
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grandine
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-grandine-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grandine
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 4a6ed6b8da622b409764486c1624d3b9308e367f496f4f3a76722368e790554f
+    spec:
+      serviceAccountName: my-release-grandine
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+        - name: init-chown-data
+          image: "busybox:1.34.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          command: ["chown", "-R", "10001:10001", "/data"]
+          resources:
+      
+            {}
+          volumeMounts:
+            - name: storage
+              mountPath: "/data"
+      containers:
+        - name: grandine
+          image: "sifrai/grandine:unstable"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ac
+            - >
+              exec grandine
+              --data-dir=/data
+              --libp2p-port=9000
+              --http-address=0.0.0.0
+              --http-port=5052
+              --enr-address=$(POD_IP)
+              --enr-tcp-port=9000
+              --enr-udp-port=9000
+              --metrics
+              --metrics-address=0.0.0.0
+              --metrics-port=5054
+              --jwt-secret=/data/jwt.hex
+            
+          securityContext:
+            {}
+          volumeMounts:
+            - name: storage
+              mountPath: "/data"
+            - name: jwt
+              mountPath: "/data/jwt.hex"
+              subPath: jwt.hex
+              readOnly: true
+          ports:
+            - name: p2p-tcp
+              containerPort: 9000
+              protocol: TCP
+            - name: p2p-udp
+              containerPort: 9000
+              protocol: UDP
+            - name: http-api
+              containerPort: 5052
+              protocol: TCP
+            - name: metrics
+              containerPort: 5054
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            tcpSocket:
+              port: http-api
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            tcpSocket:
+              port: http-api
+          resources:
+            {}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: jwt
+          secret:
+            secretName: my-release-grandine-jwt
+        - name: storage
+          emptyDir: {}
+---
+# Source: grandine/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-grandine-test-connection"
+  labels:
+    helm.sh/chart: grandine-0.1.2
+    app.kubernetes.io/name: grandine
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl
+      command: ['curl']
+      args: ['my-release-grandine:5052/eth/v1/node/version']
+  restartPolicy: Never

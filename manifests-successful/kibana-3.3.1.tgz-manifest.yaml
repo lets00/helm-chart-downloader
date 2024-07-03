@@ -1,0 +1,162 @@
+---
+# Source: kibana/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kibana
+  labels:
+    app: kibana
+    chart: "kibana-3.3.1"
+    release: my-release
+    heritage: Helm
+data:
+  kibana.yml: |
+    elasticsearch.hosts:
+    - http://elasticsearch:9200
+    server.host: 0.0.0.0
+    server.port: 5601
+---
+# Source: kibana/templates/tests/test-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kibana-test
+  labels:
+    app: my-release-kibana
+    chart: "kibana-3.3.1"
+    heritage: "Helm"
+    release: "my-release"
+data:
+  run.sh: |-
+    @test "Test Status" {
+      url="http://my-release-kibana:443/api/status"
+
+      # retry for 1 minute
+      run curl -s -o /dev/null -I -w "%{http_code}" --retry 30 --retry-delay 2 $url
+
+      code=$(curl -s -o /dev/null -I -w "%{http_code}" $url)
+      body=$(curl $url)
+      if [ "$code" == "503" ]
+      then
+        skip "Kibana Unavailable (503), can't get status - see pod logs: $body"
+      fi
+
+      result=$(echo $body | jq -cr '.status.statuses[]')
+      [ "$result" != "" ]
+
+      result=$(echo $body | jq -cr '.status.statuses[] | select(.state != "green")')
+      [ "$result" == "" ]
+    }
+---
+# Source: kibana/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kibana
+    chart: kibana-3.3.1
+    release: my-release
+    heritage: Helm
+  name: my-release-kibana
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: 5601
+      protocol: TCP
+
+  selector:
+    app: kibana
+    release: my-release
+---
+# Source: kibana/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kibana
+    chart: "kibana-3.3.1"
+    heritage: Helm
+    release: my-release
+  name: my-release-kibana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+      release: my-release
+  revisionHistoryLimit: 3
+  template:
+    metadata:
+      annotations:
+        checksum/config: 0aa56c443832752ec15d56e21260fe38fe598b9ada450cc632152f8a02e4b59f
+      labels:
+        app: kibana
+        release: "my-release"
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: kibana
+        image: "docker.elastic.co/kibana/kibana-oss:7.9.3"
+        imagePullPolicy: IfNotPresent
+        env:
+        ports:
+        - containerPort: 5601
+          name: kibana
+          protocol: TCP
+        resources:
+          {}
+        volumeMounts:
+        - name: kibana
+          mountPath: "/usr/share/kibana/config/kibana.yml"
+          subPath: kibana.yml
+      tolerations:
+        []
+      volumes:
+        - name: kibana
+          configMap:
+            name: my-release-kibana
+---
+# Source: kibana/templates/tests/test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-release-kibana-test
+  labels:
+    app: my-release-kibana
+    chart: "kibana-3.3.1"
+    heritage: "Helm"
+    release: "my-release"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  initContainers:
+    - name: test-framework
+      image: "dduportal/bats:0.4.0"
+      command:
+      - "bash"
+      - "-c"
+      - |
+        set -ex
+        # copy bats to tools dir
+        cp -R /usr/local/libexec/ /tools/bats/
+      volumeMounts:
+      - mountPath: /tools
+        name: tools
+  containers:
+    - name: my-release-test
+      image: "dwdraju/alpine-curl-jq"
+      command: ["/tools/bats/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+        - mountPath: /tests
+          name: tests
+          readOnly: true
+        - mountPath: /tools
+          name: tools
+  volumes:
+  - name: tests
+    configMap:
+      name: my-release-kibana-test
+  - name: tools
+    emptyDir: {}
+  restartPolicy: Never

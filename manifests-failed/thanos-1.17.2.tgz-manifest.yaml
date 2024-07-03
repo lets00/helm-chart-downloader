@@ -1,0 +1,311 @@
+---
+# Source: thanos/templates/query/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-thanos-query
+  namespace: thanos-1.17.2.tgz
+  labels:
+    helm.sh/chart: thanos-1.17.2
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.35.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: query
+    app.kubernetes.io/component-instance: my-release-query
+automountServiceAccountToken: false
+---
+# Source: thanos/templates/store-gateway/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-thanos-store-gateway
+  namespace: thanos-1.17.2.tgz
+  labels:
+    helm.sh/chart: thanos-1.17.2
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.35.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: store-gateway
+    app.kubernetes.io/component-instance: my-release-store-gateway
+automountServiceAccountToken: false
+---
+# Source: thanos/templates/secret-objstore-config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-thanos-objstore-config
+  namespace: thanos-1.17.2.tgz
+  labels:
+    helm.sh/chart: thanos-1.17.2
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.35.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config: |-
+    dHlwZTogRklMRVNZU1RFTQpjb25maWc6CiAgZGlyZWN0b3J5OiAvdmFyL3RoYW5vcy9zdG9yZS9zMw==
+---
+# Source: thanos/templates/query/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-thanos-query
+  namespace: thanos-1.17.2.tgz
+  labels:
+    helm.sh/chart: thanos-1.17.2
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.35.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: query
+    app.kubernetes.io/component-instance: my-release-query
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: 10901
+      targetPort: grpc
+    - name: http
+      protocol: TCP
+      port: 10902
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: query
+---
+# Source: thanos/templates/store-gateway/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-thanos-store-gateway-headless
+  namespace: thanos-1.17.2.tgz
+  labels:
+    helm.sh/chart: thanos-1.17.2
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.35.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: store-gateway
+    app.kubernetes.io/component-instance: my-release-store-gateway
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: grpc
+      port: 10901
+      targetPort: grpc
+    - name: http
+      protocol: TCP
+      port: 10902
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: store-gateway
+---
+# Source: thanos/templates/query/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-thanos-query
+  namespace: thanos-1.17.2.tgz
+  labels:
+    helm.sh/chart: thanos-1.17.2
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.35.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: query
+    app.kubernetes.io/component-instance: my-release-query
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thanos
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: query
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: thanos
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: query
+    spec:
+      serviceAccountName: my-release-thanos-query
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: thanos-query
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          image: quay.io/thanos/thanos:v0.35.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HOST_IP_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          args:
+            - query
+            - --log.level=info
+            - --log.format=logfmt
+            - --grpc-address=0.0.0.0:10901
+            - --http-address=0.0.0.0:10902
+            - --endpoint=dnssrv+_grpc._tcp.my-release-thanos-store-gateway-headless.thanos-1.17.2.tgz.svc.cluster.local
+          ports:
+            - name: grpc
+              protocol: TCP
+              containerPort: 10901
+            - name: http
+              protocol: TCP
+              containerPort: 10902
+          livenessProbe:
+            failureThreshold: 4
+            httpGet:
+              path: /-/healthy
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 20
+            httpGet:
+              path: /-/ready
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+---
+# Source: thanos/templates/store-gateway/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-thanos-store-gateway
+  namespace: thanos-1.17.2.tgz
+  labels:
+    helm.sh/chart: thanos-1.17.2
+    app.kubernetes.io/name: thanos
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.35.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: store-gateway
+    app.kubernetes.io/component-instance: my-release-store-gateway
+spec:
+  serviceName: my-release-thanos-store-gateway-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thanos
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: store-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: thanos
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: store-gateway
+      annotations:
+        checksum/config: d34af0cdd8ead50eb181b6732bf167ccc742187ee6af6a1422695a9eb64410a4
+    spec:
+      serviceAccountName: my-release-thanos-store-gateway
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: thanos-store-gateway
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          image: quay.io/thanos/thanos:v0.35.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HOST_IP_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          args:
+            - store
+            - --log.level=info
+            - --log.format=logfmt
+            - --grpc-address=0.0.0.0:10901
+            - --http-address=0.0.0.0:10902
+            - --data-dir=/var/thanos/store
+            - --objstore.config-file=/etc/thanos/objstore.yaml
+          ports:
+            - name: grpc
+              protocol: TCP
+              containerPort: 10901
+            - name: http
+              protocol: TCP
+              containerPort: 10902
+          livenessProbe:
+            failureThreshold: 4
+            httpGet:
+              path: /-/healthy
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 20
+            httpGet:
+              path: /-/ready
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+          volumeMounts:
+            - mountPath: /etc/thanos/objstore.yaml
+              name: objstore-config
+              subPath: config
+              readOnly: true
+            - mountPath: /var/thanos/store
+              name: data
+              readOnly: false
+      volumes:
+        - name: objstore-config
+          secret:
+            secretName: my-release-thanos-objstore-config
+        - name: data
+          emptyDir: {}

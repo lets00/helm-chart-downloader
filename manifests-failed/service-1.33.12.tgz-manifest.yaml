@@ -1,0 +1,154 @@
+---
+# Source: service/templates/netpol.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-release-service
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: service
+      app.kubernetes.io/instance: my-release
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Source: service/templates/netpol.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-release-service-lets-encrypt
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: 'true'
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+      ports:
+        - port: 8089
+          protocol: TCP
+---
+# Source: service/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-service
+  namespace: default
+  labels:
+    helm.sh/chart: service-1.33.12
+    app: my-release
+    app.kubernetes.io/name: service
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.33.12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: proxy-port
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: service
+    app.kubernetes.io/instance: my-release
+---
+# Source: service/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-service
+  namespace: default
+  labels:
+    helm.sh/chart: service-1.33.12
+    app: my-release
+    app.kubernetes.io/name: service
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.33.12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: service
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 75a11da44c802486bc6f65640aa48a730f0f684c5c07a42ba3cd1735eb3fb070
+      labels:
+        app.kubernetes.io/name: service
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      securityContext:
+        {}
+      containers:
+        - name: my-release-service
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          image: "nginx:1.33.12"
+          imagePullPolicy: IfNotPresent
+          env: []
+          ports:
+            - name: container-port
+              containerPort: 80
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+
+          resources:
+            {}
+
+      volumes:
+        - emptyDir: {}
+          name: tmp
+        - configMap:
+            name: my-release-service-config
+          name: configmap
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: service
+                    app.kubernetes.io/instance: my-release
+                namespaces:
+                  - "service-1.33.12.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+---
+# Source: service/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-service
+  namespace: default
+  labels:
+    helm.sh/chart: service-1.33.12
+    app: my-release
+    app.kubernetes.io/name: service
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.33.12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+    - host: "chart-example.local"
+      http:
+        paths:

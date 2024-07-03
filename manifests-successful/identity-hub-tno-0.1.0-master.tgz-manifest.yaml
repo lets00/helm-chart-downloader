@@ -1,0 +1,262 @@
+---
+# Source: identity-hub-tno/templates/public-key-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-identity-hub-tno
+  labels:
+    helm.sh/chart: identity-hub-tno-0.1.0-master
+    app.kubernetes.io/name: identity-hub-tno
+    app.kubernetes.io/instance: my-release-identity-hub-tno
+    app.kubernetes.io/version: "0.6.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  identityHubIamPublicKey.pem: |
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoxu96W5YlfBo4QmP7zUj
+    muVPelycIlUel5toBfftqCHABF8p52E6QVDpSObzvnbqDXkTp0PB6W9EojKyg7Un
+    9qUBYYdNqSUY8g6lhmaGhtmhDwC0tk0gQBQnERN+W63DYg2NKLZecxNI/t3G9hIy
+    E0GNUmt3Wnm8aa5QkVmIhoEtpco85r9gueocbRjJO0dKWKePlOnWHCEgHqNNDpN9
+    J4VvHyDm0/j4FIQc2ygPkanElJ+DCaWOwVFNUh7YwMKtNHyg5XPL+wm3YB1fEfGy
+    goR77ZhPURRXIzhr4XgOTq/UMUF0OC3WAMekriezf6osoiBL7pYx8kzKchGxaB4A
+    QwIDAQAB
+    -----END PUBLIC KEY-----
+---
+# Source: identity-hub-tno/templates/identity-hub-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-identity-hub-tno-vault-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: default
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: identity-hub-tno/templates/identity-hub-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: my-release-identity-hub-tno
+  name: my-release-identity-hub-tno-service
+spec:
+  ports:
+    - name: "http-api"
+      port: 7080
+      targetPort: 7080
+    - name: "http-resolution"
+      port: 7081
+      targetPort: 7081
+    - name: "http-management"
+      port: 7082
+      targetPort: 7082
+    - name: "http-did"
+      port: 7083
+      targetPort: 7083
+  selector:
+    app: my-release-identity-hub-tno
+status:
+  loadBalancer: {}
+---
+# Source: identity-hub-tno/templates/identity-hub-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-release-identity-hub-tno
+  name: my-release-identity-hub-tno
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-release-identity-hub-tno
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: my-release-identity-hub-tno
+    spec:
+      # Use an init container to take contents of vault properties configmap and store in actual vault file.
+      initContainers:
+        - name: my-release-identity-hub-tno-init-config
+          image: busybox
+          command: ["/bin/sh", "-c"]
+          args:
+            - cp /config/vault.properties /resources/vault/vault.properties && cp /config/keystore.jks /resources/vault/keystore.jks
+          volumeMounts:
+          - name: my-release-identity-hub-tno-vault-config
+            readOnly: true
+            mountPath: /config
+          - name: my-release-identity-hub-tno-pvc-volume
+            mountPath: /resources/vault
+      containers:
+        - image: docker.nexus.dataspac.es/edc/components/identity-hub:master
+          name: my-release-identity-hub-tno
+          env:
+            - name: EDC_VAULT
+              value: /resources/vault/vault.properties
+            - name: EDC_KEYSTORE
+              value: /resources/vault/keystore.jks
+            - name: EDC_KEYSTORE_PASSWORD
+              value: test123
+            - name: EDC_WEB_REST_CORS_ENABLED
+              value: "true"
+            - name: EDC_WEB_REST_CORS_HEADERS
+              value: "origin,content-type,accept,authorization,x-api-key"
+            - name: EDC_IAM_DID_WEB_USE_HTTPS
+              value: "true"
+            - name: JVM_ARGS
+              value: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+            - name: EDC_IH_IAM_PUBLICKEY_PATH 
+              value: "/resources/identityHubIamPublicKey.pem"
+            - name: EDC_IH_IAM_ID 
+              value: "BPN0000001"
+            - name: EDC_IH_API_PARTICIPANTS_ALICE_NAME
+              value: "alice"
+            - name: EDC_IH_API_PARTICIPANTS_ALICE_DID
+              value: "did:web:identity-hub.ndw.dev.ditm.nl"
+            - name: EDC_IH_API_PARTICIPANTS_ALICE_ROLES
+              value: "admin"
+            - name: EDC_IH_API_PARTICIPANTS_ALICE_ACTIVE
+              value: "true"
+            - name: EDC_IH_API_PARTICIPANTS_ALICE_PASSWORD
+              value: "$2a$10$KcjjniNy/p45X3yOWcDOY.lZ7ziNpA9pngh218lVMzdRqgYl0Wf06"
+            - name: EDC_IH_API_PARTICIPANTS_ALICE_SERVICES_DSP_ENDPOINT
+              value: "http://localhost:5282/api/dsp"
+            - name: EDC_IH_API_PARTICIPANTS_ALICE_SERVICES_DSP_ID
+              value: "dsp"
+            - name: EDC_IH_API_PARTICIPANTS_ALICE_SERVICES_DSP_TYPE
+              value: "DSPMessaging"
+          ports:
+            - containerPort: 7080
+            - containerPort: 7081
+            - containerPort: 7082
+            - containerPort: 7083
+          volumeMounts:
+            - name: my-release-identity-hub-tno-pvc-volume
+              mountPath: /resources/vault
+          imagePullPolicy: Always
+      restartPolicy: Always
+      volumes:
+      - name: my-release-identity-hub-tno-pvc-volume
+        persistentVolumeClaim:
+          claimName: my-release-identity-hub-tno-vault-pvc
+      - name: my-release-identity-hub-tno-vault-config
+        secret:
+          secretName: ndw-secret
+---
+# Source: identity-hub-tno/templates/identity-hub-ingress-api.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-identity-hub-tno-ingress-api
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-identity-hub-tno
+    meta.helm.sh/release-namespace: identity-hub-tno-0.1.0-master.tgz
+    nginx.ingress.kubernetes.io/whitelist-source-range: "134.203.0.0/16,134.221.0.0/16,139.63.0.0/16"
+spec:
+  tls:
+    - hosts:
+        - api.identity-hub.ndw.dev.ditm.nl
+      secretName: api.identity-hub.ndw.dev.ditm.nl-tls
+  rules:
+    - host: api.identity-hub.ndw.dev.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-identity-hub-tno-service
+                port:
+                  name: "http-api"
+---
+# Source: identity-hub-tno/templates/identity-hub-ingress-did.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-identity-hub-tno-ingress-did
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-identity-hub-tno
+    meta.helm.sh/release-namespace: identity-hub-tno-0.1.0-master.tgz
+    # nginx.ingress.kubernetes.io/use-regex: "true"
+    # nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  tls:
+    - hosts:
+        - identity-hub.ndw.dev.ditm.nl
+      secretName: identity-hub.ndw.dev.ditm.nl-tls
+  rules:
+    - host: identity-hub.ndw.dev.ditm.nl
+      http:
+        paths:
+          - path: /.well-known/
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-identity-hub-tno-service
+                port:
+                  name: "http-did"
+---
+# Source: identity-hub-tno/templates/identity-hub-ingress-management.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-identity-hub-tno-ingress-management
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-identity-hub-tno
+    meta.helm.sh/release-namespace: identity-hub-tno-0.1.0-master.tgz
+    nginx.ingress.kubernetes.io/whitelist-source-range: "134.203.0.0/16,134.221.0.0/16,139.63.0.0/16"
+spec:
+  tls:
+    - hosts:
+        - management.identity-hub.ndw.dev.ditm.nl
+      secretName: management.identity-hub.ndw.dev.ditm.nl-tls
+  rules:
+    - host: management.identity-hub.ndw.dev.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-identity-hub-tno-service
+                port:
+                  name: "http-management"
+---
+# Source: identity-hub-tno/templates/identity-hub-ingress-resolution.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-identity-hub-tno-ingress-resolution
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    meta.helm.sh/release-name: my-release-identity-hub-tno
+    meta.helm.sh/release-namespace: identity-hub-tno-0.1.0-master.tgz
+    nginx.ingress.kubernetes.io/whitelist-source-range: "134.203.0.0/16,134.221.0.0/16,139.63.0.0/16"
+spec:
+  tls:
+    - hosts:
+        - resolution.identity-hub.ndw.dev.ditm.nl
+      secretName: resolution.identity-hub.ndw.dev.ditm.nl-tls
+  rules:
+    - host: resolution.identity-hub.ndw.dev.ditm.nl
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-identity-hub-tno-service
+                port:
+                  name: "http-resolution"

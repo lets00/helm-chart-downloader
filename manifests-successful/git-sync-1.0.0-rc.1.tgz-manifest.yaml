@@ -1,0 +1,136 @@
+---
+# Source: git-sync/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-git-sync
+  labels:
+    helm.sh/chart: git-sync-1.0.0-rc.1
+    app.kubernetes.io/name: git-sync
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.6.5"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: git-sync/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-git-sync
+  labels:
+    helm.sh/chart: git-sync-1.0.0-rc.1
+    app.kubernetes.io/name: git-sync
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.6.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: git-sync
+    app.kubernetes.io/instance: my-release
+---
+# Source: git-sync/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-git-sync
+  labels:
+    helm.sh/chart: git-sync-1.0.0-rc.1
+    app.kubernetes.io/name: git-sync
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.6.5"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: git-sync
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: git-sync
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-git-sync
+      securityContext:
+        {}
+
+      volumes:
+        - name: git-sync
+          emptyDir: {}
+      
+
+      containers:
+        - name: git-sync
+          securityContext:
+            {}
+          image: "registry.k8s.io/git-sync/git-sync:v3.6.5"
+          imagePullPolicy: 
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: "GIT_SYNC_HTTP_BIND"
+              value: "0.0.0.0:8080"
+            - name: "GIT_SYNC_BRANCH"
+              value: "main"
+            
+            - name: "GIT_SYNC_DEST"
+              value: "latest"
+            
+            - name: "GIT_SYNC_HTTP_METRICS"
+              value: "false"
+            
+            - name: "GIT_SYNC_REPO"
+              value: "https://github.com/kilip/helm-charts"
+            
+            - name: "GIT_SYNC_SUBMODULES"
+              value: "off"
+            
+            - name: "GIT_SYNC_WAIT"
+              value: "5"
+            
+          args:
+            []
+          livenessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            exec: &lsPath
+              command:
+                - ls
+                - -l
+                - /tmp/git/latest
+          resources:
+            {}
+---
+# Source: git-sync/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-git-sync-test-connection"
+  labels:
+    helm.sh/chart: git-sync-1.0.0-rc.1
+    app.kubernetes.io/name: git-sync
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.6.5"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: exec
+      image: busybox
+      command: ['wget']
+      args: ['my-release-git-sync:8080']
+  restartPolicy: Never

@@ -1,0 +1,608 @@
+---
+# Source: jenkins/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-jenkins
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+---
+# Source: jenkins/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-jenkins
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+type: Opaque
+data:
+  jenkins-admin-password: "MkNYZkZjZDJKQQ=="
+  jenkins-admin-user: "YWRtaW4="
+---
+# Source: jenkins/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-jenkins
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+data:
+  apply_config.sh: |-
+    echo "applying Jenkins configuration"
+    echo "disable Setup Wizard"
+    # Prevent Setup Wizard when JCasC is enabled
+    echo $JENKINS_VERSION > /var/jenkins_home/jenkins.install.UpgradeWizard.state
+    echo $JENKINS_VERSION > /var/jenkins_home/jenkins.install.InstallUtil.lastExecVersion
+    echo "download plugins"
+    # Install missing plugins
+    cp /var/jenkins_config/plugins.txt /var/jenkins_home;
+    rm -rf /usr/share/jenkins/ref/plugins/*.lock
+    /usr/local/bin/install-plugins.sh `echo $(cat /var/jenkins_home/plugins.txt)`;
+    echo "copy plugins to shared volume"
+    # Copy plugins to shared volume
+    yes n | cp -i /usr/share/jenkins/ref/plugins/* /var/jenkins_plugins/;
+    echo "finished initialization"
+  plugins.txt: |-
+    ace-editor:1.1
+    apache-httpcomponents-client-4-api:4.5.13-1.0
+    authentication-tokens:1.4
+    bootstrap4-api:4.6.0-1
+    bouncycastle-api:2.20
+    branch-api:2.6.2
+    caffeine-api:2.9.1-23.v51c4e2c879c8
+    checks-api:1.5.0
+    cloudbees-folder:6.15
+    configuration-as-code:1.51
+    credentials-binding:1.26
+    credentials:2.5
+    display-url-api:2.3.5
+    durable-task:1.37
+    echarts-api:4.9.0-3
+    font-awesome-api:5.15.2-1
+    git-client:3.6.0
+    git-server:1.9
+    git:4.6.0
+    handlebars:3.0.8
+    jackson2-api:2.12.3
+    jquery3-api:3.5.1-2
+    jsch:0.1.55.2
+    junit:1.50
+    kubernetes-client-api:5.4.1
+    kubernetes-credentials:0.9.0
+    kubernetes:1.27.8
+    lockable-resources:2.11
+    mailer:1.34
+    matrix-project:1.18
+    momentjs:1.1.1
+    pipeline-build-step:2.13
+    pipeline-graph-analysis:1.11
+    pipeline-input-step:2.12
+    pipeline-milestone-step:1.3.2
+    pipeline-model-api:1.8.5
+    pipeline-model-definition:1.8.5
+    pipeline-model-extensions:1.8.5
+    pipeline-rest-api:2.19
+    pipeline-stage-step:2.5
+    pipeline-stage-tags-metadata:1.8.5
+    pipeline-stage-view:2.19
+    plain-credentials:1.7
+    plugin-util-api:1.7.1
+    popper-api:1.16.1-1
+    scm-api:2.6.4
+    script-security:1.77
+    snakeyaml-api:1.29.1
+    ssh-credentials:1.18.1
+    structs:1.23
+    trilead-api:1.0.13
+    variant:1.3
+    workflow-aggregator:2.6
+    workflow-api:2.46
+    workflow-basic-steps:2.21
+    workflow-cps-global-lib:2.19
+    workflow-cps:2.92
+    workflow-durable-task-step:2.39
+    workflow-job:2.41
+    workflow-multibranch:2.24
+    workflow-scm-step:2.13
+    workflow-step-api:2.23
+    workflow-support:3.8
+---
+# Source: jenkins/templates/jcasc-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-jenkins-jenkins-jcasc-config
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": jenkins
+    "helm.sh/chart": jenkins-2.7.1
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+    my-release-jenkins-jenkins-config: "true"
+data:
+  jcasc-default-config.yaml: |-
+    jenkins:
+      authorizationStrategy:
+        loggedInUsersCanDoAnything:
+          allowAnonymousRead: false
+      securityRealm:
+        legacy
+      disableRememberMe: false
+      remotingSecurity:
+        enabled: true
+      mode: NORMAL
+      numExecutors: 0
+      projectNamingStrategy: "standard"
+      markupFormatter:
+        plainText
+      clouds:
+      - kubernetes:
+          containerCapStr: "10"
+          defaultsProviderTemplate: ""
+          connectTimeout: "5"
+          readTimeout: "15"
+          jenkinsUrl: "http://my-release-jenkins:8080"
+          jenkinsTunnel: "my-release-jenkins-agent:50000"
+          maxRequestsPerHostStr: "32"
+          name: "kubernetes"
+          namespace: "jenkins-2.7.1.tgz"
+          serverUrl: "https://kubernetes.default"
+          podLabels:
+          - key: "jenkins/my-release-jenkins-slave"
+            value: "true"
+          templates:
+            runAsGroup: "993"
+            runAsUser: "1000"
+            serviceAccount: "jenkins"
+            volumes:
+            - hostPathVolume:
+                hostPath: "/usr/bin/kubectl"
+                mountPath: "/usr/bin/kubectl"
+            - hostPathVolume:
+                hostPath: "/bin/docker"
+                mountPath: "/bin/docker"
+            - hostPathVolume:
+                hostPath: "/var/run/docker.sock"
+                mountPath: "/var/run/docker.sock"
+            - name: "default"
+              containers:
+              - name: "jnlp"
+                alwaysPullImage: false
+                args: "^${computer.jnlpmac} ^${computer.name}"
+                envVars:
+                  - envVar:
+                      key: "JENKINS_URL"
+                      value: "http://my-release-jenkins.jenkins-2.7.1.tgz.svc.cluster.local:8080"
+                image: "jenkins/inbound-agent:4.3-4"
+                privileged: "false"
+                resourceLimitCpu: 512m
+                resourceLimitMemory: 512Mi
+                resourceRequestCpu: 512m
+                resourceRequestMemory: 512Mi
+                runAsUser: 
+                runAsGroup: 
+                ttyEnabled: false
+                workingDir: /home/jenkins
+              idleMinutes: 0
+              instanceCap: 2147483647
+              label: "my-release-jenkins-slave "
+              nodeUsageMode: "NORMAL"
+              podRetention: Never
+              showRawYaml: true
+              serviceAccount: "default"
+              slaveConnectTimeoutStr: "100"
+              yamlMergeStrategy: override
+      crumbIssuer:
+        standard:
+          excludeClientIPFromCrumb: true
+    security:
+      apiToken:
+        creationOfLegacyTokenEnabled: false
+        tokenGenerationOnCreationEnabled: false
+        usageStatisticsEnabled: true
+    unclassified:
+      location:
+        adminAddress: 
+        url: http://my-release-jenkins:8080
+---
+# Source: jenkins/templates/tests/test-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-jenkins-tests
+  namespace: jenkins-2.7.1.tgz
+data:
+  run.sh: |-
+    @test "Testing Jenkins UI is accessible" {
+      curl --retry 48 --retry-delay 10 my-release-jenkins:8080/login
+    }
+---
+# Source: jenkins/templates/home-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-jenkins
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: jenkins/templates/rbac.yaml
+# This role is used to allow Jenkins scheduling of agents via Kubernetes plugin.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-jenkins-schedule-agents
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/exec", "pods/log", "persistentvolumeclaims", "events"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods", "pods/exec", "persistentvolumeclaims"]
+  verbs: ["create", "delete", "deletecollection", "patch", "update"]
+---
+# Source: jenkins/templates/rbac.yaml
+# The sidecar container which is responsible for reloading configuration changes
+# needs permissions to watch ConfigMaps
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-jenkins-casc-reload
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "watch", "list"]
+---
+# Source: jenkins/templates/rbac.yaml
+# We bind the role to the Jenkins service account. The role binding is created in the namespace
+# where the agents are supposed to run.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-jenkins-schedule-agents
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-jenkins-schedule-agents
+subjects:
+- kind: ServiceAccount
+  name: my-release-jenkins
+  namespace: jenkins-2.7.1.tgz
+---
+# Source: jenkins/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-jenkins-watch-configmaps
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-jenkins-casc-reload
+subjects:
+- kind: ServiceAccount
+  name: my-release-jenkins
+  namespace: jenkins-2.7.1.tgz
+---
+# Source: jenkins/templates/jenkins-agent-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jenkins-agent
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+spec:
+  ports:
+    - port: 50000
+      targetPort: 50000
+      
+      name: slavelistener
+  selector:
+    "app.kubernetes.io/component": "jenkins-master"
+    "app.kubernetes.io/instance": "my-release"
+  type: ClusterIP
+---
+# Source: jenkins/templates/jenkins-master-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-jenkins
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+spec:
+  ports:
+    - port: 8080
+      name: http
+      targetPort: 8080
+  selector:
+    "app.kubernetes.io/component": "jenkins-master"
+    "app.kubernetes.io/instance": "my-release"
+  type: ClusterIP
+---
+# Source: jenkins/templates/jenkins-master-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-jenkins
+  namespace: jenkins-2.7.1.tgz
+  labels:
+    "app.kubernetes.io/name": 'jenkins'
+    "helm.sh/chart": "jenkins-2.7.1"
+    "app.kubernetes.io/managed-by": "Helm"
+    "app.kubernetes.io/instance": "my-release"
+    "app.kubernetes.io/component": "jenkins-master"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      "app.kubernetes.io/component": "jenkins-master"
+      "app.kubernetes.io/instance": "my-release"
+  template:
+    metadata:
+      labels:
+        "app.kubernetes.io/name": 'jenkins'
+        "helm.sh/chart": "jenkins-2.7.1"
+        "app.kubernetes.io/managed-by": "Helm"
+        "app.kubernetes.io/instance": "my-release"
+        "app.kubernetes.io/component": "jenkins-master"
+      annotations:
+        checksum/config: 3bad7d265cc0c2cc7793db20c405ddb186975b3bc8aa628de16d1a4880439829
+    spec:
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      serviceAccountName: "my-release-jenkins"
+      initContainers:
+        - name: "copy-default-config"
+          image: "jenkins/jenkins:lts"
+          imagePullPolicy: "Always"
+          command: [ "sh", "/var/jenkins_config/apply_config.sh" ]
+          env:
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jenkins
+                  key: jenkins-admin-password
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jenkins
+                  key: jenkins-admin-user
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4096Mi
+            requests:
+              cpu: 50m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /var/jenkins_home
+              name: jenkins-home
+            - mountPath: /var/jenkins_config
+              name: jenkins-config
+            - mountPath: /usr/share/jenkins/ref/plugins
+              name: plugins
+            - mountPath: /var/jenkins_plugins
+              name: plugin-dir
+      containers:
+        - name: jenkins
+          image: "jenkins/jenkins:lts"
+          imagePullPolicy: "Always"
+          args: [ "--argumentsRealm.passwd.$(ADMIN_USER)=$(ADMIN_PASSWORD)",  "--argumentsRealm.roles.$(ADMIN_USER)=admin", "--httpPort=8080"]
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: JAVA_OPTS
+              value: >
+                
+                 -Dcasc.reload.token=$(POD_NAME) 
+            - name: JENKINS_OPTS
+              value: ""
+            - name: JENKINS_SLAVE_AGENT_PORT
+              value: "50000"
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jenkins
+                  key: jenkins-admin-password
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-jenkins
+                  key: jenkins-admin-user
+            - name: CASC_JENKINS_CONFIG
+              value: /var/jenkins_home/casc_configs
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 50000
+              name: slavelistener
+          livenessProbe:
+            httpGet:
+              path: "/login"
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: "/login"
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4096Mi
+            requests:
+              cpu: 50m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /var/jenkins_home
+              name: jenkins-home
+              readOnly: false
+            - mountPath: /var/jenkins_config
+              name: jenkins-config
+              readOnly: true
+            - mountPath: /usr/share/jenkins/ref/plugins/
+              name: plugin-dir
+              readOnly: false
+            - name: sc-config-volume
+              mountPath: /var/jenkins_home/casc_configs
+        - name: jenkins-sc-config
+          image: "kiwigrid/k8s-sidecar:0.1.193"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: LABEL
+              value: "my-release-jenkins-jenkins-config"
+            - name: FOLDER
+              value: "/var/jenkins_home/casc_configs"
+            - name: NAMESPACE
+              value: "jenkins-2.7.1.tgz"
+            - name: REQ_URL
+              value: "http://localhost:8080/reload-configuration-as-code/?casc-reload-token=$(POD_NAME)"
+            - name: REQ_METHOD
+              value: "POST"
+            - name: REQ_RETRY_CONNECT
+              value: "10"
+          resources:
+            {}
+          volumeMounts:
+            - name: sc-config-volume
+              mountPath: "/var/jenkins_home/casc_configs"
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+
+      volumes:
+      - name: plugins
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+      - name: jenkins-config
+        configMap:
+          name: my-release-jenkins
+      - name: plugin-dir
+        emptyDir: {}
+      - name: jenkins-home
+        persistentVolumeClaim:
+          claimName: my-release-jenkins
+      - name: sc-config-volume
+        emptyDir: {}
+---
+# Source: jenkins/templates/tests/jenkins-test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-ui-test-au2kj"
+  namespace: jenkins-2.7.1.tgz
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  initContainers:
+    - name: "test-framework"
+      image: "dduportal/bats:0.4.0"
+      command:
+      - "bash"
+      - "-c"
+      - |
+        set -ex
+        # copy bats to tools dir
+        cp -R /usr/local/libexec/ /tools/bats/
+      volumeMounts:
+      - mountPath: /tools
+        name: tools
+  containers:
+    - name: my-release-ui-test
+      image: jenkins/jenkins:lts
+      command: ["/tools/bats/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+      - mountPath: /tests
+        name: tests
+        readOnly: true
+      - mountPath: /tools
+        name: tools
+  volumes:
+  - name: tests
+    configMap:
+      name: my-release-jenkins-tests
+  - name: tools
+    emptyDir: {}
+  restartPolicy: Never

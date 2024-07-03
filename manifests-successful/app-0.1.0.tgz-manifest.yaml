@@ -1,0 +1,113 @@
+---
+# Source: app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-app
+  labels:
+    helm.sh/chart: app-0.1.0
+    app.kubernetes.io/name: app
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - name: service-port
+      port: 80
+      targetPort: app-http-port
+  selector:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/instance: my-release
+---
+# Source: app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    helm.sh/chart: app-0.1.0
+    app.kubernetes.io/name: app
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-app
+spec:
+  replicas: 1
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: app-0.1.0
+        app.kubernetes.io/name: app
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "1.16.0"
+        app.kubernetes.io/managed-by: Helm
+        app: mouhcinemimyacv
+    spec:
+      imagePullSecrets:
+        - name: docker-registry-secret
+      containers:
+        - image: "mimya/mouhcinemimyacv:0.0.1"
+          name: app
+          ports:
+            - name: app-http-port
+              containerPort: 80
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: "0.2"
+              memory: 256Mi
+---
+# Source: app/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-app
+  labels:
+    helm.sh/chart: app-0.1.0
+    app.kubernetes.io/name: app
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "mouhcinemimya.test"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-app
+                port:
+                  number: 80
+---
+# Source: app/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-app-test-connection"
+  labels:
+    helm.sh/chart: app-0.1.0
+    app.kubernetes.io/name: app
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-app:80']
+  restartPolicy: Never

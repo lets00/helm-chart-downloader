@@ -1,0 +1,311 @@
+---
+# Source: drone/templates/runner-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: runner-my-release-drone
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-runner
+    app.kubernetes.io/name: runner-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: drone-0.0.14.tgz
+---
+# Source: drone/templates/server-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: server-my-release-drone
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-server
+    app.kubernetes.io/name: server-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: drone-0.0.14.tgz
+---
+# Source: drone/templates/drone-rpc-secret.yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: drone-rpc-secret
+  namespace: drone-0.0.14.tgz
+data:
+  DRONE_RPC_SECRET: "VmE1RWxRektCVVJYRlRHb01vc1BBMmdBeDJKNnBWV08="
+---
+# Source: drone/templates/server-secrets.yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: drone-server-secrets
+  namespace: drone-0.0.14.tgz
+data:
+---
+# Source: drone/templates/server-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-server
+    app.kubernetes.io/name: server-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+  name: server-my-release-drone
+  namespace: drone-0.0.14.tgz
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: drone/templates/runner-role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: runner-my-release-drone
+  namespace: "default"
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-runner
+    app.kubernetes.io/name: runner-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/log
+    verbs:
+      - get
+      - create
+      - delete
+      - list
+      - watch
+      - update
+---
+# Source: drone/templates/runner-rolebinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: runner-my-release-drone
+  namespace: "default"
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-runner
+    app.kubernetes.io/name: runner-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: runner-my-release-drone
+    namespace: drone-0.0.14.tgz
+roleRef:
+  kind: Role
+  name: runner-my-release-drone
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: drone/templates/runner-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: runner-my-release-drone
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-runner
+    app.kubernetes.io/name: runner-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: drone-0.0.14.tgz
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: drone-runner
+    app.kubernetes.io/name: runner-drone
+    app.kubernetes.io/instance: my-release
+---
+# Source: drone/templates/server-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-my-release-drone
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-server
+    app.kubernetes.io/name: server-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: drone-0.0.14.tgz
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: drone-server
+    app.kubernetes.io/name: server-drone
+    app.kubernetes.io/instance: my-release
+---
+# Source: drone/templates/runner-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runner-my-release-drone
+  namespace: drone-0.0.14.tgz
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-runner
+    app.kubernetes.io/name: runner-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drone-runner
+      app.kubernetes.io/name: runner-drone
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app: drone-runner
+        app.kubernetes.io/name: runner-drone
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: runner-my-release-drone
+      securityContext:
+        {}
+      containers:
+        - name: drone-server
+          securityContext:
+            {}
+          image: "drone/drone-runner-kube:1.0.0-rc.2"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: drone-rpc-secret
+            - secretRef:
+                name: drone-server-secrets
+          env:
+            - name: DRONE_RPC_HOST
+              value: server-my-release-drone
+            - name: DRONE_NAMESPACE_DEFAULT
+              value: "default"
+            - name: DRONE_RPC_PROTO
+              value: "http"
+          resources:
+            {}
+---
+# Source: drone/templates/server-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-my-release-drone
+  labels:
+    helm.sh/chart: drone-0.0.14
+    app: drone-server
+    app.kubernetes.io/name: server-drone
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.16.0"
+    version: "2.16.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: drone-0.0.14.tgz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: drone-server
+      app.kubernetes.io/name: server-drone
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app: drone-server
+        app.kubernetes.io/name: server-drone
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: server-my-release-drone
+      securityContext:
+        {}
+      containers:
+        - name: drone-server
+          securityContext:
+            {}
+          image: "drone/drone:2.16.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          envFrom:
+            - secretRef:
+                name: drone-rpc-secret
+            - secretRef:
+                name: drone-server-secrets
+          env:
+            - name: DRONE_GIT_ALWAYS_AUTH
+              value: "false"
+            - name: DRONE_SERVER_HOST
+              value: "drone.example.com"
+            - name: DRONE_SERVER_PROTO
+              value: "http"
+            
+            - name: DRONE_GOGS_SERVER
+              value: http://gogs.fakecompany.com
+          resources:
+            {}
+          volumeMounts:
+            - name: storage-volume
+              mountPath: /data
+              subPath: ""
+      volumes:
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: server-my-release-drone

@@ -1,0 +1,696 @@
+---
+# Source: sonarqube/charts/postgresql/templates/primary/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-postgresql
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.5
+    app.kubernetes.io/component: primary
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 5432
+---
+# Source: sonarqube/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-sonarqube
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/version: 10.5.1
+    helm.sh/chart: sonarqube-5.2.5
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: sonarqube
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 9000
+        - port: 80
+        - port: 9001
+        - port: 9001
+---
+# Source: sonarqube/charts/postgresql/templates/primary/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-postgresql
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.5
+    app.kubernetes.io/component: primary
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+---
+# Source: sonarqube/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-sonarqube
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/version: 10.5.1
+    helm.sh/chart: sonarqube-5.2.5
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: sonarqube
+---
+# Source: sonarqube/charts/postgresql/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-postgresql
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.5
+automountServiceAccountToken: false
+---
+# Source: sonarqube/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-sonarqube
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/version: 10.5.1
+    helm.sh/chart: sonarqube-5.2.5
+automountServiceAccountToken: false
+---
+# Source: sonarqube/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.5
+type: Opaque
+data:
+  postgres-password: "RlZVc3Ezd0V3NQ=="
+  password: "c3UwSFk0MEdVRQ=="
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: sonarqube/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-sonarqube
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/version: 10.5.1
+    helm.sh/chart: sonarqube-5.2.5
+type: Opaque
+data:
+  sonarqube-password: "TEtocVBGYWxjUg=="
+---
+# Source: sonarqube/templates/install_plugins.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-sonarqube-install-plugins-configmap
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/version: 10.5.1
+    helm.sh/chart: sonarqube-5.2.5
+data:
+  install_plugins.sh: |-
+---
+# Source: sonarqube/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-hl
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.5
+    app.kubernetes.io/component: primary
+  annotations:
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary
+---
+# Source: sonarqube/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.5
+    app.kubernetes.io/component: primary
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: primary
+---
+# Source: sonarqube/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-sonarqube
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/version: 10.5.1
+    helm.sh/chart: sonarqube-5.2.5
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: "Cluster"
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+    - name: elastic
+      port: 9001
+      protocol: TCP
+      targetPort: elastic
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: sonarqube
+---
+# Source: sonarqube/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-sonarqube
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: sonarqube
+    app.kubernetes.io/version: 10.5.1
+    helm.sh/chart: sonarqube-5.2.5
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: sonarqube
+  template:
+    metadata:
+      annotations:
+        checksum/secret: beff28fe05e6880276fd256ad0790bf7d4d8a8f29d25274e3cb587460b82004f
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: sonarqube
+        app.kubernetes.io/version: 10.5.1
+        helm.sh/chart: sonarqube-5.2.5
+    spec:
+      serviceAccountName: my-release-sonarqube
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: sonarqube
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+        - name: prepare-base-dir
+          image: docker.io/bitnami/sonarqube:10.5.1-debian-12-r3
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            limits:
+              cpu: "3.0"
+              ephemeral-storage: 1024Mi
+              memory: 6144Mi
+            requests:
+              cpu: "1.5"
+              ephemeral-storage: 50Mi
+              memory: 4096Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+
+              . /opt/bitnami/scripts/liblog.sh
+
+              info "Copying base dir to empty dir"
+              # In order to not break the application functionality (such as upgrades or plugins) we need
+              # to make the base directory writable, so we need to copy it to an empty dir volume
+              cp -r --preserve=mode /opt/bitnami/sonarqube /emptydir/app-base-dir
+
+              info "Copy operation completed"
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /emptydir
+        ## Image that performs the sysctl operation to modify Kernel settings (needed sometimes to avoid boot errors)
+        - name: sysctl
+          image: docker.io/bitnami/os-shell:12-debian-12-r22
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              CURRENT="$(sysctl -n vm.max_map_count)"
+              DESIRED="262144"
+              if [[ "$DESIRED" -gt "$CURRENT" ]]; then
+                  sysctl -w vm.max_map_count=262144
+              fi
+              CURRENT="$(sysctl -n fs.file-max)"
+              DESIRED="65536"
+              if [[ "$DESIRED" -gt "$CURRENT" ]]; then
+                  sysctl -w fs.file-max=65536
+              fi
+          securityContext:
+            privileged: true
+            runAsUser: 0
+      containers:
+        - name: sonarqube
+          image: docker.io/bitnami/sonarqube:10.5.1-debian-12-r3
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: SONARQUBE_SKIP_BOOTSTRAP
+              value: "no"
+            - name: SONARQUBE_USERNAME
+              value: "user"
+            - name: SONARQUBE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-sonarqube
+                  key: sonarqube-password
+            - name: SONARQUBE_EMAIL
+              value: "user@example.com"
+            - name: SONARQUBE_MIN_HEAP_SIZE
+              value: "1024m"
+            - name: SONARQUBE_MAX_HEAP_SIZE
+              value: "2048m"
+            - name: LDAP_AUTHENTICATION
+              value: "simple"
+            - name: LDAP_CONTEXTFACTORYCLASS
+              value: "com.sun.jndi.ldap.LdapCtxFactory"
+            - name: LDAP_FOLLOWREFERRALS
+              value: "true"
+            - name: LDAP_USER_REQUEST
+              value: "(&(objectClass=inetOrgPerson)(uid={login}))"
+            - name: LDAP_USER_REALNAMEATTRIBUTE
+              value: "cn"
+            - name: LDAP_USER_EMAILATTRIBUTE
+              value: "mail"
+            - name: LDAP_GROUP_REQUEST
+              value: "(&(objectClass=groupOfUniqueNames)(uniqueMember={dn}))"
+            - name: LDAP_GROUP_IDATTRIBUTE
+              value: "cn"
+            - name: SONARQUBE_START_TIMEOUT
+              value: "150"
+            - name: SONARQUBE_DATABASE_HOST
+              value: "my-release-postgresql"
+            - name: SONARQUBE_DATABASE_PORT_NUMBER
+              value: "5432"
+            - name: SONARQUBE_DATABASE_NAME
+              value: "bitnami_sonarqube"
+            - name: SONARQUBE_DATABASE_USER
+              value: "bn_sonarqube"
+            - name: SONARQUBE_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: password
+            - name: SONARQUBE_PORT_NUMBER
+              value: "9000"
+            - name: SONARQUBE_ELASTICSEARCH_PORT_NUMBER
+              value: "9001"
+            - name: SONARQUBE_WEB_JAVA_ADD_OPTS
+              value: 
+            - name: SONAR_CE_JAVAADDITIONALOPTS
+              value: 
+          envFrom:
+          resources:
+            limits:
+              cpu: "3.0"
+              ephemeral-storage: 1024Mi
+              memory: 6144Mi
+            requests:
+              cpu: "1.5"
+              ephemeral-storage: 50Mi
+              memory: 4096Mi
+          ports:
+            - name: http
+              containerPort: 9000
+            - name: elastic
+              containerPort: 9001
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 100
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            tcpSocket:
+              port: http
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 100
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /opt/bitnami/sonarqube
+              subPath: app-base-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - mountPath: /bitnami/sonarqube
+              name: sonarqube
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: sonarqube
+          emptyDir: {}
+---
+# Source: sonarqube/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  namespace: "sonarqube-5.2.5.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/version: 16.3.0
+    helm.sh/chart: postgresql-15.5.5
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  serviceName: my-release-postgresql-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: postgresql
+        app.kubernetes.io/version: 16.3.0
+        helm.sh/chart: postgresql-15.5.5
+        app.kubernetes.io/component: primary
+    spec:
+      serviceAccountName: my-release-postgresql
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      hostNetwork: false
+      hostIPC: false
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:16.3.0-debian-12-r14
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "bn_sonarqube"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: password
+            - name: POSTGRES_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgres-password
+            - name: POSTGRES_DATABASE
+              value: "bitnami_sonarqube"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "bn_sonarqube" -d "dbname=bitnami_sonarqube" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "bn_sonarqube" -d "dbname=bitnami_sonarqube" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 1024Mi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/postgresql/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/postgresql/tmp
+              subPath: app-tmp-dir
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"

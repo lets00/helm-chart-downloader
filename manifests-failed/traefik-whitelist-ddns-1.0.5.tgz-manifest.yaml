@@ -1,0 +1,63 @@
+---
+# Source: traefik-whitelist-ddns/templates/role.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: patch-middleware
+  namespace: traefik-whitelist-ddns-1.0.5.tgz
+rules:
+- apiGroups: ["traefik.containo.us"]
+  resources: ["middlewares"]
+  verbs: ["patch"]
+---
+# Source: traefik-whitelist-ddns/templates/rolebinding.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: patch-middleware
+  namespace: traefik-whitelist-ddns-1.0.5.tgz
+subjects:
+- kind: ServiceAccount
+  name: traefik
+  namespace: traefik-whitelist-ddns-1.0.5.tgz
+roleRef:
+  kind: Role
+  name: patch-middleware
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: traefik-whitelist-ddns/templates/cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-release
+  namespace: traefik-whitelist-ddns-1.0.5.tgz
+spec:
+  schedule: "*/5 * * * *"
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: traefik
+          containers:
+            - name: my-release
+              image: "kubitodev/traefik-ip-whitelist-sync:1.0.2"
+              env:
+                - name: WHITELIST_MIDDLEWARE_NAME
+                  value: ip-whitelist
+                - name: WHITELIST_TRAEFIK_NAMESPACE
+                  value: traefik-whitelist-ddns-1.0.5.tgz
+                - name: WHITELIST_CUSTOM_DOMAIN
+                  value: 
+          restartPolicy: OnFailure
+---
+# Source: traefik-whitelist-ddns/templates/middleware.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: ip-whitelist
+  namespace: traefik-whitelist-ddns-1.0.5.tgz
+spec:
+  ipWhiteList:
+    sourceRange:
+      - 1.1.1.1 # dynamically changing

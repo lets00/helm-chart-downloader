@@ -1,0 +1,96 @@
+---
+# Source: php/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-php
+  labels:
+    helm.sh/chart: php-0.1.4
+    app.kubernetes.io/name: php
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.1-v6-apache"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: php
+    app.kubernetes.io/instance: my-release
+---
+# Source: php/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-php
+  labels:
+    helm.sh/chart: php-0.1.4
+    app.kubernetes.io/name: php
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.1-v6-apache"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: php
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/name: php
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: php
+          image: "docker.io/qonstrukt/php:8.1-v6-apache"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: APACHE_RUN_USER
+              value: www-data
+            - name: APACHE_RUN_GROUP
+              value: www-data
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/www/html
+              name: data-vol
+            - mountPath: /tmp
+              name: tmp
+            - mountPath: /var/run
+              name: run
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+        - name: data-vol
+          emptyDir: {}
+---
+# Source: php/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-php-test-connection"
+  labels:
+    helm.sh/chart: php-0.1.4
+    app.kubernetes.io/name: php
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.1-v6-apache"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-php:80']
+  restartPolicy: Never

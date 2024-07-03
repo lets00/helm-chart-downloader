@@ -1,0 +1,278 @@
+---
+# Source: hive/charts/hive-metastore/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    helm.sh/chart: hive-metastore-0.1.5
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "3.1.3"
+    app.kubernetes.io/part-of: hive-metastore
+data:
+  hive-site.xml: |
+    <?xml version="1.0"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+        <property>
+            <name>javax.jdo.option.ConnectionURL</name><value>jdbc:postgresql://my-release-postgresql/metastore</value>
+        </property>
+        <property>
+            <name>javax.jdo.option.ConnectionDriverName</name>
+            <value>org.postgresql.Driver</value>
+        </property>
+        <property>
+            <name>javax.jdo.option.ConnectionUserName</name>
+            <value>hive</value>
+        </property>
+        <property>
+            <name> javax.jdo.option.ConnectionPassword</name>
+            <value>hive</value>
+        </property>
+        <property>
+            <name>datanucleus.autoCreateSchema</name>
+            <value>false</value>
+        </property>
+        <property>
+            <name>hive.metastore.event.db.notification.api.auth</name>
+            <value>false</value>
+        </property>
+        <property>
+            <name>hive.metastore.uris</name>
+            <value>thrift://my-release-hive-metastore:9083</value>
+        </property>
+    </configuration>
+---
+# Source: hive/templates/hadoop-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-hive-hive-hadoop-config
+  labels:
+    app.kubernetes.io/name: hive
+    helm.sh/chart: hive-0.1.8
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "3.1.3"
+    app.kubernetes.io/part-of: hive
+data:
+  core-site.xml: |-
+    <?xml version="1.0"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+    </configuration>
+  hdfs-site.xml: |-
+    <?xml version="1.0"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+    
+    </configuration>
+  mapred-site.xml: |-
+    <?xml version="1.0"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+    </configuration>
+  yarn-site.xml: |-
+    <?xml version="1.0"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+    </configuration>
+---
+# Source: hive/templates/hive-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-hive-hive-hive-config
+  labels:
+    app.kubernetes.io/name: hive
+    helm.sh/chart: hive-0.1.8
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "3.1.3"
+    app.kubernetes.io/part-of: hive
+data:
+  startup.sh: |-
+    #!/bin/bash
+    
+    set -x
+    
+    # Note. This script set hive paths in hdfs with user hive and ensures hiveServer is runAsUser hive
+    HADOOP_USER_NAME=hdfs hdfs dfs -mkdir /tmp
+    HADOOP_USER_NAME=hdfs hdfs dfs -mkdir -p /user/hive/warehouse
+    HADOOP_USER_NAME=hdfs hdfs dfs -chmod 777 /tmp
+    HADOOP_USER_NAME=hdfs hdfs dfs -chmod g+w /tmp
+    HADOOP_USER_NAME=hdfs hdfs dfs -chmod g+w /user/hive/warehouse
+    HADOOP_USER_NAME=hdfs hdfs dfs -chown hive:hive /user/hive/warehouse
+    
+    su hive -c "$HIVE_HOME/bin/hiveserver2 --hiveconf hive.root.logger=INFO,console"
+  hive-site.xml: |
+    <?xml version="1.0"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    
+    <configuration>
+        <property>
+            <name>hive.metastore.uris</name>
+            <value>thrift://my-release-hive-metastore:9083</value>
+        </property>
+    </configuration>
+---
+# Source: hive/charts/hive-metastore/templates/svc.yaml
+# A headless service to create DNS records
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    helm.sh/chart: hive-metastore-0.1.5
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "3.1.3"
+    app.kubernetes.io/part-of: hive-metastore
+spec:
+  ports:
+  - name: thrift
+    port: 9083
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    app.kubernetes.io/instance: my-release
+---
+# Source: hive/templates/server-svc.yaml
+# A headless service to create DNS records
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-hive-hiveserver
+  labels:
+    app.kubernetes.io/name: hive
+    app.kubernetes.io/component: server
+    helm.sh/chart: hive-0.1.8
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "3.1.3"
+    app.kubernetes.io/part-of: hive
+spec:
+  ports:
+  - name: thrift
+    port: 10000
+    protocol: TCP
+  - name: ui
+    port: 10002
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: hive
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: my-release
+---
+# Source: hive/charts/hive-metastore/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    helm.sh/chart: hive-metastore-0.1.5
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "3.1.3"
+    app.kubernetes.io/part-of: hive-metastore
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hive-metastore
+      app.kubernetes.io/component: metastore
+      app.kubernetes.io/instance: "my-release"
+  serviceName: my-release-hive-metastore
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hive-metastore
+        app.kubernetes.io/component: metastore
+        app.kubernetes.io/instance: "my-release"
+    spec:
+      containers:
+      - name: metastore
+        image: "5200710/hive:3.1.3-postgresql-metastore"
+        imagePullPolicy: 
+        command:
+          - /usr/local/bin/startup-metastore.sh
+        securityContext:
+          runAsUser: 971
+        resources:
+          {}
+        volumeMounts:
+        - name: hive-config
+          mountPath: /opt/hive/conf
+      volumes:
+      - name: hive-config
+        configMap:
+          name: my-release-hive-metastore
+---
+# Source: hive/templates/hive-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-hive-hiveserver
+  labels:
+    app.kubernetes.io/name: hive
+    app.kubernetes.io/component: server
+    helm.sh/chart: hive-0.1.8
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "3.1.3"
+    app.kubernetes.io/part-of: hive
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hive
+      app.kubernetes.io/component: server
+      app.kubernetes.io/instance: "my-release"
+  serviceName: my-release-hive-hiveserver
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hive
+        app.kubernetes.io/component: server
+        app.kubernetes.io/instance: "my-release"
+    spec:
+      containers:
+      - name: server
+        image: "5200710/hive:3.1.3-postgresql-metastore"
+        imagePullPolicy: 
+        command:
+          - /bin/bash
+          - /opt/hive/conf/startup.sh
+        resources:
+          {}
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 10002
+          initialDelaySeconds: 5
+          timeoutSeconds: 2
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 10002
+          initialDelaySeconds: 10
+          timeoutSeconds: 2
+        volumeMounts:
+        - name: hive-config
+          mountPath: /opt/hive/conf
+        - name: hadoop-config
+          mountPath: /opt/hadoop/etc/hadoop
+      volumes:
+      - name: hive-config
+        configMap:
+          name: my-release-hive-hive-hive-config
+      - name: hadoop-config
+        configMap:
+          name: my-release-hive-hive-hadoop-config

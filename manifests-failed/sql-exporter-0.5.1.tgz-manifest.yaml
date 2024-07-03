@@ -1,0 +1,143 @@
+---
+# Source: sql-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-sql-exporter
+  labels:
+    helm.sh/chart: sql-exporter-0.5.1
+    app.kubernetes.io/name: sql-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.4"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: false
+---
+# Source: sql-exporter/templates/secret.configuration.yaml
+# ---------------------------------------------------------------------
+# -- This secret holds the config file of sql_exporter
+# ---------------------------------------------------------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-sql-exporter
+  labels:
+    helm.sh/chart: sql-exporter-0.5.1
+    app.kubernetes.io/name: sql-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.4"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  sql_exporter.yml: |-
+    global:
+      max_connections: 3
+      max_idle_connections: 3
+      min_interval: 0s
+      scrape_timeout: 10s
+      scrape_timeout_offset: 500ms
+---
+# Source: sql-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-sql-exporter
+  labels:
+    helm.sh/chart: sql-exporter-0.5.1
+    app.kubernetes.io/name: sql-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: sql-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: sql-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-sql-exporter
+  labels:
+    helm.sh/chart: sql-exporter-0.5.1
+    app.kubernetes.io/name: sql-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sql-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: 5b4c252353e3dc755ae18e20934ccd79bdfa3934c7c53e932252a16c5b472e84
+        checksum/collectors: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+      labels:
+        app.kubernetes.io/name: sql-exporter
+        app.kubernetes.io/instance: my-release
+    spec:
+      securityContext:
+        {}
+      serviceAccountName: my-release-sql-exporter
+      volumes:
+        - name: sql-exporter
+          secret:
+            secretName: my-release-sql-exporter
+      containers:
+        - name: sql-exporter
+          securityContext:
+            {}
+          image: "burningalchemist/sql_exporter:0.14.4"
+          imagePullPolicy: IfNotPresent
+          args: ["-config.file=/etc/sql_exporter/sql_exporter.yml"]
+          volumeMounts:
+          - name: sql-exporter
+            readOnly: true
+            mountPath: /etc/sql_exporter/
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9399
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9399
+          ports:
+            - name: http
+              containerPort: 9399
+              protocol: TCP
+          resources:
+            {}
+---
+# Source: sql-exporter/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: my-release-sql-exporter
+  namespace: sql-exporter-0.5.1.tgz
+  labels:
+    helm.sh/chart: sql-exporter-0.5.1
+    app.kubernetes.io/name: sql-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.14.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sql-exporter
+      app.kubernetes.io/instance: my-release
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+  namespaceSelector:
+    matchNames:
+    - sql-exporter-0.5.1.tgz

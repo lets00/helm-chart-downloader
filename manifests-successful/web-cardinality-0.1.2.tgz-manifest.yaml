@@ -1,0 +1,194 @@
+---
+# Source: web-cardinality/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-web-cardinality
+  labels:
+    helm.sh/chart: web-cardinality-0.1.2
+    app.kubernetes.io/name: web-cardinality
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: web-cardinality/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-web-cardinality-config
+  labels:
+    helm.sh/chart: web-cardinality-0.1.2
+    app.kubernetes.io/name: web-cardinality
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/managed-by: Helm
+data:   
+  myserver.conf: |
+       server {
+          listen       80;
+          server_name         myserver;
+
+          location / {
+              root   /usr/share/nginx/html;
+              index  index.html index.htm;
+          }
+          
+          location /healthcheck/ {
+            return 200 'healthy\n';
+            add_header Content-Type text/plain;
+            auth_basic off;
+          }
+          
+        }
+---
+# Source: web-cardinality/templates/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: "my-release-web-cardinality-pv"
+  labels:
+    helm.sh/chart: web-cardinality-0.1.2
+    app.kubernetes.io/name: web-cardinality
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  capacity:
+    storage: "1Gi"
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "manual"
+  hostPath:
+    path: "/data/web-cardinality"
+---
+# Source: web-cardinality/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "my-release-web-cardinality-pvc"
+  labels:
+    helm.sh/chart: web-cardinality-0.1.2
+    app.kubernetes.io/name: web-cardinality
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "1Gi"
+  storageClassName: "manual"
+---
+# Source: web-cardinality/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-web-cardinality
+  labels:
+    helm.sh/chart: web-cardinality-0.1.2
+    app.kubernetes.io/name: web-cardinality
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: web-cardinality
+    app.kubernetes.io/instance: my-release
+---
+# Source: web-cardinality/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-web-cardinality
+  labels:
+    helm.sh/chart: web-cardinality-0.1.2
+    app.kubernetes.io/name: web-cardinality
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web-cardinality
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web-cardinality
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-web-cardinality
+      securityContext:
+        {}
+      containers:
+        - name: web-cardinality
+          securityContext:
+            {}
+          image: "nginx:1.25.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthcheck/
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /healthcheck/
+              port: http
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/
+            - name: static-content
+              mountPath: /usr/share/nginx/html
+            
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: my-release-web-cardinality-config
+        - name: static-content
+          persistentVolumeClaim:
+            claimName: "my-release-web-cardinality-pvc"
+---
+# Source: web-cardinality/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-release-web-cardinality
+  labels:
+    helm.sh/chart: web-cardinality-0.1.2
+    app.kubernetes.io/name: web-cardinality
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-release-web-cardinality
+  minReplicas: 1
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80

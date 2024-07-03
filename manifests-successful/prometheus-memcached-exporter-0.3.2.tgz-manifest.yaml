@@ -1,0 +1,101 @@
+---
+# Source: prometheus-memcached-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-prometheus-memcached-exporter
+  labels:
+    helm.sh/chart: prometheus-memcached-exporter-0.3.2
+    app.kubernetes.io/name: prometheus-memcached-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.14.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: prometheus-memcached-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-prometheus-memcached-exporter
+  labels:
+    helm.sh/chart: prometheus-memcached-exporter-0.3.2
+    app.kubernetes.io/name: prometheus-memcached-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.14.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9150
+      targetPort: http-alt
+      protocol: TCP
+      name: http-alt
+  selector:
+    app.kubernetes.io/name: prometheus-memcached-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: prometheus-memcached-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-prometheus-memcached-exporter
+  labels:
+    helm.sh/chart: prometheus-memcached-exporter-0.3.2
+    app.kubernetes.io/name: prometheus-memcached-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.14.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-memcached-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus-memcached-exporter
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-prometheus-memcached-exporter
+      securityContext:
+        {}
+      containers:
+        - name: prometheus-memcached-exporter
+          image: "prom/memcached-exporter:v0.14.3"
+          imagePullPolicy: IfNotPresent
+          args:
+          ports:
+            - name: http-alt
+              containerPort: 9150
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http-alt
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http-alt
+          resources:
+            {}
+---
+# Source: prometheus-memcached-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-prometheus-memcached-exporter-test-connection"
+  labels:
+    helm.sh/chart: prometheus-memcached-exporter-0.3.2
+    app.kubernetes.io/name: prometheus-memcached-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.14.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-prometheus-memcached-exporter:9150']
+  restartPolicy: Never

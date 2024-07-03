@@ -1,0 +1,153 @@
+---
+# Source: kubebox/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kubebox
+  labels:
+    helm.sh/chart: kubebox-2.7.1
+    app.kubernetes.io/name: kubebox
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kubebox/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-kubebox
+  labels:
+    helm.sh/chart: kubebox-2.7.1
+    app.kubernetes.io/name: kubebox
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - get
+      - watch
+      - list
+---
+# Source: kubebox/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-kubebox
+  labels:
+    helm.sh/chart: kubebox-2.7.1
+    app.kubernetes.io/name: kubebox
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.0"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kubebox
+subjects:
+  - kind: ServiceAccount
+    name: my-release-kubebox
+    namespace: kubebox-2.7.1.tgz
+---
+# Source: kubebox/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kubebox
+  labels:
+    helm.sh/chart: kubebox-2.7.1
+    app.kubernetes.io/name: kubebox
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: kubebox
+    app.kubernetes.io/instance: my-release
+---
+# Source: kubebox/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kubebox
+  labels:
+    helm.sh/chart: kubebox-2.7.1
+    app.kubernetes.io/name: kubebox
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubebox
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubebox
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-kubebox
+      securityContext:
+        {}
+      containers:
+        - name: kubebox
+          securityContext:
+            {}
+          image: "astefanutti/kubebox:0.9.0-server"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            {}
+---
+# Source: kubebox/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-kubebox-test-connection"
+  labels:
+    helm.sh/chart: kubebox-2.7.1
+    app.kubernetes.io/name: kubebox
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.9.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-kubebox:8080']
+  restartPolicy: Never

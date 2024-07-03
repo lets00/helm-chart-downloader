@@ -1,0 +1,65 @@
+---
+# Source: cloudflared/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release
+  namespace: "cloudflared-3.3.0.tgz"
+  labels:
+    app.kubernetes.io/name: cloudflared
+    helm.sh/chart: cloudflared-3.3.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: 2024.5.0
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflared
+      app.kubernetes.io/instance: my-release
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudflared
+        helm.sh/chart: cloudflared-3.3.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: 2024.5.0
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2024.5.0@sha256:5d5f70a59d5e124d4a1a747769e0d27431861877860ca31deaad41b09726ca71
+          env:
+            []
+          envFrom:
+            []
+          ports:
+            - containerPort: 2000
+              name: metrics
+              protocol: TCP
+          args:
+            - tunnel
+            - --no-autoupdate
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+            - --token
+            - "$(CLOUDFLARED_TOKEN)"
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 2000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1

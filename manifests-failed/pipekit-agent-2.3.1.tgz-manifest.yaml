@@ -1,0 +1,217 @@
+---
+# Source: pipekit-agent/templates/pipekit-agent-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-pipekit-agent
+  namespace: pipekit-agent-2.3.1.tgz
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+secrets:
+- name: my-release-pipekit-agent-sa
+---
+# Source: pipekit-agent/templates/pipekit-agent-sa-token-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-pipekit-agent-sa
+  namespace: pipekit-agent-2.3.1.tgz
+  annotations:
+    kubernetes.io/service-account.name: my-release-pipekit-agent
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+type: kubernetes.io/service-account-token
+---
+# Source: pipekit-agent/templates/pipekit-agent-secret.yaml
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: my-release-pipekit-agent-secret
+  namespace: pipekit-agent-2.3.1.tgz
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  PIPEKIT_SECRET_ACCESS_KEY: ""
+  PIPEKIT_CLUSTER_ID: ""
+---
+# Source: pipekit-agent/templates/pipekit-agent-configMap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-pipekit-agent-config
+  namespace: pipekit-agent-2.3.1.tgz
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  IS_IN_KUBE_CLUSTER: "true"
+  USERS_SERVICE_BASE_URI: "https://api.pipekit.io"
+  MESSENGER_SERVICE_BASE_URI: "https://api.pipekit.io"
+  LOG_LEVEL: "INFO"
+  PIPEKIT_COLLECT_POD_LOGS: "true"
+  TELEMETRY_PROTOCOLS: "prometheus"
+---
+# Source: pipekit-agent/templates/pipekit-agent-argo-cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-argo-cluster-role
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - clusterworkflowtemplates
+      - workflows
+      - cronworkflows
+      - workflowtemplates
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+# Source: pipekit-agent/templates/pipekit-agent-k8s-cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-k8s-cluster-role
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+    verbs:
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/log
+    verbs:
+      - get
+      - watch
+      - list
+---
+# Source: pipekit-agent/templates/pipekit-agent-argo-cluster-role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-argo-cluster-role-binding
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-argo-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: my-release-pipekit-agent
+    namespace: pipekit-agent-2.3.1.tgz
+---
+# Source: pipekit-agent/templates/pipekit-agent-k8s-cluster-role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-k8s-cluster-role-binding
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-k8s-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: my-release-pipekit-agent
+    namespace: pipekit-agent-2.3.1.tgz
+---
+# Source: pipekit-agent/templates/pipekit-agent-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-pipekit-agent
+  namespace: pipekit-agent-2.3.1.tgz
+  labels:
+    helm.sh/chart: pipekit-agent-2.3.1
+    app.kubernetes.io/name: pipekit-agent
+    app.kubernetes.io/version: "v2.3.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pipekit-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pipekit-agent
+    spec:
+      serviceAccountName: my-release-pipekit-agent
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: pipekit-agent
+          image: "pipekit13/pipekit-agent:v2.3.1"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: my-release-pipekit-agent-config
+            - secretRef:
+                name: my-release-pipekit-agent-secret
+          ports:
+          - containerPort: 8080
+            name: http
+          - containerPort: 9090
+            name: metrics
+          livenessProbe:
+            httpGet:
+              path: /api/pipekit-agent/metrics/_health
+              port: 8080
+            failureThreshold: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/pipekit-agent/metrics/_health
+              port: 8080
+            periodSeconds: 5
+          resources:
+            {}
+---
+# Source: pipekit-agent/templates/pipekit-metrics-operator.yaml
+# This file is generated

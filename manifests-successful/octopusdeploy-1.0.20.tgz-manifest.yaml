@@ -1,0 +1,266 @@
+---
+# Source: octopusdeploy/templates/statefulset.yaml
+apiVersion: v1
+data:
+  masterKey: R0VORVJBVEVfTUU=
+  dbConnString: U2VydmVyPW15LXJlbGVhc2UtbXNzcWwtbGludXgsMTQzMztEYXRhYmFzZT1PY3RvcHVzO1VzZXIgSWQ9U0E7UGFzc3dvcmQ9UGFzc3dvcmQwMSE=
+kind: Secret
+metadata:
+  name: octopus-secrets
+type: Opaque
+---
+# Source: octopusdeploy/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: repository-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: octopusdeploy/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: artifacts-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: octopusdeploy/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: task-logs-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: octopusdeploy/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: server-logs-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Mi
+---
+# Source: octopusdeploy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: octopus-web
+spec:
+  type: LoadBalancer
+  ports:
+    - name: web
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    # If there is only one node, expose the tentacle along with the web port
+    - name: tentacle
+      port: 10943
+      targetPort: 10943
+      protocol: TCP
+  selector:
+    app: octopus
+---
+# Source: octopusdeploy/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: octopus
+spec:
+  selector:
+    matchLabels:
+      app: octopus
+  serviceName: "octopus"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: octopus
+    spec:
+      affinity:
+        # Try and keep Octopus nodes on separate Kubernetes nodes
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - octopus
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: repository-vol
+          persistentVolumeClaim:
+            claimName: repository-claim
+        - name: artifacts-vol
+          persistentVolumeClaim:
+            claimName: artifacts-claim
+        - name: task-logs-vol
+          persistentVolumeClaim:
+            claimName: task-logs-claim
+        - name: server-logs-vol
+          persistentVolumeClaim:
+            claimName: server-logs-claim
+      containers:
+        - name: octopus
+          image: octopusdeploy/octopusdeploy:2023.2.13113
+          securityContext:
+            privileged: true
+          env:
+            - name: ACCEPT_EULA
+              value: !!str "N"
+            - name: OCTOPUS_SERVER_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: octopus-secrets
+                  key: dbConnString
+            - name: ADMIN_EMAIL
+              value: 
+            - name: MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: octopus-secrets
+                  key: masterKey
+          ports:
+            - containerPort: 8080
+              name: web
+            - containerPort: 10943
+              name: tentacle
+          volumeMounts:
+            - name: repository-vol
+              mountPath: /repository
+            - name: artifacts-vol
+              mountPath: /artifacts
+            - name: task-logs-vol
+              mountPath: /taskLogs
+            - name: server-logs-vol
+              mountPath: /home/octopus/.octopus/OctopusServer/Server/Logs
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -c
+                  - '[[ -f /Octopus/Octopus.Server ]] && EXE="/Octopus/Octopus.Server" || EXE="dotnet /Octopus/Octopus.Server.dll"; $EXE node --instance=OctopusServer --drain=true --wait=600 --cancel-tasks;'
+            # postStart must finish in 5 minutes or the container will fail to create
+            postStart:
+              exec:
+                command:
+                  - /bin/bash
+                  - -c
+                  - 'URL=http://localhost:8080; x=0; while [ $x -lt 9 ]; do response=$(/usr/bin/curl -k $URL/api/octopusservernodes/ping --write-out %{http_code} --silent --output /dev/null); if [ "$response" -ge 200 ] && [ "$response" -le 299 ]; then break; fi; if [ "$response" -eq 418 ]; then [[ -f /Octopus/Octopus.Server ]] && EXE="/Octopus/Octopus.Server" || EXE="dotnet /Octopus/Octopus.Server.dll"; $EXE node --instance=OctopusServer --drain=false; now=$(date); echo "${now} Server cancelling drain mode." break; fi; now=$(date); echo "${now} Server is not ready, can not disable drain mode."; sleep 30; done;'
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - URL=http://localhost:8080; response=$(/usr/bin/curl -k $URL/api/serverstatus/hosted/internal --write-out %{http_code} --silent --output /dev/null); /usr/bin/test "$response" -ge 200 && /usr/bin/test "$response" -le 299 || /usr/bin/test
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - URL=http://localhost:8080; response=$(/usr/bin/curl -k $URL/api/octopusservernodes/ping --write-out %{http_code} --silent --output /dev/null); /usr/bin/test "$response" -ge 200 && /usr/bin/test "$response" -le 299 || /usr/bin/test "$response" -eq 418
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 10
+          startupProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - URL=http://localhost:8080; response=$(/usr/bin/curl -k $URL/api/octopusservernodes/ping --write-out %{http_code} --silent --output /dev/null); /usr/bin/test "$response" -ge 200 && /usr/bin/test "$response" -le 299 || /usr/bin/test "$response" -eq 418
+            failureThreshold: 30
+            periodSeconds: 60
+---
+# Source: octopusdeploy/templates/shutdown-account.yaml
+# These are the auth resources that allow a job to work with a statefulset
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: octopus-drain
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook-weight: "-10"
+---
+# Source: octopusdeploy/templates/shutdown-account.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: octopus-drain-role
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook-weight: "-9"
+rules:
+  - apiGroups: ["apps/v1", "apps", ""]
+    resources: ["statefulsets", "pods"]
+    verbs: ["patch", "get", "list"]
+---
+# Source: octopusdeploy/templates/shutdown-account.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: octopus-drain-rolebinding
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook-weight: "-8"
+subjects:
+  - kind: ServiceAccount
+    name: octopus-drain
+    apiGroup: ""
+roleRef:
+  kind: Role
+  name: octopus-drain-role
+  apiGroup: ""
+---
+# Source: octopusdeploy/templates/shutdown.yaml
+# Before an upgrade or rollback, all nodes must be shutdown, which we do by setting the replica count to 0.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stop-all-nodes
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-rollback
+    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-weight": "0"
+spec:
+  ttlSecondsAfterFinished: 10
+  template:
+    spec:
+      serviceAccountName: octopus-drain
+      restartPolicy: Never
+      containers:
+      - name: k8s
+        image: bitnami/kubectl
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh","-c", "kubectl patch statefulset octopus -p '{\"spec\": {\"replicas\": 0}}'; while kubectl get pod octopus-0 2>&1 >/dev/null; do echo \"sleeping...\"; sleep 10; done"]

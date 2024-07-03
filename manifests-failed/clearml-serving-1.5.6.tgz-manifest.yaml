@@ -1,0 +1,1576 @@
+---
+# Source: clearml-serving/charts/grafana/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana
+  namespace: clearml-serving-1.5.6.tgz
+---
+# Source: clearml-serving/charts/kafka/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kafka
+  namespace: "clearml-serving-1.5.6.tgz"
+  labels:
+    app.kubernetes.io/name: kafka
+    helm.sh/chart: kafka-21.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: kafka
+  annotations:
+automountServiceAccountToken: true
+---
+# Source: clearml-serving/charts/prometheus/charts/alertmanager/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-alertmanager
+  labels:
+    helm.sh/chart: alertmanager-0.24.1
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.25.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: clearml-serving/charts/prometheus/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.7.2
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: clearml-serving-1.5.6.tgz
+  annotations:
+    {}
+---
+# Source: clearml-serving/charts/grafana/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-grafana
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  admin-user: "YWRtaW4="
+  admin-password: "Y2xlYXJtbA=="
+  ldap-toml: ""
+---
+# Source: clearml-serving/charts/grafana/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-grafana
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  grafana.ini: |
+    [analytics]
+    check_for_updates = true
+    [grafana_net]
+    url = https://grafana.net
+    [log]
+    mode = console
+    [paths]
+    data = /var/lib/grafana/
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+    [server]
+    domain = ''
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - access: proxy
+      isDefault: true
+      name: Prometheus
+      type: prometheus
+      url: http://my-release-prometheus-server
+---
+# Source: clearml-serving/charts/kafka/charts/zookeeper/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-zookeeper-scripts
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    app.kubernetes.io/name: zookeeper
+    helm.sh/chart: zookeeper-11.1.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: zookeeper
+data:
+  init-certs.sh: |-
+    #!/bin/bash
+  setup.sh: |-
+    #!/bin/bash
+
+    # Execute entrypoint as usual after obtaining ZOO_SERVER_ID
+    # check ZOO_SERVER_ID in persistent volume via myid
+    # if not present, set based on POD hostname
+    if [[ -f "/bitnami/zookeeper/data/myid" ]]; then
+        export ZOO_SERVER_ID="$(cat /bitnami/zookeeper/data/myid)"
+    else
+        HOSTNAME="$(hostname -s)"
+        if [[ $HOSTNAME =~ (.*)-([0-9]+)$ ]]; then
+            ORD=${BASH_REMATCH[2]}
+            export ZOO_SERVER_ID="$((ORD + 1 ))"
+        else
+            echo "Failed to get index from hostname $HOST"
+            exit 1
+        fi
+    fi
+    exec /entrypoint.sh /run.sh
+---
+# Source: clearml-serving/charts/kafka/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-kafka-scripts
+  namespace: "clearml-serving-1.5.6.tgz"
+  labels:
+    app.kubernetes.io/name: kafka
+    helm.sh/chart: kafka-21.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  setup.sh: |-
+    #!/bin/bash
+
+    ID="${MY_POD_NAME#"my-release-kafka-"}"
+    # If process.roles is not set at all, it is assumed to be in ZooKeeper mode.
+    # https://kafka.apache.org/documentation/#kraft_role
+    
+    if [[ -f "/bitnami/kafka/data/meta.properties" ]]; then
+        if [[ $KAFKA_CFG_PROCESS_ROLES == "" ]]; then
+            export KAFKA_CFG_BROKER_ID="$(grep "broker.id" "/bitnami/kafka/data/meta.properties" | awk -F '=' '{print $2}')"
+        else
+            export KAFKA_CFG_BROKER_ID="$(grep "node.id" "/bitnami/kafka/data/meta.properties" | awk -F '=' '{print $2}')"
+        fi
+    else
+        export KAFKA_CFG_BROKER_ID="$((ID + 0))"
+    fi
+
+    if [[ $KAFKA_CFG_PROCESS_ROLES == *"controller"* ]]; then
+        node_id=0
+        pod_id=0
+        while :
+        do 
+            VOTERS="${VOTERS}$node_id@my-release-kafka-$pod_id.my-release-kafka-headless.clearml-serving-1.5.6.tgz.svc.cluster.local:9095"
+            node_id=$(( $node_id + 1 ))
+            pod_id=$(( $pod_id + 1 ))
+            if [[ $pod_id -ge 1 ]]; then
+                break
+            else
+                VOTERS="$VOTERS,"
+            fi
+        done
+        export KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=$VOTERS
+    fi
+
+    # Configure zookeeper client
+
+    exec /entrypoint.sh /run.sh
+---
+# Source: clearml-serving/charts/prometheus/charts/alertmanager/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-alertmanager
+  labels:
+    helm.sh/chart: alertmanager-0.24.1
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.25.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  alertmanager.yml: |
+    global: {}
+    receivers:
+    - name: default-receiver
+    route:
+      group_interval: 5m
+      group_wait: 10s
+      receiver: default-receiver
+      repeat_interval: 3h
+    templates:
+    - /etc/alertmanager/*.tmpl
+---
+# Source: clearml-serving/charts/prometheus/templates/cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.7.2
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: clearml-serving-1.5.6.tgz
+data:
+  allow-snippet-annotations: "false"
+  alerting_rules.yml: |
+    {}
+  alerts: |
+    {}
+  prometheus.yml: |
+    global:
+      evaluation_interval: 1m
+      scrape_interval: 1m
+      scrape_timeout: 10s
+    rule_files:
+    - /etc/config/recording_rules.yml
+    - /etc/config/alerting_rules.yml
+    - /etc/config/rules
+    - /etc/config/alerts
+    scrape_configs:
+    - job_name: prometheus
+      static_configs:
+      - targets:
+        - localhost:9090
+    - job_name: "my-release-stats"
+      static_configs:
+        - targets:
+          - "my-release-statistics:9999"
+    
+    alerting:
+      alertmanagers:
+      - kubernetes_sd_configs:
+          - role: pod
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace]
+          regex: clearml-serving-1.5.6.tgz
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          regex: my-release
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+          regex: alertmanager
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_container_port_number]
+          regex: "9093"
+          action: keep
+  recording_rules.yml: |
+    {}
+  rules: |
+    {}
+---
+# Source: clearml-serving/charts/prometheus/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.7.2
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: clearml-serving-1.5.6.tgz
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: clearml-serving/charts/grafana/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana-clusterrole
+rules: []
+---
+# Source: clearml-serving/charts/prometheus/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.7.2
+    heritage: Helm
+  name: my-release-prometheus-server
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+      - ingresses
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "extensions"
+      - "networking.k8s.io"
+    resources:
+      - ingresses/status
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+---
+# Source: clearml-serving/charts/grafana/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-release-grafana-clusterrolebinding
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: my-release-grafana
+    namespace: clearml-serving-1.5.6.tgz
+roleRef:
+  kind: ClusterRole
+  name: my-release-grafana-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: clearml-serving/charts/prometheus/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.7.2
+    heritage: Helm
+  name: my-release-prometheus-server
+subjects:
+  - kind: ServiceAccount
+    name: my-release-prometheus-server
+    namespace: clearml-serving-1.5.6.tgz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-prometheus-server
+---
+# Source: clearml-serving/charts/grafana/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-grafana
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+rules: []
+---
+# Source: clearml-serving/charts/grafana/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-grafana
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-grafana
+subjects:
+- kind: ServiceAccount
+  name: my-release-grafana
+  namespace: clearml-serving-1.5.6.tgz
+---
+# Source: clearml-serving/charts/grafana/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-grafana
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: service
+      port: 80
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+---
+# Source: clearml-serving/charts/kafka/charts/zookeeper/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-zookeeper-headless
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    app.kubernetes.io/name: zookeeper
+    helm.sh/chart: zookeeper-11.1.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: zookeeper
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-client
+      port: 2181
+      targetPort: client
+    - name: tcp-follower
+      port: 2888
+      targetPort: follower
+    - name: tcp-election
+      port: 3888
+      targetPort: election
+  selector:
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: zookeeper
+---
+# Source: clearml-serving/charts/kafka/charts/zookeeper/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-zookeeper
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    app.kubernetes.io/name: zookeeper
+    helm.sh/chart: zookeeper-11.1.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: zookeeper
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-client
+      port: 2181
+      targetPort: client
+      nodePort: null
+    - name: tcp-follower
+      port: 2888
+      targetPort: follower
+    - name: tcp-election
+      port: 3888
+      targetPort: election
+  selector:
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: zookeeper
+---
+# Source: clearml-serving/charts/kafka/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kafka-headless
+  namespace: "clearml-serving-1.5.6.tgz"
+  labels:
+    app.kubernetes.io/name: kafka
+    helm.sh/chart: kafka-21.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: kafka
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: false
+  ports:
+    - name: tcp-client
+      port: 9092
+      protocol: TCP
+      targetPort: kafka-client
+    - name: tcp-internal
+      port: 9093
+      protocol: TCP
+      targetPort: kafka-internal
+  selector:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: kafka
+---
+# Source: clearml-serving/charts/kafka/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kafka
+  namespace: "clearml-serving-1.5.6.tgz"
+  labels:
+    app.kubernetes.io/name: kafka
+    helm.sh/chart: kafka-21.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: kafka
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-client
+      port: 9092
+      protocol: TCP
+      targetPort: kafka-client
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: kafka
+---
+# Source: clearml-serving/charts/prometheus/charts/alertmanager/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-alertmanager
+  labels:
+    helm.sh/chart: alertmanager-0.24.1
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.25.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9093
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: my-release
+---
+# Source: clearml-serving/charts/prometheus/charts/alertmanager/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-alertmanager-headless
+  labels:
+    helm.sh/chart: alertmanager-0.24.1
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.25.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None
+  ports:
+    - port: 9093
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: my-release
+---
+# Source: clearml-serving/charts/prometheus/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.7.2
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: clearml-serving-1.5.6.tgz
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    component: "server"
+    app: prometheus
+    release: my-release
+  sessionAffinity: None
+  type: "ClusterIP"
+---
+# Source: clearml-serving/templates/clearml-serving-inference-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations: {}
+  labels:
+    clearml.serving.service: my-release-clearml-serving-inference
+  name: my-release-clearml-serving-inference
+spec:
+  ports:
+    - name: "8080"
+      port: 8080
+      targetPort: 8080
+  selector:
+    clearml.serving.service: my-release-clearml-serving-inference
+---
+# Source: clearml-serving/templates/clearml-serving-statistics-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations: {}
+  labels:
+    clearml.serving.service: my-release-clearml-serving-statistics
+  name: my-release-clearml-serving-statistics
+spec:
+  ports:
+    - name: "9999"
+      port: 9999
+      targetPort: 9999
+  selector:
+    clearml.serving.service: my-release-clearml-serving-statistics
+---
+# Source: clearml-serving/templates/clearml-serving-triton-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations: {}
+  labels:
+    clearml.serving.service: my-release-clearml-serving-triton
+  name: my-release-clearml-serving-triton
+spec:
+  ports:
+    - name: "8001"
+      port: 8001
+      targetPort: 8001
+  selector:
+    clearml.serving.service: my-release-clearml-serving-triton
+---
+# Source: clearml-serving/charts/grafana/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-grafana
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/instance: my-release
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 9e50fdc0005a91b96da17efc5855fcafb65326e8a39b5f152a2da23c87e2d7aa
+        checksum/dashboards-json-config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/sc-dashboard-provider-config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/secret: c35cd5f06d67200af246bf48f0294232e047b01b8243fde53ba518309894a309
+    spec:
+      
+      serviceAccountName: my-release-grafana
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 472
+        runAsGroup: 472
+        runAsUser: 472
+      enableServiceLinks: true
+      containers:
+        - name: grafana
+          image: "grafana/grafana:9.4.3"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/grafana/grafana.ini"
+              subPath: grafana.ini
+            - name: storage
+              mountPath: "/var/lib/grafana"
+            - name: config
+              mountPath: "/etc/grafana/provisioning/datasources/datasources.yaml"
+              subPath: "datasources.yaml"
+          ports:
+            - name: grafana
+              containerPort: 3000
+              protocol: TCP
+            - name: gossip-tcp
+              containerPort: 9094
+              protocol: TCP
+            - name: gossip-udp
+              containerPort: 9094
+              protocol: UDP
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-grafana
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-grafana
+                  key: admin-password
+            - name: GF_PATHS_DATA
+              value: /var/lib/grafana/
+            - name: GF_PATHS_LOGS
+              value: /var/log/grafana
+            - name: GF_PATHS_PLUGINS
+              value: /var/lib/grafana/plugins
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-grafana
+        - name: storage
+          emptyDir: {}
+---
+# Source: clearml-serving/charts/prometheus/templates/deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: my-release
+    chart: prometheus-19.7.2
+    heritage: Helm
+  name: my-release-prometheus-server
+  namespace: clearml-serving-1.5.6.tgz
+spec:
+  selector:
+    matchLabels:
+      component: "server"
+      app: prometheus
+      release: my-release
+  replicas: 1
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+  template:
+    metadata:
+      labels:
+        component: "server"
+        app: prometheus
+        release: my-release
+        chart: prometheus-19.7.2
+        heritage: Helm
+    spec:
+      enableServiceLinks: true
+      serviceAccountName: my-release-prometheus-server
+      containers:
+        - name: prometheus-server-configmap-reload
+          image: "jimmidyson/configmap-reload:v0.8.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --volume-dir=/etc/config
+            - --webhook-url=http://127.0.0.1:9090/-/reload
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+              readOnly: true
+
+        - name: prometheus-server
+          image: "quay.io/prometheus/prometheus:v2.41.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --storage.tsdb.retention.time=15d
+            - --config.file=/etc/config/prometheus.yml
+            - --storage.tsdb.path=/data
+            - --web.console.libraries=/etc/prometheus/console_libraries
+            - --web.console.templates=/etc/prometheus/consoles
+            - --web.enable-lifecycle
+          ports:
+            - containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            {}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+            - name: storage-volume
+              mountPath: /data
+              subPath: ""
+      dnsPolicy: ClusterFirst
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-release-prometheus-server
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: my-release-prometheus-server
+---
+# Source: clearml-serving/templates/clearml-serving-inference-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {}
+  labels:
+    clearml.serving.service: my-release-clearml-serving-inference
+  name: my-release-clearml-serving-inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      clearml.serving.service: my-release-clearml-serving-inference
+  strategy: {}
+  template:
+    metadata:
+      annotations: {}
+      labels:
+        clearml.serving.network/clearml-serving-backend: "true"
+        clearml.serving.service: my-release-clearml-serving-inference
+    spec:
+      containers:
+        - env:
+            - name: CLEARML_API_ACCESS_KEY
+              value: "ClearML API Access Key"
+            - name: CLEARML_API_SECRET_KEY
+              value: "ClearML API Secret Key"
+            - name: CLEARML_API_HOST
+              value: "http://clearml-server-apiserver:8008"
+            - name: CLEARML_FILES_HOST
+              value: "http://clearml-server-fileserver:8081"
+            - name: CLEARML_WEB_HOST
+              value: "http://clearml-server-webserver:80"
+            - name: CLEARML_DEFAULT_KAFKA_SERVE_URL
+              value: my-release-clearml-serving-kafka:9092
+            - name: CLEARML_SERVING_POLL_FREQ
+              value: "1.0"
+            - name: CLEARML_DEFAULT_BASE_SERVE_URL
+              value: "http://127.0.0.1:8080/serve"
+            - name: CLEARML_DEFAULT_TRITON_GRPC_ADDR
+              value: "my-release-clearml-serving-triton:8001"
+            - name: CLEARML_SERVING_NUM_PROCESS
+              value: "2"
+            - name: CLEARML_SERVING_PORT
+              value: "8080"
+            - name: CLEARML_SERVING_TASK_ID
+              value: "ClearML Serving Task ID"
+            - name: CLEARML_USE_GUNICORN
+              value: "true"
+          image: "allegroai/clearml-serving-inference:1.3.0"
+          name: my-release-clearml-serving-inference
+          ports:
+            - containerPort: 8080
+          resources:
+            {}
+      restartPolicy: Always
+---
+# Source: clearml-serving/templates/clearml-serving-statistics-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {}
+  labels:
+    clearml.serving.service: my-release-clearml-serving-statistics
+  name: my-release-clearml-serving-statistics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      clearml.serving.service: my-release-clearml-serving-statistics
+  strategy: {}
+  template:
+    metadata:
+      annotations: {}
+      labels:
+        clearml.serving.network/clearml-serving-backend: "true"
+        clearml.serving.service: my-release-clearml-serving-statistics
+    spec:
+      containers:
+        - env:
+            - name: CLEARML_API_ACCESS_KEY
+              value: "ClearML API Access Key"
+            - name: CLEARML_API_SECRET_KEY
+              value: "ClearML API Secret Key"
+            - name: CLEARML_API_HOST
+              value: "http://clearml-server-apiserver:8008"
+            - name: CLEARML_FILES_HOST
+              value: "http://clearml-server-fileserver:8081"
+            - name: CLEARML_WEB_HOST
+              value: "http://clearml-server-webserver:80"
+            - name: CLEARML_DEFAULT_KAFKA_SERVE_URL
+              value: my-release-clearml-serving-kafka:9092
+            - name: CLEARML_SERVING_POLL_FREQ
+              value: "1.0"
+            - name: CLEARML_SERVING_TASK_ID
+              value: "ClearML Serving Task ID"
+          image: "allegroai/clearml-serving-statistics:1.3.0"
+          name: my-release-clearml-serving-statistics
+          ports:
+            - containerPort: 9999
+          resources:
+            {}
+      restartPolicy: Always
+---
+# Source: clearml-serving/templates/clearml-serving-triton-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {}
+  labels:
+    clearml.serving.service: my-release-clearml-serving-triton
+  name: my-release-clearml-serving-triton
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      clearml.serving.service: my-release-clearml-serving-triton
+  strategy: {}
+  template:
+    metadata:
+      annotations: {}
+      labels:
+        clearml.serving.network/clearml-serving-backend: "true"
+        clearml.serving.service: my-release-clearml-serving-triton
+    spec:
+      
+      containers:
+        - env:
+            - name: CLEARML_API_ACCESS_KEY
+              value: "ClearML API Access Key"
+            - name: CLEARML_API_SECRET_KEY
+              value: "ClearML API Secret Key"
+            - name: CLEARML_API_HOST
+              value: "http://clearml-server-apiserver:8008"
+            - name: CLEARML_FILES_HOST
+              value: "http://clearml-server-fileserver:8081"
+            - name: CLEARML_WEB_HOST
+              value: "http://clearml-server-webserver:80"
+            - name: CLEARML_SERVING_TASK_ID
+              value: "ClearML Serving Task ID"
+            - name: CLEARML_TRITON_POLL_FREQ
+              value: "1.0"
+            - name: CLEARML_TRITON_METRIC_FREQ
+              value: "1.0"
+          image: "allegroai/clearml-serving-triton:1.3.0"
+          name: my-release-clearml-serving-triton
+          ports:
+            - containerPort: 8001
+          resources:
+            {}
+      restartPolicy: Always
+---
+# Source: clearml-serving/charts/kafka/charts/zookeeper/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-zookeeper
+  namespace: clearml-serving-1.5.6.tgz
+  labels:
+    app.kubernetes.io/name: zookeeper
+    helm.sh/chart: zookeeper-11.1.3
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: zookeeper
+    role: zookeeper
+spec:
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zookeeper
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: zookeeper
+  serviceName: my-release-zookeeper-headless
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/name: zookeeper
+        helm.sh/chart: zookeeper-11.1.3
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: zookeeper
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: zookeeper
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: zookeeper
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      initContainers:
+      containers:
+        - name: zookeeper
+          image: docker.io/bitnami/zookeeper:3.8.1-debian-11-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+          command:
+            - /scripts/setup.sh
+          resources:
+            limits: {}
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: ZOO_DATA_LOG_DIR
+              value: ""
+            - name: ZOO_PORT_NUMBER
+              value: "2181"
+            - name: ZOO_TICK_TIME
+              value: "2000"
+            - name: ZOO_INIT_LIMIT
+              value: "10"
+            - name: ZOO_SYNC_LIMIT
+              value: "5"
+            - name: ZOO_PRE_ALLOC_SIZE
+              value: "65536"
+            - name: ZOO_SNAPCOUNT
+              value: "100000"
+            - name: ZOO_MAX_CLIENT_CNXNS
+              value: "60"
+            - name: ZOO_4LW_COMMANDS_WHITELIST
+              value: "srvr, mntr, ruok"
+            - name: ZOO_LISTEN_ALLIPS_ENABLED
+              value: "no"
+            - name: ZOO_AUTOPURGE_INTERVAL
+              value: "0"
+            - name: ZOO_AUTOPURGE_RETAIN_COUNT
+              value: "3"
+            - name: ZOO_MAX_SESSION_TIMEOUT
+              value: "40000"
+            - name: ZOO_SERVERS
+              value: my-release-zookeeper-0.my-release-zookeeper-headless.clearml-serving-1.5.6.tgz.svc.cluster.local:2888:3888::1 
+            - name: ZOO_ENABLE_AUTH
+              value: "no"
+            - name: ZOO_ENABLE_QUORUM_AUTH
+              value: "no"
+            - name: ZOO_HEAP_SIZE
+              value: "1024"
+            - name: ZOO_LOG_LEVEL
+              value: "ERROR"
+            - name: ALLOW_ANONYMOUS_LOGIN
+              value: "yes"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+          ports:
+            - name: client
+              containerPort: 2181
+            - name: follower
+              containerPort: 2888
+            - name: election
+              containerPort: 3888
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command: ['/bin/bash', '-c', 'echo "ruok" | timeout 2 nc -w 2 localhost 2181 | grep imok']
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command: ['/bin/bash', '-c', 'echo "ruok" | timeout 2 nc -w 2 localhost 2181 | grep imok']
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts/setup.sh
+              subPath: setup.sh
+            - name: data
+              mountPath: /bitnami/zookeeper
+      volumes:
+        - name: scripts
+          configMap:
+            name: my-release-zookeeper-scripts
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: clearml-serving/charts/kafka/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-kafka
+  namespace: "clearml-serving-1.5.6.tgz"
+  labels:
+    app.kubernetes.io/name: kafka
+    helm.sh/chart: kafka-21.4.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: kafka
+spec:
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: kafka
+  serviceName: my-release-kafka-headless
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kafka
+        helm.sh/chart: kafka-21.4.0
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: kafka
+      annotations:
+    spec:
+      
+      hostNetwork: false
+      hostIPC: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: kafka
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: kafka
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: my-release-kafka
+      containers:
+        - name: kafka
+          image: docker.io/bitnami/kafka:3.4.0-debian-11-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+          command:
+            - /scripts/setup.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+              value: "my-release-zookeeper"
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: "INTERNAL"
+            - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "INTERNAL:PLAINTEXT,CLIENT:PLAINTEXT"
+            - name: KAFKA_CFG_LISTENERS
+              value: "INTERNAL://:9093,CLIENT://:9092"
+            - name: KAFKA_CFG_ADVERTISED_LISTENERS
+              value: "INTERNAL://$(MY_POD_NAME).my-release-kafka-headless.clearml-serving-1.5.6.tgz.svc.cluster.local:9093,CLIENT://$(MY_POD_NAME).my-release-kafka-headless.clearml-serving-1.5.6.tgz.svc.cluster.local:9092"
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: "yes"
+            - name: KAFKA_ZOOKEEPER_PROTOCOL
+              value: PLAINTEXT
+            - name: KAFKA_VOLUME_DIR
+              value: "/bitnami/kafka"
+            - name: KAFKA_LOG_DIR
+              value: "/opt/bitnami/kafka/logs"
+            - name: KAFKA_CFG_DELETE_TOPIC_ENABLE
+              value: "false"
+            - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx1024m -Xms1024m"
+            - name: KAFKA_CFG_LOG_FLUSH_INTERVAL_MESSAGES
+              value: "10000"
+            - name: KAFKA_CFG_LOG_FLUSH_INTERVAL_MS
+              value: "1000"
+            - name: KAFKA_CFG_LOG_RETENTION_BYTES
+              value: "1073741824"
+            - name: KAFKA_CFG_LOG_RETENTION_CHECK_INTERVAL_MS
+              value: "300000"
+            - name: KAFKA_CFG_LOG_RETENTION_HOURS
+              value: "168"
+            - name: KAFKA_CFG_MESSAGE_MAX_BYTES
+              value: "1000012"
+            - name: KAFKA_CFG_LOG_SEGMENT_BYTES
+              value: "1073741824"
+            - name: KAFKA_CFG_LOG_DIRS
+              value: "/bitnami/kafka/data"
+            - name: KAFKA_CFG_DEFAULT_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_CFG_NUM_IO_THREADS
+              value: "8"
+            - name: KAFKA_CFG_NUM_NETWORK_THREADS
+              value: "3"
+            - name: KAFKA_CFG_NUM_PARTITIONS
+              value: "1"
+            - name: KAFKA_CFG_NUM_RECOVERY_THREADS_PER_DATA_DIR
+              value: "1"
+            - name: KAFKA_CFG_SOCKET_RECEIVE_BUFFER_BYTES
+              value: "102400"
+            - name: KAFKA_CFG_SOCKET_REQUEST_MAX_BYTES
+              value: "104857600"
+            - name: KAFKA_CFG_SOCKET_SEND_BUFFER_BYTES
+              value: "102400"
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECTION_TIMEOUT_MS
+              value: "6000"
+            - name: KAFKA_CFG_AUTHORIZER_CLASS_NAME
+              value: ""
+            - name: KAFKA_CFG_ALLOW_EVERYONE_IF_NO_ACL_FOUND
+              value: "true"
+            - name: KAFKA_CFG_SUPER_USERS
+              value: "User:admin"
+          ports:
+            - name: kafka-client
+              containerPort: 9092
+            - name: kafka-internal
+              containerPort: 9093
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            tcpSocket:
+              port: kafka-client
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            tcpSocket:
+              port: kafka-client
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/kafka
+            - name: logs
+              mountPath: /opt/bitnami/kafka/logs
+            - name: scripts
+              mountPath: /scripts/setup.sh
+              subPath: setup.sh
+      volumes:
+        - name: scripts
+          configMap:
+            name: my-release-kafka-scripts
+            defaultMode: 0755
+        - name: logs
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: clearml-serving/charts/prometheus/charts/alertmanager/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-alertmanager
+  labels:
+    helm.sh/chart: alertmanager-0.24.1
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.25.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+      app.kubernetes.io/instance: my-release
+  serviceName: my-release-alertmanager-headless
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alertmanager
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/config: 4c3c5b25ca246bde027f4dfe2cb41046cfddc9abf0ef36bb1f6b91b0e4f84876
+    spec:
+      serviceAccountName: my-release-alertmanager
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - name: alertmanager
+          securityContext:
+            runAsGroup: 65534
+            runAsNonRoot: true
+            runAsUser: 65534
+          image: "quay.io/prometheus/alertmanager:v0.25.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          args:
+            - --storage.path=/alertmanager
+            - --config.file=/etc/alertmanager/alertmanager.yml
+          ports:
+            - name: http
+              containerPort: 9093
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: storage
+              mountPath: /alertmanager
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-alertmanager
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi
+---
+# Source: clearml-serving/charts/grafana/templates/tests/test-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+  name: my-release-grafana-test
+  namespace: clearml-serving-1.5.6.tgz
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+---
+# Source: clearml-serving/charts/grafana/templates/tests/test-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-grafana-test
+  namespace: clearml-serving-1.5.6.tgz
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+data:
+  run.sh: |-
+    @test "Test Health" {
+      url="http://my-release-grafana/api/health"
+
+      code=$(wget --server-response --spider --timeout 90 --tries 10 ${url} 2>&1 | awk '/^  HTTP/{print $2}')
+      [ "$code" == "200" ]
+    }
+---
+# Source: clearml-serving/charts/grafana/templates/tests/test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-release-grafana-test
+  labels:
+    helm.sh/chart: grafana-6.52.3
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "9.4.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+  namespace: clearml-serving-1.5.6.tgz
+spec:
+  serviceAccountName: my-release-grafana-test
+  containers:
+    - name: my-release-test
+      image: "bats/bats:v1.4.1"
+      imagePullPolicy: "IfNotPresent"
+      command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+        - mountPath: /tests
+          name: tests
+          readOnly: true
+  volumes:
+    - name: tests
+      configMap:
+        name: my-release-grafana-test
+  restartPolicy: Never
+---
+# Source: clearml-serving/charts/prometheus/charts/alertmanager/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-alertmanager-test-connection"
+  labels:
+    helm.sh/chart: alertmanager-0.24.1
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.25.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-alertmanager:9093']
+  restartPolicy: Never

@@ -1,0 +1,204 @@
+---
+# Source: ghost/templates/configmap-env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ghost-env
+data:
+  database__client: sqlite3
+  database__connection__filename: /var/lib/ghost/content/data/ghost.db
+  database__useNullAsDefault: "true"
+  database__debug: "false"
+  url: https://example.com
+  mail__from: 
+  mail__transport: SMTP
+  mail__options__service: Sendgrid
+  mail__options__host: smtp.sendgrid.net
+  mail__options__port: "465"
+  mail__options__secure: "true"
+  mail__options__auth__user: apikey
+  mail__options__auth__pass: YOUR_API_KEY
+---
+# Source: ghost/templates/configmap-ghost.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ghost
+data:
+  .rclone.conf: |-
+    [cloudflare]
+    type = s3
+    provider = Cloudflare
+    access_key_id = YOUR_ACCESS_KEY_ID
+    secret_access_key = YOUR_SECRET_ACCESS
+    endpoint = YOUR_ENDPOINT
+    acl = private
+
+  litestream.yml: |-
+    dbs:
+      - path: /var/lib/ghost/content/data/ghost.db
+        replicas:
+          - type: s3
+            endpoint: YOUR_ENDPOINT
+            bucket: YOUR_BUCKET
+            access-key-id: YOUR_ACCESS_KEY_ID
+            secret-access-key: YOUR_SECRET_ACCESS
+---
+# Source: ghost/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 2368
+  selector:
+    app: ghost
+---
+# Source: ghost/templates/cloudflared-deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cloudflared
+  name: cloudflared
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      pod: cloudflared
+  template:
+    metadata:
+      labels:
+        pod: cloudflared
+    spec:
+      containers:
+        - command:
+            - cloudflared
+            - tunnel
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+          args:
+            - --token
+            - YOUR_TOKEN
+          image: "cloudflare/cloudflared:latest"
+          name: cloudflared
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "512m"
+            requests:
+              memory: "64Mi"
+              cpu: "128m"
+---
+# Source: ghost/templates/ghost-statefulset.yml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ghost
+spec:
+  serviceName: ghost
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost
+  template:
+    metadata:
+      labels:
+        app: ghost
+    spec:
+      initContainers:
+        - name: init-db
+          image: "litestream/litestream:0.3"
+          args:
+            - "restore"
+            - "-if-db-not-exists"
+            - "-if-replica-exists"
+            - "/var/lib/ghost/content/data/ghost.db"
+          volumeMounts:
+            - name: ghost-content
+              mountPath: /var/lib/ghost/content
+            - name: config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+
+        - name: init-images
+          image: "bitnami/rclone:latest"
+          securityContext:
+            runAsUser: 0
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - "rclone sync cloudflare:YOUR_BUCKET/images /var/lib/ghost/content/images/ --transfers=4 --checkers=8"
+          volumeMounts:
+            - name: ghost-content
+              mountPath: /var/lib/ghost/content
+            - name: config
+              mountPath: /.rclone.conf
+              subPath: .rclone.conf
+
+      containers:
+        - name: ghost
+          image: "ghost:5.79.0"
+          envFrom:
+            - configMapRef:
+                name: ghost-env
+          volumeMounts:
+            - name: ghost-content
+              mountPath: /var/lib/ghost/content
+
+        - name: litestream
+          image: "litestream/litestream:0.3"
+          args: ["replicate"]
+          volumeMounts:
+            - name: ghost-content
+              mountPath: /var/lib/ghost/content
+            - name: config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          ports:
+            - name: metrics
+              containerPort: 9090
+
+        - name: rclone
+          image: "bitnami/rclone:latest"
+          securityContext:
+            runAsUser: 0
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - |
+              while :; do
+                rclone sync /var/lib/ghost/content/images/ cloudflare:YOUR_BUCKET/images --transfers=4 --checkers=8
+                sleep 60  # Sync every interval
+              done
+          volumeMounts:
+            - name: config
+              mountPath: /.rclone.conf
+              subPath: .rclone.conf
+            - name: ghost-content
+              mountPath: /var/lib/ghost/content
+
+      volumes:
+        - name: config
+          configMap:
+            name: ghost
+
+  volumeClaimTemplates:
+    - metadata:
+        name: ghost-content
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi

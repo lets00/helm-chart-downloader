@@ -1,0 +1,1260 @@
+---
+# Source: mcp/charts/mc-keycloak/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-admin
+  labels:
+    helm.sh/chart: mc-keycloak-0.0.7
+    app.kubernetes.io/name: mc-keycloak
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: mcp/charts/mc-identity-registry/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mc-identity-registry-secrets
+type: Opaque
+data:
+  mir_api_config: ""
+  mir_api_keycloak_json: ""
+  mir_api_subca_keystore: ""
+  mir_api_truststore: ""
+---
+# Source: mcp/charts/mc-keycloak/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mc-keycloak-secrets
+type: Opaque
+data:
+  keycloak_db_username: "YWRtaW4="
+  keycloak_db_password: "Y2hhbmdlaXQ="
+  keycloak_admin: "YWRtaW4="
+  keycloak_admin_password: "Y2hhbmdlaXQ="
+  keycloak_idbroker_updater: ""
+  keycloak_keystore_password: "Y2hhbmdlaXQ="
+  keycloak_truststore: ""
+  keycloak_truststore_password: "Y2hhbmdlaXQ="
+---
+# Source: mcp/charts/mc-mms-edge-router/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mc-mms-edge-router-secrets
+type: Opaque
+data:
+  client_certificate: ""
+  client_certificate_key: ""
+  certificate: ""
+  certificate_key: ""
+  client_ca: ""
+---
+# Source: mcp/charts/mc-mms-router/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mc-mms-router-secrets
+type: Opaque
+data:
+  private_key: ""
+  certificate: ""
+  certificate_key: ""
+  client_ca: ""
+  beacons: ""
+---
+# Source: mcp/charts/mc-service-registry/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mc-service-registry-secrets
+type: Opaque
+data:
+  msr_database_username: "YWRtaW4="
+  msr_database_password: "Y2hhbmdlaXQ="
+  msr_keycloak_client_secret: "Y2hhbmdlaXQ="
+  msr_ledger_address: "MHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+  msr_ledger_credentials: "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA=="
+---
+# Source: mcp/charts/mc-keycloak/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mc-keycloak-config
+data:
+  keycloak_url: "http://localhost/mcp"
+  keycloak_auth_url: "http://localhost/mcp/auth"
+  keycloak_admin_url: "http://localhost/mcp/auth"
+  keycloak_db_type: "postgres"
+  keycloak_db_url: "jdbc:postgresql://localhost/keycloak_mcp"
+  mcp_identity_registry_url: "http://localhost/mcp/mir"
+---
+# Source: mcp/charts/mc-mms-edge-router/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mc-mms-edge-router-config
+data:
+  port: "8080"
+  mrn: ""
+  router_address: wss://my-release-localhost:8080
+---
+# Source: mcp/charts/mc-mms-router/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mc-mms-router-config
+data:
+  port: "8080"
+  port_libp2p: "9000"
+---
+# Source: mcp/charts/mc-service-registry/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mc-service-registry-config
+data:
+  keycloak_url: "http://localhost/mcp"
+  keycloak_realm: "MCP"
+  msr_database_type: "postgresql"
+  msr_database_host: "localhost"
+  msr_database_port: "5432"
+  msr_keycloak_client_id: "mcpsvreg"
+  mcp_identity_registry_api_url: "http://localhost/mcp/mir/oidc/api"
+  msr_ledger_host: "mc-msr-ledger.mcp"
+  msr_ledger_port: "8546"
+---
+# Source: mcp/charts/mcp-management-portal/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-management-portal-config
+data:
+  mcp_portal_keycloak_url: "http://localhost/mcp"
+  mcp_portal_name: "MCP Testbed"
+  mcp_portal_title: "MCP Testbed - Test Environment"
+  mcp_portal_identity_provider_mrn_namespace: "mcp"
+  mcp_portal_identity_registry_url: "https://localhost/mcp/mir"
+  mcp_portal_identity_registry_provider: "Maritime Connectivity Platform"
+  mcp_portal_identity_registry_email: "test@email.org"
+  mcp_portal_service_registry_url: "https://mcp.grad-rrnav.pub/mcp/msr"
+  mcp_portal_service_registry_provider: "Maritime Connectivity Platform"
+  mcp_portal_service_registry_email: "test@email.org"
+  mcp_portal_management_portal_provider: "Maritime Connectivity Platform"
+  mcp_portal_management_portal_email: "test@email.org"
+---
+# Source: mcp/charts/mc-identity-registry/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mc-identity-registry
+  labels:
+    helm.sh/chart: mc-identity-registry-0.0.7
+    app.kubernetes.io/name: mc-identity-registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8443
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mc-identity-registry
+    app.kubernetes.io/instance: my-release
+---
+# Source: mcp/charts/mc-keycloak/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mc-keycloak
+  labels:
+    helm.sh/chart: mc-keycloak-0.0.7
+    app.kubernetes.io/name: mc-keycloak
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  
+  ports:
+    - port: 8090
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mc-keycloak
+    app.kubernetes.io/instance: my-release
+  externalIPs: [10.0.1.42]
+---
+# Source: mcp/charts/mc-mms-edge-router/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mc-mms-edge-router
+  labels:
+    helm.sh/chart: mc-mms-edge-router-0.0.1
+    app.kubernetes.io/name: mc-mms-edge-router
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9000
+      targetPort: libp2p
+      protocol: TCP
+      name: libp2p
+  selector:
+    app.kubernetes.io/name: mc-mms-edge-router
+    app.kubernetes.io/instance: my-release
+---
+# Source: mcp/charts/mc-mms-router/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mc-mms-router
+  labels:
+    helm.sh/chart: mc-mms-router-0.0.1
+    app.kubernetes.io/name: mc-mms-router
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9000
+      targetPort: libp2p
+      protocol: TCP
+      name: libp2p
+  selector:
+    app.kubernetes.io/name: mc-mms-router
+    app.kubernetes.io/instance: my-release
+---
+# Source: mcp/charts/mc-msr-ledger/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mc-msr-ledger
+  labels:
+    helm.sh/chart: mc-msr-ledger-0.0.6
+    app.kubernetes.io/name: mc-msr-ledger
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8545
+      targetPort: rpc
+      protocol: TCP
+      name: rpc
+    - port: 8546
+      targetPort: websocket
+      protocol: TCP
+      name: websocket
+  selector:
+    app.kubernetes.io/name: mc-msr-ledger
+    app.kubernetes.io/instance: my-release
+---
+# Source: mcp/charts/mc-service-registry/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mc-service-registry
+  labels:
+    helm.sh/chart: mc-service-registry-0.0.7
+    app.kubernetes.io/name: mc-service-registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8444
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mc-service-registry
+    app.kubernetes.io/instance: my-release
+---
+# Source: mcp/charts/mcp-management-portal/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mcp-management-portal
+  labels:
+    helm.sh/chart: mcp-management-portal-0.0.6
+    app.kubernetes.io/name: mcp-management-portal
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4200
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: mcp-management-portal
+    app.kubernetes.io/instance: my-release
+---
+# Source: mcp/charts/mc-identity-registry/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mc-identity-registry
+  labels:
+    helm.sh/chart: mc-identity-registry-0.0.7
+    app.kubernetes.io/name: mc-identity-registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mc-identity-registry
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: mc-identity-registry-0.0.7
+        app.kubernetes.io/name: mc-identity-registry
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "latest"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: mcp-admin
+      securityContext:
+        {}
+      initContainers:
+        - name: wait-for-mc-keycloak-before-starup
+          image: busybox
+          command:  ["sh", "-c", "until nc -z my-release-mc-keycloak.mcp-0.0.7.tgz 8090 > /dev/null; do echo Waiting for my-release-mc-keycloak.; sleep 2; done;"]
+      containers:
+        - name: mc-identity-registry
+          securityContext:
+            {}
+          image: "ghcr.io/maritimeconnectivity/identityregistry:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8443
+              protocol: TCP
+          livenessProbe:
+            null
+          readinessProbe:
+            null
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /conf
+              name: config-volume
+              readOnly: true
+      volumes:
+        - name: config-volume
+          projected:
+            sources:
+            - secret:
+                items:
+                - key: mir_api_subca_keystore
+                  path: subca-keystore.jks
+                name: mc-identity-registry-secrets
+            - secret:
+                items:
+                - key: mir_api_truststore
+                  path: mcp-truststore.jks
+                name: mc-identity-registry-secrets
+            - secret:
+                items:
+                - key: mir_api_config
+                  path: application.yaml
+                name: mc-identity-registry-secrets
+            - secret:
+                items:
+                - key: mir_api_keycloak_json
+                  path: keycloak.json
+                name: mc-identity-registry-secrets
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: mcp/charts/mc-keycloak/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mc-keycloak
+  labels:
+    helm.sh/chart: mc-keycloak-0.0.7
+    app.kubernetes.io/name: mc-keycloak
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mc-keycloak
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: mc-keycloak-0.0.7
+        app.kubernetes.io/name: mc-keycloak
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "latest"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: mcp-admin
+      securityContext:
+        {}
+      containers:
+        - name: mc-keycloak
+          securityContext:
+            {}
+          image: "ghcr.io/maritimeconnectivity/mcpkeycloakspi:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            null
+          readinessProbe:
+            null
+          resources:
+            {}
+          env:
+            - name: KC_HOSTNAME_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: keycloak_auth_url
+                  name: mc-keycloak-config
+            - name: KC_HOSTNAME_ADMIN_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: keycloak_admin_url
+                  name: mc-keycloak-config
+            - name: KC_DB
+              valueFrom:
+                configMapKeyRef:
+                  key: keycloak_db_type
+                  name: mc-keycloak-config
+            - name: KC_DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: keycloak_db_url
+                  name: mc-keycloak-config
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: keycloak_db_username
+                  name: mc-keycloak-secrets
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: keycloak_db_password
+                  name: mc-keycloak-secrets
+            - name: KEYCLOAK_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  key: keycloak_admin
+                  name: mc-keycloak-secrets
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: keycloak_admin_password
+                  name: mc-keycloak-secrets
+            - name: KC_SPI_EVENTS_LISTENER_MCP_EVENT_LISTENER_SERVER_ROOT
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_identity_registry_url
+                  name: mc-keycloak-config
+            - name: KC_SPI_EVENTS_LISTENER_MCP_EVENT_LISTENER_KEYSTORE_PATH
+              value: /mc-eventprovider-conf/idbroker-updater.jks
+            - name: KC_SPI_EVENTS_LISTENER_MCP_EVENT_LISTENER_KEYSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: keycloak_keystore_password
+                  name: mc-keycloak-secrets
+            - name: KC_SPI_EVENTS_LISTENER_MCP_EVENT_LISTENER_TRUSTSTORE_PATH
+              value: /mc-eventprovider-conf/truststore.jks
+            - name: KC_SPI_EVENTS_LISTENER_MCP_EVENT_LISTENER_TRUSTSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: keycloak_truststore_password
+                  name: mc-keycloak-secrets
+          volumeMounts:
+            - mountPath: /mc-eventprovider-conf
+              name: config-volume
+              readOnly: true
+      volumes:
+        - name: config-volume
+          projected:
+            sources:
+            - secret:
+                items:
+                - key: keycloak_truststore
+                  path: truststore.jks
+                name: mc-keycloak-secrets
+            - secret:
+                items:
+                - key: keycloak_idbroker_updater
+                  path: idbroker-updater.jks
+                name: mc-keycloak-secrets
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: mcp/charts/mc-mms-edge-router/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mc-mms-edge-router
+  labels:
+    helm.sh/chart: mc-mms-edge-router-0.0.1
+    app.kubernetes.io/name: mc-mms-edge-router
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mc-mms-edge-router
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: mc-mms-edge-router-0.0.1
+        app.kubernetes.io/name: mc-mms-edge-router
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "latest"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: mc-mms-edge-router
+          securityContext:
+            {}
+          image: "ghcr.io/gla-rad/mc-mms-edgerouter:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: libp2p
+              containerPort: 9000
+              protocol: TCP
+          livenessProbe:
+            null
+          readinessProbe:
+            null
+          resources:
+            {}
+          env:
+            - name: CLIENT_CERT_PATH
+              value: /conf/cc.crt
+            - name: CLIENT_CERT_KEY_PATH
+              value: /conf/ccpk.key
+            - name: CERT_PATH
+              value: /conf/tls.crt
+            - name: CERT_KEY_PATH
+              value: /conf/tlspk.key
+            - name: CLIENT_CA
+              value: /conf/ca-chain.pem
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: port
+                  name: mc-mms-edge-router-config
+            - name: MRN
+              valueFrom:
+                configMapKeyRef:
+                  key: mrn
+                  name: mc-mms-edge-router-config
+            - name: RADDR
+              valueFrom:
+                configMapKeyRef:
+                  key: router_address
+                  name: mc-mms-edge-router-config
+          volumeMounts:
+            - mountPath: /conf
+              name: config-volume
+              readOnly: true
+      volumes:
+        - name: config-volume
+          projected:
+            sources:
+            - secret:
+                items:
+                - key: client_certificate
+                  path: cc.crt
+                name: mc-mms-edge-router-secrets
+            - secret:
+                items:
+                - key: client_certificate_key
+                  path: ccpk.key
+                name: mc-mms-edge-router-secrets
+            - secret:
+                items:
+                - key: certificate
+                  path: tls.crt
+                name: mc-mms-edge-router-secrets
+            - secret:
+                items:
+                - key: certificate_key
+                  path: tlspk.key
+                name: mc-mms-edge-router-secrets
+            - secret:
+                items:
+                - key: client_ca
+                  path: ca-chain.pem
+                name: mc-mms-edge-router-secrets
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: mcp/charts/mc-mms-router/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mc-mms-router
+  labels:
+    helm.sh/chart: mc-mms-router-0.0.1
+    app.kubernetes.io/name: mc-mms-router
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mc-mms-router
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: mc-mms-router-0.0.1
+        app.kubernetes.io/name: mc-mms-router
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "latest"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: mc-mms-router
+          securityContext:
+            {}
+          image: "ghcr.io/gla-rad/mc-mms-router:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: libp2p
+              containerPort: 9000
+              protocol: TCP
+          livenessProbe:
+            null
+          readinessProbe:
+            null
+          resources:
+            {}
+          env:
+            - name: PRIVKEY
+              value: /conf/pk.key
+            - name: CERT_PATH
+              value: /conf/tls.crt
+            - name: CERT_KEY_PATH
+              value: /conf/tlspk.key
+            - name: CLIENT_CA
+              value: /conf/ca-chain.pem
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: port
+                  name: mc-mms-router-config
+            - name: LIBP2P_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: port_libp2p
+                  name: mc-mms-router-config
+          volumeMounts:
+            - mountPath: /conf
+              name: config-volume
+              readOnly: true
+      volumes:
+        - name: config-volume
+          projected:
+            sources:
+            - secret:
+                items:
+                - key: private_key
+                  path: pk.key
+                name: mc-mms-router-secrets
+            - secret:
+                items:
+                - key: certificate
+                  path: tls.crt
+                name: mc-mms-router-secrets
+            - secret:
+                items:
+                - key: certificate_key
+                  path: tlspk.key
+                name: mc-mms-router-secrets
+            - secret:
+                items:
+                - key: client_ca
+                  path: ca-chain.pem
+                name: mc-mms-router-secrets
+            - secret:
+                items:
+                - key: beacons
+                  path: beacons.txt
+                name: mc-mms-router-secrets
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: mcp/charts/mc-msr-ledger/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mc-msr-ledger
+  labels:
+    helm.sh/chart: mc-msr-ledger-0.0.6
+    app.kubernetes.io/name: mc-msr-ledger
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mc-msr-ledger
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: mc-msr-ledger-0.0.6
+        app.kubernetes.io/name: mc-msr-ledger
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "latest"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: mcp-admin
+      securityContext:
+        {}
+      containers:
+        - name: mc-msr-ledger
+          securityContext:
+            {}
+          image: "mcpnet/msr-ledger-client:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: rpc
+              containerPort: 8545
+              protocol: TCP
+            - name: websocket
+              containerPort: 8546
+              protocol: TCP
+          livenessProbe:
+            null
+          readinessProbe:
+            null
+          resources:
+            {}
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: mcp/charts/mc-service-registry/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mc-service-registry
+  labels:
+    helm.sh/chart: mc-service-registry-0.0.7
+    app.kubernetes.io/name: mc-service-registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mc-service-registry
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: mc-service-registry-0.0.7
+        app.kubernetes.io/name: mc-service-registry
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "latest"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: mcp-admin
+      securityContext:
+        {}
+      initContainers:
+        - name: wait-for-mc-keycloak-before-starup
+          image: busybox
+          command:  ["sh", "-c", "until nc -z my-release-mc-keycloak.mcp-0.0.7.tgz 8090 > /dev/null; do echo Waiting for my-release-mc-keycloak.; sleep 2; done;"]
+      containers:
+        - name: mc-service-registry
+          securityContext:
+            {}
+          image: "ghcr.io/maritimeconnectivity/serviceregistry:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8444
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /mcp/msr/actuator/health/liveness
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /mcp/msr/actuator/health/readiness
+              port: http
+          resources:
+            {}
+          env:
+            - name: DATABASE_SERVER_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  key: msr_database_type
+                  name: mc-service-registry-config
+            - name: DATABASE_SERVER_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: msr_database_host
+                  name: mc-service-registry-config
+            - name: DATABASE_SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: msr_database_port
+                  name: mc-service-registry-config
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: msr_database_username
+                  name: mc-service-registry-secrets
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: msr_database_password
+                  name: mc-service-registry-secrets
+            - name: KEYCLOAK_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: keycloak_url
+                  name: mc-service-registry-config
+            - name: KEYCLOAK_CLIENT_REALM
+              valueFrom:
+                configMapKeyRef:
+                  key: keycloak_realm
+                  name: mc-service-registry-config
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: msr_keycloak_client_id
+                  name: mc-service-registry-config
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: msr_keycloak_client_secret
+                  name: mc-service-registry-secrets
+            - name: MCP_MIR_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_identity_registry_api_url
+                  name: mc-service-registry-config
+            - name: MCP_LEDGER_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: msr_ledger_host
+                  name: mc-service-registry-config
+            - name: MCP_LEDGER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: msr_ledger_port
+                  name: mc-service-registry-config
+            - name: MCP_LEDGER_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  key: msr_ledger_address
+                  name: mc-service-registry-secrets
+            - name: MCP_LEDGER_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  key: msr_ledger_credentials
+                  name: mc-service-registry-secrets
+            - name: CONTEXT_PATH
+              value: /mcp/msr
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: mcp/charts/mcp-management-portal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-mcp-management-portal
+  labels:
+    helm.sh/chart: mcp-management-portal-0.0.6
+    app.kubernetes.io/name: mcp-management-portal
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-management-portal
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: mcp-management-portal-0.0.6
+        app.kubernetes.io/name: mcp-management-portal
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/version: "latest"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: mcp-admin
+      securityContext:
+        {}
+      initContainers:
+        - name: wait-for-mc-identity-registry-before-starup
+          image: busybox
+          command:  ["sh", "-c", "until nc -z my-release-mc-identity-registry.mcp-0.0.7.tgz 8443 > /dev/null; do echo Waiting for my-release-mc-identity-registry.; sleep 2; done;"]
+      containers:
+        - name: mcp-management-portal
+          securityContext:
+            {}
+          image: "glarad/mcp-management-portal:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 4200
+              protocol: TCP
+          livenessProbe:
+            null
+          readinessProbe:
+            null
+          resources:
+            {}
+          env:
+            - name: ENVIRONMENT_TITLE
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_title
+                  name: mcp-management-portal-config
+            - name: MANAGEMENT_PORTAL_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_name
+                  name: mcp-management-portal-config
+            - name: IDENTITY_PROVIDER_MRN_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_identity_provider_mrn_namespace
+                  name: mcp-management-portal-config
+            - name: KEYCLOAK_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_keycloak_url
+                  name: mcp-management-portal-config
+            - name: IDENTITY_REGISTRY_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_identity_registry_url
+                  name: mcp-management-portal-config
+            - name: IDENTITY_REGISTRY_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_identity_registry_provider
+                  name: mcp-management-portal-config
+            - name: IDENTITY_REGISTRY_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_identity_registry_email
+                  name: mcp-management-portal-config
+            - name: SERVICE_REGISTRY_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_service_registry_url
+                  name: mcp-management-portal-config
+            - name: SERVICE_REGISTRY_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_service_registry_provider
+                  name: mcp-management-portal-config
+            - name: SERVICE_REGISTRY_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_service_registry_email
+                  name: mcp-management-portal-config
+            - name: MANAGEMENT_PORTAL_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_management_portal_provider
+                  name: mcp-management-portal-config
+            - name: MANAGEMENT_PORTAL_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  key: mcp_portal_management_portal_email
+                  name: mcp-management-portal-config
+            - name: APP_BASE_HREF
+              value: /mcp/portal/
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# Source: mcp/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-mcp
+  labels:
+    helm.sh/chart: mcp-0.0.7
+    app.kubernetes.io/name: mcp
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "localhost"
+      http:
+        paths:
+          - path: /mcp/(auth)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mc-keycloak
+                port:
+                  number: 8090
+          - path: /(mcp/mir)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mc-identity-registry
+                port:
+                  number: 8443
+          - path: /(mcp/msr)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mc-service-registry
+                port:
+                  number: 8444
+          - path: /(mcp/mms)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mc-mms-router
+                port:
+                  number: 8080
+          - path: /(mcp/mms-p2p)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mc-mms-router
+                port:
+                  number: 9000
+          - path: /(mcp/mms-edge)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mc-mms-edgerouter
+                port:
+                  number: 8080
+          - path: /(mcp/mms-edge-p2p)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mc-mms-edgerouter
+                port:
+                  number: 9000
+          - path: /mcp/ledger()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mc-msr-ledger
+                port:
+                  number: 8545
+          - path: /mcp/portal()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-mcp-management-portal
+                port:
+                  number: 4200
+---
+# Source: mcp/charts/mc-identity-registry/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mc-identity-registry-test-connection"
+  labels:
+    helm.sh/chart: mc-identity-registry-0.0.7
+    app.kubernetes.io/name: mc-identity-registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mc-identity-registry:8443']
+  restartPolicy: Never
+---
+# Source: mcp/charts/mc-keycloak/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mc-keycloak-test-connection"
+  labels:
+    helm.sh/chart: mc-keycloak-0.0.7
+    app.kubernetes.io/name: mc-keycloak
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mc-keycloak:8090']
+  restartPolicy: Never
+---
+# Source: mcp/charts/mc-mms-edge-router/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mc-mms-edge-router-test-connection"
+  labels:
+    helm.sh/chart: mc-mms-edge-router-0.0.1
+    app.kubernetes.io/name: mc-mms-edge-router
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mc-mms-edge-router:8080']
+  restartPolicy: Never
+---
+# Source: mcp/charts/mc-mms-router/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mc-mms-router-test-connection"
+  labels:
+    helm.sh/chart: mc-mms-router-0.0.1
+    app.kubernetes.io/name: mc-mms-router
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mc-mms-router:8080']
+  restartPolicy: Never
+---
+# Source: mcp/charts/mc-msr-ledger/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mc-msr-ledger-test-connection"
+  labels:
+    helm.sh/chart: mc-msr-ledger-0.0.6
+    app.kubernetes.io/name: mc-msr-ledger
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mc-msr-ledger:']
+  restartPolicy: Never
+---
+# Source: mcp/charts/mc-service-registry/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mc-service-registry-test-connection"
+  labels:
+    helm.sh/chart: mc-service-registry-0.0.7
+    app.kubernetes.io/name: mc-service-registry
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mc-service-registry:8444']
+  restartPolicy: Never
+---
+# Source: mcp/charts/mcp-management-portal/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-mcp-management-portal-test-connection"
+  labels:
+    helm.sh/chart: mcp-management-portal-0.0.6
+    app.kubernetes.io/name: mcp-management-portal
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-mcp-management-portal:4200']
+  restartPolicy: Never

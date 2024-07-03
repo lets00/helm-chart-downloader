@@ -1,0 +1,256 @@
+---
+# Source: healer/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: healer
+  labels:
+    helm.sh/chart: healer-1.0.1
+    app: healer
+    app.kubernetes.io/instance: healer
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+---
+# Source: healer/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: healer
+  labels:
+    helm.sh/chart: healer-1.0.1
+    app: healer
+    app.kubernetes.io/instance: healer
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+data:
+  application.yaml: |
+    logging:
+      level:
+        com.sqream: INFO
+---
+# Source: healer/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: healer-role
+  labels:
+    helm.sh/chart: healer-1.0.1
+    app: healer
+    app.kubernetes.io/instance: healer
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+---
+# Source: healer/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: healer-pods-delete
+  labels:
+    helm.sh/chart: healer-1.0.1
+    app: healer
+    app.kubernetes.io/instance: healer
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: healer-role
+subjects:
+  - kind: ServiceAccount
+    name: healer
+    namespace: healer-1.0.1.tgz
+---
+# Source: healer/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: healer
+  labels:
+    helm.sh/chart: healer-1.0.1
+    app: healer
+    app.kubernetes.io/instance: healer
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  type: ClusterIP
+  ports: 
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: healer
+    app.kubernetes.io/instance: healer
+---
+# Source: healer/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healer
+  labels:
+    helm.sh/chart: healer-1.0.1
+    app: healer
+    app.kubernetes.io/instance: healer
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: healer
+      app.kubernetes.io/instance: healer
+  template:
+    metadata:
+      labels:
+        app: healer
+        app.kubernetes.io/instance: healer
+    spec:
+      imagePullSecrets:
+      serviceAccountName: healer
+      securityContext:
+        {}
+      containers:
+        - name: healer
+          securityContext:
+            {}
+          image: "nexus.sq.l:16000/repository/container-replace-repo/healer:replace_tag"
+          imagePullPolicy: IfNotPresent
+          ports:
+          - name: http
+            containerPort: 8080
+            protocol: TCP
+          envFrom:
+            - secretRef:
+                name: 'healer-secret'
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xmx1524m -Xms512m"
+          command:
+            - sh
+            - -c
+            - java $JAVA_OPTS -jar app.jar --spring.config.additional-location=file:/app/application.yaml
+          args:
+          livenessProbe:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - curl -X GET http://`hostname -i`:8080/actuator/health/liveness || (APISERVER='https://kubernetes.default.svc'
+                && SERVICEACCOUNT='/var/run/secrets/kubernetes.io/serviceaccount' && NAMESPACE=$(cat
+                ${SERVICEACCOUNT}/namespace) && TOKEN=$(cat ${SERVICEACCOUNT}/token) && CACERT="${SERVICEACCOUNT}/ca.crt"
+                && header_str="Authorization:"" Bearer ${TOKEN}" && if [ ! -z $POD_NAME ]; then
+                curl --silent --cacert "${CACERT}" --header "${header_str}" -X DELETE "${APISERVER}/api/v1/namespaces/$NAMESPACE/pods/$POD_NAME/";
+                fi )
+            failureThreshold: 10
+            initialDelaySeconds: 60
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: actuator/health/liveness
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: "1.5"
+              memory: 2048Mi
+            requests:
+              cpu: "0.5"
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/sqream/config
+            - name: config-volume
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: sqream-db-configmap
+        - name: config-volume
+          configMap:
+            name: healer
+      nodeSelector:
+      affinity:
+      tolerations:
+---
+# Source: healer/templates/secret.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: healer-secret
+  labels:
+    helm.sh/chart: healer-1.0.1
+    app: healer
+    app.kubernetes.io/instance: healer
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: local-secrets
+    kind: ClusterSecretStore
+  target:
+    name: healer-secret
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      metadata:
+        annotations:
+          {}
+        labels:
+          helm.sh/chart: healer-1.0.1
+          app: healer
+          app.kubernetes.io/instance: healer
+          app.kubernetes.io/version: "1.16.0"
+          app.kubernetes.io/managed-by: Helm
+          monitor: "true"
+      data:
+        REDIS_HOST: '{{ .REDIS_IP_ADDRESS }}'
+        REDIS_PORT: '{{ .REDIS_PORT }}'
+  dataFrom:
+    - extract:
+        key: redis-managed-instance
+---
+# Source: healer/templates/servicePodMonitor.yaml
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: healer
+  labels:
+    helm.sh/chart: healer-1.0.1
+    app: healer
+    app.kubernetes.io/instance: healer
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  selector:
+    matchLabels:
+      app: healer
+      app.kubernetes.io/instance: healer
+  endpoints:
+  - port: http
+    path: /actuator/prometheus
+    interval: 30s

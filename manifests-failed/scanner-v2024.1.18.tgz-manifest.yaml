@@ -1,0 +1,2140 @@
+---
+# Source: scanner/templates/workspace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+  name: scanner-workspace
+---
+# Source: scanner/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: scanner/templates/apiregistration.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-scanner-apiserver-cert
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+type: kubernetes.io/tls
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCakNDQWU2Z0F3SUJBZ0lSQU1sZFpLNTRvWTNCeDJNdi9CWTZ2SDh3RFFZSktvWklodmNOQVFFTEJRQXcKRFRFTE1Ba0dBMVVFQXhNQ1kyRXdIaGNOTWpRd05qSXdNVFExT0RRd1doY05NelF3TmpFNE1UUTFPRFF3V2pBTgpNUXN3Q1FZRFZRUURFd0pqWVRDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTDNuCnJ2dU5XQmFkQUpTb1dYOElTSW5jM1VYWGtLSVFrOGpYRG5rMStiUmcxMkVXc3Y0SUY5WW1HMm45R1puSVlVS2EKSzlqR3RlYlhYc09KeWo5ckt5aFJSS3JqTC9kQUFoSWc3T2IwTTBZOTRYaU1hNzdyODMzWWxzTHlpbHIvRHRoVAppa3RsTzkzb0ZDVllIK0trb2ExNVl1dVhLMXI3Y1E2b1gyMEhTRk13WGZjTll4QzVBL2d0OG4vazF0TXF4bVloCjlGVWR6a0xBYmcwVDgwZ29Nc1VVY2thYmRmU3VoZWdlV2tjV3M4RmllSjBBZklKU1lmNTZuOExDeERtQWZvYVAKOXYzUy94Sit1L3U3ZXlock4ybFByR2NUMlhQSW1KdTRRU28wSnZKTytZdE56TWtxSlVLYnhkb05Zd3hTZGdxcgora2Z3TExQN0s5NHhOaEpHWlBzQ0F3RUFBYU5oTUY4d0RnWURWUjBQQVFIL0JBUURBZ0trTUIwR0ExVWRKUVFXCk1CUUdDQ3NHQVFVRkJ3TUJCZ2dyQmdFRkJRY0RBakFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQjBHQTFVZERnUVcKQkJRY0lMdGs3OXZWY0dTSW1QSTQ5eTdseUppejd6QU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FRRUFrSnZRT1JhdwpqSnRUSXpkb2d2clovcG9rdThjblhET0hLaUVodkRwSXAyK0dYTy9ySG9NYmM1OHNRbTJ5dDd5WDlRNTlRSEhtCjhXMnpkdS9BckJ2K3hmR2phTDUvUy9LZGc0Wkw1ZTZWNHFuamhiWDVTT2lwenJpWldzVThjRHZTTDFOQVdudjIKaGp5WGdLamlwb0RZU25LdG1tdkJ3QlhhdEw1SmlrTnNNS00rMyt2THhhSW93K2R6TVpFckRNZ0dZaDJXVUZVRwpSdjg1TlNvYW55S3dWRVFETWdFbjk0N2tGTnZLTDJYQ1QyRWRwYVdqLy9tL1ptRTU3MUIyT1VEeTJySlpOYmhJCkM5bWxreGVVRG5LbUQ3UUl4U1YwOEpPZGNZeGg5REdXYXhQaE82QnhxaHFQNC9TaDVOSzZVakpNc1VFYWZMZWUKZU5rakd1aHVaWG8yUXc9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURlekNDQW1PZ0F3SUJBZ0lRSDVSR0J5K3BlZ3plSkJiQmZ1SEJOakFOQmdrcWhraUc5dzBCQVFzRkFEQU4KTVFzd0NRWURWUVFERXdKallUQWVGdzB5TkRBMk1qQXhORFU0TkRCYUZ3MHpOREEyTVRneE5EVTROREJhTUIweApHekFaQmdOVkJBTVRFbTE1TFhKbGJHVmhjMlV0YzJOaGJtNWxjakNDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFECmdnRVBBRENDQVFvQ2dnRUJBTUhLejgvUGRIQ0xJWEcxNzltSlpiUGlJMVF5SVNVeXhBQ054Lzd0N1ByZytEVkMKdjJnQ2JnTWVVeGFKelhCZU9qb1J3emRpOThVV3RnUzFUcXpqblFtT0Z3ckNNQ2k5WlNhRkNkNU1GSFlsUlhyeQovS3dyMGtJbDNYbEJpd29rVkJrajBsRVVtWFRqdCsrWTd1bGRjdUVmZXljbzdERkhqUVVYUXljVDF1c3d3Nk5pCitDVHVXbFlxTEdMZWZkZEYySmcraVl5RU9mbjVPSWFtUUVYdTVaUXhjcENWMEFsZFpFazhPSk1EL0IxVWdVZ3gKYmF1NnJZdVY4V0FiYlBwQkZDbGJqWVlTYWhPODhBTVFsQ0d2L2dMNGVseHNpbjRVVWh3WlovajgveVJLNy9nbApmbksyZU9yYlJDdWlnMG5NRjlyanlGWGdHUUtXb2NRZTBweGNiT1VDQXdFQUFhT0J4akNCd3pBT0JnTlZIUThCCkFmOEVCQU1DQmFBd0hRWURWUjBsQkJZd0ZBWUlLd1lCQlFVSEF3RUdDQ3NHQVFVRkJ3TUNNQXdHQTFVZEV3RUIKL3dRQ01BQXdId1lEVlIwakJCZ3dGb0FVSENDN1pPL2IxWEJraUpqeU9QY3U1Y2lZcys4d1l3WURWUjBSQkZ3dwpXb0lwYlhrdGNtVnNaV0Z6WlMxelkyRnVibVZ5TG5OallXNXVaWEl0ZGpJd01qUXVNUzR4T0M1MFozcUNMVzE1CkxYSmxiR1ZoYzJVdGMyTmhibTVsY2k1elkyRnVibVZ5TFhZeU1ESTBMakV1TVRndWRHZDZMbk4yWXpBTkJna3EKaGtpRzl3MEJBUXNGQUFPQ0FRRUFlWlZQMFE3SW5RdmQ1VXdOZ1RqUWRBbzJsVVFsTVFBc1hVSkZCNTBoVGx3UApDbFBaZWtRbG1wbmwrTTIrNkRRaFB2UmVPZU1EcjE5TEkrTlNmUmhhL3BYNHlHSC9zbk1IaVFOT2lsdEJhbjRSCkpxQ2l0dzRiT1liOTdUUFhKd3ZWVDVZZkVVRE1UbDVzS04vUmZhU0ROM2RjRmRNQThjVk5GQUNqMnZZRW1XZjAKbFNLb05tRUNVd2xGTGQya21Zd2pYRThQM0NTV1VCVTNnSnM2K1RTOE56ZXV2WmttN1pnNlJDcFFuMWhvaloraApJRnFBY2V4Zkl1REE2eUhkdzVETnpCbnQ5VDJVdjVhUGR6d1phTkl3RENyUGJubTh2eXhrZE9DVWJhOTdCM3loCjY4OUxiTGtQWGdpcDZwNHJGeGNUbk5EQXExb1ZpRlQrNWJhblZ4Y1pJdz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcGdJQkFBS0NBUUVBd2NyUHo4OTBjSXNoY2JYdjJZbGxzK0lqVkRJaEpUTEVBSTNIL3Uzcyt1RDROVUsvCmFBSnVBeDVURm9uTmNGNDZPaEhETjJMM3hSYTJCTFZPck9PZENZNFhDc0l3S0wxbEpvVUoza3dVZGlWRmV2TDgKckN2U1FpWGRlVUdMQ2lSVUdTUFNVUlNaZE9PMzc1anU2VjF5NFI5N0p5anNNVWVOQlJkREp4UFc2ekREbzJMNApKTzVhVmlvc1l0NTkxMFhZbUQ2SmpJUTUrZms0aHFaQVJlN2xsREZ5a0pYUUNWMWtTVHc0a3dQOEhWU0JTREZ0CnE3cXRpNVh4WUJ0cytrRVVLVnVOaGhKcUU3endBeENVSWEvK0F2aDZYR3lLZmhSU0hCbG4rUHovSkVyditDVisKY3JaNDZ0dEVLNktEU2N3WDJ1UElWZUFaQXBhaHhCN1NuRnhzNVFJREFRQUJBb0lCQVFDdW0zYjhiWllqWlNpQQpGUWFEd1lsU041blBYYytCZmFrZU9xRU5jQUNLMXpLc2duU0ZXVk1ZR2pXUTVCNm5kUzhQYlR1d1pzcUoyUG10CmFsTDE4YXRubFkvclVLWWx2dWdwZWNzM2NPTXF4RkJEQkRablJxQ09teUZmQkpBclZpb3o4Sk9xSEY1YjlHV2gKU3ZGUWNMTjJaWEFJQzVZc25LUlNCdkNwZi9Xd044N251NitaK1lZcXRJQ2JIWjRQeDB1L2hBa2cwOWdJWG1DMQpXVnZ4UHNkWkV5dGZBbzhKbCthM0ZFTUdKNnNuVnlTdDdjNGJuUlk1MEc5Nm9XOC9DTDhMZVNhQmJoSnlTQ0dFClF0aVpmVnpiTW44dWI2aTJDZk1PQnBwYVgxKzhFODY5ZExKVHZlU2FBVkhLZXUwVW50UnM4bElUeWorb0V5NkIKY3VvSHFPSWhBb0dCQVBqUFBKR0kyRjlibVRSQ25OYlhhWFZNc1duL2N1YzFrUU00aW1JWWh3WUpDM3BBRWF2cgpkY0tjTUNNei92UFJNeG80dVZYMm4xWkhFZGcyTHJSNEw2ODliWG8rOVBQNUQ3QXZJV1A0OVIyc1BwNDlUZnJ4CjNPYzNqbXdNRFBWZUtFbUFSZzE0M3pDai8wTmszbWN3b0EzcWZGZnpJNHJiTU5uMHphRkhsclpaQW9HQkFNZGsKaXF3a1hSMWUwSlM1MjZ1ZGE0Nm9qeVVqMDQycXMyZTBncU1KS2NWSHlxU3BtOHlQQzZsYzJOajByK04wakVkQgplS2Z5dVlrTkg5SFRJNjVRUlpNVmRCUG1TbDBLTWduandjUlZGTU8vczVGTUovRWQ1M1d0NVpyZGQwSWZrVTZ2CkxXb0M3REM5amNmV0hWSWgxYUpyZHdtZ3d1NUNYbUxiazJlbzMvRnRBb0dCQUt4RnlUazNXQ0dHYWFpZXFydXkKd09rZjVnTnZoTjZEMzFrc2o5eG1BUzl6bWNmV2pxWEx6V2ltL2ttUm1laTFvNzEzSXhSYlEyM1luWWxuMHFUUQpScXYrUzB3R1JWS2IwM240MkJUQmJ1NVJzYldjMnQ1ekVySGhiTEp4RVpQZTB1UTVkY2VrTmwwV1lBc0l6MWtCCmVRREpwN2k1dDVWUU9SM2dlM1E4L2lSWkFvR0JBS2Y2d0FqK0thUVF1TkJUTkFtRWVaU1oxTjZKTERUeFZtdEwKMjdMV2lXWTJjVFgvM2MyYnhVdE5lVEp1RWJBaUEvd1Q0RDQ5Y3FsUGNUc29FYXRNM1JCb3huM3RTVURRMGc4YQozYWMxdG1TakgvaU1uQ201ODhGa1cwYjR4UHZqOUZyQm9oVHBtV29HaDJlUHJ1dityU2hFT09qWGt1Ris4RjJBCmR0S2hwdWlSQW9HQkFMQUNJZVkvYUJxRnp1c2Z3bjlJMVZtQndPNWU2SVhoK3JGSEc1QW5hS201T1V6UisySXQKbVlmU2ZuZm1OLzh3N1F1eEt3R1pkdFBNanlOMlhDYVpYQWlBZWFlS0hGeE01NytZMkIzUTNKUjRvUmJuc2R4Mgo2UEZKZStEa1NzY2lKYVUza2ZzR3BlTldQTHNWbWU1WW1UYnNRWFEwRzlRTHFpcUdIdUgwYWVHRQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+# Source: scanner/templates/etcd-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-scanner-etcd-cert
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+type: kubernetes.io/tls
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lSQU9DY1JGMDZtNTNPcXljempwVlJGUVl3RFFZSktvWklodmNOQVFFTEJRQXcKRWpFUU1BNEdBMVVFQXhNSFpYUmpaQzFqWVRBZUZ3MHlOREEyTWpBeE5EVTROREJhRncwek5EQTJNVGd4TkRVNApOREJhTUJJeEVEQU9CZ05WQkFNVEIyVjBZMlF0WTJFd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3CmdnRUtBb0lCQVFESGRSOWtwdE1oOElkZmhiYzJkbFdNT1d0c2NTcU8vYTZoWi9Ub25NK1dIRk5QcCt4WDB3WXgKaTlGUWFSZHBzR0FoV1FScDljM3R2SHppSUFlZTFRMW1oVjZoaVQ5RnI0WklGUnlTdlJnN3RUcDNTdGx4T05mTApNdTFUUHROV3pFWnA3b2V0SjJHcUxjY2U4UUUrMkF3dDFKSUJ2YXJ5ZGNwemgvamYyUDZ2Y1JRTkcxdDBFdFVCCmFoUW94M0x6bmdIeXlYSlhWaExZWUF6a0ZZTnlMQm40RUw2a1U4cjdGRnRXU0FmSFk4Mnc2TUk5SE9aT1dkSkEKTTQ0TlR6RGptWDFWWHdBYnNGWG1HWDhPVjFESUZYb0MwSmg3WEhhK1daRDhtVklZazM5UG00ZXJqR2llaVZJcgpLTUFPa3loL1g4eGV2dGlzWHZtdm5WdFNRa09KZDFMUkFnTUJBQUdqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDCnBEQWRCZ05WSFNVRUZqQVVCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVWlSU2ZvcjFwZ2ozaFErb0pQY01Ja09Tb1o3NHdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUIzOWZtaEVsMWxCNjVqSDhEeWU4WU5ZOHNqazJhWGJXMWhjbzJUc1llQ3JTdkozMW55S2s4ZXNjSHhCCmd4T29LR0hBdkVMLzczVmFPVXV5d2dhbUpkMkxlWksyTllmMmk4ZVJZMFNkWDkwcTJ3dk5QVDZTZnZKZ1VpbUoKYmV6OW1wR2FxeGxpU2xRSDBtUjNZRnlScWFEVlhBYklxdi8rV0RXRzFCOXhNZnNWV2llVytoMGZ1NmhWOXFRaApoYVBWQ3c4aFlpeHcvYlJxMitSSmpGamlhZlRXSlBBQ0VRNmdhV0x0V3J3QlhXMFVwOUVlWUZKMTUxUTI3OEdHCmhBaW5QckdtdEowUzI1VzhJamdQU3RzL0xOL2hhOVdDdkxZQmlYZlJMR3pTZnRVNGZKRWZPaHFLUnNEQUd3eWIKTFZlM2pmRlF6RXJ3dTVkcW5La1pqcXpZVys0PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUROVENDQWgyZ0F3SUJBZ0lRUWR3SHl1bDVJWEhLSHQrakVLbGFaREFOQmdrcWhraUc5dzBCQVFzRkFEQVMKTVJBd0RnWURWUVFERXdkbGRHTmtMV05oTUI0WERUSTBNRFl5TURFME5UZzBNRm9YRFRNME1EWXhPREUwTlRnMApNRm93SFRFYk1Ca0dBMVVFQXhNU2JYa3RjbVZzWldGelpTMXpZMkZ1Ym1WeU1JSUJJakFOQmdrcWhraUc5dzBCCkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQXhld0hUck5lUWwzQmRaVEpnK3hIS2ViVHgxZzlQMXVaSEdkUm44WEYKKzViQkcxSkJ1a3pNVFVvUlB5U0R6dnlIUkMrZnB1NHFiVDVsT0c1a1hTSXIzb3JGalV3RWhGYnJWd0w0TG1rLwo2eXo2d1JtK0NRZUN6cTBtMXpWV2YvTitqUHdrTFlLd2luUTRIKzJiVVR2WENiYWdkZmhaTzJNb1VkV1FFK3dYCmdhemxIbUpYREhEbHNsVVZ1MWtkNEd1WTZYU1NDWjZkdnpzaG0wT25NSGpRYkVtT0UrVWpReWVYY0dockZXRVkKcFF6SXNoSmhZRWd4dXF0clNFZno3ZE5KWDBNV2FvOVJDR2k0ZmQxTGxuKzB4NnRDdUNCcHJVYWJha0JHU2NIbQpmODNTSU4yV3kzNzh2aE9EK1pSVFYvRktScC9ZbmpYUEY5VW9YeG5NSDJuRGRRSURBUUFCbzN3d2VqQU9CZ05WCkhROEJBZjhFQkFNQ0JhQXdIUVlEVlIwbEJCWXdGQVlJS3dZQkJRVUhBd0VHQ0NzR0FRVUZCd01DTUF3R0ExVWQKRXdFQi93UUNNQUF3SHdZRFZSMGpCQmd3Rm9BVWlSU2ZvcjFwZ2ozaFErb0pQY01Ja09Tb1o3NHdHZ1lEVlIwUgpCQk13RVlJSmJHOWpZV3hvYjNOMGh3Ui9BQUFCTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFCbU1acWNaQkRiCm1EMmpuRmRrRDMxL2R1YVh4RUc1ZUpzRVNtcHpUR0VCMGxzYTlFaW1ldkxBTnFBbi9oQ3NBUUcxU3NlamZzYjIKY2xyazlucGdlOXVXVnZXMzN3b3BlRVR5UUpRbHVEMzhZUE5vYXhyMG1JeklMYlNFUEFTUGQxZUVXcGVuUWh5RApKY2R1UmFkOTJtVERTRG1sTTV0NTgyWGNOQjV0V0wwbS94NHp4bm4yeDFzYStTa0E4TUtGV1lDcW1haE1TTTU0Ckd0OW9kMTZyT2IyMlpvM2xsbGpKQ0x0R1MyZFhmcEJvVnY0MlM0SURkUW5Lb3RxWHhhRzhvZ1ZmYUpsQ0NnbnEKTUFDYXM5RTlxY2tESDZ6d29MZWJlSXl0ZlB2d3k1U25Md0JiUmtFdms5STBhTzFtNk40bFpYQ1ZMVFlYN095YgpOTlBVQndrYlhOTm8KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBeGV3SFRyTmVRbDNCZFpUSmcreEhLZWJUeDFnOVAxdVpIR2RSbjhYRis1YkJHMUpCCnVrek1UVW9SUHlTRHp2eUhSQytmcHU0cWJUNWxPRzVrWFNJcjNvckZqVXdFaEZiclZ3TDRMbWsvNnl6NndSbSsKQ1FlQ3pxMG0xelZXZi9OK2pQd2tMWUt3aW5RNEgrMmJVVHZYQ2JhZ2RmaFpPMk1vVWRXUUUrd1hnYXpsSG1KWApESERsc2xVVnUxa2Q0R3VZNlhTU0NaNmR2enNobTBPbk1IalFiRW1PRStValF5ZVhjR2hyRldFWXBReklzaEpoCllFZ3h1cXRyU0VmejdkTkpYME1XYW85UkNHaTRmZDFMbG4rMHg2dEN1Q0JwclVhYmFrQkdTY0htZjgzU0lOMlcKeTM3OHZoT0QrWlJUVi9GS1JwL1lualhQRjlVb1h4bk1IMm5EZFFJREFRQUJBb0lCQUcwU0NXVGhqQXhleG9JWgpvSVBHN2VDMWgvZlBOTkY1bFFNR0hRRkRhRHVoZElHdDd2TFA1N2FnSHFrQlluSHEwRkJQUGxncjM4MmNHUVBrCk1nTHhGZVBwN2J4VUxCa1NIVmN5RjdyYjNaR29rL2RlVEUrRmlCeUZaMllweXFWd2Rra1Rtb3hKL1NnUHErNU0KYnM5eGZxdW5yUDNXQXJhcmlraXV2RnQrTytZRmZZVTJ0ZFNzVzYydkd0K2RySGZsQkk4b0tGclhVYy9JdGw2MgpKbjJNb0JDZ2ZQU2k4T3B5b0JpeVFsSXhESkF5QzBVei93cUw0UTlKYmxJVmdVQ24vb1hJekoyMkNvai9ZMG0yClVkc2ZaRWx3dnRhN3RtSlBENGhaZ0dxdzBOY3R3Y2RTRWQ5SEFuRVdRUzd6VVNwNjlVRUkvNEdkNUNPeStmcDgKVXhaRHdYRUNnWUVBMi9vd3pzd3ZlNTZXWlVXVEl1a0Y3TS9xN2NBRW1YakkwSGdXUDluM2dDT3g0N1U1c3lYUgpPUzE1SHZrbXlqdHVEZmFRVGRZTDFmNTNxU0RCZ0hLTExxbDF0YXkvYVIwZFoxcEFqOFlud3BoK0ZQT3JJaWNIClliOGYwTXdrdmdLTTNmZUVHeHRxTHh3UTZrb2R1dWVjQi9kNU1qSkIzNFA1dE12MmtwLy9zbHNDZ1lFQTVsVSsKSUxXOE5ZWStSak9tYkRuUlllWUQyTlUyNndUWkZPUWxEekMzZkNNTWpkYXdZNFFYbXRRVitsWTIyeVlCLzFMcgpOVFNXdVBBSzFXR1g4eHloVmxvNkFvamk3ZG9LdWdKbVBmaitOblBlWWpJcW5pZzN5S0QvVmswSlROYUU2TWpICnJ1Skp6N095a21QZTBoRmdyK3daQWlkYld2OENncGR1VWg1QnFtOENnWUVBcmZxMXlZa1NjT29mdHQ4TkhRcEIKeG1jM1BteWs5cURoNm9kZnlZWmh5clh3aHRFWlhvZ2xidHg1TkRjSUorQlREYllac1lYOS9IVHpQUStNRzBQOApzcDRTVytyUnhKZmpYbyt5Q2tSRnhCR0pmcGF0bmloU0hVdmxKT1dnbGFzOHNIMkh2VXkwY2FmMzlPVkRtRVNBClVvaTNFUzFRampBNk9YVXJnaElMVUlzQ2dZQlIxRWp0TUFOOGRJUGRSdTVDRnN4blhtTlJmbll6U3BhZzBHakcKRzhXa0NZT2xSSGVIODE2N2Q4dVRFMXdMd1ZZR1Vud1RlK3BzSzROOXlWMUZWbytPOFNFWTAyN2psNG9tQ1VJdgpsQzBrUlVmbFZQTkZHdjZ1ZlZ3WldlY0s4RTlwc0NNWTQzWGJuM2k2ZjFhakJOOTN3SVlsK0x1QStZWDN4VHJCClc5Unlhd0tCZ1FETU1XeHlGakZqNmhReWVyOEtubXRQWlZsUXFRakNzUFJMQksvOWNpK3JQcGxzNWZ3THFaTysKZHNoNDFHY2FiOGZOaFNpSVdOSjg4V1phTVBjaUlTSGp0bmlwTjdpWStZN1pkVlhmY3l0Y3ZyTElKS3lYQ2lQMgovWUdoM2tCMWppZnZJREtJYTUzSGVIVkNSdVRmVERnbDhIUUxFYkJhUmNFRFZEeStBVFY3ZWc9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+# Source: scanner/templates/cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-scanner
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - scanner.appscode.com
+  resources:
+  - "*"
+  verbs: ["*"]
+# Get cluster id
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs: ["get"]
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - statefulsets
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - ""
+  resources:
+  - replicationcontrollers
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs: ["get", "list", "watch", "create", "delete"]
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - serviceaccounts
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs: ["get", "list", "watch", "create", "patch", "delete"]
+# allow file server paths
+- nonResourceURLs: ["/files", "/files/*"]
+  verbs: ["get", "post"]
+---
+# Source: scanner/templates/scanner-job-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-scanner-job
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- nonResourceURLs:
+  - /files/trivy/db.tar.gz
+  - /files/trivy/javadb.tar.gz
+  - /files/trivy/metadata.json
+  verbs: ["get"]
+- apiGroups:
+  - scanner.appscode.com
+  resources:
+  - imagescanreports
+  - vulnerabilities
+  verbs: ["get", "create", "patch"]
+- apiGroups:
+  - scanner.appscode.com
+  resources:
+  - imagescanreports/status
+  verbs: ["patch"]
+---
+# Source: scanner/templates/apiregistration.yaml
+# to delegate authentication and authorization
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-scanner-apiserver-auth-delegator
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+---
+# Source: scanner/templates/cluster-role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-scanner
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-scanner
+subjects:
+- kind: ServiceAccount
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+---
+# Source: scanner/templates/license-checker-cluster-role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-scanner-license-checker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: appscode:license-checker
+subjects:
+- kind: ServiceAccount
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+---
+# Source: scanner/templates/license-reader-cluster-role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-scanner-license-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: appscode:license-reader
+subjects:
+- kind: ServiceAccount
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+---
+# Source: scanner/templates/scanner-job-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-scanner-job
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-scanner-job
+subjects:
+- kind: Group
+  name: system:serviceaccounts
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: scanner/templates/workspace.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-scanner
+  namespace: scanner-workspace
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - serviceaccounts
+  verbs: ["create", "delete"]
+---
+# Source: scanner/templates/apiregistration.yaml
+# to read the config for terminating authentication
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-scanner-apiserver-extension-server-authentication-reader
+  namespace: kube-system
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: extension-apiserver-authentication-reader
+subjects:
+- kind: ServiceAccount
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+---
+# Source: scanner/templates/workspace.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-scanner
+  namespace: scanner-workspace
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-scanner
+subjects:
+- kind: ServiceAccount
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+---
+# Source: scanner/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  # Port used to expose admission webhook apiserver
+  - name: api
+    port: 443
+    targetPort: 8443
+  - name: telemetry
+    port: 8080
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+---
+# Source: scanner/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-scanner-pods
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  # port needed to create SRV records, SRV records have pod DNS name
+  - name: client
+    port: 2379
+    targetPort: 2379
+  - name: telemetry
+    port: 2381
+    targetPort: 2381
+  # for headless service
+  clusterIP: None
+  # selector needed to create pods dns name
+  selector:
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+---
+# Source: scanner/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: my-release-scanner-pods
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: scanner
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: scanner
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/apiregistration.yaml: bdf5cb2c3fed4339984b27fa7bd27f3f43a28112f2846049985767b76c188a99
+    spec:
+      
+      serviceAccountName: my-release-scanner
+      initContainers:
+      - name: init-db
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          seccompProfile:
+            type: RuntimeDefault
+        image: rancher/kine:v0.11.4
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - 'test -f /var/data/db.sqlite || touch /var/data/db.sqlite'
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /var/data
+          name: storage
+      containers:
+      - name: app
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          seccompProfile:
+            type: RuntimeDefault
+        image: ghcr.io/appscode/scanner:v0.0.17
+        imagePullPolicy: IfNotPresent
+        args:
+        - run
+        - --v=3
+        - --secure-port=8443
+        - --audit-log-path=-
+        - --tls-cert-file=/var/serving-cert/tls.crt
+        - --tls-private-key-file=/var/serving-cert/tls.key
+        - --use-kubeapiserver-fqdn-for-aks=true
+        - --etcd-servers=https://127.0.0.1:2379
+        - --etcd-cafile=/etc/pki/etcd/ca.crt
+        - --etcd-certfile=/etc/pki/etcd/tls.crt
+        - --etcd-keyfile=/etc/pki/etcd/tls.key
+        - --scanner-image=ghcr.io/appscode/scanner:v0.0.17
+        - --scan-request-ttl-after-finished=2h0m0s
+        - --scan-report-ttl-after-outdated=168h0m0s
+        - --workspace-namespace=scanner-workspace
+        - --trivydb-cacher-image=ghcr.io/appscode/trivydb:0.0.2
+        - --file-server-addr=https://my-release-scanner.scanner-v2024.1.18.tgz.svc
+        - --scan-public-image-incluster=false
+        - --nats-addr=
+        ports:
+        - containerPort: 8443
+        - containerPort: 8080
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        resources:
+          {}
+        volumeMounts:
+        - mountPath: /var/serving-cert
+          name: serving-cert
+        - mountPath: /etc/pki/etcd
+          name: etcd-cert
+        - mountPath: /var/data
+          name: storage
+        - mountPath: /tmp
+          name: tmp
+      - name: kine
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          seccompProfile:
+            type: RuntimeDefault
+        image: rancher/kine:v0.11.4
+        imagePullPolicy: IfNotPresent
+        args:
+        - --endpoint=sqlite:///var/data/db.sqlite
+        - --metrics-bind-address=:2381
+        - --server-cert-file=/etc/pki/etcd/tls.crt
+        - --server-key-file=/etc/pki/etcd/tls.key
+        ports:
+        - containerPort: 2379
+        - containerPort: 2381
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /etc/pki/etcd
+          name: etcd-cert
+        - mountPath: /var/data
+          name: storage
+      volumes:
+      - name: serving-cert
+        secret:
+          defaultMode: 420
+          secretName: my-release-scanner-apiserver-cert
+      - name: etcd-cert
+        secret:
+          defaultMode: 420
+          secretName: my-release-scanner-etcd-cert
+      - name: tmp
+        emptyDir: {}
+      securityContext:
+        fsGroup: 65535
+      nodeSelector:
+        kubernetes.io/os: linux
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+---
+# Source: scanner/templates/cacher-cronjob.yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: my-release-scanner-trivydb-cacher
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 120
+      template:
+        spec:
+          
+          serviceAccountName: my-release-scanner
+          automountServiceAccountToken: true
+          containers:
+          - name: cacher
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              runAsUser: 65534
+              seccompProfile:
+                type: RuntimeDefault
+            image: ghcr.io/appscode/trivydb:0.0.2
+            imagePullPolicy: IfNotPresent
+            workingDir: /tmp
+            command:
+            - /scripts/update-trivydb.sh
+            env:
+            - name: FILESERVER_ADDR
+              value: https://my-release-scanner.scanner-v2024.1.18.tgz.svc
+            resources:
+              {}
+            volumeMounts:
+            - mountPath: /var/serving-cert
+              name: serving-cert
+            - mountPath: /tmp
+              name: tmp
+          restartPolicy: Never # OnFailure
+          volumes:
+          - name: serving-cert
+            secret:
+              defaultMode: 420
+              secretName: my-release-scanner-apiserver-cert
+          - name: tmp
+            emptyDir: {}
+  schedule: "0 */6 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  suspend: false
+---
+# Source: scanner/templates/apiregistration.yaml
+# register as aggregated apiserver
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.scanner.appscode.com
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  group: scanner.appscode.com
+  version: v1alpha1
+  service:
+    namespace: scanner-v2024.1.18.tgz
+    name: my-release-scanner
+  caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCakNDQWU2Z0F3SUJBZ0lSQU1sZFpLNTRvWTNCeDJNdi9CWTZ2SDh3RFFZSktvWklodmNOQVFFTEJRQXcKRFRFTE1Ba0dBMVVFQXhNQ1kyRXdIaGNOTWpRd05qSXdNVFExT0RRd1doY05NelF3TmpFNE1UUTFPRFF3V2pBTgpNUXN3Q1FZRFZRUURFd0pqWVRDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTDNuCnJ2dU5XQmFkQUpTb1dYOElTSW5jM1VYWGtLSVFrOGpYRG5rMStiUmcxMkVXc3Y0SUY5WW1HMm45R1puSVlVS2EKSzlqR3RlYlhYc09KeWo5ckt5aFJSS3JqTC9kQUFoSWc3T2IwTTBZOTRYaU1hNzdyODMzWWxzTHlpbHIvRHRoVAppa3RsTzkzb0ZDVllIK0trb2ExNVl1dVhLMXI3Y1E2b1gyMEhTRk13WGZjTll4QzVBL2d0OG4vazF0TXF4bVloCjlGVWR6a0xBYmcwVDgwZ29Nc1VVY2thYmRmU3VoZWdlV2tjV3M4RmllSjBBZklKU1lmNTZuOExDeERtQWZvYVAKOXYzUy94Sit1L3U3ZXlock4ybFByR2NUMlhQSW1KdTRRU28wSnZKTytZdE56TWtxSlVLYnhkb05Zd3hTZGdxcgora2Z3TExQN0s5NHhOaEpHWlBzQ0F3RUFBYU5oTUY4d0RnWURWUjBQQVFIL0JBUURBZ0trTUIwR0ExVWRKUVFXCk1CUUdDQ3NHQVFVRkJ3TUJCZ2dyQmdFRkJRY0RBakFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQjBHQTFVZERnUVcKQkJRY0lMdGs3OXZWY0dTSW1QSTQ5eTdseUppejd6QU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FRRUFrSnZRT1JhdwpqSnRUSXpkb2d2clovcG9rdThjblhET0hLaUVodkRwSXAyK0dYTy9ySG9NYmM1OHNRbTJ5dDd5WDlRNTlRSEhtCjhXMnpkdS9BckJ2K3hmR2phTDUvUy9LZGc0Wkw1ZTZWNHFuamhiWDVTT2lwenJpWldzVThjRHZTTDFOQVdudjIKaGp5WGdLamlwb0RZU25LdG1tdkJ3QlhhdEw1SmlrTnNNS00rMyt2THhhSW93K2R6TVpFckRNZ0dZaDJXVUZVRwpSdjg1TlNvYW55S3dWRVFETWdFbjk0N2tGTnZLTDJYQ1QyRWRwYVdqLy9tL1ptRTU3MUIyT1VEeTJySlpOYmhJCkM5bWxreGVVRG5LbUQ3UUl4U1YwOEpPZGNZeGg5REdXYXhQaE82QnhxaHFQNC9TaDVOSzZVakpNc1VFYWZMZWUKZU5rakd1aHVaWG8yUXc9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  groupPriorityMinimum: 10000
+  versionPriority: 15
+---
+# Source: scanner/templates/license.yaml
+# if license file is provided, then create a secret for license
+---
+# Source: scanner/templates/dashboards.yaml
+apiVersion: openviz.dev/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: ace-scanner-appcves
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    k8s.io/group: reports.scanner.appscode.com
+    k8s.io/kind: CVEReport
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  model:
+    annotations:
+      list:
+      - builtIn: 1
+        datasource: -- Grafana --
+        enable: true
+        hide: true
+        iconColor: rgba(0, 211, 255, 1)
+        name: Annotations & Alerts
+        target:
+          limit: 100
+          matchAny: false
+          tags: []
+          type: dashboard
+        type: dashboard
+    editable: true
+    fiscalYearStartMonth: 0
+    gnetId: null
+    graphTooltip: 0
+    iteration: 1693983086429
+    links: []
+    liveNow: true
+    panels:
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: 'Severity distribution of vulnerability occurrences under a workload '
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 18
+        w: 12
+        x: 0
+        "y": 0
+      hiddenSeries: false
+      id: 2
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by(severity) (scanner_appscode_com_image_cve_occurrence_total * on(image)
+          group_left scanner_appscode_com_image_lineage{group="$group",kind="$kind",namespace="$ns",name="$name"})
+        interval: ""
+        legendFormat: '{{ severity }}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: App CVE Occurance Total
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: 'Severity distribution of unique vulnerabilities under a workload '
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 18
+        w: 12
+        x: 12
+        "y": 0
+      hiddenSeries: false
+      id: 4
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by(severity) (scanner_appscode_com_image_cve_count_total * on(image)
+          group_left scanner_appscode_com_image_lineage{group="$group",kind="$kind",namespace="$ns",name="$name"})
+        interval: ""
+        legendFormat: '{{ severity }}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: App CVE Count Total
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    schemaVersion: 31
+    style: dark
+    tags: []
+    templating:
+      list:
+      - current:
+          selected: false
+          text: Prometheus
+          value: Prometheus
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: datasource
+        multi: false
+        name: datasource
+        options: []
+        query: prometheus
+        queryValue: ""
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        type: datasource
+      - allValue: null
+        current:
+          isNone: true
+          selected: false
+          text: None
+          value: ""
+        datasource: ${datasource}
+        definition: label_values(apiserver_request_total{},group)
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: group
+        multi: false
+        name: group
+        options: []
+        query:
+          query: label_values(apiserver_request_total{},group)
+          refId: StandardVariableQuery
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        sort: 0
+        tagValuesQuery: ""
+        tagsQuery: ""
+        type: query
+        useTags: false
+      - allValue: null
+        current:
+          selected: true
+          text: MongoDB
+          value: MongoDB
+        datasource: ${datasource}
+        definition: label_values(apiserver_watch_events_total{group=~"$group"},kind)
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: kind
+        multi: false
+        name: kind
+        options: []
+        query:
+          query: label_values(apiserver_watch_events_total{group=~"$group"},kind)
+          refId: StandardVariableQuery
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        sort: 0
+        tagValuesQuery: ""
+        tagsQuery: ""
+        type: query
+        useTags: false
+      - allValue: null
+        current:
+          selected: true
+          text: demo
+          value: demo
+        datasource: ${datasource}
+        definition: label_values(kube_namespace_created{},namespace)
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: ns
+        multi: false
+        name: ns
+        options: []
+        query:
+          query: label_values(kube_namespace_created{},namespace)
+          refId: StandardVariableQuery
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        sort: 0
+        tagValuesQuery: ""
+        tagsQuery: ""
+        type: query
+        useTags: false
+      - allValue: null
+        current:
+          selected: true
+          text: mg
+          value: mg
+        datasource: ${datasource}
+        definition: label_values(scanner_appscode_com_image_lineage{group=~"$group",kind=~"$kind",namespace=~"$ns"},name)
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: name
+        multi: false
+        name: name
+        options: []
+        query:
+          query: label_values(scanner_appscode_com_image_lineage{group=~"$group",kind=~"$kind",namespace=~"$ns"},name)
+          refId: StandardVariableQuery
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        sort: 0
+        tagValuesQuery: ""
+        tagsQuery: ""
+        type: query
+        useTags: false
+    time:
+      from: now-24h
+      to: now
+    timepicker: {}
+    timezone: ""
+    title: ACE / Scanner / App CVEs
+    version: 2
+  overwrite: true
+  templatize:
+    title: false
+    datasource: false
+---
+# Source: scanner/templates/dashboards.yaml
+apiVersion: openviz.dev/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: ace-scanner-clustercves
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    k8s.io/group: reports.scanner.appscode.com
+    k8s.io/kind: CVEReport
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  model:
+    annotations:
+      list:
+      - builtIn: 1
+        datasource: -- Grafana --
+        enable: true
+        hide: true
+        iconColor: rgba(0, 211, 255, 1)
+        name: Annotations & Alerts
+        target:
+          limit: 100
+          matchAny: false
+          tags: []
+          type: dashboard
+        type: dashboard
+    editable: true
+    fiscalYearStartMonth: 0
+    gnetId: null
+    graphTooltip: 0
+    links: []
+    liveNow: true
+    panels:
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: Number of vulnerability occurrences in cluster scope
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 17
+        w: 12
+        x: 0
+        "y": 0
+      hiddenSeries: false
+      id: 2
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by (job, severity) (scanner_appscode_com_cluster_cve_occurrence_total)
+        interval: ""
+        legendFormat: '{{severity}}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: Cluster CVE Occurance Total
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: Number of unique vulnerabilites in cluster scope
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 17
+        w: 12
+        x: 12
+        "y": 0
+      hiddenSeries: false
+      id: 4
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by (job, severity) (scanner_appscode_com_cluster_cve_count_total)
+        interval: ""
+        legendFormat: '{{severity}}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: Cluster CVE Count Total
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    schemaVersion: 31
+    style: dark
+    tags: []
+    templating:
+      list:
+      - current:
+          selected: false
+          text: Prometheus
+          value: Prometheus
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: datasource
+        multi: false
+        name: datasource
+        options: []
+        query: prometheus
+        queryValue: ""
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        type: datasource
+    time:
+      from: now-24h
+      to: now
+    timepicker: {}
+    timezone: ""
+    title: ACE / Scanner / Cluster CVEs
+    version: 2
+  overwrite: true
+  templatize:
+    title: false
+    datasource: false
+---
+# Source: scanner/templates/dashboards.yaml
+apiVersion: openviz.dev/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: ace-scanner-cvereport
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    k8s.io/group: reports.scanner.appscode.com
+    k8s.io/kind: CVEReport
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  model:
+    annotations:
+      list:
+      - builtIn: 1
+        datasource: -- Grafana --
+        enable: true
+        hide: true
+        iconColor: rgba(0, 211, 255, 1)
+        name: Annotations & Alerts
+        type: dashboard
+    editable: true
+    gnetId: null
+    graphTooltip: 0
+    iteration: 1673340937342
+    links: []
+    panels:
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: Cluster level occurrences of a perticular CVE
+      fieldConfig:
+        defaults: {}
+        overrides: []
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 17
+        w: 12
+        x: 0
+        "y": 0
+      hiddenSeries: false
+      id: 2
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by (cve) (scanner_appscode_com_cluster_cve_occurrence{cve="$cve"})
+        interval: ""
+        legendFormat: '{{ cve }}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: CVE occurrence in cluster
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: Namespace level occurrences of a particular CVE
+      fieldConfig:
+        defaults: {}
+        overrides: []
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 17
+        w: 12
+        x: 12
+        "y": 0
+      hiddenSeries: false
+      id: 4
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by(namespace) (scanner_appscode_com_namespace_cve_occurrence{cve="$cve"})
+        interval: ""
+        legendFormat: '{{ cve }}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: CVE occurrence in Namespace
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    schemaVersion: 27
+    style: dark
+    tags: []
+    templating:
+      list:
+      - current:
+          selected: false
+          text: Prometheus
+          value: Prometheus
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: datasource
+        multi: false
+        name: datasource
+        options: []
+        query: prometheus
+        queryValue: ""
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        type: datasource
+      - allValue: null
+        current:
+          isNone: true
+          selected: false
+          text: None
+          value: ""
+        datasource: ${datasource}
+        definition: label_values(scanner_appscode_com_cluster_cve_occurrence{},cve)
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: cve
+        multi: false
+        name: cve
+        options: []
+        query:
+          query: label_values(scanner_appscode_com_cluster_cve_occurrence{},cve)
+          refId: StandardVariableQuery
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        sort: 0
+        tagValuesQuery: ""
+        tags: []
+        tagsQuery: ""
+        type: query
+        useTags: false
+    time:
+      from: now-24h
+      to: now
+    timepicker: {}
+    timezone: ""
+    title: ACE / Scanner / CVE Report
+    version: 1
+  overwrite: true
+  templatize:
+    title: false
+    datasource: false
+---
+# Source: scanner/templates/dashboards.yaml
+apiVersion: openviz.dev/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: ace-scanner-imagecves
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    k8s.io/group: reports.scanner.appscode.com
+    k8s.io/kind: CVEReport
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  model:
+    annotations:
+      list:
+      - builtIn: 1
+        datasource: -- Grafana --
+        enable: true
+        hide: true
+        iconColor: rgba(0, 211, 255, 1)
+        name: Annotations & Alerts
+        type: dashboard
+    editable: true
+    gnetId: null
+    graphTooltip: 0
+    iteration: 1673340860305
+    links: []
+    panels:
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: Severity distribution of total number of vulnerabilities for an image
+      fieldConfig:
+        defaults: {}
+        overrides: []
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 18
+        w: 12
+        x: 0
+        "y": 0
+      hiddenSeries: false
+      id: 2
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by (severity) (scanner_appscode_com_image_cve_occurrence_total{image="$img"})
+        interval: ""
+        legendFormat: '{{severity}}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: Image CVE Occurance Total
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: Severity distribution of unique vulnerabilities for an image
+      fieldConfig:
+        defaults: {}
+        overrides: []
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 18
+        w: 12
+        x: 12
+        "y": 0
+      hiddenSeries: false
+      id: 4
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by (severity) (scanner_appscode_com_image_cve_count_total{image="$img"})
+        interval: ""
+        legendFormat: '{{severity}}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: Image CVE Count Total
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    schemaVersion: 27
+    style: dark
+    tags: []
+    templating:
+      list:
+      - current:
+          selected: false
+          text: Prometheus
+          value: Prometheus
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: datasource
+        multi: false
+        name: datasource
+        options: []
+        query: prometheus
+        queryValue: ""
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        type: datasource
+      - allValue: null
+        current:
+          isNone: true
+          selected: false
+          text: None
+          value: ""
+        datasource: ${datasource}
+        definition: label_values(scanner_appscode_com_image_cve_occurrence_total{},image)
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: img
+        multi: false
+        name: img
+        options: []
+        query:
+          query: label_values(scanner_appscode_com_image_cve_occurrence_total{},image)
+          refId: StandardVariableQuery
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        sort: 0
+        tagValuesQuery: ""
+        tags: []
+        tagsQuery: ""
+        type: query
+        useTags: false
+    time:
+      from: now-24h
+      to: now
+    timepicker: {}
+    timezone: ""
+    title: ACE / Scanner / Image CVEs
+    version: 1
+  overwrite: true
+  templatize:
+    title: false
+    datasource: false
+---
+# Source: scanner/templates/dashboards.yaml
+apiVersion: openviz.dev/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: ace-scanner-namespacecves
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    k8s.io/group: reports.scanner.appscode.com
+    k8s.io/kind: CVEReport
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  model:
+    annotations:
+      list:
+      - builtIn: 1
+        datasource: -- Grafana --
+        enable: true
+        hide: true
+        iconColor: rgba(0, 211, 255, 1)
+        name: Annotations & Alerts
+        target:
+          limit: 100
+          matchAny: false
+          tags: []
+          type: dashboard
+        type: dashboard
+    editable: true
+    fiscalYearStartMonth: 0
+    gnetId: null
+    graphTooltip: 0
+    iteration: 1693982769114
+    links: []
+    liveNow: true
+    panels:
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: Total number of vulnerabilities occurred in namespace scope
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 16
+        w: 12
+        x: 0
+        "y": 0
+      hiddenSeries: false
+      id: 2
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by (job, severity) (scanner_appscode_com_namespace_cve_occurrence_total{namespace="$ns"})
+        interval: ""
+        legendFormat: '{{severity}}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: Namespace CVE Occurance Total
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    - aliasColors:
+        CRITICAL: '#ea3d2f'
+        HIGH: '#f7ad2a'
+        LOW: '#27b064'
+        MEDIUM: '#0aafff'
+        UNKNOWN: '#8f8f8f'
+      bars: false
+      dashLength: 10
+      dashes: false
+      datasource: ${datasource}
+      description: Number of unique vulnerabilities in namespace scope
+      fill: 0
+      fillGradient: 0
+      gridPos:
+        h: 16
+        w: 12
+        x: 12
+        "y": 0
+      hiddenSeries: false
+      id: 4
+      legend:
+        avg: false
+        current: false
+        max: false
+        min: false
+        show: true
+        total: false
+        values: false
+      lines: true
+      linewidth: 2
+      nullPointMode: "null"
+      options:
+        alertThreshold: true
+      percentage: false
+      pluginVersion: 7.5.5
+      pointradius: 2
+      points: false
+      renderer: flot
+      seriesOverrides: []
+      spaceLength: 10
+      stack: false
+      steppedLine: false
+      targets:
+      - exemplar: true
+        expr: sum by (job, severity) (scanner_appscode_com_namespace_cve_count_total{namespace="$ns"})
+        interval: ""
+        legendFormat: '{{severity}}'
+        refId: A
+      thresholds: []
+      timeFrom: null
+      timeRegions: []
+      timeShift: null
+      title: Namespace CVE Count Total
+      tooltip:
+        shared: true
+        sort: 0
+        value_type: individual
+      type: graph
+      xaxis:
+        buckets: null
+        mode: time
+        name: null
+        show: true
+        values: []
+      yaxes:
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      - format: short
+        label: null
+        logBase: 1
+        max: null
+        min: null
+        show: true
+      yaxis:
+        align: false
+        alignLevel: null
+    schemaVersion: 31
+    style: dark
+    tags: []
+    templating:
+      list:
+      - current:
+          selected: false
+          text: Prometheus
+          value: Prometheus
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: datasource
+        multi: false
+        name: datasource
+        options: []
+        query: prometheus
+        queryValue: ""
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        type: datasource
+      - allValue: null
+        current:
+          isNone: true
+          selected: false
+          text: None
+          value: ""
+        datasource: ${datasource}
+        definition: label_values(kube_namespace_created,namespace)
+        description: null
+        error: null
+        hide: 0
+        includeAll: false
+        label: ns
+        multi: false
+        name: ns
+        options: []
+        query:
+          query: label_values(kube_namespace_created,namespace)
+          refId: StandardVariableQuery
+        refresh: 1
+        regex: ""
+        skipUrlSync: false
+        sort: 0
+        tagValuesQuery: ""
+        tagsQuery: ""
+        type: query
+        useTags: false
+    time:
+      from: now-24h
+      to: now
+    timepicker: {}
+    timezone: ""
+    title: ACE / Scanner / Namespace CVEs
+    version: 2
+  overwrite: true
+  templatize:
+    title: false
+    datasource: false
+---
+# Source: scanner/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: my-release-scanner
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+spec:
+  namespaceSelector:
+    matchNames:
+    - scanner-v2024.1.18.tgz
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: scanner
+      app.kubernetes.io/instance: my-release
+  endpoints:
+  - port: telemetry
+    bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    scheme: http
+    interval: 10s
+    honorLabels: true
+---
+# Source: scanner/templates/license-checker-cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: appscode:license-checker
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+# Get cluster id
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs: ["get"]
+# Issue license
+- apiGroups:
+  - proxyserver.licenses.appscode.com
+  resources:
+  - licenserequests
+  verbs: ["create"]
+# Detect workload/owner of operator pod
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs: ["get"]
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - replicasets
+  verbs: ["get"]
+# Write events in case of license verification failure
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs: ["get", "list", "create", "patch"]
+---
+# Source: scanner/templates/license-reader-cluster-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: appscode:license-reader
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+# Detect license server endpoint for kubedb addons
+- apiGroups:
+  - apiregistration.k8s.io
+  resources:
+  - apiservices
+  verbs: ["get"]
+- nonResourceURLs:
+  - /appscode/license
+  verbs: ["get"]
+---
+# Source: scanner/templates/user-roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: appscode:scanner:admin
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+- apiGroups:
+  - scanner.appscode.com
+  - reports.scanner.appscode.com
+  resources:
+  - "*"
+  verbs: ["*"]
+---
+# Source: scanner/templates/user-roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: appscode:scanner:edit
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+- apiGroups:
+  - scanner.appscode.com
+  - reports.scanner.appscode.com
+  resources:
+  - "*"
+  verbs: ["create", "get", "list", "watch", "update", "patch"]
+---
+# Source: scanner/templates/user-roles.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: appscode:scanner:view
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+- apiGroups:
+  - scanner.appscode.com
+  - reports.scanner.appscode.com
+  resources:
+  - "*"
+  verbs: ["get", "list", "watch"]
+---
+# Source: scanner/templates/cacher-init-job.yaml
+apiVersion: batch/v1beta1
+kind: Job
+metadata:
+  name: my-release-scanner-init-trivydb-cache
+  namespace: scanner-v2024.1.18.tgz
+  labels:
+    helm.sh/chart: scanner-v2024.1.18
+    app.kubernetes.io/name: scanner
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.17"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 120
+  # ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      
+      serviceAccountName: my-release-scanner
+      automountServiceAccountToken: true
+      containers:
+      - name: starter
+        image: ghcr.io/appscode/trivydb:0.0.2
+        command:
+          - kubectl
+          - create
+          - job
+          - --from=cronjob/my-release-scanner-trivydb-cacher
+          - my-release-scanner-trivydb-cacher-juoe6pah
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          seccompProfile:
+            type: RuntimeDefault
+      restartPolicy: Never

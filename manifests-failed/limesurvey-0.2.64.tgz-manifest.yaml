@@ -1,0 +1,588 @@
+---
+# Source: limesurvey/charts/mariadb/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: my-release-mariadb
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.2
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/version: 11.3.2
+      helm.sh/chart: mariadb-18.2.2
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    - ports:
+        - port: 3306
+        - port: 3306
+---
+# Source: limesurvey/charts/mariadb/templates/primary/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-mariadb
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.2
+    app.kubernetes.io/component: primary
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/component: primary
+---
+# Source: limesurvey/charts/mariadb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-mariadb
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.2
+automountServiceAccountToken: false
+---
+# Source: limesurvey/charts/mariadb/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-mariadb
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.2
+type: Opaque
+data:
+  mariadb-root-password: "dVpPSFlvSUxKZA=="
+  mariadb-password: "Y2hhbmdlbWU="
+---
+# Source: limesurvey/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-limesurvey
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    helm.sh/chart: limesurvey-0.2.64
+    app.kubernetes.io/name: limesurvey
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.12"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  limesurvey-admin-password: "V2kwR01JZEtHRGEzTDZJ"
+---
+# Source: limesurvey/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-limesurvey-smtp
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    helm.sh/chart: limesurvey-0.2.64
+    app.kubernetes.io/name: limesurvey
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.12"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  limesurvey-smtp-password: "bEsxcktXTm96Rkk4NUFJ"
+---
+# Source: limesurvey/charts/mariadb/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-mariadb
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.2
+    app.kubernetes.io/component: primary
+data:
+  my.cnf: |-
+    [mysqld]
+    skip-name-resolve
+    explicit_defaults_for_timestamp
+    basedir=/opt/bitnami/mariadb
+    datadir=/bitnami/mariadb/data
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    tmpdir=/opt/bitnami/mariadb/tmp
+    max_allowed_packet=16M
+    bind-address=*
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+    log-error=/opt/bitnami/mariadb/logs/mysqld.log
+    character-set-server=UTF8
+    collation-server=utf8_general_ci
+    slow_query_log=0
+    long_query_time=10.0
+    
+    [client]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    default-character-set=UTF8
+    plugin_dir=/opt/bitnami/mariadb/plugin
+    
+    [manager]
+    port=3306
+    socket=/opt/bitnami/mariadb/tmp/mysql.sock
+    pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+---
+# Source: limesurvey/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-limesurvey
+  labels:
+    helm.sh/chart: limesurvey-0.2.64
+    app.kubernetes.io/name: limesurvey
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.12"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    helm.sh/resource-policy: keep
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "5Gi"
+---
+# Source: limesurvey/charts/mariadb/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-mariadb
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.2
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: mysql
+      port: 3306
+      protocol: TCP
+      targetPort: mysql
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/component: primary
+---
+# Source: limesurvey/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-limesurvey
+  labels:
+    helm.sh/chart: limesurvey-0.2.64
+    app.kubernetes.io/name: limesurvey
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: limesurvey
+    app.kubernetes.io/instance: my-release
+---
+# Source: limesurvey/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-limesurvey
+  labels:
+    helm.sh/chart: limesurvey-0.2.64
+    app.kubernetes.io/name: limesurvey
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.12"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: limesurvey
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: limesurvey
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      securityContext:
+        {}
+      containers:
+        - name: limesurvey
+          securityContext:
+            {}
+          image: "adamzammit/limesurvey:6.5.12"
+          volumeMounts:
+            - name: limesurvey-main
+              mountPath: "/var/www/html/plugins"
+              subPath: "plugins"
+            - name: limesurvey-main
+              mountPath: "/var/www/html/upload"
+              subPath: "upload"
+            - name: limesurvey-main
+              mountPath: "/var/lime/sessions"
+              subPath: "sessions"
+            - name: limesurvey-main
+              mountPath: "/var/www/html/application/config"
+              subPath: "config"
+          env:
+          - name: LIMESURVEY_DB_TYPE
+            value: "mysql"
+          - name: LIMESURVEY_DB_HOST
+            value: my-release-mariadb
+          - name: LIMESURVEY_DB_PORT
+            value: "3306"
+          - name: LIMESURVEY_DB_USER
+            value: limesurvey
+          - name: LIMESURVEY_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: my-release-mariadb
+                key: mariadb-password
+          - name: LIMESURVEY_DB_NAME
+            value: limesurvey
+          - name: LIMESURVEY_ADMIN_USER
+            value: "admin"
+          - name: LIMESURVEY_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: my-release-limesurvey
+                key: limesurvey-admin-password
+          - name: LIMESURVEY_ADMIN_NAME
+            value: "Lime Administrator"
+          - name: LIMESURVEY_ADMIN_EMAIL
+            value: "lime@lime.lime"
+          - name: LIMESURVEY_TABLE_PREFIX
+            value: "lime_"
+          - name: LIMESURVEY_DEBUG
+            value: "0"
+          - name: LIMESURVEY_SQL_DEBUG
+            value: "0"
+          - name: LIMESURVEY_USE_INNODB
+            value: "true"
+          - name: LIMESURVEY_DB_SESSIONS
+            value: ""
+          - name: LIMESURVEY_DONT_SHOW_SCRIPT_NAME
+            value: ""
+          - name: TZ
+            value: "Europe/Berlin"
+          - name: LIMESURVEY_SMTP_HOST
+            value: ""
+          - name: LIMESURVEY_SMTP_USER
+            value: ""
+          - name: LIMESURVEY_SMTP_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: my-release-limesurvey-smtp
+                key: limesurvey-smtp-password
+          - name: LIMESURVEY_SMTP_SSL
+            value: ""
+          - name: LIMESURVEY_FROM_EMAIL
+            value: "your-email@example.net"
+          - name: LIMESURVEY_SMTP_DEBUG
+            value: ""
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+              - name: X-Forwarded-Proto
+                value: https
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+              - name: X-Forwarded-Proto
+                value: https
+          resources:
+            {}
+      initContainers:
+      - name: db-isalive
+        image: "adamzammit/limesurvey:6.5.12"
+        env:
+        - name: LIMESURVEY_DB_HOST
+          value: my-release-mariadb
+        - name: LIMESURVEY_DB_PORT
+          value: "3306"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "sh"
+          - "-c"
+          - "until nc -z -v -w30 ${LIMESURVEY_DB_HOST} ${LIMESURVEY_DB_PORT}; do echo waiting for db; sleep 5; done;"
+      volumes:
+        - name: limesurvey-main
+          persistentVolumeClaim:
+            claimName: my-release-limesurvey
+---
+# Source: limesurvey/charts/mariadb/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-mariadb
+  namespace: "limesurvey-0.2.64.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/version: 11.3.2
+    helm.sh/chart: mariadb-18.2.2
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/component: primary
+  serviceName: my-release-mariadb
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configuration: 9f4993c06f43e3c71e81327b9373976baa0ecd3bbde1b7b4c7ee1681e4bd4a41
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: mariadb
+        app.kubernetes.io/version: 11.3.2
+        helm.sh/chart: mariadb-18.2.2
+        app.kubernetes.io/component: primary
+    spec:
+      
+      automountServiceAccountToken: false
+      serviceAccountName: my-release-mariadb
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/name: mariadb
+                    app.kubernetes.io/component: primary
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+        - name: preserve-logs-symlinks
+          image: docker.io/bitnami/mariadb:11.3.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /bin/bash
+          args:
+            - -ec
+            - |
+              #!/bin/bash
+
+              . /opt/bitnami/scripts/libfs.sh
+              # We copy the logs folder because it has symlinks to stdout and stderr
+              if ! is_dir_empty /opt/bitnami/mariadb/logs; then
+                cp -r /opt/bitnami/mariadb/logs /emptydir/app-logs-dir
+              fi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /emptydir
+      containers:
+        - name: mariadb
+          image: docker.io/bitnami/mariadb:11.3.2-debian-12-r6
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-root-password
+            - name: MARIADB_USER
+              value: "limesurvey"
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-mariadb
+                  key: mariadb-password
+            - name: MARIADB_DATABASE
+              value: "limesurvey"
+          ports:
+            - name: mysql
+              containerPort: 3306
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MARIADB_ROOT_PASSWORD:-}"
+                  if [[ -f "${MARIADB_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MARIADB_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin ping -uroot -p"${password_aux}"
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mariadb
+            - name: config
+              mountPath: /opt/bitnami/mariadb/conf/my.cnf
+              subPath: my.cnf
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/tmp
+              subPath: app-tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/mariadb/logs
+              subPath: app-logs-dir
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: my-release-mariadb
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/instance: my-release
+          app.kubernetes.io/name: mariadb
+          app.kubernetes.io/component: primary
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: limesurvey/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-limesurvey-test-connection"
+  labels:
+    helm.sh/chart: limesurvey-0.2.64
+    app.kubernetes.io/name: limesurvey
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.5.12"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-limesurvey:80']
+  restartPolicy: Never

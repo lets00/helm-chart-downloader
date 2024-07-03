@@ -1,0 +1,1913 @@
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/ingester/poddisruptionbudget-ingester.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-release-enterprise-logs-ingester
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: ingester
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: ingester
+  maxUnavailable: 1
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-enterprise-logs
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: enterprise-logs/charts/minio/templates/post-install-prometheus-metrics-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+---
+# Source: enterprise-logs/charts/minio/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "my-release-minio"
+  namespace: "enterprise-logs-2.5.0.tgz"
+  labels:
+    app: minio
+    chart: minio-8.0.9
+    release: "my-release"
+---
+# Source: enterprise-logs/charts/minio/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-minio
+  labels:
+    app: minio
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+type: Opaque
+data:
+  accesskey: "ZW50ZXJwcmlzZS1sb2dz"
+  secretkey: "c3VwZXJzZWNyZXQ="
+---
+# Source: enterprise-logs/templates/secret-config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: enterprise-logs-config
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: YWRtaW5fY2xpZW50OgogIHN0b3JhZ2U6CiAgICBzMzoKICAgICAgYnVja2V0X25hbWU6IGVudGVycHJpc2UtbG9ncy1hZG1pbgphdXRoOgogIHR5cGU6IGVudGVycHJpc2UKYXV0aF9lbmFibGVkOiB0cnVlCmNsdXN0ZXJfbmFtZTogbXktcmVsZWFzZQpjb21tb246CiAgcGF0aF9wcmVmaXg6IC92YXIvbG9raQogIHJlcGxpY2F0aW9uX2ZhY3RvcjogMwogIHN0b3JhZ2U6CiAgICBzMzoKICAgICAgYWNjZXNzX2tleV9pZDogZW50ZXJwcmlzZS1sb2dzCiAgICAgIGJ1Y2tldG5hbWVzOiBlbnRlcnByaXNlLWxvZ3MtdHNkYgogICAgICBlbmRwb2ludDogJ215LXJlbGVhc2UtbWluaW8uZW50ZXJwcmlzZS1sb2dzLTIuNS4wLnRnei5zdmM6OTAwMCcKICAgICAgaW5zZWN1cmU6IHRydWUKICAgICAgczNmb3JjZXBhdGhzdHlsZTogdHJ1ZQogICAgICBzZWNyZXRfYWNjZXNzX2tleTogc3VwZXJzZWNyZXQKZnJvbnRlbmQ6CiAgY29tcHJlc3NfcmVzcG9uc2VzOiB0cnVlCiAgbG9nX3F1ZXJpZXNfbG9uZ2VyX3RoYW46IDEwcwogIHRhaWxfcHJveHlfdXJsOiBodHRwOi8vbXktcmVsZWFzZS1lbnRlcnByaXNlLWxvZ3MtcXVlcmllcjozMTAwCmZyb250ZW5kX3dvcmtlcjoKICBmcm9udGVuZF9hZGRyZXNzOiBteS1yZWxlYXNlLWVudGVycHJpc2UtbG9ncy1xdWVyeS1mcm9udGVuZDo5MDk1CmluZ2VzdGVyOgogIGNodW5rX2Jsb2NrX3NpemU6IDI2MjE0NAogIGNodW5rX2VuY29kaW5nOiBzbmFwcHkKICBjaHVua19pZGxlX3BlcmlvZDogMzBtCiAgY2h1bmtfcmV0YWluX3BlcmlvZDogMW0KaW5nZXN0ZXJfY2xpZW50OgogIGdycGNfY2xpZW50X2NvbmZpZzoKICAgIG1heF9yZWN2X21zZ19zaXplOiAxMDQ4NTc2MDAKICAgIG1heF9zZW5kX21zZ19zaXplOiAxMDQ4NTc2MDAKbGljZW5zZToKICBwYXRoOiAvZXRjL2VudGVycHJpc2UtbG9ncy9saWNlbnNlL2xpY2Vuc2Uuand0CmxpbWl0c19jb25maWc6CiAgZW5mb3JjZV9tZXRyaWNfbmFtZTogZmFsc2UKICBtYXhfY2FjaGVfZnJlc2huZXNzX3Blcl9xdWVyeTogMTBtCiAgcmVqZWN0X29sZF9zYW1wbGVzOiB0cnVlCiAgcmVqZWN0X29sZF9zYW1wbGVzX21heF9hZ2U6IDE2OGgKICBzcGxpdF9xdWVyaWVzX2J5X2ludGVydmFsOiAyNGgKbWVtYmVybGlzdDoKICBqb2luX21lbWJlcnM6CiAgLSBteS1yZWxlYXNlLWVudGVycHJpc2UtbG9ncy1tZW1iZXJsaXN0CnF1ZXJpZXI6CiAgcXVlcnlfaW5nZXN0ZXJzX3dpdGhpbjogMTJoCnF1ZXJ5X3JhbmdlOgogIGFsaWduX3F1ZXJpZXNfd2l0aF9zdGVwOiB0cnVlCiAgY2FjaGVfcmVzdWx0czogdHJ1ZQogIHJlc3VsdHNfY2FjaGU6CiAgICBjYWNoZToKICAgICAgbWVtY2FjaGVkOgogICAgICAgIGV4cGlyYXRpb246IDFoCiAgICAgIG1lbWNhY2hlZF9jbGllbnQ6CiAgICAgICAgdGltZW91dDogMXMKcnVsZXI6CiAgc3RvcmFnZToKICAgIHMzOgogICAgICBidWNrZXRuYW1lczogZW50ZXJwcmlzZS1sb2dzLXJ1bGVyCnNjaGVtYV9jb25maWc6CiAgY29uZmlnczoKICAtIGZyb206ICIyMDIxLTAxLTAxIgogICAgaW5kZXg6CiAgICAgIHBlcmlvZDogMjRoCiAgICAgIHByZWZpeDogaW5kZXhfCiAgICBvYmplY3Rfc3RvcmU6IGF3cwogICAgc2NoZW1hOiB2MTEKICAgIHN0b3JlOiBib2x0ZGItc2hpcHBlcgpzZXJ2ZXI6CiAgZ3JwY19saXN0ZW5fcG9ydDogOTA5NQogIGh0dHBfbGlzdGVuX3BvcnQ6IDMxMDAKc3RvcmFnZV9jb25maWc6CiAgYXdzOgogICAgYnVja2V0bmFtZXM6IGVudGVycHJpc2UtbG9ncy10c2RiCiAgYm9sdGRiX3NoaXBwZXI6CiAgICBpbmRleF9nYXRld2F5X2NsaWVudDoKICAgICAgc2VydmVyX2FkZHJlc3M6IGRuczovLy9teS1yZWxlYXNlLWVudGVycHJpc2UtbG9ncy1pbmRleC1nYXRld2F5OjkwOTU=
+---
+# Source: enterprise-logs/templates/secret-license.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: enterprise-logs-license
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  license.jwt: Tk9UQVZBTElETElDRU5TRQ==
+---
+# Source: enterprise-logs/charts/minio/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-minio
+  labels:
+    app: minio
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+data:
+  initialize: |-
+    #!/bin/sh
+    set -e ; # Have script exit in the event of a failed command.
+    MC_CONFIG_DIR="/tmp/minio/mc/"
+    MC="/usr/bin/mc --insecure --config-dir ${MC_CONFIG_DIR}"
+    
+    # connectToMinio
+    # Use a check-sleep-check loop to wait for Minio service to be available
+    connectToMinio() {
+      SCHEME=$1
+      ATTEMPTS=0 ; LIMIT=29 ; # Allow 30 attempts
+      set -e ; # fail if we can't read the keys.
+      ACCESS=$(cat /config/accesskey) ; SECRET=$(cat /config/secretkey) ;
+      set +e ; # The connections to minio are allowed to fail.
+      echo "Connecting to Minio server: $SCHEME://$MINIO_ENDPOINT:$MINIO_PORT" ;
+      MC_COMMAND="${MC} config host add myminio $SCHEME://$MINIO_ENDPOINT:$MINIO_PORT $ACCESS $SECRET" ;
+      $MC_COMMAND ;
+      STATUS=$? ;
+      until [ $STATUS = 0 ]
+      do
+        ATTEMPTS=`expr $ATTEMPTS + 1` ;
+        echo \"Failed attempts: $ATTEMPTS\" ;
+        if [ $ATTEMPTS -gt $LIMIT ]; then
+          exit 1 ;
+        fi ;
+        sleep 2 ; # 1 second intervals between attempts
+        $MC_COMMAND ;
+        STATUS=$? ;
+      done ;
+      set -e ; # reset `e` as active
+      return 0
+    }
+    
+    # checkBucketExists ($bucket)
+    # Check if the bucket exists, by using the exit code of `mc ls`
+    checkBucketExists() {
+      BUCKET=$1
+      CMD=$(${MC} ls myminio/$BUCKET > /dev/null 2>&1)
+      return $?
+    }
+    
+    # createBucket ($bucket, $policy, $purge)
+    # Ensure bucket exists, purging if asked to
+    createBucket() {
+      BUCKET=$1
+      POLICY=$2
+      PURGE=$3
+      VERSIONING=$4
+    
+      # Purge the bucket, if set & exists
+      # Since PURGE is user input, check explicitly for `true`
+      if [ $PURGE = true ]; then
+        if checkBucketExists $BUCKET ; then
+          echo "Purging bucket '$BUCKET'."
+          set +e ; # don't exit if this fails
+          ${MC} rm -r --force myminio/$BUCKET
+          set -e ; # reset `e` as active
+        else
+          echo "Bucket '$BUCKET' does not exist, skipping purge."
+        fi
+      fi
+    
+      # Create the bucket if it does not exist
+      if ! checkBucketExists $BUCKET ; then
+        echo "Creating bucket '$BUCKET'"
+        ${MC} mb myminio/$BUCKET
+      else
+        echo "Bucket '$BUCKET' already exists."
+      fi
+    
+    
+      # set versioning for bucket
+      if [ ! -z $VERSIONING ] ; then
+        if [ $VERSIONING = true ] ; then
+            echo "Enabling versioning for '$BUCKET'"
+            ${MC} version enable myminio/$BUCKET
+        elif [ $VERSIONING = false ] ; then
+            echo "Suspending versioning for '$BUCKET'"
+            ${MC} version suspend myminio/$BUCKET
+        fi
+      else
+          echo "Bucket '$BUCKET' versioning unchanged."
+      fi
+    
+      # At this point, the bucket should exist, skip checking for existence
+      # Set policy on the bucket
+      echo "Setting policy of bucket '$BUCKET' to '$POLICY'."
+      ${MC} policy set $POLICY myminio/$BUCKET
+    }
+    
+    # Try connecting to Minio instance
+    scheme=http
+    connectToMinio $scheme
+    # Create the buckets
+    createBucket enterprise-logs-tsdb none false 
+    createBucket enterprise-logs-admin none false 
+    createBucket enterprise-logs-ruler none false
+---
+# Source: enterprise-logs/charts/minio/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-minio
+  labels:
+    app: minio
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "5Gi"
+---
+# Source: enterprise-logs/charts/minio/templates/post-install-prometheus-metrics-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+    resourceNames:
+      - my-release-minio-prometheus
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - servicemonitors
+    verbs:
+      - get
+    resourceNames:
+      - my-release-minio
+---
+# Source: enterprise-logs/charts/minio/templates/post-install-prometheus-metrics-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-minio-update-prometheus-secret
+subjects:
+  - kind: ServiceAccount
+    name: my-release-minio-update-prometheus-secret
+    namespace: "enterprise-logs-2.5.0.tgz"
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/distributor/service-distributor.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-distributor
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: distributor
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: distributor
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/index-gateway/service-index-gateway-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-index-gateway-headless
+  labels:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: index-gateway
+    prometheus.io/service-monitor: "false"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: index-gateway
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/index-gateway/service-index-gateway.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-index-gateway
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: index-gateway
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: index-gateway
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/ingester/service-ingester-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-ingester-headless
+  labels:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ingester
+    prometheus.io/service-monitor: "false"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ingester
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/ingester/service-ingester.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-ingester
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: ingester
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ingester
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/querier/service-querier.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-querier
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: querier
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: querier
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/query-frontend/service-query-frontend.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-query-frontend
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: query-frontend
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+    - name: grpclb
+      port: 9096
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: query-frontend
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/ruler/service-ruler.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-ruler
+  labels:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ruler
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: ruler
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/service-memberlist.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-memberlist
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http
+      port: 7946
+      targetPort: http-memberlist
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/part-of: memberlist
+---
+# Source: enterprise-logs/charts/minio/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-minio
+  labels:
+    app: minio
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    app: minio
+    release: my-release
+---
+# Source: enterprise-logs/templates/admin-api/service-admin-api.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-admin-api
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admin-api
+    target: admin-api
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: 3100
+      protocol: TCP
+      targetPort: http-metrics
+    - name: grpc
+      port: 9095
+      protocol: TCP
+      targetPort: grpc
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: admin-api
+    target: admin-api
+---
+# Source: enterprise-logs/templates/gateway/service-gateway.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-enterprise-logs-gateway
+  labels:
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: 3100
+      protocol: TCP
+      targetPort: http-metrics
+  selector:
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: gateway
+    target: gateway
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/distributor/deployment-distributor.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-enterprise-logs-distributor
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: distributor
+    app.kubernetes.io/part-of: memberlist
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: distributor
+  template:
+    metadata:
+      annotations:
+        checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: distributor
+        app.kubernetes.io/part-of: memberlist
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: distributor
+          image: docker.io/grafana/enterprise-logs:v1.5.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/config/config.yaml
+            - -target=distributor
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+            - name: http-memberlist
+              containerPort: 7946
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 300
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - mountPath: /etc/enterprise-logs/license
+              name: license
+          resources:
+            {}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: enterprise-logs
+                  app.kubernetes.io/instance: my-release
+                  app.kubernetes.io/component: distributor
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: enterprise-logs
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: distributor
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/querier/deployment-querier.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-enterprise-logs-querier
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: querier
+    app.kubernetes.io/part-of: memberlist
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: querier
+  template:
+    metadata:
+      annotations:
+        checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: querier
+        app.kubernetes.io/part-of: memberlist
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: querier
+          image: docker.io/grafana/enterprise-logs:v1.5.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/config/config.yaml
+            - -target=querier
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+            - name: http-memberlist
+              containerPort: 7946
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 300
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - name: data
+              mountPath: /var/loki
+            - mountPath: /etc/enterprise-logs/license
+              name: license
+          resources:
+            {}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: enterprise-logs
+                  app.kubernetes.io/instance: my-release
+                  app.kubernetes.io/component: querier
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: enterprise-logs
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: querier
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: data
+          emptyDir: {}
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/query-frontend/deployment-query-frontend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-enterprise-logs-query-frontend
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: query-frontend
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: query-frontend
+  template:
+    metadata:
+      annotations:
+        checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: query-frontend
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: query-frontend
+          image: docker.io/grafana/enterprise-logs:v1.5.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/config/config.yaml
+            - -target=query-frontend
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 300
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - mountPath: /etc/enterprise-logs/license
+              name: license
+          resources:
+            {}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: enterprise-logs
+                  app.kubernetes.io/instance: my-release
+                  app.kubernetes.io/component: query-frontend
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: enterprise-logs
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: query-frontend
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/ruler/deployment-ruler.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-enterprise-logs-ruler
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: ruler
+    app.kubernetes.io/part-of: memberlist
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: ruler
+  template:
+    metadata:
+      annotations:
+        checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: ruler
+        app.kubernetes.io/part-of: memberlist
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 300
+      containers:
+        - name: ruler
+          image: docker.io/grafana/enterprise-logs:v1.5.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/config/config.yaml
+            - -target=ruler
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 300
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - name: data
+              mountPath: /var/loki
+            - name: tmp
+              mountPath: /tmp/loki
+            - mountPath: /etc/enterprise-logs/license
+              name: license
+          resources:
+            {}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: enterprise-logs
+                  app.kubernetes.io/instance: my-release
+                  app.kubernetes.io/component: ruler
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: enterprise-logs
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: ruler
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: tmp
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+---
+# Source: enterprise-logs/charts/minio/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-minio
+  labels:
+    app: minio
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: minio
+      release: my-release
+  template:
+    metadata:
+      name: my-release-minio
+      labels:
+        app: minio
+        release: my-release
+      annotations:
+        checksum/secrets: 13a982eac5d096686b2811176cf24f9bd9be98d19cbe16026cc9b75ca485c349
+        checksum/config: 5c425d8b2e2840c0c68976a1ed597615aba93b585698e77b679a5c6a64d8d7ef
+    spec:
+      serviceAccountName: "my-release-minio"
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: minio
+          image: "minio/minio:RELEASE.2020-12-03T05-49-24Z"
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/bin/sh"
+            - "-ce"
+            - "/usr/bin/docker-entrypoint.sh minio -S /etc/minio/certs/ server /export"
+          volumeMounts:
+            - name: export
+              mountPath: /export            
+          ports:
+            - name: http
+              containerPort: 9000
+          env:
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-minio
+                  key: accesskey
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-minio
+                  key: secretkey
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi      
+      volumes:
+        - name: export
+          persistentVolumeClaim:
+            claimName: my-release-minio
+        - name: minio-user
+          secret:
+            secretName: my-release-minio
+---
+# Source: enterprise-logs/templates/admin-api/deployment-admin-api.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-enterprise-logs-admin-api
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: admin-api
+    target: admin-api
+    app.kubernetes.io/part-of: memberlist
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: admin-api
+      target: admin-api
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: admin-api
+        target: admin-api
+        app.kubernetes.io/part-of: memberlist
+      annotations:
+        checksum/config: 22f393123e17b4d1c8f559e0fbb2cdf2002ca551735966fd56ee5fcd92b94d7d
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      securityContext:
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      # Taken from
+      # https://github.com/minio/charts/blob/a5c84bcbad884728bff5c9c23541f936d57a13b3/minio/templates/post-install-create-bucket-job.yaml
+        - name: minio-mc
+          image: "minio/mc:RELEASE.2020-11-25T23-04-07Z"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "/config/initialize"]
+          env:
+            - name: MINIO_ENDPOINT
+              value: my-release-minio
+            - name: MINIO_PORT
+              value: "9000"
+          volumeMounts:
+            - name: minio-configuration
+              mountPath: /config
+      containers:
+        - name: admin-api
+          image: "docker.io/grafana/enterprise-logs:v1.5.2"
+          imagePullPolicy: IfNotPresent
+          args:
+            - -target=admin-api
+            - -config.file=/etc/loki/config/config.yaml
+            - -admin.client.backend-type=s3
+            - -admin.client.s3.endpoint=my-release-minio.enterprise-logs-2.5.0.tgz.svc:9000
+            - -admin.client.s3.bucket-name=enterprise-logs-admin
+            - -admin.client.s3.access-key-id=enterprise-logs
+            - -admin.client.s3.secret-access-key=supersecret
+            - -admin.client.s3.insecure=true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - name: license
+              mountPath: /etc/enterprise-logs/license
+            - name: storage
+              mountPath: /data
+              subPath: 
+          ports:
+            - name: http-metrics
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+            - name: http-memberlist
+              containerPort: 7946
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 45
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 45
+          resources:
+            {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          env:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+        - name: storage
+          emptyDir: {}
+        - name: minio-configuration
+          projected:
+            sources:
+            - configMap:
+                name: my-release-minio
+            - secret:
+                name: my-release-minio
+---
+# Source: enterprise-logs/templates/gateway/deployment-gateway.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-enterprise-logs-gateway
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: gateway
+    target: gateway
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: gateway
+      target: gateway
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: gateway
+        target: gateway
+      annotations:
+        checksum/config: 22f393123e17b4d1c8f559e0fbb2cdf2002ca551735966fd56ee5fcd92b94d7d
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+        []
+      containers:
+        - name: gateway
+          image: "docker.io/grafana/enterprise-logs:v1.5.2"
+          imagePullPolicy: IfNotPresent
+          args:
+            - -target=gateway
+            - -config.file=/etc/loki/config/config.yaml
+            - -admin.client.backend-type=s3
+            - -admin.client.s3.endpoint=my-release-minio.enterprise-logs-2.5.0.tgz.svc:9000
+            - -admin.client.s3.bucket-name=enterprise-logs-admin
+            - -admin.client.s3.access-key-id=enterprise-logs
+            - -admin.client.s3.secret-access-key=supersecret
+            - -admin.client.s3.insecure=true
+            - -gateway.proxy.default.url=http://my-release-enterprise-logs-admin-api.enterprise-logs-2.5.0.tgz.svc:3100
+            - -gateway.proxy.admin-api.url=http://my-release-enterprise-logs-admin-api.enterprise-logs-2.5.0.tgz.svc:3100
+            - -gateway.proxy.distributor.url=http://my-release-enterprise-logs-distributor.enterprise-logs-2.5.0.tgz.svc:3100
+            - -gateway.proxy.ingester.url=http://my-release-enterprise-logs-ingester.enterprise-logs-2.5.0.tgz.svc:3100
+            - -gateway.proxy.query-frontend.url=http://my-release-enterprise-logs-query-frontend.enterprise-logs-2.5.0.tgz.svc:3100
+            - -gateway.proxy.ruler.url=http://my-release-enterprise-logs-ruler.enterprise-logs-2.5.0.tgz.svc:3100
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - name: license
+              mountPath: /etc/enterprise-logs/license
+            - name: storage
+              mountPath: /data
+              subPath: 
+          ports:
+            - name: http-metrics
+              containerPort: 3100
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 45
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 45
+          resources:
+            {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          env:
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+        - name: storage
+          emptyDir: {}
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/index-gateway/statefulset-index-gateway.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-enterprise-logs-index-gateway
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: index-gateway
+spec:
+  replicas: 1
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+  serviceName: my-release-enterprise-logs-index-gateway-headless
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: index-gateway
+  template:
+    metadata:
+      annotations:
+        checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: index-gateway
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 300
+      containers:
+        - name: index-gateway
+          image: docker.io/grafana/enterprise-logs:v1.5.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/config/config.yaml
+            - -target=index-gateway
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 300
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - name: data
+              mountPath: /var/loki
+            - mountPath: /etc/enterprise-logs/license
+              name: license
+          resources:
+            {}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: enterprise-logs
+                  app.kubernetes.io/instance: my-release
+                  app.kubernetes.io/component: index-gateway
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: enterprise-logs
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: index-gateway
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "10Gi"
+---
+# Source: enterprise-logs/charts/loki-distributed/templates/ingester/statefulset-ingester.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-enterprise-logs-ingester
+  labels:
+    helm.sh/chart: loki-distributed-0.55.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.6.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: ingester
+    app.kubernetes.io/part-of: memberlist
+spec:
+  replicas: 3
+  podManagementPolicy: Parallel
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+  serviceName: my-release-enterprise-logs-ingester-headless
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: ingester
+  template:
+    metadata:
+      annotations:
+        checksum/config: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: ingester
+        app.kubernetes.io/part-of: memberlist
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 300
+      containers:
+        - name: ingester
+          image: docker.io/grafana/enterprise-logs:v1.5.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/config/config.yaml
+            - -target=ingester
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+            - name: http-memberlist
+              containerPort: 7946
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 300
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - name: data
+              mountPath: /var/loki
+            - mountPath: /etc/enterprise-logs/license
+              name: license
+          resources:
+            {}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: enterprise-logs
+                  app.kubernetes.io/instance: my-release
+                  app.kubernetes.io/component: ingester
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: enterprise-logs
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: ingester
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+        
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+        - name: data
+          emptyDir: {}
+---
+# Source: enterprise-logs/templates/compactor/statefulset-compactor.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-enterprise-logs-compactor
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: memberlist
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: enterprise-logs
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: compactor
+      target: compactor
+  updateStrategy:
+    type: RollingUpdate
+  serviceName: my-release-enterprise-logs-compactor
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes:
+          
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "2Gi"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: compactor
+        target: compactor
+        app.kubernetes.io/part-of: memberlist
+      annotations:
+        checksum/config: 22f393123e17b4d1c8f559e0fbb2cdf2002ca551735966fd56ee5fcd92b94d7d
+    spec:
+      serviceAccountName: my-release-enterprise-logs
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+        []
+      nodeSelector:
+        {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: target
+                  operator: In
+                  values:
+                  - compactor
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      tolerations:
+        []
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+        - name: storage
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: compactor
+          image: "docker.io/grafana/enterprise-logs:v1.5.2"
+          imagePullPolicy: IfNotPresent
+          args:
+            - -target=compactor
+            - -config.file=/etc/loki/config/config.yaml
+            - -admin.client.backend-type=s3
+            - -admin.client.s3.endpoint=my-release-minio.enterprise-logs-2.5.0.tgz.svc:9000
+            - -admin.client.s3.bucket-name=enterprise-logs-admin
+            - -admin.client.s3.access-key-id=enterprise-logs
+            - -admin.client.s3.secret-access-key=supersecret
+            - -admin.client.s3.insecure=true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/config
+            - name: license
+              mountPath: /etc/enterprise-logs/license
+            - name: storage
+              mountPath: /var/loki
+            - name: tmp
+              mountPath: /tmp
+          ports:
+            - name: http-metrics
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9095
+              protocol: TCP
+            - name: http-memberlist
+              containerPort: 7946
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 20
+            httpGet:
+              path: /ready
+              port: http-metrics
+              scheme: HTTP
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 60
+          resources:
+            {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          env:
+---
+# Source: enterprise-logs/templates/tokengen/role-tokengen.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-enterprise-logs-tokengen
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: tokengen
+  annotations:
+    "helm.sh/hook": post-install
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+# Source: enterprise-logs/templates/tokengen/rolebinding-tokengen.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-enterprise-logs-tokengen
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: tokengen
+  annotations:
+    "helm.sh/hook": post-install
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-enterprise-logs-tokengen
+subjects:
+  - kind: ServiceAccount
+    name: my-release-enterprise-logs
+---
+# Source: enterprise-logs/charts/minio/templates/post-install-create-bucket-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-minio-make-bucket-job
+  labels:
+    app: minio-make-bucket-job
+    chart: minio-8.0.9
+    release: my-release
+    heritage: Helm
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        app: minio-job
+        release: my-release
+    spec:
+      restartPolicy: OnFailure      
+      volumes:
+        - name: minio-configuration
+          projected:
+            sources:
+            - configMap:
+                name: my-release-minio
+            - secret:
+                name: my-release-minio
+      serviceAccountName: "my-release-minio"
+      containers:
+      - name: minio-mc
+        image: "minio/mc:RELEASE.2020-11-25T23-04-07Z"
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "/config/initialize"]
+        env:
+          - name: MINIO_ENDPOINT
+            value: my-release-minio
+          - name: MINIO_PORT
+            value: "9000"
+        volumeMounts:
+          - name: minio-configuration
+            mountPath: /config
+        resources:
+          requests:
+            memory: 128Mi
+---
+# Source: enterprise-logs/templates/tokengen/job-tokengen.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-enterprise-logs-tokengen
+  labels:
+    helm.sh/chart: enterprise-logs-2.5.0
+    app.kubernetes.io/name: enterprise-logs
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v1.5.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: tokengen
+  annotations:
+    "helm.sh/hook": post-install
+spec:
+  backoffLimit: 6
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: enterprise-logs
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: tokengen
+      annotations:
+    spec:
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+        - name: tokengen
+          image: docker.io/grafana/enterprise-logs:v1.5.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/loki/config/config.yaml
+            - -target=tokengen
+            - -admin.client.backend-type=s3
+            - -admin.client.s3.endpoint=my-release-minio.enterprise-logs-2.5.0.tgz.svc:9000
+            - -admin.client.s3.bucket-name=enterprise-logs-admin
+            - -admin.client.s3.access-key-id=enterprise-logs
+            - -admin.client.s3.secret-access-key=supersecret
+            - -admin.client.s3.insecure=true
+            - -tokengen.token-file=/shared/admin-token
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+            - name: config
+              mountPath: /etc/loki/config
+            - name: license
+              mountPath: /etc/enterprise-logs/license
+          env:
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+      containers:
+        - name: create-secret
+          image: bitnami/kubectl
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -euc
+            - kubectl create secret generic gel-admin-token --from-file=token=/shared/admin-token --from-literal=grafana-token="$(base64 <(echo :$(cat /shared/admin-token)))"
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+            - name: config
+              mountPath: /etc/loki/config
+            - name: license
+              mountPath: /etc/enterprise-logs/license
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+      restartPolicy: OnFailure
+      serviceAccount: my-release-enterprise-logs
+      serviceAccountName: my-release-enterprise-logs
+      volumes:
+        - name: config
+          secret:
+            secretName: enterprise-logs-config
+        - name: license
+          secret:
+            secretName: enterprise-logs-license
+        - name: shared
+          emptyDir: {}

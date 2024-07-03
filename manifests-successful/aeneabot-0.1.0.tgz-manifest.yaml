@@ -1,0 +1,121 @@
+---
+# Source: aeneabot/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aeneatoken
+type: Opaque
+data:
+  token: "WW91cl9UZWxlZ3JhbV9Ub2tlbg=="
+---
+# Source: aeneabot/templates/persistentvolume.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: aeneabot-pv
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /mnt/aeneadb
+  storageClassName: local-storage
+---
+# Source: aeneabot/templates/persistentvolumeclaim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aeneabot-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-storage
+---
+# Source: aeneabot/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aeneabot-svc
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+  selector:
+      app: aeneabot
+---
+# Source: aeneabot/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aeneabot
+spec:
+  selector:
+    matchLabels:
+      app: aeneabot
+  template:
+    metadata:
+      labels:
+        app: aeneabot
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: aeneaai
+          image: elautoestopista/aeneaai:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512M
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+        - name: aeneabot
+          image: elautoestopista/aeneabot:4.0.1
+          imagePullPolicy: Always
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256M
+            limits:
+              cpu: 500m
+              memory: 512M
+          env:
+          - name: BOTNAME
+            value: AeneaBot
+          - name: AUTHUSER
+            value: Your_Telegram_User
+          - name: LANG
+            value: ES
+          - name: LOGLEVEL
+            value: INFO
+          - name: AENEADB
+            value: /sqlite
+          - name: TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: aeneatoken
+                key: token
+          - name: OLLAMA_URL
+            value: http://localhost:11434
+          - name: OLLAMA_MODEL
+            value: aeneabot
+          - name: PROMETHEUS_ENABLE
+            value: "false"
+          - name: PROMETHEUS_PORT
+            value: "8000"
+          volumeMounts:
+            - name: aeneabot-storage
+              mountPath: /sqlite
+      volumes:
+        - name: aeneabot-storage
+          persistentVolumeClaim:
+            claimName: aeneabot-pvc

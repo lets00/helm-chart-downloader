@@ -1,0 +1,63 @@
+---
+# Source: mysql-backup/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mysqlbackup
+---
+# Source: mysql-backup/templates/cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: my-release-mysqlbackup
+spec:
+  schedule: "0 1 * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: mysqlbackup
+        spec:
+          serviceAccountName: mysqlbackup
+          containers:
+          - name: backup
+            image: "softonic/mysql-backup:0.4.0"
+            env:
+            - name: MYSQL_HOST
+              value: "127.0.0.1"
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_DATABASE
+              value: ""
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: password
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secretAccessKey
+            - name: AWS_S3_FILE_PREFIX
+              value: mysqldump
+            - name: AWS_S3_BUCKET
+              value: 
+            - name: GCP_GCS_FILE_PREFIX
+              value: mysqldump
+            - name: GCP_GCS_BUCKET
+              value: 
+            resources:
+              limits:
+                cpu: "1"
+                memory: 1024Mi
+              requests:
+                cpu: 200m
+                memory: 512Mi
+          restartPolicy: OnFailure

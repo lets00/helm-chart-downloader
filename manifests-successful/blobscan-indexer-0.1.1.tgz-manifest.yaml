@@ -1,0 +1,76 @@
+---
+# Source: blobscan-indexer/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-blobscan-indexer-env
+  labels:
+    helm.sh/chart: blobscan-indexer-0.1.1
+    app.kubernetes.io/name: blobscan-indexer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+---
+# Source: blobscan-indexer/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-blobscan-indexer
+  labels:
+    helm.sh/chart: blobscan-indexer-0.1.1
+    app.kubernetes.io/name: blobscan-indexer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    {}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: blobscan-indexer
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: blobscan-indexer
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/secrets: 7fb0f9a31d8681c73ff45d07b66361a7f2ce4a01c2bd307c1c76366552a2f21a
+    spec:
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+      initContainers:
+      containers:
+      - name: blobscan-indexer
+        image: "ethpandaops/blobscan-indexer:latest"
+        imagePullPolicy: IfNotPresent
+        command:
+        securityContext:
+            {}
+        volumeMounts:
+        ports:
+        resources:
+            {}
+        env:
+            - name: MONGODB_URI
+              value: mongodb://mongodb:27017
+            - name: MONGODB_DB
+              value: blobscan
+            - name: EXECUTION_NODE_RPC
+              value: http://your-execution-node:8545
+            - name: BEACON_NODE_RPC
+              value: http://your-beacon-node:5052
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      topologySpreadConstraints:
+        []
+      terminationGracePeriodSeconds: 30
+      volumes:

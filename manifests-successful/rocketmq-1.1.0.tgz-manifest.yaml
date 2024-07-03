@@ -1,0 +1,626 @@
+---
+# Source: rocketmq/templates/broker/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: broker-config
+data:
+  broker.conf: |
+    deleteWhen=04
+    fileReservedTime=48
+    flushDiskType=SYNC_FLUSH
+---
+# Source: rocketmq/templates/dashboard/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-rocketmq-dashboard"
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: rocketmq
+    app.kubernetes.io/instance: my-release
+    component: dashboard
+---
+# Source: rocketmq/templates/nameserver/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-rocketmq-nameserver
+spec:
+  ports:
+  - port: 9876
+    protocol: TCP
+    targetPort: 9876
+  selector:
+    app.kubernetes.io/name: rocketmq
+    app.kubernetes.io/instance: my-release
+    component: nameserver
+---
+# Source: rocketmq/templates/dashboard/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-rocketmq-dashboard"
+  labels:
+    helm.sh/chart: rocketmq-1.1.0
+    app.kubernetes.io/name: rocketmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rocketmq
+      app.kubernetes.io/instance: my-release
+      component: dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rocketmq
+        app.kubernetes.io/instance: my-release
+        component: dashboard
+    spec:
+      containers:
+      - name: dashboard
+        image: "apacherocketmq/rocketmq-dashboard:1.0.0"
+        imagePullPolicy: "IfNotPresent"
+        env:
+        - name: JAVA_OPTS
+          value: -XX:MaxHeapSize=256M -Drocketmq.namesrv.addr=my-release-rocketmq-nameserver:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 1
+            memory: 2Gi
+          requests:
+            cpu: 20m
+            memory: 512Mi
+---
+# Source: rocketmq/templates/broker/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-rocketmq-broker-0-master
+  labels:
+    helm.sh/chart: rocketmq-1.1.0
+    app.kubernetes.io/name: rocketmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rocketmq
+      app.kubernetes.io/instance: my-release
+      component: broker
+      broker: broker-0-master
+  serviceName: ""
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rocketmq
+        app.kubernetes.io/instance: my-release
+        component: broker
+        broker: broker-0-master
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: rocketmq
+                  app.kubernetes.io/instance: my-release
+                  component: broker
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: broker
+        image: "apache/rocketmq:4.9.3"
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - sh
+          - mqbroker
+          - '-c'
+          - /opt/rocketmq-4.9.3/conf/broker.conf
+        env:
+        - name: autoCreateTopicEnable
+          value: 'true'
+        - name: NAMESRV_ADDR
+          #value: rocketmq-nameserver:9876
+          value: my-release-rocketmq-nameserver-0.my-release-rocketmq-nameserver:9876;my-release-rocketmq-nameserver-1.my-release-rocketmq-nameserver:9876
+        - name: BROKER_ID
+          value: "0"
+        - name: BROKER_CLUSTER_NAME
+          value: "rocketmq-cluster"
+        - name: BROKER_NAME
+          value: "broker-0"
+        - name: BROKER_ROLE
+          value: "ASYNC_MASTER"
+        - name: JAVA_OPT_EXT
+          value: "-server -Xms1g -Xmx1g -Xmn512m"
+        ports:
+        - containerPort: 10909
+          name: vip
+          protocol: TCP
+        - containerPort: 10911
+          name: main
+          protocol: TCP
+        - containerPort: 10912
+          name: ha
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 4
+            memory: 8Gi
+          requests:
+            cpu: 200m
+            memory: 2Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /home/rocketmq/logs
+          name: broker-storage
+          subPath: logs/rocketmq-broker
+        - mountPath: /home/rocketmq/store
+          name: broker-storage
+          subPath: store/rocketmq-broker
+        - mountPath: /opt/rocketmq-4.9.3/conf/broker.conf
+          name: broker-config
+          subPath: broker.conf
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: broker.conf
+            path: broker.conf
+          name: broker-config
+        name: broker-config
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+  volumeClaimTemplates:
+    - metadata:
+        name: broker-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: nfs-client
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: rocketmq/templates/broker/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-rocketmq-broker-0-replica-1
+  labels:
+    helm.sh/chart: rocketmq-1.1.0
+    app.kubernetes.io/name: rocketmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rocketmq
+      app.kubernetes.io/instance: my-release
+      component: broker
+      broker: broker-0-replica-1
+  serviceName: ""
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rocketmq
+        app.kubernetes.io/instance: my-release
+        component: broker
+        broker: broker-0-replica-1
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: rocketmq
+                  app.kubernetes.io/instance: my-release
+                  component: broker
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: broker
+        image: "apache/rocketmq:4.9.3"
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - sh
+          - mqbroker
+          - '-c'
+          - /opt/rocketmq-4.9.3/conf/broker.conf
+        env:
+        - name: autoCreateTopicEnable
+          value: 'true'
+        - name: NAMESRV_ADDR
+          #value: rocketmq-nameserver:9876
+          value: my-release-rocketmq-nameserver-0.my-release-rocketmq-nameserver:9876;my-release-rocketmq-nameserver-1.my-release-rocketmq-nameserver:9876
+        - name: BROKER_ID
+          value: "1"
+        - name: BROKER_CLUSTER_NAME
+          value: "rocketmq-cluster"
+        - name: BROKER_NAME
+          value: "broker-0"
+        - name: BROKER_ROLE
+          value: "SLAVE"
+        - name: JAVA_OPT_EXT
+          value: "-server -Xms1g -Xmx1g -Xmn512m"
+        ports:
+        - containerPort: 10909
+          name: vip
+          protocol: TCP
+        - containerPort: 10911
+          name: main
+          protocol: TCP
+        - containerPort: 10912
+          name: ha
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 4
+            memory: 8Gi
+          requests:
+            cpu: 50m
+            memory: 2Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /home/rocketmq/logs
+          name: broker-storage
+          subPath: logs/rocketmq-broker
+        - mountPath: /home/rocketmq/store
+          name: broker-storage
+          subPath: store/rocketmq-broker
+        - mountPath: /opt/rocketmq-4.9.3/conf/broker.conf
+          name: broker-config
+          subPath: broker.conf
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: broker.conf
+            path: broker.conf
+          name: broker-config
+        name: broker-config
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+  volumeClaimTemplates:
+    - metadata:
+        name: broker-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: nfs-client
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: rocketmq/templates/broker/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-rocketmq-broker-1-master
+  labels:
+    helm.sh/chart: rocketmq-1.1.0
+    app.kubernetes.io/name: rocketmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rocketmq
+      app.kubernetes.io/instance: my-release
+      component: broker
+      broker: broker-1-master
+  serviceName: ""
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rocketmq
+        app.kubernetes.io/instance: my-release
+        component: broker
+        broker: broker-1-master
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: rocketmq
+                  app.kubernetes.io/instance: my-release
+                  component: broker
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: broker
+        image: "apache/rocketmq:4.9.3"
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - sh
+          - mqbroker
+          - '-c'
+          - /opt/rocketmq-4.9.3/conf/broker.conf
+        env:
+        - name: autoCreateTopicEnable
+          value: 'true'
+        - name: NAMESRV_ADDR
+          #value: rocketmq-nameserver:9876
+          value: my-release-rocketmq-nameserver-0.my-release-rocketmq-nameserver:9876;my-release-rocketmq-nameserver-1.my-release-rocketmq-nameserver:9876
+        - name: BROKER_ID
+          value: "0"
+        - name: BROKER_CLUSTER_NAME
+          value: "rocketmq-cluster"
+        - name: BROKER_NAME
+          value: "broker-1"
+        - name: BROKER_ROLE
+          value: "ASYNC_MASTER"
+        - name: JAVA_OPT_EXT
+          value: "-server -Xms1g -Xmx1g -Xmn512m"
+        ports:
+        - containerPort: 10909
+          name: vip
+          protocol: TCP
+        - containerPort: 10911
+          name: main
+          protocol: TCP
+        - containerPort: 10912
+          name: ha
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 4
+            memory: 8Gi
+          requests:
+            cpu: 200m
+            memory: 2Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /home/rocketmq/logs
+          name: broker-storage
+          subPath: logs/rocketmq-broker
+        - mountPath: /home/rocketmq/store
+          name: broker-storage
+          subPath: store/rocketmq-broker
+        - mountPath: /opt/rocketmq-4.9.3/conf/broker.conf
+          name: broker-config
+          subPath: broker.conf
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: broker.conf
+            path: broker.conf
+          name: broker-config
+        name: broker-config
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+  volumeClaimTemplates:
+    - metadata:
+        name: broker-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: nfs-client
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: rocketmq/templates/broker/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-rocketmq-broker-1-replica-1
+  labels:
+    helm.sh/chart: rocketmq-1.1.0
+    app.kubernetes.io/name: rocketmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rocketmq
+      app.kubernetes.io/instance: my-release
+      component: broker
+      broker: broker-1-replica-1
+  serviceName: ""
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rocketmq
+        app.kubernetes.io/instance: my-release
+        component: broker
+        broker: broker-1-replica-1
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: rocketmq
+                  app.kubernetes.io/instance: my-release
+                  component: broker
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: broker
+        image: "apache/rocketmq:4.9.3"
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - sh
+          - mqbroker
+          - '-c'
+          - /opt/rocketmq-4.9.3/conf/broker.conf
+        env:
+        - name: autoCreateTopicEnable
+          value: 'true'
+        - name: NAMESRV_ADDR
+          #value: rocketmq-nameserver:9876
+          value: my-release-rocketmq-nameserver-0.my-release-rocketmq-nameserver:9876;my-release-rocketmq-nameserver-1.my-release-rocketmq-nameserver:9876
+        - name: BROKER_ID
+          value: "1"
+        - name: BROKER_CLUSTER_NAME
+          value: "rocketmq-cluster"
+        - name: BROKER_NAME
+          value: "broker-1"
+        - name: BROKER_ROLE
+          value: "SLAVE"
+        - name: JAVA_OPT_EXT
+          value: "-server -Xms1g -Xmx1g -Xmn512m"
+        ports:
+        - containerPort: 10909
+          name: vip
+          protocol: TCP
+        - containerPort: 10911
+          name: main
+          protocol: TCP
+        - containerPort: 10912
+          name: ha
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 4
+            memory: 8Gi
+          requests:
+            cpu: 50m
+            memory: 2Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /home/rocketmq/logs
+          name: broker-storage
+          subPath: logs/rocketmq-broker
+        - mountPath: /home/rocketmq/store
+          name: broker-storage
+          subPath: store/rocketmq-broker
+        - mountPath: /opt/rocketmq-4.9.3/conf/broker.conf
+          name: broker-config
+          subPath: broker.conf
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: broker.conf
+            path: broker.conf
+          name: broker-config
+        name: broker-config
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+  volumeClaimTemplates:
+    - metadata:
+        name: broker-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: nfs-client
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: rocketmq/templates/nameserver/satefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "my-release-rocketmq-nameserver"
+  labels:
+    helm.sh/chart: rocketmq-1.1.0
+    app.kubernetes.io/name: rocketmq
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rocketmq
+      app.kubernetes.io/instance: my-release
+      component: nameserver
+  serviceName: "my-release-rocketmq-nameserver"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rocketmq
+        app.kubernetes.io/instance: my-release
+        component: nameserver
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: rocketmq
+                  app.kubernetes.io/instance: my-release
+                  component: nameserver
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: nameserver
+        image: "apache/rocketmq:4.9.3"
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - sh
+          - mqnamesrv
+        ports:
+        - containerPort: 9876
+          name: main
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 2
+            memory: 6Gi
+          requests:
+            cpu: 100m
+            memory: 2Gi
+        volumeMounts:
+        - mountPath: /home/rocketmq/logs
+          name: nameserver-logs
+  volumeClaimTemplates:
+    - metadata:
+        name: nameserver-logs
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: nfs-client
+        resources:
+          requests:
+            storage: "8Gi"

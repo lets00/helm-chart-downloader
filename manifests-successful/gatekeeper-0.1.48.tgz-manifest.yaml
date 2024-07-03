@@ -1,0 +1,120 @@
+---
+# Source: gatekeeper/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-gatekeeper
+  labels:
+    helm.sh/chart: gatekeeper-0.1.48
+    app.kubernetes.io/name: gatekeeper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: gatekeeper/templates/config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-gatekeeper
+  labels:
+    helm.sh/chart: gatekeeper-0.1.48
+    app.kubernetes.io/name: gatekeeper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+stringData:
+  config.yaml: |
+    enable-metrics: false
+    listen: 0.0.0.0:3000
+    listen-admin: 0.0.0.0:4000
+---
+# Source: gatekeeper/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-gatekeeper
+  labels:
+    helm.sh/chart: gatekeeper-0.1.48
+    app.kubernetes.io/name: gatekeeper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: proxy
+      protocol: TCP
+      name: proxy
+    - port: 4000
+      targetPort: admin
+      protocol: TCP
+      name: admin
+  selector:
+    app.kubernetes.io/name: gatekeeper
+    app.kubernetes.io/instance: my-release
+---
+# Source: gatekeeper/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-gatekeeper
+  labels:
+    helm.sh/chart: gatekeeper-0.1.48
+    app.kubernetes.io/name: gatekeeper
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "2.11.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gatekeeper
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/config: "0e9cfa754b998c17775531308dd23198fade667d92332944cfbf545a6c1f3958"
+      labels:
+        app.kubernetes.io/name: gatekeeper
+        app.kubernetes.io/instance: my-release
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: my-release-gatekeeper
+      containers:
+        - name: gatekeeper
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          image: "quay.io/gogatekeeper/gatekeeper:2.11.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config
+            - /etc/gatekeeper/config.yaml
+          ports:
+            - name: proxy
+              containerPort: 3000
+              protocol: TCP
+            - name: admin
+              containerPort: 4000
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /oauth/health
+              port: admin
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - mountPath: /etc/gatekeeper
+              name: config
+      volumes:
+        - secret:
+            secretName: my-release-gatekeeper
+          name: config

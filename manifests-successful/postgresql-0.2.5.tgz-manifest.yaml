@@ -1,0 +1,110 @@
+---
+# Source: postgresql/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  labels:
+    app: postgresql
+    chart: postgresql-0.2.5
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  ports:
+  - name: postgresql
+    port: 5432
+    targetPort: postgresql
+  selector:
+    app: postgresql
+    release: "my-release"
+---
+# Source: postgresql/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  labels:
+    app: postgresql
+    chart: postgresql-0.2.5
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  serviceName: my-release-postgresql-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+      release: "my-release"
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app: "postgresql"
+        chart: postgresql-0.2.5
+        release: "my-release"
+        heritage: "Helm"
+    spec:
+      initContainers:
+      - name: init-chmod-data
+        image: "debian:buster-slim"
+        imagePullPolicy: "Always"
+        resources:
+          {}
+        command:
+          - sh
+          - -c
+          - |
+            mkdir -p /var/lib/postgresql/data
+            chmod 700 /var/lib/postgresql/data
+            find /var/lib/postgresql -mindepth 1 -maxdepth 1 -not -name ".snapshot" -not -name "lost+found" | \
+              xargs chown -R 1001:1001
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql
+          subPath: 
+      containers:
+      - name: my-release-postgresql
+        image: "postgres:11.5"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          {}
+        env:
+        - name: POSTGRES_PASSWORD
+          value: "postgres"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_DB
+          value: "postgres"
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"
+        ports:
+        - name: postgresql
+          containerPort: 5432
+        livenessProbe:
+            null
+        readinessProbe:
+            null
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+          subPath: 
+          readOnly: false
+      volumes:
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "10Gi"
+---
+# Source: postgresql/templates/configmap.yaml
+#
+# A ConfigMap spec for pgldap-config.yaml 
+# /var/lib/pglda-config.yaml
+#

@@ -1,0 +1,99 @@
+---
+# Source: fileserver/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-fileserver
+  namespace: fileserver-0.3.10.tgz
+  annotations:
+    "helm.sh/resource-policy": keep
+  labels:
+    app: fileserver
+    chart: "fileserver-0.3.10"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "5Gi"
+---
+# Source: fileserver/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fileserver
+  namespace: fileserver-0.3.10.tgz
+  labels:
+    app: fileserver
+    chart: fileserver-0.3.10
+    release: my-release
+    heritage: Helm
+spec:
+  ports:
+    - name: files
+      port: 80
+      targetPort: files
+  selector:
+    app: fileserver
+    release: my-release
+---
+# Source: fileserver/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-fileserver
+  namespace: fileserver-0.3.10.tgz
+  labels:
+    app: fileserver
+    chart: fileserver-0.3.10
+    release: my-release
+    heritage: Helm
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: fileserver
+      release: my-release
+  template:
+    metadata:
+      labels:
+        app: fileserver
+        release: my-release
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: "fileserver"
+          image: duck1123/lnd-fileserver:latest
+          volumeMounts:
+          - name: data
+            mountPath: /mnt/lnd-data
+            subPath: .lnd
+          ports:
+          - name: files
+            containerPort: 3000
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-fileserver
+---
+# Source: fileserver/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: fileserver-0.3.10.tgz
+spec:
+  rules:
+  - host: lnd.localhost
+    http:
+      paths:
+      - path: "/"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: fileserver
+            port:
+              number: 80

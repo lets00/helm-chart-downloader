@@ -1,0 +1,195 @@
+---
+# Source: esm/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: esm
+  labels:
+    helm.sh/chart: esm-0.6.1
+    app: esm
+    instance: esm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+---
+# Source: esm/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: esm
+  namespace: 
+data:
+  application.yml: |-
+    logging:
+      level:
+        com.sqream: INFO
+    maxPodsPerTenant: 1000
+    minPodsPerTenant: 1
+    restartPodForever: false
+---
+# Source: esm/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: admin-esm
+  namespace: esm-0.6.1.tgz
+subjects:
+  - kind: ServiceAccount
+    # Reference to upper's `metadata.name`
+    name: esm
+    # Reference to upper's `metadata.namespace`
+    namespace: esm-0.6.1.tgz
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: esm/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: esm
+  labels:
+    helm.sh/chart: esm-0.6.1
+    app: esm
+    instance: esm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: esm
+    instance: esm
+---
+# Source: esm/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esm
+  labels:
+    helm.sh/chart: esm-0.6.1
+    app: esm
+    instance: esm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: esm
+      instance: esm
+  template:
+    metadata:
+      labels:
+        app: esm
+        instance: esm
+    spec:
+      serviceAccountName: esm
+      securityContext:
+        {}
+      containers:
+        - name: esm
+          securityContext:
+            {}
+          image: "nexus.sq.l:16000/repository/container-replace-repo/esm:replace_tag"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: 'esm-secret'
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xmx1524m -Xms512m"
+          command:
+            - sh
+            - -c
+            - java $JAVA_OPTS -jar app.jar --spring.config.additional-location=file:/app/application.yml
+          args:
+          livenessProbe:
+          startupProbe:
+          resources:
+            limits:
+              cpu: "1.5"
+              memory: 2048Mi
+            requests:
+              cpu: "0.5"
+              memory: 512Mi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: esm
+---
+# Source: esm/templates/secret.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: esm-secret
+  labels:
+    helm.sh/chart: esm-0.6.1
+    app: esm
+    instance: esm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: local-secrets
+    kind: ClusterSecretStore
+  target:
+    name: esm-secret
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      metadata:
+        annotations:
+          {}
+        labels:
+          helm.sh/chart: esm-0.6.1
+          app: esm
+          instance: esm
+          app.kubernetes.io/version: "1.16.0"
+          app.kubernetes.io/managed-by: Helm
+          monitor: "true"
+      data:
+        REDIS_HOST: '{{ .REDIS_IP_ADDRESS }}'
+        REDIS_PORT: '{{ .REDIS_PORT }}'
+  dataFrom:
+    - extract:
+        key: redis-managed-instance
+---
+# Source: esm/templates/servicePodMonitor.yaml
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: esm
+  labels:
+    helm.sh/chart: esm-0.6.1
+    app: esm
+    instance: esm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  selector:
+    matchLabels:
+      app: esm
+      instance: esm
+  endpoints:
+  - port: http
+    path: /actuator/prometheus
+    interval: 30s

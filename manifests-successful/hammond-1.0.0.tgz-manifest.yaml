@@ -1,0 +1,105 @@
+---
+# Source: hammond/templates/persistantvolumeclaim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-hammond-storage
+  labels:
+    helm.sh/chart: hammond-1.0.0
+    app.kubernetes.io/name: hammond
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.21"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+---
+# Source: hammond/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-hammond-web
+  labels:
+    helm.sh/chart: hammond-1.0.0
+    app.kubernetes.io/name: hammond
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.21"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: "TCP"
+  selector:
+    app.kubernetes.io/name: hammond
+    app.kubernetes.io/instance: my-release
+---
+# Source: hammond/templates/controller.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-hammond
+  labels:
+    helm.sh/chart: hammond-1.0.0
+    app.kubernetes.io/name: hammond
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.0.21"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hammond
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hammond
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: default
+      initContainers:
+        - name: init-volumes
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command: ['sh', '-c', 'mkdir -p /data/config /data/assets']
+          volumeMounts:
+            - name: my-release-hammond-storage
+              mountPath: /data
+      containers:
+        - name: hammond
+          image: "ghcr.io/alfhou/hammond:v0.0.21"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: "TCP"
+          env:
+            - name: "TZ"
+              value: "UTC"
+            - name: CONFIG
+              value: /data/config
+            - name: DATA
+              value: /data/assets
+          volumeMounts:
+            - name: my-release-hammond-storage
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources: {}
+      volumes:
+        - name: my-release-hammond-storage
+          persistentVolumeClaim:
+            claimName: my-release-hammond-storage

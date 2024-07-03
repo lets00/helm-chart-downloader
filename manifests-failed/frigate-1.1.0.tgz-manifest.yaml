@@ -1,0 +1,222 @@
+---
+# Source: frigate/templates/secert.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-frigate
+  namespace: frigate-1.1.0.tgz
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  config.yml: |
+    mqtt:
+      enabled: False
+    
+    cameras:
+      name_of_your_camera: # <------ Name the camera
+        ffmpeg:
+          inputs:
+            - path: rtsp://10.0.10.10:554/rtsp # <----- The stream you want to use for detection
+              roles:
+                - detect
+        detect:
+          enabled: False # <---- disable detection until you have a working camera feed
+          width: 1280 # <---- update for your camera's resolution
+          height: 720 # <---- update for your camera's resolution
+---
+# Source: frigate/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-frigate
+  namespace: frigate-1.1.0.tgz
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yml: |
+    mqtt:
+      enabled: False
+    
+    cameras:
+      name_of_your_camera: # <------ Name the camera
+        ffmpeg:
+          inputs:
+            - path: rtsp://10.0.10.10:554/rtsp # <----- The stream you want to use for detection
+              roles:
+                - detect
+        detect:
+          enabled: False # <---- disable detection until you have a working camera feed
+          width: 1280 # <---- update for your camera's resolution
+          height: 720 # <---- update for your camera's resolution
+---
+# Source: frigate/templates/config-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-release-frigate-pv-claim
+  labels:
+    app: frigate
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: frigate/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-frigate
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.13.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 5000
+      protocol: TCP
+      targetPort: http
+
+    - name: rtmp
+      port: 1935
+      protocol: TCP
+      targetPort: rtmp
+
+  selector:
+    app.kubernetes.io/name: frigate
+    app.kubernetes.io/instance: my-release
+---
+# Source: frigate/templates/Statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-frigate
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.13.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  # strategy:
+  #   type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frigate
+      app.kubernetes.io/instance: my-release
+  serviceName: "frigate"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frigate
+        app.kubernetes.io/instance: my-release
+      annotations:
+        checksum/configmap: e3ec34d10c41964e2b7e65a223de9d1cafd8561a43707b6c898d71c186f2b9af
+    spec:
+      containers:
+        - name: frigate
+          image: "ghcr.io/blakeblackshear/frigate:0.13.0"
+          imagePullPolicy: 
+          securityContext:
+            privileged: true
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+            - name: rtmp
+              containerPort: 1935
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            failureThreshold: 5
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            failureThreshold: 5
+            timeoutSeconds: 10
+          env:
+          envFrom:
+          volumeMounts:
+            - mountPath: /dev/bus/usb
+              name: coral-dev
+            - mountPath: /config/config.yml
+              subPath: config.yml
+              name: config-yaml
+            - mountPath: /config/
+              name: config
+            - mountPath: /data
+              name: data
+            - mountPath: /media/frigate
+              name: data
+            - name: dshm
+              mountPath: /dev/shm
+          resources:
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: my-release-frigate-pv-claim
+        - name: config-yaml
+          secret:
+            secretName: my-release-frigate
+        - name: coral-dev
+          hostPath:
+            path: /dev/bus/usb
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: # [ "ReadWriteOnce" ]
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: "1Gi"
+---
+# Source: frigate/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-frigate
+  labels:
+    app.kubernetes.io/name: frigate
+    helm.sh/chart: frigate-1.1.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.13.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  rules:
+    - host: "chart.frigate.local.com"
+      http:
+        paths:
+          - path: /
+            pathType: "ImplementationSpecific"
+            backend:
+              service:
+                name: my-release-frigate
+                port:
+                  name: http

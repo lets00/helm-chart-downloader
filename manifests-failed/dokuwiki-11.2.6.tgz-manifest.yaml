@@ -1,0 +1,164 @@
+---
+# Source: dokuwiki/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-dokuwiki
+  labels:
+    app.kubernetes.io/name: dokuwiki
+    helm.sh/chart: dokuwiki-11.2.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  
+  dokuwiki-password: "Rm90WVpIMU9uWg=="
+---
+# Source: dokuwiki/templates/dokuwiki-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-dokuwiki
+  labels:
+    app.kubernetes.io/name: dokuwiki
+    helm.sh/chart: dokuwiki-11.2.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: dokuwiki/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-dokuwiki
+  labels:
+    app.kubernetes.io/name: dokuwiki
+    helm.sh/chart: dokuwiki-11.2.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: "Cluster"
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: https
+      port: 443
+      targetPort: https
+  selector:
+    app.kubernetes.io/name: dokuwiki
+    app.kubernetes.io/instance: my-release
+---
+# Source: dokuwiki/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-dokuwiki
+  labels:
+    app.kubernetes.io/name: dokuwiki
+    helm.sh/chart: dokuwiki-11.2.6
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dokuwiki
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dokuwiki
+        helm.sh/chart: dokuwiki-11.2.6
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        prometheus.io/port: "9117"
+        prometheus.io/scrape: "true"
+    spec:
+      
+      # yamllint disable rule:indentation
+      hostAliases:
+        - hostnames:
+          - status.localhost
+          ip: 127.0.0.1
+      # yamllint enable rule:indentation
+      securityContext:
+        fsGroup: 1001
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: dokuwiki
+                    app.kubernetes.io/instance: my-release
+                namespaces:
+                  - "dokuwiki-11.2.6.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      initContainers:
+      containers:
+        - name: dokuwiki
+          image: docker.io/bitnami/dokuwiki:20200729.0.0-debian-10-r370
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: DOKUWIKI_USERNAME
+              value: "user"
+            - name: DOKUWIKI_FULL_NAME
+              value: "User Name"
+            - name: DOKUWIKI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-dokuwiki
+                  key: dokuwiki-password
+            - name: DOKUWIKI_EMAIL
+              value: "user@example.com"
+            - name: DOKUWIKI_WIKI_NAME
+              value: "My Wiki"
+          envFrom:
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: https
+              containerPort: 8443
+          livenessProbe:
+            httpGet:
+              path: /doku.php
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /doku.php
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 300m
+              memory: 512Mi
+          volumeMounts:
+            - name: dokuwiki-data
+              mountPath: /bitnami/dokuwiki
+      volumes:
+        - name: dokuwiki-data
+          persistentVolumeClaim:
+            claimName: my-release-dokuwiki

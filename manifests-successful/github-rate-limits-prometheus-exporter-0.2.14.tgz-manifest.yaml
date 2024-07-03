@@ -1,0 +1,126 @@
+---
+# Source: github-rate-limits-prometheus-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-github-rate-limits-prometheus-exporter
+  labels:
+    helm.sh/chart: github-rate-limits-prometheus-exporter-0.2.14
+    app.kubernetes.io/name: github-rate-limits-prometheus-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.1.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: github-rate-limits-prometheus-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-github-rate-limits-prometheus-exporter
+  labels:
+    helm.sh/chart: github-rate-limits-prometheus-exporter-0.2.14
+    app.kubernetes.io/name: github-rate-limits-prometheus-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 2112
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: github-rate-limits-prometheus-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: github-rate-limits-prometheus-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-github-rate-limits-prometheus-exporter
+  labels:
+    helm.sh/chart: github-rate-limits-prometheus-exporter-0.2.14
+    app.kubernetes.io/name: github-rate-limits-prometheus-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.1.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: github-rate-limits-prometheus-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "2112"
+        prometheus.io/scrape: "true"
+      labels:
+        app.kubernetes.io/name: github-rate-limits-prometheus-exporter
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-github-rate-limits-prometheus-exporter
+      securityContext:
+        {}
+      containers:
+        - name: github-rate-limits-prometheus-exporter
+          securityContext:
+            {}
+          image: "ghcr.io/kalgurn/grl-exporter:v3.1.1"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GITHUB_LOG_METRIC_COLLECTION
+              value: "true"
+            - name: GITHUB_AUTH_TYPE
+              value: "APP"
+            - name: GITHUB_APP_ID
+              value: "1"
+            - name: GITHUB_INSTALLATION_ID
+              value: "1"
+            - name: GITHUB_PRIVATE_KEY_PATH
+              value: "/tmpkey.pem"
+            - name: GITHUB_ACCOUNT_NAME
+              value: my-release
+          volumeMounts:
+          - name: key-volume
+            readOnly: true
+            mountPath: "/tmp"
+          ports:
+            - name: http
+              containerPort: 2112
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+          resources:
+            {}
+      volumes:
+        - name: key-volume
+          secret:
+            secretName: secret
+---
+# Source: github-rate-limits-prometheus-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-github-rate-limits-prometheus-exporter-test-connection"
+  labels:
+    helm.sh/chart: github-rate-limits-prometheus-exporter-0.2.14
+    app.kubernetes.io/name: github-rate-limits-prometheus-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v3.1.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-github-rate-limits-prometheus-exporter:2112']
+  restartPolicy: Never

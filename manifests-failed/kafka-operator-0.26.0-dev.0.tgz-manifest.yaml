@@ -1,0 +1,620 @@
+---
+# Source: kafka-operator/templates/authproxy-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kafka-operator-authproxy
+  namespace: "kafka-operator-0.26.0-dev.0.tgz"
+  labels:
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: authproxy
+---
+# Source: kafka-operator/templates/operator-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kafka-operator
+  namespace: "kafka-operator-0.26.0-dev.0.tgz"
+  labels:
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: operator
+---
+# Source: kafka-operator/templates/operator-deployment-with-webhook.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: operator-certificates
+  name: kafka-operator-serving-cert
+  namespace: kafka-operator-0.26.0-dev.0.tgz
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVDRENDQXZDZ0F3SUJBZ0lSQUs1M0g3TGVtTGN2bzN6QUJtYU5WWVV3RFFZSktvWklodmNOQVFFTEJRQXcKSERFYU1CZ0dBMVVFQXhNUmEyRm1hMkV0YjNCbGNtRjBiM0l0WTJFd0hoY05NalF3TmpJd01UUTFOekUyV2hjTgpNalV3TmpJd01UUTFOekUyV2pCUk1VOHdUUVlEVlFRREUwWnRlUzF5Wld4bFlYTmxMV3RoWm10aExXOXdaWEpoCmRHOXlMVzl3WlhKaGRHOXlMbXRoWm10aExXOXdaWEpoZEc5eUxUQXVNall1TUMxa1pYWXVNQzUwWjNvdWMzWmoKTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFxcXUrRXlTb0NPWDJSVkltT0c4TApRUXJWM29xNG9CRjZ1YnhITi9XTGxJWEVNZHhxWGdpU3ZsTXVuSzB1SXdlMzQycVAwZ1RlQ2ZFRkZwUlB3dEE3Cldkd3N1TXkwaU11YU1TKzk4R0VOM1BlTCs2SGZnOTBWY0FxL29Jc0hkL3lRN0xJUDNrbTBUMW9wZXJDNWRNSzgKWnJnd2Q1MDV5OTdENlRsRnVWeUtyejRGZDdnVUNiOGVRY3pUUjVKV2sxb3hOU05tRGpXUVRLTHpqQjZWTlpkUwpoS3g3Wkl3L3Bpd3NaRHdqOGNrS0hQUFpNUWNxcnAydVpMYnU0enIyOHNVU3FLcDFxVUxwbWNFYURub1VOL2lECjFML2R6MlMxV05WcHNjeDB4SStaZWtUdWV0VTJFUURDNk5GYU0vZGRjVEhOakluT1FZTjNrQk1KaktiVlNRS0wKVHdJREFRQUJvNElCRGpDQ0FRb3dEZ1lEVlIwUEFRSC9CQVFEQWdXZ01CMEdBMVVkSlFRV01CUUdDQ3NHQVFVRgpCd01CQmdnckJnRUZCUWNEQWpBTUJnTlZIUk1CQWY4RUFqQUFNQjhHQTFVZEl3UVlNQmFBRkMyekpYbytYcVYyClZGY016ZGxsZldHRnFaN1JNSUdwQmdOVkhSRUVnYUV3Z1o2Q1ZHMTVMWEpsYkdWaGMyVXRhMkZtYTJFdGIzQmwKY21GMGIzSXRiM0JsY21GMGIzSXVhMkZtYTJFdGIzQmxjbUYwYjNJdE1DNHlOaTR3TFdSbGRpNHdMblJuZWk1egpkbU11WTJ4MWMzUmxjaTVzYjJOaGJJSkdiWGt0Y21Wc1pXRnpaUzFyWVdacllTMXZjR1Z5WVhSdmNpMXZjR1Z5CllYUnZjaTVyWVdacllTMXZjR1Z5WVhSdmNpMHdMakkyTGpBdFpHVjJMakF1ZEdkNkxuTjJZekFOQmdrcWhraUcKOXcwQkFRc0ZBQU9DQVFFQUxjNmttQWRDdk5NNExwUVJHRHJ0azdVczNQdHlsUDFqbXRFNXRZOGlSaTVzdFQwUQpkRzc0VUZwZmZEaytxY1dDaXc5cWw2VmFqRWQ4ckhtUVNoOEcweUlZek5uMkxXZ2FVS25RVDQwSHZCZm9TNThNCnZVbC8xdU1Tcm1hcmo3SXpGMUhMVjQ3QmNaUXdJY0Irc2FFYUZGZGZLUEhEdlJiT3RkU0dWbTRHVTU1eWw3WG4KbEhmOEF4MGtuM1AxWHRmN0drbkpobU91d3NoUm5QWVVWNnBuTTh5NytXaG9seldmZUJob2NnekRRSzBLb0NIaQoxT3lVRFFLckRFemorMndKdzR5ZjJ1bWdIUmt6QmdKb1FlMldROHZxQ3hXZlNML0VvWSsxVnJrL3RHVitXTFVQCnQ4T0s4MDF3bHlYVTZuR3R3eFBtbXZuSStnTTlud2J4aWRNcnNnPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBcXF1K0V5U29DT1gyUlZJbU9HOExRUXJWM29xNG9CRjZ1YnhITi9XTGxJWEVNZHhxClhnaVN2bE11bkswdUl3ZTM0MnFQMGdUZUNmRUZGcFJQd3RBN1dkd3N1TXkwaU11YU1TKzk4R0VOM1BlTCs2SGYKZzkwVmNBcS9vSXNIZC95UTdMSVAza20wVDFvcGVyQzVkTUs4WnJnd2Q1MDV5OTdENlRsRnVWeUtyejRGZDdnVQpDYjhlUWN6VFI1SldrMW94TlNObURqV1FUS0x6akI2Vk5aZFNoS3g3Wkl3L3Bpd3NaRHdqOGNrS0hQUFpNUWNxCnJwMnVaTGJ1NHpyMjhzVVNxS3AxcVVMcG1jRWFEbm9VTi9pRDFML2R6MlMxV05WcHNjeDB4SStaZWtUdWV0VTIKRVFEQzZORmFNL2RkY1RITmpJbk9RWU4za0JNSmpLYlZTUUtMVHdJREFRQUJBb0lCQVFDVmxRWjNRclpmYmlWawo1allIV2hPMEF1b2xMTkhad05nZU40ejMxNlpwR3NBMHJ5a3VsemI5eG12Zzk4dXEraFhLSk5nK1N2UE1KTWkvCjNHYjNxSWVNSDNPMjEvc1d0ZFBEYmtON2phU1gyUUtBSFlTSHp0bitJLzJGbUxTSURmMTY1aWtRT3Vya2JYSlQKVE5hT0ppcjNvRkVpVk5PV0FmMFV5SlI2ZkVnMGc2bGt6SWc1b2dsOTRNM1dxSnUrR1J0MDg3d3lYRHVMNmxPMgpyWno1S1RaSGYwa2tyUjJldnc0eU1NN3Q5SjFaTXU4Rm5VVkNma1NTT0pOTjZMMWVJOXpkMzRycVREQWl6SDBHCkZKVGJMK05pQUNCZUliUXQrUlhSS0xvUWdrcTgwTVJZMVU5UG92TUE4Y2hpSXl0K1BWL1BuYW16d20rYjUxTUUKYnpucWdLT1pBb0dCQU1aN1d3S3crQkxHVXdyRUxvanI4TTU1OGhqeENpZEduTXliUDgrZEdpaFVReCsxZWl5dwppeTRUUHYxYm16a2NmOWpRZ0NOZXE5NEJzV2VRTzkrWVdudGRkd214b21lc1F1TVdydVVidHNIVDl4SjZ5RWI4CjV4RDlSaGVIRktQQ2tiUWhzRk5uby82Tmx6TUhqdEg4ZUR3a2VaR1pWczV2TnhNM3J1dkRrZHRUQW9HQkFOd2gKTVBaUGU5Umh6RlhUZ0N5WGU3MjlxM1cwL05GMklpM0RyMGExYXZoQ2ZaM0o3NGI4bENHTk1WTy8zY3pnSVdNcApielBZd1hsaXlnZjFDQWoxT3ZTaG9ibi8yOEZ5a2FKZEJtcWlJbW9TeGt2NEM1dHNuZE1ZVnRiYXhyTUhTZ296CnZBQWZOdzhMckNNSFpuY0x4UmEvaGdnTTNCWk92U2JxN0p1aEVneVZBb0dBS1QxZU5wdnduMjRIdVJmMEYwejIKdHVBTmxuTVd5ZnhZL2daUDV1SmNtZjZRQjltY0xnYnNsRUU1ZUVqOVlvdHlZT2xKaG8vWUpBTzBDYkdsVHhzSAp5ZFFzdEozdEFaK0FNbEQzTy9GYk1zREkrRlQ4b2d0UU0yNThqc3pwVS9GTWR1SDlFZ2Rad3IxR3FqcXF5U1N0CkVzbjlYR3hBNWhtamx1R2QvYXlmOUxNQ2dZRUF4WXhMNG1BR1l0eTVnYlJpN0tHdGZPUUFRWXdBN3dFelB4ckQKNjVMWHdwLzVGMmVudTk1a0daQWFXbXh2WW5NcHcxSGw2QU4zN2JXSVZZZkNoRGQvaHhhZWlzdGdyY1JoaWZJdAoxZmhYSmhaZk9zSUp1SnZMTHl4Q2ttS1h1d2FwbldvOEoyZmNBM2FZTG45dnB4bzY3MlZGcFdmVkEzZjZMRGpiCnlmYk11ZGtDZ1lFQXFHRWVZTjFXaWl5bmpyTlJFa3pBd3FlNW1IczB1a1R5bW1yajNibWRDUlY0aFJGTU16TnYKd1MvL204Y1dBZ1hSMlVGVlpJYVVQam13Q3J5eC8zenhhZm40dXdoaklBc1VvVy83ZkRmZmp1RnZOekMxSVVUQwpJNjhETXQxNStTYVJiY2ZHYU00TkhrNi90Ly9IcGtOeVgvUGJ3QUVhZEp2MG8zZXJVcHBVTVFBPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+  ca.crt:  LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKRENDQWd5Z0F3SUJBZ0lSQUlzdCtLY1BpNi92U1VqOXJ1N3JJL3N3RFFZSktvWklodmNOQVFFTEJRQXcKSERFYU1CZ0dBMVVFQXhNUmEyRm1hMkV0YjNCbGNtRjBiM0l0WTJFd0hoY05NalF3TmpJd01UUTFOekUyV2hjTgpNelF3TmpFNE1UUTFOekUyV2pBY01Sb3dHQVlEVlFRREV4RnJZV1pyWVMxdmNHVnlZWFJ2Y2kxallUQ0NBU0l3CkRRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFLeWV0blZtN1AyWXR0T2lLNWYrdFYxaFlDOFIKZDZkK0F3WXpTQmY5MTk1N1R5U2ZWVHZ5WWlnbGJZbkR0T3hseVNaNGtwdENaR1VRL1NvcjA3b0lCRzlOT3lwQQo2WUtSRzZBQXh0N3IrYlBoTEZMSjlHeldzSzJUd05PNG5ZOHlsUE5pRUhWR2twQ015dlpqTC9nZXV2SWtURFVrCi9zRmFRY2NiUUZrdXhPcHVNUEdlajFrVTZmaDVFZUVydTJleUphM1V5REVYQmpTSUFiVS81dEZ5NXpSajZ2bzIKckw1QUdVT080MlZqakJZSGZLbVF3MW1oWWlaNEVrdGNLYXpaSU1FSk1IZ3B1Q3RWdDRQR2tPTkEyUFQrM21vaAptdERIVFNBVmxYdFdzYWJ3MlR2VDY3b1RmN0thVHpkdmc3c3FkOFUwMmtLZGRjZmFUNzVNZHovcWZ3OENBd0VBCkFhTmhNRjh3RGdZRFZSMFBBUUgvQkFRREFnS2tNQjBHQTFVZEpRUVdNQlFHQ0NzR0FRVUZCd01CQmdnckJnRUYKQlFjREFqQVBCZ05WSFJNQkFmOEVCVEFEQVFIL01CMEdBMVVkRGdRV0JCUXRzeVY2UGw2bGRsUlhETTNaWlgxaApoYW1lMFRBTkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQWYvSE1rU25ORnVGdzJ5eitGRWIwbUx2aVMvZUx3anpXCkhJcFlOSUg4TnN6OFA5ZWJSNzNCaFVndVFnTUVBencrdXdpZG9Dd09SNFJYVlgvbDVrZUdQN0dDQjZiQzlNcmkKNXdjYVZ4QVI1R08zeUp1ODFTRkNQcVJnZkpYZCt5dXBBUW53RXlDZmgzMXpkWnp4enZ1MVJ6T2dTUkRGaVhmeApZeVByK3VLMVBTVk9RVnhPOFVBRCtxbTE4TU1EQ0pwRkRwT1Y2TFBaYkt3VTdYK0NFM3U0K0dKQ1Rka3o3WE4rCnNtV1dVSzRDY0xKdFRSUGxmcE9PYm94SWNoSWVTWnVSQVhQYitRYmJSRUZaR0hKMFo0UTE4b2FOaU1XMlVibU8KUWUxR3VnQ21GK0p2NlJxamJkS0IvQ3VZVFM1OHBkNXMvdnp4STVTR2cxQXVJTFR0ck04am1nPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+---
+# Source: kafka-operator/templates/authproxy-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: "my-release-kafka-operator-authproxy"
+  labels:
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: authproxy
+rules:
+- apiGroups: ["authentication.k8s.io"]
+  resources:
+  - tokenreviews
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources:
+  - subjectaccessreviews
+  verbs: ["create"]
+---
+# Source: kafka-operator/templates/operator-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-release-kafka-operator-operator
+  labels:
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: operator
+rules:
+- apiGroups:
+  - servicemesh.cisco.com
+  resources:
+  - istiomeshgateways
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - kafka.banzaicloud.io
+  resources:
+  - kafkaclusters
+  - kafkatopics
+  - kafkausers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+  - deletecollection
+- apiGroups:
+  - kafka.banzaicloud.io
+  resources:
+  - kafkaclusters/status
+  - kafkatopics/status
+  - kafkausers/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - kafka.banzaicloud.io
+  resources:
+  - kafkaclusters/finalizers
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
+  - kafka.banzaicloud.io
+  resources:
+  - kafkausers/finalizers
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
+  - kafka.banzaicloud.io
+  resources:
+  - kafkatopics/finalizers
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
+  - kafka.banzaicloud.io
+  resources:
+  - cruisecontroloperations
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kafka.banzaicloud.io
+  resources:
+  - cruisecontroloperations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - kafka.banzaicloud.io
+  resources:
+  - cruisecontroloperations/finalizers
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - update
+  - create
+  - watch
+  - list
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - update
+  - create
+  - watch
+  - list
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - issuers
+  - clusterissuers
+  - certificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+# Source: kafka-operator/templates/authproxy-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: "my-release-kafka-operator-authproxy"
+  labels:
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: authproxy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: "my-release-kafka-operator-authproxy"
+subjects:
+- kind: ServiceAccount
+  name: kafka-operator-authproxy
+  namespace: kafka-operator-0.26.0-dev.0.tgz
+---
+# Source: kafka-operator/templates/operator-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-kafka-operator-operator
+  labels:
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-release-kafka-operator-operator
+subjects:
+- kind: ServiceAccount
+  name: kafka-operator
+  namespace: kafka-operator-0.26.0-dev.0.tgz
+---
+# Source: kafka-operator/templates/alertmanager-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-kafka-operator-alertmanager"
+  namespace: "kafka-operator-0.26.0-dev.0.tgz"
+  labels:
+    control-plane: controller-manager
+    controller-tools.k8s.io: "1.0"
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: alertmanager
+spec:
+  selector:
+    control-plane: controller-manager
+    controller-tools.k8s.io: "1.0"
+    app.kubernetes.io/name: kafka-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: operator
+  ports:
+  - name: http-alerts
+    port: 9001
+---
+# Source: kafka-operator/templates/authproxy-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kafka-operator-authproxy
+  namespace: "kafka-operator-0.26.0-dev.0.tgz"
+  annotations:
+    prometheus.io/port: "8443"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
+  labels:
+    control-plane: controller-manager
+    controller-tools.k8s.io: "1.0"
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: authproxy
+spec:
+  ports:
+  - name: https
+    port: 8443
+    targetPort: https
+  selector:
+    control-plane: controller-manager
+    controller-tools.k8s.io: "1.0"
+    app.kubernetes.io/name: kafka-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: operator
+---
+# Source: kafka-operator/templates/operator-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "my-release-kafka-operator-operator"
+  namespace: "kafka-operator-0.26.0-dev.0.tgz"
+  labels:
+    control-plane: controller-manager
+    controller-tools.k8s.io: "1.0"
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: operator
+spec:
+  selector:
+    control-plane: controller-manager
+    controller-tools.k8s.io: "1.0"
+    app.kubernetes.io/name: kafka-operator
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: operator
+  ports:
+  - name: https
+    port: 443
+    targetPort: webhook-server
+---
+# Source: kafka-operator/templates/operator-deployment-with-webhook.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "my-release-kafka-operator-operator"
+  namespace: "kafka-operator-0.26.0-dev.0.tgz"
+  labels:
+    control-plane: controller-manager
+    controller-tools.k8s.io: "1.0"
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: operator
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      controller-tools.k8s.io: "1.0"
+      app.kubernetes.io/name: kafka-operator
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: operator
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        checksum/config: 4055c303cd2af442c4a3121011146060f9fe242a230f7106d30d7dfb01f572e2
+      labels:
+        control-plane: controller-manager
+        controller-tools.k8s.io: "1.0"
+        app.kubernetes.io/name: kafka-operator
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/component: operator
+        app: prometheus
+        component: alertmanager
+    spec:
+      serviceAccountName: kafka-operator
+      volumes:
+        - name: serving-cert
+          secret:
+            secretName: kafka-operator-serving-cert
+      containers:
+        - name: kube-rbac-proxy
+          image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--secure-listen-address=0.0.0.0:8443"
+            - "--upstream=http://127.0.0.1:8080/"
+            - "--logtostderr=true"
+            - "--v=10"
+          ports:
+            - containerPort: 8443
+              name: https
+        - command:
+            - /manager
+          args:
+            - --enable-leader-election
+            - --cert-manager-namespace=cert-manager
+            - --cert-manager-enabled=false
+          image: "ghcr.io/banzaicloud/kafka-operator:v0.26.0-dev.0"
+          imagePullPolicy: IfNotPresent
+          name: manager
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+            - containerPort: 9001
+              name: alerts
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /etc/webhook/certs
+              name: serving-cert
+              readOnly: true
+          resources:
+          
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      terminationGracePeriodSeconds: 10
+---
+# Source: kafka-operator/templates/operator-deployment-with-webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  labels:
+    app.kubernetes.io/name: kafka-operator
+    helm.sh/chart: kafka-operator-0.26.0-dev.0
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: v0.26.0-dev.0
+    app.kubernetes.io/component: webhook
+  name: kafka-operator-validating-webhook
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKRENDQWd5Z0F3SUJBZ0lSQUlzdCtLY1BpNi92U1VqOXJ1N3JJL3N3RFFZSktvWklodmNOQVFFTEJRQXcKSERFYU1CZ0dBMVVFQXhNUmEyRm1hMkV0YjNCbGNtRjBiM0l0WTJFd0hoY05NalF3TmpJd01UUTFOekUyV2hjTgpNelF3TmpFNE1UUTFOekUyV2pBY01Sb3dHQVlEVlFRREV4RnJZV1pyWVMxdmNHVnlZWFJ2Y2kxallUQ0NBU0l3CkRRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFLeWV0blZtN1AyWXR0T2lLNWYrdFYxaFlDOFIKZDZkK0F3WXpTQmY5MTk1N1R5U2ZWVHZ5WWlnbGJZbkR0T3hseVNaNGtwdENaR1VRL1NvcjA3b0lCRzlOT3lwQQo2WUtSRzZBQXh0N3IrYlBoTEZMSjlHeldzSzJUd05PNG5ZOHlsUE5pRUhWR2twQ015dlpqTC9nZXV2SWtURFVrCi9zRmFRY2NiUUZrdXhPcHVNUEdlajFrVTZmaDVFZUVydTJleUphM1V5REVYQmpTSUFiVS81dEZ5NXpSajZ2bzIKckw1QUdVT080MlZqakJZSGZLbVF3MW1oWWlaNEVrdGNLYXpaSU1FSk1IZ3B1Q3RWdDRQR2tPTkEyUFQrM21vaAptdERIVFNBVmxYdFdzYWJ3MlR2VDY3b1RmN0thVHpkdmc3c3FkOFUwMmtLZGRjZmFUNzVNZHovcWZ3OENBd0VBCkFhTmhNRjh3RGdZRFZSMFBBUUgvQkFRREFnS2tNQjBHQTFVZEpRUVdNQlFHQ0NzR0FRVUZCd01CQmdnckJnRUYKQlFjREFqQVBCZ05WSFJNQkFmOEVCVEFEQVFIL01CMEdBMVVkRGdRV0JCUXRzeVY2UGw2bGRsUlhETTNaWlgxaApoYW1lMFRBTkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQWYvSE1rU25ORnVGdzJ5eitGRWIwbUx2aVMvZUx3anpXCkhJcFlOSUg4TnN6OFA5ZWJSNzNCaFVndVFnTUVBencrdXdpZG9Dd09SNFJYVlgvbDVrZUdQN0dDQjZiQzlNcmkKNXdjYVZ4QVI1R08zeUp1ODFTRkNQcVJnZkpYZCt5dXBBUW53RXlDZmgzMXpkWnp4enZ1MVJ6T2dTUkRGaVhmeApZeVByK3VLMVBTVk9RVnhPOFVBRCtxbTE4TU1EQ0pwRkRwT1Y2TFBaYkt3VTdYK0NFM3U0K0dKQ1Rka3o3WE4rCnNtV1dVSzRDY0xKdFRSUGxmcE9PYm94SWNoSWVTWnVSQVhQYitRYmJSRUZaR0hKMFo0UTE4b2FOaU1XMlVibU8KUWUxR3VnQ21GK0p2NlJxamJkS0IvQ3VZVFM1OHBkNXMvdnp4STVTR2cxQXVJTFR0ck04am1nPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    service:
+      name: "my-release-kafka-operator-operator"
+      namespace: kafka-operator-0.26.0-dev.0.tgz
+      path: /validate-kafka-banzaicloud-io-v1alpha1-kafkatopic
+  failurePolicy: Fail
+  name: kafkatopics.kafka.banzaicloud.io
+  rules:
+  - apiGroups:
+    - kafka.banzaicloud.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kafkatopics
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURKRENDQWd5Z0F3SUJBZ0lSQUlzdCtLY1BpNi92U1VqOXJ1N3JJL3N3RFFZSktvWklodmNOQVFFTEJRQXcKSERFYU1CZ0dBMVVFQXhNUmEyRm1hMkV0YjNCbGNtRjBiM0l0WTJFd0hoY05NalF3TmpJd01UUTFOekUyV2hjTgpNelF3TmpFNE1UUTFOekUyV2pBY01Sb3dHQVlEVlFRREV4RnJZV1pyWVMxdmNHVnlZWFJ2Y2kxallUQ0NBU0l3CkRRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFLeWV0blZtN1AyWXR0T2lLNWYrdFYxaFlDOFIKZDZkK0F3WXpTQmY5MTk1N1R5U2ZWVHZ5WWlnbGJZbkR0T3hseVNaNGtwdENaR1VRL1NvcjA3b0lCRzlOT3lwQQo2WUtSRzZBQXh0N3IrYlBoTEZMSjlHeldzSzJUd05PNG5ZOHlsUE5pRUhWR2twQ015dlpqTC9nZXV2SWtURFVrCi9zRmFRY2NiUUZrdXhPcHVNUEdlajFrVTZmaDVFZUVydTJleUphM1V5REVYQmpTSUFiVS81dEZ5NXpSajZ2bzIKckw1QUdVT080MlZqakJZSGZLbVF3MW1oWWlaNEVrdGNLYXpaSU1FSk1IZ3B1Q3RWdDRQR2tPTkEyUFQrM21vaAptdERIVFNBVmxYdFdzYWJ3MlR2VDY3b1RmN0thVHpkdmc3c3FkOFUwMmtLZGRjZmFUNzVNZHovcWZ3OENBd0VBCkFhTmhNRjh3RGdZRFZSMFBBUUgvQkFRREFnS2tNQjBHQTFVZEpRUVdNQlFHQ0NzR0FRVUZCd01CQmdnckJnRUYKQlFjREFqQVBCZ05WSFJNQkFmOEVCVEFEQVFIL01CMEdBMVVkRGdRV0JCUXRzeVY2UGw2bGRsUlhETTNaWlgxaApoYW1lMFRBTkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQWYvSE1rU25ORnVGdzJ5eitGRWIwbUx2aVMvZUx3anpXCkhJcFlOSUg4TnN6OFA5ZWJSNzNCaFVndVFnTUVBencrdXdpZG9Dd09SNFJYVlgvbDVrZUdQN0dDQjZiQzlNcmkKNXdjYVZ4QVI1R08zeUp1ODFTRkNQcVJnZkpYZCt5dXBBUW53RXlDZmgzMXpkWnp4enZ1MVJ6T2dTUkRGaVhmeApZeVByK3VLMVBTVk9RVnhPOFVBRCtxbTE4TU1EQ0pwRkRwT1Y2TFBaYkt3VTdYK0NFM3U0K0dKQ1Rka3o3WE4rCnNtV1dVSzRDY0xKdFRSUGxmcE9PYm94SWNoSWVTWnVSQVhQYitRYmJSRUZaR0hKMFo0UTE4b2FOaU1XMlVibU8KUWUxR3VnQ21GK0p2NlJxamJkS0IvQ3VZVFM1OHBkNXMvdnp4STVTR2cxQXVJTFR0ck04am1nPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    service:
+      name: "my-release-kafka-operator-operator"
+      namespace: kafka-operator-0.26.0-dev.0.tgz
+      path: /validate-kafka-banzaicloud-io-v1beta1-kafkacluster
+  failurePolicy: Fail
+  name: kafkaclusters.kafka.banzaicloud.io
+  rules:
+  - apiGroups:
+    - kafka.banzaicloud.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - kafkaclusters
+  sideEffects: None

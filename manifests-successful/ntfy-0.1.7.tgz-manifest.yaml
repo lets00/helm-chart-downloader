@@ -1,0 +1,112 @@
+---
+# Source: ntfy/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-ntfy
+  labels:
+    helm.sh/chart: ntfy-0.1.7
+    app.kubernetes.io/name: ntfy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.6.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: ntfy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ntfy
+  labels:
+    helm.sh/chart: ntfy-0.1.7
+    app.kubernetes.io/name: ntfy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.6.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: ntfy
+    app.kubernetes.io/instance: my-release
+---
+# Source: ntfy/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-ntfy
+  labels:
+    helm.sh/chart: ntfy-0.1.7
+    app.kubernetes.io/name: ntfy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.6.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ntfy
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ntfy
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-ntfy
+      securityContext:
+        {}
+      containers:
+        - name: ntfy
+          securityContext:
+            {}
+          image: "binwiederhier/ntfy:v2.6.2"
+          imagePullPolicy: IfNotPresent
+          args: ["serve"]
+          volumeMounts:
+            - mountPath: /var/cache/ntfy
+              name: ntfy
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: 80
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: 80
+          resources:
+            {}
+      volumes:
+        - name: ntfy
+          emptyDir: {}
+---
+# Source: ntfy/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-ntfy-test-connection"
+  labels:
+    helm.sh/chart: ntfy-0.1.7
+    app.kubernetes.io/name: ntfy
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v2.6.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-ntfy:80']
+  restartPolicy: Never

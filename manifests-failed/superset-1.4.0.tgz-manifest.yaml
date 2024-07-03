@@ -1,0 +1,1215 @@
+---
+# Source: superset/charts/superset/charts/redis/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: my-release-redis
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-16.3.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: superset/charts/superset/charts/postgresql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-postgresql
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.1.22
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  postgres-password: "enZtYTA5OVcxZA=="
+  password: "c3VwZXJzZXQ="
+  # We don't auto-generate LDAP password when it's not provided as we do for other passwords
+---
+# Source: superset/charts/superset/templates/secret-env.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-superset-env
+  labels:
+    app: my-release-superset
+    chart: superset-0.7.6
+    release: "my-release"
+    heritage: "Helm"
+type: Opaque
+stringData:
+    REDIS_HOST: "my-release-superset-redis-headless"
+    REDIS_PORT: "6379"
+    DB_HOST: "my-release-superset-postgresql"
+    DB_PORT: "5432"
+    DB_USER: "superset"
+    DB_PASS: "superset"
+    DB_NAME: "superset"
+---
+# Source: superset/charts/superset/templates/secret-superset-config.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-superset-config
+  labels:
+    app: my-release-superset
+    chart: superset-0.7.6
+    release: "my-release"
+    heritage: "Helm"
+type: Opaque
+stringData:
+  superset_config.py: |
+    
+    import os
+    from cachelib.redis import RedisCache
+    
+    def env(key, default=None):
+        return os.getenv(key, default)
+    
+    MAPBOX_API_KEY = env('MAPBOX_API_KEY', '')
+    CACHE_CONFIG = {
+          'CACHE_TYPE': 'redis',
+          'CACHE_DEFAULT_TIMEOUT': 300,
+          'CACHE_KEY_PREFIX': 'superset_',
+          'CACHE_REDIS_HOST': env('REDIS_HOST'),
+          'CACHE_REDIS_PORT': env('REDIS_PORT'),
+          'CACHE_REDIS_PASSWORD': env('REDIS_PASSWORD'),
+          'CACHE_REDIS_DB': env('REDIS_DB', 1),
+    }
+    DATA_CACHE_CONFIG = CACHE_CONFIG
+    
+    SQLALCHEMY_DATABASE_URI = f"postgresql+psycopg2://{env('DB_USER')}:{env('DB_PASS')}@{env('DB_HOST')}:{env('DB_PORT')}/{env('DB_NAME')}"
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
+    SECRET_KEY = env('SECRET_KEY', 'thisISaSECRET_1234')
+    
+    # Flask-WTF flag for CSRF
+    WTF_CSRF_ENABLED = True
+    # Add endpoints that need to be exempt from CSRF protection
+    WTF_CSRF_EXEMPT_LIST = []
+    # A CSRF token that expires in 1 year
+    WTF_CSRF_TIME_LIMIT = 60 * 60 * 24 * 365
+    class CeleryConfig(object):
+      CELERY_IMPORTS = ('superset.sql_lab', )
+      CELERY_ANNOTATIONS = {'tasks.add': {'rate_limit': '10/s'}}
+      BROKER_URL = f"redis://{env('REDIS_HOST')}:{env('REDIS_PORT')}/0"
+      CELERY_RESULT_BACKEND = f"redis://{env('REDIS_HOST')}:{env('REDIS_PORT')}/0"
+    
+    CELERY_CONFIG = CeleryConfig
+    RESULTS_BACKEND = RedisCache(
+          host=env('REDIS_HOST'),
+          port=env('REDIS_PORT'),
+          key_prefix='superset_results'
+    )
+    
+    
+    
+  superset_init.sh: |
+    #!/bin/sh
+    set -eu
+    echo "Upgrading DB schema..."
+    superset db upgrade
+    echo "Initializing roles..."
+    superset init
+    
+    echo "Creating admin user..."
+    superset fab create-admin \
+                    --username admin \
+                    --firstname Superset \
+                    --lastname Admin \
+                    --email admin@superset.com \
+                    --password admin \
+                    || true
+    
+    if [ -f "/app/configs/import_datasources.yaml" ]; then
+      if [ -s "/app/configs/import_datasources.yaml" ]; then
+        echo "Importing database connections.... "
+        superset import_datasources -p /app/configs/import_datasources.yaml
+      fi
+    fi
+  superset_bootstrap.sh: |
+    #!/bin/bash
+    rm -rf /var/lib/apt/lists/* && \
+    pip install \
+      psycopg2-binary==2.9.1 \
+      sqlalchemy-trino==0.4.1 \
+      PyHive==0.6.5 \
+      elasticsearch-dbapi==0.2.9 \
+      redis==3.5.3 && \
+    if [ ! -f ~/bootstrap ]; then echo "Running Superset with uid 0" > ~/bootstrap; fi
+---
+# Source: superset/charts/superset/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-configuration
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-16.3.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  redis.conf: |-
+    # User-supplied common configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+    # End of common configuration
+  master.conf: |-
+    dir /data
+    # User-supplied master configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of master configuration
+  replica.conf: |-
+    dir /data
+    slave-read-only yes
+    # User-supplied replica configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of replica configuration
+---
+# Source: superset/charts/superset/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-health
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-16.3.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ $? == 124 ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ $? == 124 ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ] && [ "$responseFirstWord" != "MASTERDOWN" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ $? == 124 ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ $? == 124 ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: superset/charts/superset/charts/redis/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-redis-scripts
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-16.3.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  start-master.sh: |
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    if [[ ! -f /opt/bitnami/redis/etc/master.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+    fi
+    if [[ ! -f /opt/bitnami/redis/etc/redis.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+    fi
+    ARGS=("--port" "${REDIS_PORT}")
+    ARGS+=("--protected-mode" "no")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+    exec redis-server "${ARGS[@]}"
+---
+# Source: superset/charts/superset/templates/configmap-superset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-superset-extra-config
+  labels:
+    app: superset
+    chart: superset-0.7.6
+    release: my-release
+    heritage: Helm
+data:
+  import_datasources.yaml: |
+---
+# Source: superset/charts/superset/charts/postgresql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql-hl
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.1.22
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+    # Use this annotation in addition to the actual publishNotReadyAddresses
+    # field below because the annotation will stop being respected soon but the
+    # field is broken in some versions of Kubernetes:
+    # https://github.com/kubernetes/kubernetes/issues/58662
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  # We want all pods in the StatefulSet to have their addresses published for
+  # the sake of the other Postgresql pods even before they're ready, since they
+  # have to be able to talk to each other in order to become ready.
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: superset/charts/superset/charts/postgresql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-postgresql
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.1.22
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: primary
+---
+# Source: superset/charts/superset/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-headless
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-16.3.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+---
+# Source: superset/charts/superset/charts/redis/templates/master/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-redis-master
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-16.3.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: master
+---
+# Source: superset/charts/superset/templates/service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-superset
+  labels:
+    app: superset
+    chart: superset-0.7.6
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8088
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: superset
+    release: my-release
+---
+# Source: superset/charts/superset/templates/deployment-worker.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-superset-worker
+  labels:
+    app: superset-worker
+    chart: superset-0.7.6
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset-worker
+      release: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/superset_config.py: 7f9152c009bca2f4fe38c0bb34c632a37c400680c5dacb424aef02e68d172946
+        checksum/connections: a91716d6d1088e870fbe02159dc0b066dd011885aa08a22fbe60ea1cd4720f82
+        checksum/extraConfigs: ac9b187c1199232ac441ec7a4c93403d83bac0b933009f4effff568eb49195f6
+        checksum/extraSecrets: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/extraSecretEnv: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/configOverrides: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/configOverridesFiles: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        
+      labels:
+        app: superset-worker
+        release: my-release
+    spec:
+      securityContext:
+        runAsUser: 0
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -wait "tcp://$REDIS_HOST:$REDIS_PORT"
+          -timeout 120s
+        envFrom:
+        - secretRef:
+            name: 'my-release-superset-env'
+        image: 'jwilder/dockerize:latest'
+        imagePullPolicy: 'IfNotPresent'
+        name: wait-for-postgres-redis
+      containers:
+        - name: superset
+          image: "apache/superset:9cdaa280429ec297db16d56c94fd77b5d2aff107"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c",". /app/pythonpath/superset_bootstrap.sh; celery --app=superset.tasks.celery_app:app worker"]
+          env:
+            - name: "SUPERSET_PORT"
+              value: "8088"
+          envFrom:
+            - secretRef:
+                name: "my-release-superset-env"
+          volumeMounts:
+            - name: superset-config
+              mountPath: "/app/pythonpath"
+              readOnly: true
+            - name: superset-extra-config
+              mountPath: "/app/configs"
+              readOnly: true
+          livenessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - celery -A superset.tasks.celery_app:app inspect ping -d celery@$HOSTNAME
+            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            successThreshold: 1
+            timeoutSeconds: 60
+          resources:
+            {}
+      volumes:
+        - name: superset-config
+          secret:
+            secretName: my-release-superset-config
+        - name: superset-extra-config
+          configMap:
+            name: my-release-superset-extra-config
+---
+# Source: superset/charts/superset/templates/deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-superset
+  labels:
+    app: superset
+    chart: superset-0.7.6
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+      release: my-release
+  template:
+    metadata:
+      annotations:
+        # Force reload on config changes
+        checksum/superset_config.py: 7f9152c009bca2f4fe38c0bb34c632a37c400680c5dacb424aef02e68d172946
+        checksum/superset_init.sh: 91898395955198ad32e06d13160c4bc3bded6ced084feb3e71e0541c6ae677e7
+        checksum/superset_bootstrap.sh: 5df4e37e0958ecff703a67d42ba2a4fa40892298a0ed7762089bd237a73d62c4
+        checksum/connections: a91716d6d1088e870fbe02159dc0b066dd011885aa08a22fbe60ea1cd4720f82
+        checksum/extraConfigs: ac9b187c1199232ac441ec7a4c93403d83bac0b933009f4effff568eb49195f6
+        checksum/extraSecrets: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/extraSecretEnv: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/configOverrides: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+        checksum/configOverridesFiles: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+      labels:
+        app: superset
+        release: my-release
+    spec:
+      securityContext:
+        runAsUser: 0
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -timeout 120s
+        envFrom:
+        - secretRef:
+            name: 'my-release-superset-env'
+        image: 'jwilder/dockerize:latest'
+        imagePullPolicy: 'IfNotPresent'
+        name: wait-for-postgres
+      containers:
+        - name: superset
+          image: "apache/superset:9cdaa280429ec297db16d56c94fd77b5d2aff107"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c",". /app/pythonpath/superset_bootstrap.sh; /usr/bin/run-server.sh"]
+          env:
+            - name: "SUPERSET_PORT"
+              value: "8088"
+          envFrom:
+            - secretRef:
+                name: "my-release-superset-env"
+          volumeMounts:
+            - name: superset-config
+              mountPath: "/app/pythonpath"
+              readOnly: true
+            - name: superset-extra-config
+              mountPath: "/app/configs"
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: 8088
+              protocol: TCP
+          startupProbe:
+            failureThreshold: 60
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            {}
+
+      volumes:
+        - name: superset-config
+          secret:
+            secretName: my-release-superset-config
+        - name: superset-extra-config
+          configMap:
+            name: my-release-superset-extra-config
+---
+# Source: superset/charts/superset/charts/postgresql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-postgresql
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: postgresql
+    helm.sh/chart: postgresql-11.1.22
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  replicas: 1
+  serviceName: my-release-postgresql-hl
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      name: my-release-postgresql
+      labels:
+        app.kubernetes.io/name: postgresql
+        helm.sh/chart: postgresql-11.1.22
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+      annotations:
+    spec:
+      serviceAccountName: default
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: postgresql
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: primary
+                namespaces:
+                  - "superset-1.4.0.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      hostNetwork: false
+      hostIPC: false
+      initContainers:
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:14.2.0-debian-10-r70
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            # Authentication
+            - name: POSTGRES_USER
+              value: "superset"
+            - name: POSTGRES_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: postgres-password
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-postgresql
+                  key: password
+            - name: POSTGRES_DB
+              value: "superset"
+            # Replication
+            # Initdb
+            # Standby
+            # LDAP
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+            # TLS
+            - name: POSTGRESQL_ENABLE_TLS
+              value: "no"
+            # Audit
+            - name: POSTGRESQL_LOG_HOSTNAME
+              value: "false"
+            - name: POSTGRESQL_LOG_CONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_LOG_DISCONNECTIONS
+              value: "false"
+            - name: POSTGRESQL_PGAUDIT_LOG_CATALOG
+              value: "off"
+            # Others
+            - name: POSTGRESQL_CLIENT_MIN_MESSAGES
+              value: "error"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: "pgaudit"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "superset" -d "dbname=superset" -h 127.0.0.1 -p 5432
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                
+                - |
+                  exec pg_isready -U "superset" -d "dbname=superset" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          resources:
+            limits: {}
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: superset/charts/superset/charts/redis/templates/master/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-redis-master
+  namespace: "superset-1.4.0.tgz"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-16.3.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: master
+  serviceName: my-release-redis-headless
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        helm.sh/chart: redis-16.3.1
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/configmap: 8a2509629b6b0cda180e26b9832bbabbc8b9401877c47cd72d937348e08e13ef
+        checksum/health: 785098df5ae944d7c2fa84bcd9a86edd8eef368071b6cc53483a3c6c90b37e3f
+        checksum/scripts: d50ecf07f61f2228d9a96191e669626288ded35673f3e3ff3960149d63a97c0f
+        checksum/secret: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: my-release-redis
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: redis
+                    app.kubernetes.io/instance: my-release
+                    app.kubernetes.io/component: master
+                namespaces:
+                  - "superset-1.4.0.tgz"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:6.2.6-debian-10-r120
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          command:
+            - /bin/bash
+          args:
+            - -c
+            - /opt/bitnami/scripts/start-scripts/start-master.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: REDIS_REPLICATION_MODE
+              value: master
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            # One second longer than command timeout should prevent generation of zombie processes.
+            timeoutSeconds: 6
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_liveness_local.sh 5
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_readiness_local.sh 1
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: start-scripts
+              mountPath: /opt/bitnami/scripts/start-scripts
+            - name: health
+              mountPath: /health
+            - name: redis-data
+              mountPath: /data
+              subPath: 
+            - name: config
+              mountPath: /opt/bitnami/redis/mounted-etc
+            - name: redis-tmp-conf
+              mountPath: /opt/bitnami/redis/etc/
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: start-scripts
+          configMap:
+            name: my-release-redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: my-release-redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: my-release-redis-configuration
+        - name: redis-tmp-conf
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: redis-data
+          emptyDir: {}
+---
+# Source: superset/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-release-superset
+  labels:
+    helm.sh/chart: superset-1.4.0
+    app.kubernetes.io/name: superset
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ingressClassName: ""
+  tls:
+    - hosts:
+        - "chart-example.local"
+  rules:
+    - host: "chart-example.local"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-release-superset
+                port: 
+                  number: 8088
+---
+# Source: superset/charts/superset/templates/deployment-ws.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: superset/charts/superset/templates/ingress.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: superset/charts/superset/templates/secret-ws.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: superset/charts/superset/templates/service-account.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+# Source: superset/charts/superset/templates/service.yaml
+---
+---
+# Source: superset/charts/superset/templates/init-job.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: superset-init-db
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+spec:
+  template:
+    metadata:
+      name: superset-init-db
+    spec:
+      securityContext:
+        runAsUser: 0
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -timeout 120s
+        envFrom:
+        - secretRef:
+            name: 'my-release-superset-env'
+        image: 'jwilder/dockerize:latest'
+        imagePullPolicy: 'IfNotPresent'
+        name: wait-for-postgres
+      containers:
+      - name: superset-init-db
+        image: "apache/superset:9cdaa280429ec297db16d56c94fd77b5d2aff107"
+        envFrom:
+          - secretRef:
+              name: my-release-superset-env
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - name: superset-config
+            mountPath: "/app/pythonpath"
+            readOnly: true
+          - name: superset-extra-config
+            mountPath: "/app/configs"
+            readOnly: true
+        command: ["/bin/sh","-c",". /app/pythonpath/superset_bootstrap.sh; . /app/pythonpath/superset_init.sh"]
+        resources:
+          {}
+      volumes:
+        - name: superset-config
+          secret:
+            secretName: my-release-superset-config
+        - name: superset-extra-config
+          configMap:
+            name: my-release-superset-extra-config
+      restartPolicy: Never

@@ -1,0 +1,87 @@
+---
+# Source: cronjob/templates/cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cronjob
+  labels:
+    parcellab.dev/app: "cronjob"
+    parcellab.dev/component: "default"
+    parcellab.dev/env: "prod"
+    parcellab.dev/chart-version: "0.0.66"
+    parcellab.dev/chart-name: "cronjob"
+    parcellab.dev/part-of: "cronjob-0.0.66"
+    parcellab.dev/version: "stable"
+spec:
+  concurrencyPolicy: Allow
+  failedJobsHistoryLimit: 1
+  schedule: "* * * * *"
+  successfulJobsHistoryLimit: 3
+  suspend: false
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 900
+      backoffLimit: 2
+      template:
+        metadata:
+          annotations:
+            "cluster-autoscaler.kubernetes.io/safe-to-evict-local-volumes": "apmsocketpath"
+            parcellab.dev/name: "cronjob"
+            parcellab.dev/version: "stable"
+          labels:
+            parcellab.dev/app: "cronjob"
+            parcellab.dev/component: "default"
+            parcellab.dev/env: "prod"
+            parcellab.dev/chart-version: "0.0.66"
+            parcellab.dev/chart-name: "cronjob"
+            parcellab.dev/part-of: "cronjob-0.0.66"
+            parcellab.dev/version: "stable"
+            tags.datadoghq.com/env: "prod"
+            tags.datadoghq.com/service: "cronjob"
+            tags.datadoghq.com/version: "stable"
+        spec:
+          imagePullSecrets:
+            - name: github-docker
+          serviceAccountName: default
+          terminationGracePeriodSeconds: 30
+          volumes:
+            - name: apmsocketpath
+              hostPath:
+                path: /var/run/datadog/
+          containers:
+            - name: cronjob
+              image: ghcr.io/parcellab/cronjob:stable
+              imagePullPolicy: IfNotPresent
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+              volumeMounts:
+                - name: apmsocketpath
+                  mountPath: /var/run/datadog
+              env:
+                - name: DD_ENV
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: metadata.labels['tags.datadoghq.com/env']
+                - name: DD_SERVICE
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: metadata.labels['tags.datadoghq.com/service']
+                - name: DD_VERSION
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: metadata.labels['tags.datadoghq.com/version']
+                - name: DD_LOGS_INJECTION
+                  value: "true"
+                - name: DD_TRACE_ENABLED
+                  value: "false"
+                - name: DD_TRACE_AGENT_URL
+                  value: unix:///var/run/datadog/apm.socket
+          restartPolicy: OnFailure

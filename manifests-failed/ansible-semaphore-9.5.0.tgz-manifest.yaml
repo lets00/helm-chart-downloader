@@ -1,0 +1,309 @@
+---
+# Source: ansible-semaphore/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+
+metadata:
+  name: my-release-ansible-semaphore
+  namespace: ansible-semaphore-9.5.0.tgz
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+---
+# Source: ansible-semaphore/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+
+metadata:
+  name: my-release-ansible-semaphore-general
+  namespace: ansible-semaphore-9.5.0.tgz
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+
+type: Opaque
+data:
+  cookieHash: YVdoWk4xWXdWRFJ2VUhKV1ptWmhhVmxFYldkRk0wTTJjMUJ4VldkcFUyZz0=
+  cookieEncryption: V21SdFZHbDBNREF6T1VoU1RETTFUVUZEU204NVUydFZUSGh3Um14bFZuRT0=
+  accesskeyEncryption: UkdsWFNUVkNNSGd6UWxOMlowZEJiVkZKVlc5cFUxUkhXa3h5Ym01Qk1rOD0=
+---
+# Source: ansible-semaphore/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+
+metadata:
+  name: my-release-ansible-semaphore-runner
+  namespace: ansible-semaphore-9.5.0.tgz
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+
+type: Opaque
+data:
+  token: am1lY24yMlBXaTIxWVBnYzFITkNXNll4dFlxc1c0Wks=
+---
+# Source: ansible-semaphore/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: my-release-ansible-semaphore-config
+  namespace: ansible-semaphore-9.5.0.tgz
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+
+data:
+  config.json: |
+    {
+      "ssh_config_path": "~/.ssh/config",
+      "billing_enabled": false
+    }
+---
+# Source: ansible-semaphore/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+
+metadata:
+  name: my-release-ansible-semaphore-boltdb
+  namespace: ansible-semaphore-9.5.0.tgz
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+
+  resources:
+    requests:
+      storage: "5G"
+---
+# Source: ansible-semaphore/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+
+metadata:
+  name: my-release-ansible-semaphore-workdir
+  namespace: ansible-semaphore-9.5.0.tgz
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+
+  resources:
+    requests:
+      storage: "10G"
+---
+# Source: ansible-semaphore/templates/service.yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: my-release-ansible-semaphore
+  namespace: ansible-semaphore-9.5.0.tgz
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+
+spec:
+  type: ClusterIP
+
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP
+
+  selector:
+    app.kubernetes.io/name: ansible-semaphore
+    app.kubernetes.io/instance: my-release
+---
+# Source: ansible-semaphore/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: my-release-ansible-semaphore
+  namespace: ansible-semaphore-9.5.0.tgz
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+
+spec:
+  replicas: 1
+
+  strategy:
+    
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ansible-semaphore
+      app.kubernetes.io/instance: my-release
+
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: "ansible-semaphore-9.5.0"
+        app.kubernetes.io/name: "ansible-semaphore"
+        app.kubernetes.io/instance: "my-release"
+        app.kubernetes.io/version: "2.10.2"
+        app.kubernetes.io/managed-by: "Helm"
+      annotations:
+        checksum/config: b7a03a4bf1db3baa31c24015f39d89e1f2cd8d14e45414341f3b60851a940394
+        checksum/secret: 361c06420433bf2bb423321a1188d306a31eae6debf086b5725258c5689269ef
+
+    spec:
+      serviceAccountName: my-release-ansible-semaphore
+
+      securityContext:
+        fsGroup: 1001
+
+      containers:
+        - name: ansible-semaphore
+          image: semaphoreui/semaphore:v2.10.2
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: SEMAPHORE_PORT
+              value: "3000"
+            - name: SEMAPHORE_GIT_CLIENT
+              value: "cmd_git"
+            - name: SEMAPHORE_TMP_PATH
+              value: "/tmp/semaphore"
+            - name: SEMAPHORE_MAX_PARALLEL_TASKS
+              value: "0"
+            - name: SEMAPHORE_PASSWORD_LOGIN_DISABLED
+              value: "false"
+            - name: SEMAPHORE_NON_ADMIN_CAN_CREATE_PROJECT
+              value: "false"
+            - name: SEMAPHORE_USE_REMOTE_RUNNER
+              value: "false"
+            - name: SEMAPHORE_DB_DIALECT
+              value: "bolt"
+            - name: SEMAPHORE_DB_HOST
+              value: "/var/lib/semaphore/database.boltdb"
+            - name: SEMAPHORE_LDAP_ENABLE
+              value: "false"
+            - name: SEMAPHORE_EMAIL_ALERT
+              value: "false"
+            - name: SEMAPHORE_TELEGRAM_ALERT
+              value: "false"
+            - name: SEMAPHORE_SLACK_ALERT
+              value: "false"
+            - name: SEMAPHORE_RUNNER_REGISTRATION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-ansible-semaphore-runner
+                  key: token
+            - name: SEMAPHORE_COOKIE_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-ansible-semaphore-general
+                  key: cookieHash
+            - name: SEMAPHORE_COOKIE_ENCRYPTION
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-ansible-semaphore-general
+                  key: cookieEncryption
+            - name: SEMAPHORE_ACCESS_KEY_ENCRYPTION
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-ansible-semaphore-general
+                  key: accesskeyEncryption
+
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+
+          resources:
+            limits: {}
+            requests:
+              cpu: 100m
+              memory: 64Mi
+
+          volumeMounts:
+            - name: config
+              mountPath: /etc/semaphore/config.json
+              subPath: config.json
+            - name: workdir
+              mountPath: /tmp/semaphore
+            - name: boltdb
+              mountPath: /var/lib/semaphore
+
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-ansible-semaphore-config
+        - name: workdir
+          persistentVolumeClaim:
+            claimName: my-release-ansible-semaphore-workdir
+        - name: boltdb
+          persistentVolumeClaim:
+            claimName: my-release-ansible-semaphore-boltdb
+---
+# Source: ansible-semaphore/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: "my-release-ansible-semaphore-test-connection"
+  labels:
+    helm.sh/chart: "ansible-semaphore-9.5.0"
+    app.kubernetes.io/name: "ansible-semaphore"
+    app.kubernetes.io/instance: "my-release"
+    app.kubernetes.io/version: "2.10.2"
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    helm.sh/hook: "test-success"
+
+spec:
+  restartPolicy: Never
+
+  containers:
+    - name: wget
+      image: busybox
+      command:
+        - wget
+      args:
+        - --spider
+        - http://my-release-ansible-semaphore:3000

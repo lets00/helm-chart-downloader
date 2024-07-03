@@ -1,0 +1,150 @@
+---
+# Source: restreamer/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-restreamer
+  labels:
+    helm.sh/chart: restreamer-1.1.0
+    app.kubernetes.io/name: restreamer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.6.4"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: restreamer/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-restreamer
+  labels:
+    helm.sh/chart: restreamer-1.1.0
+    app.kubernetes.io/name: restreamer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.6.4"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  RS_PASSWORD: "datarhei"
+  RS_USERNAME: "admin"
+---
+# Source: restreamer/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-restreamer
+  labels:
+    helm.sh/chart: restreamer-1.1.0
+    app.kubernetes.io/name: restreamer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.6.4"
+    app.kubernetes.io/managed-by: Helm
+data:
+  RS_AUDIO: "auto"
+  RS_LOGLEVEL: "3"
+  RS_NODEJS_ENV: "prod"
+  RS_NODEJS_PORT: "3000"
+  RS_SNAPSHOT_INTERVAL: "1m"
+  RS_TIMEZONE: "Europe/Berlin"
+---
+# Source: restreamer/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-restreamer
+  labels:
+    helm.sh/chart: restreamer-1.1.0
+    app.kubernetes.io/name: restreamer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.6.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: restreamer
+    app.kubernetes.io/instance: my-release
+---
+# Source: restreamer/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-restreamer
+  labels:
+    helm.sh/chart: restreamer-1.1.0
+    app.kubernetes.io/name: restreamer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.6.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: my-release-restreamer
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: restreamer
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        checksum/configmap: 0c34820aeaa4e560f896bea0c96e53e87006995ea8911e4d89a807ae55a514b7
+        checksum/secret: c9cd3fc6704fa0a379491e3c9bd514dca59d39ba998fba342f4dcac819f6b79f
+      labels:
+        app.kubernetes.io/name: restreamer
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-restreamer
+      securityContext:
+        {}
+      containers:
+        - name: restreamer
+          securityContext:
+            {}
+          image: "datarhei/restreamer:0.6.4"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: my-release-restreamer
+            - secretRef:
+                name: my-release-restreamer
+          volumeMounts:
+            - mountPath: /restreamer/db
+              name: db
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: rtmp
+              containerPort: 1935
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+      volumes:
+        - name: db
+          emptyDir: {}
+  volumeClaimTemplates:
+---
+# Source: restreamer/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-restreamer-test-connection"
+  labels:
+    helm.sh/chart: restreamer-1.1.0
+    app.kubernetes.io/name: restreamer
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.6.4"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-restreamer:80']
+  restartPolicy: Never

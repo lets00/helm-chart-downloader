@@ -1,0 +1,2397 @@
+---
+# Source: elasticsearch/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: "elasticsearch-0.9.0.tgz"
+  labels:
+    helm.sh/chart: elasticsearch-0.9.0
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  elasticsearch.yml: |-
+    {{- $clusterName := $.cluster.metadata.name }}
+    {{- $namespace := $.cluster.metadata.namespace }}
+    {{- $master_component := fromJson "{}" }}
+    {{- range $i, $e := $.cluster.spec.componentSpecs }}
+      {{- if or (eq $e.componentDef "es-master") (eq $e.componentDef "es-single-node") }}
+      {{- $master_component = $e }}
+      {{- end }}
+    {{- end }}
+    {{- $master_replicas := $master_component.replicas | int }}
+    
+    cluster:
+      name: {{ $clusterName }}
+      routing:
+        allocation:
+          awareness:
+            attributes: k8s_node_name
+      initial_master_nodes:
+    {{- range $i, $e := until $master_replicas }}
+      - {{ printf "%s-%s-%d" $clusterName $master_component.name $i }}
+    {{- end }}
+    
+    discovery:
+      type: multi-node
+      seed_hosts:
+    {{- range $i, $e := until $master_replicas }}
+      - {{ printf "%s-%s-%d.%s-%s-headless.%s.svc.%s" $clusterName $master_component.name $i $clusterName $master_component.name $namespace $.clusterDomain }}
+    {{- end }}
+    
+    http:
+      cors:
+        enabled: true
+        allow-origin: "*"
+        allow-headers: Authorization,X-Requested-With,Content-Type,Content-Length
+      publish_host: ${KB_POD_FQDN}
+    
+    network:
+      host: "0"
+      publish_host: ${POD_IP}
+    
+    node:
+      attr:
+        k8s_node_name: ${NODE_NAME}
+      name: ${POD_NAME}
+      store:
+        allow_mmap: false
+      roles: '${ELASTICSEARCH_ROLES}'
+    
+    
+    path:
+      data: /usr/share/elasticsearch/data
+      logs: /usr/share/elasticsearch/logs
+    
+    xpack:
+      security:
+        enabled: "false"
+      ml:
+        enabled: "false"
+---
+# Source: elasticsearch/templates/scripts.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-scripts
+  labels:
+    helm.sh/chart: elasticsearch-0.9.0
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/managed-by: Helm
+data:
+  pre-stop-hook-script.sh: |-
+    #!/usr/bin/env bash
+    
+    # Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+    # or more contributor license agreements. Licensed under the Elastic License 2.0;
+    # you may not use this file except in compliance with the Elastic License 2.0.
+    
+    set -euo pipefail
+    
+    # This script will wait for up to $PRE_STOP_ADDITIONAL_WAIT_SECONDS before allowing termination of the Pod
+    # This slows down the process shutdown and allows to make changes to the pool gracefully, without blackholing traffic when DNS
+    # still contains the IP that is already inactive.
+    # As this runs in parallel to grace period after which process is SIGKILLed,
+    # it should be set to allow enough time for the process to gracefully terminate.
+    # It allows kube-proxy to refresh its rules and remove the terminating Pod IP.
+    # Kube-proxy refresh period defaults to every 30 seconds, but the operation itself can take much longer if
+    # using iptables with a lot of services, in which case the default 30sec might not be enough.
+    # Also gives some additional bonus time to in-flight requests to terminate, and new requests to still
+    # target the Pod IP before Elasticsearch stops.
+    PRE_STOP_ADDITIONAL_WAIT_SECONDS=${PRE_STOP_ADDITIONAL_WAIT_SECONDS:=50}
+    
+    sleep $PRE_STOP_ADDITIONAL_WAIT_SECONDS
+  prepare-fs.sh: |-
+    #!/usr/bin/env bash
+    
+    set -eu
+    
+    # the operator only works with the default ES distribution
+    license=/usr/share/elasticsearch/LICENSE.txt
+    if [[ ! -f $license || $(grep -Exc "ELASTIC LICENSE AGREEMENT|Elastic License 2.0" $license) -ne 1 ]]; then
+        >&2 echo "unsupported_distribution"
+        exit 42
+    fi
+    
+    # compute time in seconds since the given start time
+    function duration() {
+        local start=$1
+        end=$(date +%s)
+        echo $((end-start))
+    }
+    
+    ######################
+    #       START       #
+    ######################
+    
+    script_start=$(date +%s)
+    
+    echo "Starting init script"
+    
+    ######################
+    #  Files persistence #
+    ######################
+    
+    # Persist the content of bin/, config/ and plugins/ to a volume,
+    # so installed plugins files can to be used by the ES container
+    mv_start=$(date +%s)
+    
+        if [[ -z "$(ls -A /usr/share/elasticsearch/config)" ]]; then
+            echo "Empty dir /usr/share/elasticsearch/config"
+        else
+            echo "Copying /usr/share/elasticsearch/config/* to /mnt/elastic-internal/elasticsearch-config-local/"
+            # Use "yes" and "-f" as we want the init container to be idempotent and not to fail when executed more than once.
+            yes | cp -avf /usr/share/elasticsearch/config/* /mnt/elastic-internal/elasticsearch-config-local/
+        fi
+    
+        if [[ -z "$(ls -A /usr/share/elasticsearch/plugins)" ]]; then
+            echo "Empty dir /usr/share/elasticsearch/plugins"
+        else
+            echo "Copying /usr/share/elasticsearch/plugins/* to /mnt/elastic-internal/elasticsearch-plugins-local/"
+            # Use "yes" and "-f" as we want the init container to be idempotent and not to fail when executed more than once.
+            yes | cp -avf /usr/share/elasticsearch/plugins/* /mnt/elastic-internal/elasticsearch-plugins-local/
+        fi
+    
+        if [[ -z "$(ls -A /usr/share/elasticsearch/bin)" ]]; then
+            echo "Empty dir /usr/share/elasticsearch/bin"
+        else
+            echo "Copying /usr/share/elasticsearch/bin/* to /mnt/elastic-internal/elasticsearch-bin-local/"
+            # Use "yes" and "-f" as we want the init container to be idempotent and not to fail when executed more than once.
+            yes | cp -avf /usr/share/elasticsearch/bin/* /mnt/elastic-internal/elasticsearch-bin-local/
+        fi
+    
+    echo "Files copy duration: $(duration $mv_start) sec."
+    
+    ######################
+    #  Config linking    #
+    ######################
+    
+    # Link individual files from their mount location into the config dir
+    # to a volume, to be used by the ES container
+    ln_start=$(date +%s)
+    
+    #    echo "Linking /mnt/elastic-internal/xpack-file-realm/users to /mnt/elastic-internal/elasticsearch-config-local/users"
+    #    ln -sf /mnt/elastic-internal/xpack-file-realm/users /mnt/elastic-internal/elasticsearch-config-local/users
+    
+    #    echo "Linking /mnt/elastic-internal/xpack-file-realm/roles.yml to /mnt/elastic-internal/elasticsearch-config-local/roles.yml"
+    #    ln -sf /mnt/elastic-internal/xpack-file-realm/roles.yml /mnt/elastic-internal/elasticsearch-config-local/roles.yml
+    
+    #    echo "Linking /mnt/elastic-internal/xpack-file-realm/users_roles to /mnt/elastic-internal/elasticsearch-config-local/users_roles"
+    #    ln -sf /mnt/elastic-internal/xpack-file-realm/users_roles /mnt/elastic-internal/elasticsearch-config-local/users_roles
+    
+        echo "Linking /mnt/elastic-internal/elasticsearch-config/elasticsearch.yml to /mnt/elastic-internal/elasticsearch-config-local/elasticsearch.yml"
+        ln -sf /mnt/elastic-internal/elasticsearch-config/elasticsearch.yml /mnt/elastic-internal/elasticsearch-config-local/elasticsearch.yml
+    
+    #    echo "Linking /mnt/elastic-internal/unicast-hosts/unicast_hosts.txt to /mnt/elastic-internal/elasticsearch-config-local/unicast_hosts.txt"
+    #    ln -sf /mnt/elastic-internal/unicast-hosts/unicast_hosts.txt /mnt/elastic-internal/elasticsearch-config-local/unicast_hosts.txt
+    
+    #    echo "Linking /mnt/elastic-internal/xpack-file-realm/service_tokens to /mnt/elastic-internal/elasticsearch-config-local/service_tokens"
+    #    ln -sf /mnt/elastic-internal/xpack-file-realm/service_tokens /mnt/elastic-internal/elasticsearch-config-local/service_tokens
+    
+    echo "File linking duration: $(duration $ln_start) sec."
+    
+    
+    
+    
+    ######################
+    #         End        #
+    ######################
+    
+    echo "Init script successful"
+    echo "Script duration: $(duration $script_start) sec."
+  readiness-probe-script.sh: |-
+    #!/usr/bin/env bash
+    
+    # fail should be called as a last resort to help the user to understand why the probe failed
+    function fail {
+      timestamp=$(date --iso-8601=seconds)
+      echo "{\"timestamp\": \"${timestamp}\", \"message\": \"readiness probe failed\", "$1"}" | tee /proc/1/fd/2 2> /dev/null
+      exit 1
+    }
+    
+    READINESS_PROBE_TIMEOUT=${READINESS_PROBE_TIMEOUT:=3}
+    
+    # Check if PROBE_PASSWORD_PATH is set, otherwise fall back to its former name in 1.0.0.beta-1: PROBE_PASSWORD_FILE
+    if [[ -z "${PROBE_PASSWORD_PATH}" ]]; then
+      probe_password_path="${PROBE_PASSWORD_FILE}"
+    else
+      probe_password_path="${PROBE_PASSWORD_PATH}"
+    fi
+    
+    # setup basic auth if credentials are available
+    if [ -n "${PROBE_USERNAME}" ] && [ -f "${probe_password_path}" ]; then
+      PROBE_PASSWORD=$(<${probe_password_path})
+      BASIC_AUTH="-u ${PROBE_USERNAME}:${PROBE_PASSWORD}"
+    else
+      BASIC_AUTH=''
+    fi
+    
+    # Check if we are using IPv6
+    if [[ $POD_IP =~ .*:.* ]]; then
+      LOOPBACK="[::1]"
+    else
+      LOOPBACK=127.0.0.1
+    fi
+    
+    # request Elasticsearch on /
+    # we are turning globbing off to allow for unescaped [] in case of IPv6
+    ENDPOINT="${READINESS_PROBE_PROTOCOL:-https}://${LOOPBACK}:9200/"
+    status=$(curl -o /dev/null -w "%{http_code}" --max-time ${READINESS_PROBE_TIMEOUT} -XGET -g -s -k ${BASIC_AUTH} $ENDPOINT)
+    curl_rc=$?
+    
+    if [[ ${curl_rc} -ne 0 ]]; then
+      fail "\"curl_rc\": \"${curl_rc}\""
+    fi
+    
+    # ready if status code 200, 503 is tolerable if ES version is 6.x
+    if [[ ${status} == "200" ]] ; then
+      exit 0
+    else
+      fail " \"status\": \"${status}\""
+    fi
+  suspend.sh: |-
+    #!/usr/bin/env bash
+    set -eu
+    
+    while [[ $(grep -Exc $HOSTNAME /mnt/elastic-internal/scripts/suspended_pods.txt) -eq 1 ]]; do
+        echo Pod suspended via eck.k8s.elastic.co/suspend annotation
+        sleep 10
+    done
+  install-plugins.sh: |-
+    #!/usr/bin/env bash
+    
+    set -o errexit
+    
+    src_plugins_dir=/tmp/plugins
+    dst_plugins_dir=/usr/share/elasticsearch/plugins
+    
+    if [ ! -d $src_plugins_dir ]; then
+      echo "no plugins to install"
+      exit 0
+    fi
+    
+    function native_install_plugin() {
+      plugin=$1
+      msg=`/usr/share/elasticsearch/bin/elasticsearch-plugin install -b $plugin`
+      if [ $? == 0 ]; then
+        echo "successfully installed plugin $plugin"
+      else
+        echo $msg | grep 'already exists'
+        if [ $? == 0 ]; then
+          echo "plugin $plugin already exists"
+        else
+          echo "failed to install plugin $plugin"
+          exit 1
+        fi
+      fi
+    }
+    
+    function copy_install_plugin() {
+       plugin=$1
+       if [ -d $dst_plugins_dir/$plugin ]; then
+            echo "plugin $plugin already exists"
+            return
+       fi
+       cp -r $plugin $dst_plugins_dir
+       echo "successfully installed plugin $plugin"
+    }
+    
+    for plugin in $(ls $src_plugins_dir); do
+        # check if plugin has suffix .zip or .gz or .tar.gz
+        echo "installing plugin $plugin"
+        if [[ $plugin == *.zip || $plugin == *.gz || $plugin == *.tar.gz ]]; then
+            native_install_plugins $src_plugins_dir/$plugin
+        else
+            copy_install_plugin $src_plugins_dir/$plugin
+        fi
+    done
+---
+# Source: elasticsearch/templates/actionset.yaml
+apiVersion: dataprotection.kubeblocks.io/v1alpha1
+kind: ActionSet
+metadata:
+  name: elasticsearch-physical-backup
+  labels:
+    helm.sh/chart: elasticsearch-0.9.0
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  backupType: Full
+  backup:
+    backupData:
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      runOnTargetPodNode: true
+      command:
+      - sh
+      - -c
+      - |
+        #!/usr/bin/env bash
+        
+        # This script must be running on the target pod node as the elasticsearch.keystore need to be shared with the backup pod
+        
+        set -x
+        set -o errexit
+        
+        export PATH=$PATH:/usr/share/elasticsearch/bin
+        cat /etc/datasafed/datasafed.conf
+        toolConfig=/etc/datasafed/datasafed.conf
+        REPOSITORY=kb-backup
+        ES_ENDPOINT=http://${DP_DB_HOST}:9200
+        
+        # if the script exits with a non-zero exit code, touch a file to indicate that the backup failed,
+        # the sync progress container will check this file and exit if it exists
+        function handle_exit() {
+          exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "failed with exit code $exit_code"
+            touch "${DP_BACKUP_INFO_FILE}.exit"
+            exit 1
+          else
+            echo "{}" >"${DP_BACKUP_INFO_FILE}"
+            exit 0
+          fi
+        }
+        trap handle_exit EXIT
+        
+        function getToolConfigValue() {
+            local var=$1
+            cat $toolConfig | grep "$var" | awk '{print $NF}'
+        }
+        
+        s3_endpoint=$(getToolConfigValue endpoint)
+        s3_bucket=$(getToolConfigValue root)
+        
+        curl -X POST "${ES_ENDPOINT}/_nodes/reload_secure_settings"
+        
+        # DP_BACKUP_BASE_PATH is the path to the backup directory
+        # pattern: /${namespace}/${clusterName}-${clusterUID}/${componentDef}/${backupName}/${podName}
+        # example: /kubeblocks-cloud-ns/x-a3c215fd-1e98-4359-be30-7ad17d08b166/es-data/backup-kubeblocks-cloud-ns-x-20240607144802/x-es-data-1
+        base_path=$(dirname "$DP_BACKUP_BASE_PATH")
+        base_path=$(dirname "${base_path}")
+        base_path=$(dirname "${base_path}")
+        base_path=${base_path%/}
+        base_path=${base_path#*/}
+        
+        function wait_for_snapshot_completion() {
+            while true; do
+                state=$(curl -s -X GET "${ES_ENDPOINT}/_snapshot/${REPOSITORY}/${DP_BACKUP_NAME}?sort=name&pretty" | grep -w state | awk '{print $NF}' | tr -d ',"')
+                if [ "$state" == "SUCCESS" ]; then
+                    echo "INFO: backup success"
+                    break
+                elif [ "$state" == "FAILED" ]; then
+                    echo "INFO: backup failed"
+                    exit 1
+                else
+                    echo "INFO: backup in progress"
+                    sleep 10
+                fi
+            done
+        }
+        
+        cat > /tmp/repository.json<< EOF
+        {
+          "type": "s3",
+          "settings": {
+            "protocol": "http",
+            "endpoint": "${s3_endpoint}",
+            "bucket": "${s3_bucket}",
+            "base_path": "${base_path}",
+            "client": "default",
+            "path_style_access": true
+          }
+        }
+        EOF
+        
+        curl -X PUT "${ES_ENDPOINT}/_snapshot/${REPOSITORY}?pretty" -H 'Content-Type: application/json' -d "@/tmp/repository.json"
+        
+        snapshot_result=$(curl -s -X PUT "${ES_ENDPOINT}/_snapshot/${REPOSITORY}/${DP_BACKUP_NAME}?wait_for_completion=false")
+        echo "INFO: create snapshot ${DP_BACKUP_NAME}, result: ${snapshot_result}"
+        
+        if [[ "${snapshot_result}" == *"snapshot with the same name already exists"* ]]; then
+            echo "INFO: snapshot with the same name ${DP_BACKUP_NAME} already exists"
+            exit 0
+        fi
+        
+        if [[ "${snapshot_result}" == *"snapshot with the same name already in-progress"* ]]; then
+            echo "INFO: snapshot with the same name ${DP_BACKUP_NAME} already in-progress"
+            exit 0
+        fi
+        
+        echo "${snapshot_result}" | grep '{"accepted":true}' > /dev/null 2>&1
+        if [ $? == 0 ]; then
+            wait_for_snapshot_completion
+        else
+            echo "ERROR: create snapshot failed"
+            exit 1
+        fi
+        
+      syncProgress:
+        enabled: true
+        intervalSeconds: 5
+  restore:
+    postReady:
+    - exec:
+        command:
+        - sh
+        - -c
+        - |
+          #!/usr/bin/env bash
+          
+          set -x
+          set -exo pipefail
+          
+          export PATH=$PATH:/usr/share/elasticsearch/bin
+          cat /etc/datasafed/datasafed.conf
+          toolConfig=/etc/datasafed/datasafed.conf
+          
+          # if the script exits with a non-zero exit code, touch a file to indicate that the backup failed,
+          # the sync progress container will check this file and exit if it exists
+          function handle_exit() {
+            exit_code=$?
+            if [ $exit_code -ne 0 ]; then
+              echo "failed with exit code $exit_code"
+              touch "${DP_BACKUP_INFO_FILE}.exit"
+              exit 1
+            else
+              echo "{}" >"${DP_BACKUP_INFO_FILE}"
+              exit 0
+            fi
+          }
+          trap handle_exit EXIT
+          
+          function getToolConfigValue() {
+              local var=$1
+              cat $toolConfig | grep "$var" | awk '{print $NF}'
+          }
+          
+          s3_access_key_id=$(getToolConfigValue access_key_id)
+          s3_secret_access_key=$(getToolConfigValue secret_access_key)
+          
+          # Currently, all secure settings are node-specific settings that must have the same value on every node.
+          # Therefore you must run this command on every node.
+          # When the keystore is password-protected, you must supply the password each time Elasticsearch starts.
+          # Modifications to the keystore are not automatically applied to the running Elasticsearch node.
+          # Any changes to the keystore will take effect when you restart Elasticsearch. Some secure settings can be explicitly reloaded without restart.
+          echo "${s3_access_key_id}" | elasticsearch-keystore add s3.client.default.access_key -f
+          echo "${s3_secret_access_key}" | elasticsearch-keystore add s3.client.default.secret_key -f
+          mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+          
+          
+    - job:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+        runOnTargetPodNode: false
+        command:
+        - bash
+        - -c
+        - |
+          #!/usr/bin/env bash
+          
+          set -x
+          set -o errexit
+          
+          cat /etc/datasafed/datasafed.conf
+          toolConfig=/etc/datasafed/datasafed.conf
+          ES_ENDPOINT=http://${DP_DB_HOST}:9200
+          REPOSITORY=kb-restore
+          
+          # if the script exits with a non-zero exit code, touch a file to indicate that the backup failed,
+          # the sync progress container will check this file and exit if it exists
+          function handle_exit() {
+            exit_code=$?
+            if [ $exit_code -ne 0 ]; then
+              echo "failed with exit code $exit_code"
+              touch "${DP_BACKUP_INFO_FILE}.exit"
+              exit 1
+            fi
+          }
+          trap handle_exit EXIT
+          
+          function getToolConfigValue() {
+              local var=$1
+              cat $toolConfig | grep "$var" | awk '{print $NF}'
+          }
+          
+          s3_endpoint=$(getToolConfigValue endpoint)
+          s3_bucket=$(getToolConfigValue root)
+          backup_name=$(dirname "${DP_BACKUP_BASE_PATH}")
+          backup_name=$(basename "${backup_name}")
+          base_path=$(dirname "${DP_BACKUP_BASE_PATH}")
+          base_path=$(dirname "${base_path}")
+          base_path=$(dirname "${base_path}")
+          base_path=${base_path%/}
+          base_path=${base_path#*/}
+          
+          curl -X POST "${ES_ENDPOINT}/_nodes/reload_secure_settings"
+          
+          cat > /tmp/repository.json<< EOF
+          {
+            "type": "s3",
+            "settings": {
+              "protocol": "http",
+              "endpoint": "${s3_endpoint}",
+              "bucket": "${s3_bucket}",
+              "base_path": "${base_path}",
+              "client": "default",
+              "path_style_access": true
+            }
+          }
+          EOF
+          
+          curl -X PUT "${ES_ENDPOINT}/_snapshot/${REPOSITORY}?pretty" -H 'Content-Type: application/json' -d "@/tmp/repository.json"
+          
+          
+          # Temporarily stop indexing and turn off the following features:
+          # GeoIP database downloader and ILM history store
+          curl -X PUT "${ES_ENDPOINT}/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+          {
+            "persistent": {
+              "ingest.geoip.downloader.enabled": false,
+              "indices.lifecycle.history_index_enabled": false
+            }
+          }
+          '
+          
+          # ILM
+          curl -X POST "${ES_ENDPOINT}/_ilm/stop?pretty"
+          
+          # Machine Learning
+          curl -X POST "${ES_ENDPOINT}/_ml/set_upgrade_mode?enabled=true&pretty"
+          
+          # Monitoring
+          curl -X PUT "${ES_ENDPOINT}/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+          {
+            "persistent": {
+              "xpack.monitoring.collection.enabled": false
+            }
+          }
+          '
+          
+          # Watcher
+          curl -X POST "${ES_ENDPOINT}/_watcher/_stop?pretty"
+          
+          # Universal Profiling
+          # if Universal Profiling index template management is enabled, we should also disable Universal Profiling index template management.
+          idx_template_management_is_enabled=False
+          idx_template_management=$(curl -X GET "${ES_ENDPOINT}/_cluster/settings?filter_path=**.xpack.profiling.templates.enabled&include_defaults=true&pretty")
+          if [[ "${idx_template_management}" == *"true"* ]]; then
+              idx_template_management_is_enabled=True
+              curl -X PUT "${ES_ENDPOINT}/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+              {
+                "persistent": {
+                  "xpack.profiling.templates.enabled": false
+                }
+              }
+              '
+          fi
+          
+          # Disable destructive_requires_name
+          curl -X PUT "${ES_ENDPOINT}/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+          {
+            "persistent": {
+              "action.destructive_requires_name": false
+            }
+          }
+          '
+          
+          # Delete all existing data streams on the cluster.
+          curl -X DELETE "${ES_ENDPOINT}/_data_stream/*?expand_wildcards=all&pretty"
+          
+          # Delete all existing indices on the cluster.
+          curl -X DELETE "${ES_ENDPOINT}/*?expand_wildcards=all&pretty"
+          
+          # Restore the entire snapshot.
+          curl -X POST "${ES_ENDPOINT}/_snapshot/${REPOSITORY}/${backup_name}/_restore?pretty" -H 'Content-Type: application/json' -d'
+          {
+            "indices": "*",
+            "include_global_state": true
+          }
+          '
+          
+          curl -X PUT "${ES_ENDPOINT}/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+          {
+            "persistent": {
+              "ingest.geoip.downloader.enabled": true,
+              "indices.lifecycle.history_index_enabled": true
+            }
+          }
+          '
+          
+          curl -X POST "${ES_ENDPOINT}/_ilm/start?pretty"
+          
+          curl -X POST "${ES_ENDPOINT}/_ml/set_upgrade_mode?enabled=false&pretty"
+          
+          curl -X PUT "${ES_ENDPOINT}/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+          {
+            "persistent": {
+              "xpack.monitoring.collection.enabled": true
+            }
+          }
+          '
+          
+          curl -X POST "${ES_ENDPOINT}/_watcher/_start?pretty"
+          
+          if [ "${idx_template_management_is_enabled}" = "True" ]; then
+              curl -X PUT "${ES_ENDPOINT}/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+              {
+                "persistent": {
+                  "xpack.profiling.templates.enabled": true
+                }
+              }
+              '
+          fi
+          
+          curl -X PUT "${ES_ENDPOINT}/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+          {
+            "persistent": {
+              "action.destructive_requires_name": null
+            }
+          }
+          '
+---
+# Source: elasticsearch/templates/actionset.yaml
+apiVersion: dataprotection.kubeblocks.io/v1alpha1
+kind: ActionSet
+metadata:
+  name: elasticsearch-setup-keystore
+  labels:
+    helm.sh/chart: elasticsearch-0.9.0
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  backupType: Full
+  backup:
+    backupData:
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      runOnTargetPodNode: true
+      command:
+      - sh
+      - -c
+      - |
+        #!/usr/bin/env bash
+        
+        set -x
+        set -exo pipefail
+        
+        export PATH=$PATH:/usr/share/elasticsearch/bin
+        cat /etc/datasafed/datasafed.conf
+        toolConfig=/etc/datasafed/datasafed.conf
+        
+        # if the script exits with a non-zero exit code, touch a file to indicate that the backup failed,
+        # the sync progress container will check this file and exit if it exists
+        function handle_exit() {
+          exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "failed with exit code $exit_code"
+            touch "${DP_BACKUP_INFO_FILE}.exit"
+            exit 1
+          else
+            echo "{}" >"${DP_BACKUP_INFO_FILE}"
+            exit 0
+          fi
+        }
+        trap handle_exit EXIT
+        
+        function getToolConfigValue() {
+            local var=$1
+            cat $toolConfig | grep "$var" | awk '{print $NF}'
+        }
+        
+        s3_access_key_id=$(getToolConfigValue access_key_id)
+        s3_secret_access_key=$(getToolConfigValue secret_access_key)
+        
+        # Currently, all secure settings are node-specific settings that must have the same value on every node.
+        # Therefore you must run this command on every node.
+        # When the keystore is password-protected, you must supply the password each time Elasticsearch starts.
+        # Modifications to the keystore are not automatically applied to the running Elasticsearch node.
+        # Any changes to the keystore will take effect when you restart Elasticsearch. Some secure settings can be explicitly reloaded without restart.
+        echo "${s3_access_key_id}" | elasticsearch-keystore add s3.client.default.access_key -f
+        echo "${s3_secret_access_key}" | elasticsearch-keystore add s3.client.default.secret_key -f
+        mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+        
+        
+      syncProgress:
+        enabled: true
+        intervalSeconds: 5
+  restore:
+    postReady:
+    - job:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+        runOnTargetPodNode: false
+        command:
+        - "true"
+---
+# Source: elasticsearch/templates/backuppolicytemplate.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: BackupPolicyTemplate
+metadata:
+  name: elasticsearch-backup-policy-template
+  labels:
+    clusterdefinition.kubeblocks.io/name: elasticsearch
+    helm.sh/chart: elasticsearch-0.9.0
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterDefinitionRef: elasticsearch
+  backupPolicies:
+  - componentDefs:
+    - es-data
+    backupMethods:
+    - name: full-backup
+      target:
+        role: ""
+        strategy: Any
+      snapshotVolumes: false
+      actionSetName: elasticsearch-physical-backup
+    - name: setup-keystore
+      target:
+        role: ""
+        strategy: All
+      snapshotVolumes: false
+      actionSetName: elasticsearch-setup-keystore
+      targetVolumes:
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+  - componentDefs:
+    - es-master
+    - es-ingest
+    - es-transform
+    target:
+      role: ""
+      strategy: All
+    backupMethods:
+    - name: setup-keystore
+      snapshotVolumes: false
+      actionSetName: elasticsearch-setup-keystore
+      targetVolumes:
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+---
+# Source: elasticsearch/templates/clusterdefinition.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: ClusterDefinition
+metadata:
+  name: elasticsearch
+  labels:
+    helm.sh/chart: elasticsearch-0.9.0
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  topologies:
+  - name: es-single-node
+    components:
+    - name: es-single-node
+      compDef: es-single-node
+  - name: cluster
+    components:
+    - name: es-master
+      compDef: es-master
+    - name: es-data
+      compDef: es-data
+    - name: es-ingest
+      compDef: es-ingest
+    - name: es-transform
+      compDef: es-transform
+    default: true
+---
+# Source: elasticsearch/templates/clusterversion.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: ClusterVersion
+metadata:
+  name: elasticsearch-8.8.2
+  labels:
+    helm.sh/chart: elasticsearch-0.9.0
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterDefinitionRef: elasticsearch
+  componentVersions:
+  - componentDefRef: elasticsearch
+    versionsContext:
+      initContainers:
+      - name: sysctl
+        image: docker.elastic.co/busybox:1.35
+        imagePullPolicy: IfNotPresent
+      - name: prepare-plugins
+        image: docker.io/apecloud/elasticsearch-plugins:8.8.2
+        imagePullPolicy: IfNotPresent
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+        imagePullPolicy: IfNotPresent
+      - name: elasticsearch-master-graceful-termination-handler
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+        imagePullPolicy: IfNotPresent
+      - name: metrics
+        image: docker.elastic.co/bitnami/elasticsearch-exporter:1.5.0-debian-11-r102
+        imagePullPolicy: IfNotPresent
+---
+# Source: elasticsearch/templates/componentdefinition.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: ComponentDefinition
+metadata:
+  name: es-master
+  labels:
+      helm.sh/chart: elasticsearch-0.9.0
+      app.kubernetes.io/name: elasticsearch
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/version: "8.8.2"
+      app.kubernetes.io/managed-by: Helm
+spec:
+  provider: kubeblocks
+  description: Elasticsearch is a distributed, RESTful search engine optimized for speed and relevance on production-scale workloads.
+  serviceVersion: 8.8.2
+  serviceKind: es-master
+  updateStrategy: Parallel
+  configs:
+  - name: es-cm
+    templateRef: elasticsearch-config
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: es-cm
+  scripts:
+  - name: scripts
+    templateRef: elasticsearch-scripts
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: scripts
+    defaultMode: 0555
+  services:
+  - name: http
+    serviceName: http
+    spec:
+      ipFamilyPolicy: PreferDualStack
+      ipFamilies:
+      - IPv4
+      ports:
+      - name: http
+        port: 9200
+        targetPort: http
+  lifecycleActions:
+    memberLeave:
+      customHandler:
+        image: docker.io/apecloud/curl-jq:latest
+        exec:
+          command:
+          - /bin/sh
+          - -c
+          - |
+            echo "member $KB_LEAVE_MEMBER_POD_NAME is leaving"
+            curl -v -X POST http://127.0.0.1:9200/_cluster/voting_config_exclusions?node_names=$KB_LEAVE_MEMBER_POD_NAME
+        targetPodSelector: Any
+        container: elasticsearch
+  runtime:
+    containers:
+    - env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      - name: ELASTICSEARCH_ROLES
+        value: "master"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - |
+          sh /mnt/elastic-internal/scripts/install-plugins.sh
+          # persistent the elasticsearch.keystore in data volume
+          if [ ! -f /usr/share/elasticsearch/data/elasticsearch.keystore ]; then
+            if [ ! -f /usr/share/elasticsearch/config/elasticsearch.keystore ]; then
+              bin/elasticsearch-keystore create
+            fi
+            mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+          fi
+          ln -s /usr/share/elasticsearch/data/elasticsearch.keystore /usr/share/elasticsearch/config/elasticsearch.keystore
+          /bin/tini -- /usr/local/bin/docker-entrypoint.sh
+      lifecycle:
+        preStop:
+          exec:
+            command:
+            - bash
+            - -c
+            - |
+              mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+              /mnt/elastic-internal/scripts/pre-stop-hook-script.sh
+      name: elasticsearch
+      ports:
+      - containerPort: 9200
+        name: http
+        protocol: TCP
+      - containerPort: 9300
+        name: transport
+        protocol: TCP
+      readinessProbe:
+        exec:
+          command:
+          - bash
+          - -c
+          - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+        timeoutSeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /tmp/plugins
+        name: plugins
+    initContainers:
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/prepare-fs.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-init-filesystem
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /mnt/elastic-internal/elasticsearch-bin-local
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-config-local
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-plugins-local
+        name: elastic-internal-elasticsearch-plugins-local
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/suspend.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-suspend
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+    - name: prepare-plugins
+      image: docker.io/apecloud/elasticsearch-plugins:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+      - sh
+      - -c
+      - |
+        if [ -d /plugins ]; then
+          echo "install plugins: $(ls /plugins)"
+          cp -r /plugins/* /tmp/plugins/
+        else
+          echo "there is no plugins"
+        fi
+      securityContext:
+        runAsUser: 0
+        privileged: true
+      volumeMounts:
+      - mountPath: /tmp/plugins
+        name: plugins
+    securityContext:
+      fsGroup: 1000
+    volumes:
+    - emptyDir: { }
+      name: log
+    - emptyDir: { }
+      name: tmp-volume
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-bin-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-config-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-plugins-local
+    - emptyDir: {}
+      name: plugins
+---
+# Source: elasticsearch/templates/componentdefinition.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: ComponentDefinition
+metadata:
+  name: es-data
+  labels:
+      helm.sh/chart: elasticsearch-0.9.0
+      app.kubernetes.io/name: elasticsearch
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/version: "8.8.2"
+      app.kubernetes.io/managed-by: Helm
+spec:
+  provider: kubeblocks
+  description: Elasticsearch is a distributed, RESTful search engine optimized for speed and relevance on production-scale workloads.
+  serviceVersion: 8.8.2
+  serviceKind: es-data
+  updateStrategy: Parallel
+  configs:
+  - name: es-cm
+    templateRef: elasticsearch-config
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: es-cm
+  scripts:
+  - name: scripts
+    templateRef: elasticsearch-scripts
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: scripts
+    defaultMode: 0555
+  services:
+  - name: http
+    serviceName: http
+    spec:
+      ipFamilyPolicy: PreferDualStack
+      ipFamilies:
+      - IPv4
+      ports:
+      - name: http
+        port: 9200
+        targetPort: http
+  lifecycleActions:
+    memberLeave:
+      customHandler:
+        image: docker.io/apecloud/curl-jq:latest
+        exec:
+          command:
+          - /bin/sh
+          - -c
+          - |
+            echo "member $KB_LEAVE_MEMBER_POD_NAME is leaving"
+            curl -v -X POST http://127.0.0.1:9200/_cluster/voting_config_exclusions?node_names=$KB_LEAVE_MEMBER_POD_NAME
+        targetPodSelector: Any
+        container: elasticsearch
+  runtime:
+    containers:
+    - env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      - name: ELASTICSEARCH_ROLES
+        value: "data"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - |
+          sh /mnt/elastic-internal/scripts/install-plugins.sh
+          # persistent the elasticsearch.keystore in data volume
+          if [ ! -f /usr/share/elasticsearch/data/elasticsearch.keystore ]; then
+            if [ ! -f /usr/share/elasticsearch/config/elasticsearch.keystore ]; then
+              bin/elasticsearch-keystore create
+            fi
+            mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+          fi
+          ln -s /usr/share/elasticsearch/data/elasticsearch.keystore /usr/share/elasticsearch/config/elasticsearch.keystore
+          /bin/tini -- /usr/local/bin/docker-entrypoint.sh
+      lifecycle:
+        preStop:
+          exec:
+            command:
+            - bash
+            - -c
+            - |
+              mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+              /mnt/elastic-internal/scripts/pre-stop-hook-script.sh
+      name: elasticsearch
+      ports:
+      - containerPort: 9200
+        name: http
+        protocol: TCP
+      - containerPort: 9300
+        name: transport
+        protocol: TCP
+      readinessProbe:
+        exec:
+          command:
+          - bash
+          - -c
+          - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+        timeoutSeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /tmp/plugins
+        name: plugins
+    initContainers:
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/prepare-fs.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-init-filesystem
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /mnt/elastic-internal/elasticsearch-bin-local
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-config-local
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-plugins-local
+        name: elastic-internal-elasticsearch-plugins-local
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/suspend.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-suspend
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+    - name: prepare-plugins
+      image: docker.io/apecloud/elasticsearch-plugins:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+      - sh
+      - -c
+      - |
+        if [ -d /plugins ]; then
+          echo "install plugins: $(ls /plugins)"
+          cp -r /plugins/* /tmp/plugins/
+        else
+          echo "there is no plugins"
+        fi
+      securityContext:
+        runAsUser: 0
+        privileged: true
+      volumeMounts:
+      - mountPath: /tmp/plugins
+        name: plugins
+    securityContext:
+      fsGroup: 1000
+    volumes:
+    - emptyDir: { }
+      name: log
+    - emptyDir: { }
+      name: tmp-volume
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-bin-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-config-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-plugins-local
+    - emptyDir: {}
+      name: plugins
+---
+# Source: elasticsearch/templates/componentdefinition.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: ComponentDefinition
+metadata:
+  name: es-ingest
+  labels:
+      helm.sh/chart: elasticsearch-0.9.0
+      app.kubernetes.io/name: elasticsearch
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/version: "8.8.2"
+      app.kubernetes.io/managed-by: Helm
+spec:
+  provider: kubeblocks
+  description: Elasticsearch is a distributed, RESTful search engine optimized for speed and relevance on production-scale workloads.
+  serviceVersion: 8.8.2
+  serviceKind: es-ingest
+  updateStrategy: Parallel
+  configs:
+  - name: es-cm
+    templateRef: elasticsearch-config
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: es-cm
+  scripts:
+  - name: scripts
+    templateRef: elasticsearch-scripts
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: scripts
+    defaultMode: 0555
+  services:
+  - name: http
+    serviceName: http
+    spec:
+      ipFamilyPolicy: PreferDualStack
+      ipFamilies:
+      - IPv4
+      ports:
+      - name: http
+        port: 9200
+        targetPort: http
+  lifecycleActions:
+    memberLeave:
+      customHandler:
+        image: docker.io/apecloud/curl-jq:latest
+        exec:
+          command:
+          - /bin/sh
+          - -c
+          - |
+            echo "member $KB_LEAVE_MEMBER_POD_NAME is leaving"
+            curl -v -X POST http://127.0.0.1:9200/_cluster/voting_config_exclusions?node_names=$KB_LEAVE_MEMBER_POD_NAME
+        targetPodSelector: Any
+        container: elasticsearch
+  runtime:
+    containers:
+    - env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      - name: ELASTICSEARCH_ROLES
+        value: "ingest"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - |
+          sh /mnt/elastic-internal/scripts/install-plugins.sh
+          # persistent the elasticsearch.keystore in data volume
+          if [ ! -f /usr/share/elasticsearch/data/elasticsearch.keystore ]; then
+            if [ ! -f /usr/share/elasticsearch/config/elasticsearch.keystore ]; then
+              bin/elasticsearch-keystore create
+            fi
+            mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+          fi
+          ln -s /usr/share/elasticsearch/data/elasticsearch.keystore /usr/share/elasticsearch/config/elasticsearch.keystore
+          /bin/tini -- /usr/local/bin/docker-entrypoint.sh
+      lifecycle:
+        preStop:
+          exec:
+            command:
+            - bash
+            - -c
+            - |
+              mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+              /mnt/elastic-internal/scripts/pre-stop-hook-script.sh
+      name: elasticsearch
+      ports:
+      - containerPort: 9200
+        name: http
+        protocol: TCP
+      - containerPort: 9300
+        name: transport
+        protocol: TCP
+      readinessProbe:
+        exec:
+          command:
+          - bash
+          - -c
+          - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+        timeoutSeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /tmp/plugins
+        name: plugins
+    initContainers:
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/prepare-fs.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-init-filesystem
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /mnt/elastic-internal/elasticsearch-bin-local
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-config-local
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-plugins-local
+        name: elastic-internal-elasticsearch-plugins-local
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/suspend.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-suspend
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+    - name: prepare-plugins
+      image: docker.io/apecloud/elasticsearch-plugins:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+      - sh
+      - -c
+      - |
+        if [ -d /plugins ]; then
+          echo "install plugins: $(ls /plugins)"
+          cp -r /plugins/* /tmp/plugins/
+        else
+          echo "there is no plugins"
+        fi
+      securityContext:
+        runAsUser: 0
+        privileged: true
+      volumeMounts:
+      - mountPath: /tmp/plugins
+        name: plugins
+    securityContext:
+      fsGroup: 1000
+    volumes:
+    - emptyDir: { }
+      name: log
+    - emptyDir: { }
+      name: tmp-volume
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-bin-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-config-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-plugins-local
+    - emptyDir: {}
+      name: plugins
+---
+# Source: elasticsearch/templates/componentdefinition.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: ComponentDefinition
+metadata:
+  name: es-transform
+  labels:
+      helm.sh/chart: elasticsearch-0.9.0
+      app.kubernetes.io/name: elasticsearch
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/version: "8.8.2"
+      app.kubernetes.io/managed-by: Helm
+spec:
+  provider: kubeblocks
+  description: Elasticsearch is a distributed, RESTful search engine optimized for speed and relevance on production-scale workloads.
+  serviceVersion: 8.8.2
+  serviceKind: es-transform
+  updateStrategy: Parallel
+  configs:
+  - name: es-cm
+    templateRef: elasticsearch-config
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: es-cm
+  scripts:
+  - name: scripts
+    templateRef: elasticsearch-scripts
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: scripts
+    defaultMode: 0555
+  services:
+  - name: http
+    serviceName: http
+    spec:
+      ipFamilyPolicy: PreferDualStack
+      ipFamilies:
+      - IPv4
+      ports:
+      - name: http
+        port: 9200
+        targetPort: http
+  lifecycleActions:
+    memberLeave:
+      customHandler:
+        image: docker.io/apecloud/curl-jq:latest
+        exec:
+          command:
+          - /bin/sh
+          - -c
+          - |
+            echo "member $KB_LEAVE_MEMBER_POD_NAME is leaving"
+            curl -v -X POST http://127.0.0.1:9200/_cluster/voting_config_exclusions?node_names=$KB_LEAVE_MEMBER_POD_NAME
+        targetPodSelector: Any
+        container: elasticsearch
+  runtime:
+    containers:
+    - env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      - name: ELASTICSEARCH_ROLES
+        value: "transform"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - |
+          sh /mnt/elastic-internal/scripts/install-plugins.sh
+          # persistent the elasticsearch.keystore in data volume
+          if [ ! -f /usr/share/elasticsearch/data/elasticsearch.keystore ]; then
+            if [ ! -f /usr/share/elasticsearch/config/elasticsearch.keystore ]; then
+              bin/elasticsearch-keystore create
+            fi
+            mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+          fi
+          ln -s /usr/share/elasticsearch/data/elasticsearch.keystore /usr/share/elasticsearch/config/elasticsearch.keystore
+          /bin/tini -- /usr/local/bin/docker-entrypoint.sh
+      lifecycle:
+        preStop:
+          exec:
+            command:
+            - bash
+            - -c
+            - |
+              mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+              /mnt/elastic-internal/scripts/pre-stop-hook-script.sh
+      name: elasticsearch
+      ports:
+      - containerPort: 9200
+        name: http
+        protocol: TCP
+      - containerPort: 9300
+        name: transport
+        protocol: TCP
+      readinessProbe:
+        exec:
+          command:
+          - bash
+          - -c
+          - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+        timeoutSeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /tmp/plugins
+        name: plugins
+    initContainers:
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/prepare-fs.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-init-filesystem
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /mnt/elastic-internal/elasticsearch-bin-local
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-config-local
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-plugins-local
+        name: elastic-internal-elasticsearch-plugins-local
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/suspend.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-suspend
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+    - name: prepare-plugins
+      image: docker.io/apecloud/elasticsearch-plugins:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+      - sh
+      - -c
+      - |
+        if [ -d /plugins ]; then
+          echo "install plugins: $(ls /plugins)"
+          cp -r /plugins/* /tmp/plugins/
+        else
+          echo "there is no plugins"
+        fi
+      securityContext:
+        runAsUser: 0
+        privileged: true
+      volumeMounts:
+      - mountPath: /tmp/plugins
+        name: plugins
+    securityContext:
+      fsGroup: 1000
+    volumes:
+    - emptyDir: { }
+      name: log
+    - emptyDir: { }
+      name: tmp-volume
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-bin-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-config-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-plugins-local
+    - emptyDir: {}
+      name: plugins
+---
+# Source: elasticsearch/templates/componentdefinition.yaml
+apiVersion: apps.kubeblocks.io/v1alpha1
+kind: ComponentDefinition
+metadata:
+  name: es-single-node
+  labels:
+      helm.sh/chart: elasticsearch-0.9.0
+      app.kubernetes.io/name: elasticsearch
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/version: "8.8.2"
+      app.kubernetes.io/managed-by: Helm
+spec:
+  provider: kubeblocks
+  description: Elasticsearch is a distributed, RESTful search engine optimized for speed and relevance on production-scale workloads.
+  serviceVersion: 8.8.2
+  serviceKind: es-single-node
+  updateStrategy: Parallel
+  configs:
+  - name: es-cm
+    templateRef: elasticsearch-config
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: es-cm
+  scripts:
+  - name: scripts
+    templateRef: elasticsearch-scripts
+    namespace: elasticsearch-0.9.0.tgz
+    volumeName: scripts
+    defaultMode: 0555
+  services:
+  - name: http
+    serviceName: http
+    spec:
+      ipFamilyPolicy: PreferDualStack
+      ipFamilies:
+      - IPv4
+      ports:
+      - name: http
+        port: 9200
+        targetPort: http
+  lifecycleActions:
+    memberLeave:
+      customHandler:
+        image: docker.io/apecloud/curl-jq:latest
+        exec:
+          command:
+          - /bin/sh
+          - -c
+          - |
+            echo "member $KB_LEAVE_MEMBER_POD_NAME is leaving"
+            curl -v -X POST http://127.0.0.1:9200/_cluster/voting_config_exclusions?node_names=$KB_LEAVE_MEMBER_POD_NAME
+        targetPodSelector: Any
+        container: elasticsearch
+  runtime:
+    containers:
+    - env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      - name: ELASTICSEARCH_ROLES
+        value: "master,data,ingest,transform"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - |
+          sh /mnt/elastic-internal/scripts/install-plugins.sh
+          # persistent the elasticsearch.keystore in data volume
+          if [ ! -f /usr/share/elasticsearch/data/elasticsearch.keystore ]; then
+            if [ ! -f /usr/share/elasticsearch/config/elasticsearch.keystore ]; then
+              bin/elasticsearch-keystore create
+            fi
+            mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+          fi
+          ln -s /usr/share/elasticsearch/data/elasticsearch.keystore /usr/share/elasticsearch/config/elasticsearch.keystore
+          /bin/tini -- /usr/local/bin/docker-entrypoint.sh
+      lifecycle:
+        preStop:
+          exec:
+            command:
+            - bash
+            - -c
+            - |
+              mv /usr/share/elasticsearch/config/elasticsearch.keystore /usr/share/elasticsearch/data/elasticsearch.keystore
+              /mnt/elastic-internal/scripts/pre-stop-hook-script.sh
+      name: elasticsearch
+      ports:
+      - containerPort: 9200
+        name: http
+        protocol: TCP
+      - containerPort: 9300
+        name: transport
+        protocol: TCP
+      readinessProbe:
+        exec:
+          command:
+          - bash
+          - -c
+          - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+        failureThreshold: 3
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        successThreshold: 1
+        timeoutSeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /tmp/plugins
+        name: plugins
+    initContainers:
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/prepare-fs.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-init-filesystem
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /mnt/elastic-internal/elasticsearch-bin-local
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-config-local
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /mnt/elastic-internal/elasticsearch-plugins-local
+        name: elastic-internal-elasticsearch-plugins-local
+    - command:
+      - bash
+      - -c
+      - /mnt/elastic-internal/scripts/suspend.sh
+      env:
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: status.podIP
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: READINESS_PROBE_PROTOCOL
+        value: http
+      - name: NSS_SDB_USE_CACHE
+        value: "no"
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+      imagePullPolicy: IfNotPresent
+      name: elastic-internal-suspend
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+      volumeMounts:
+      - mountPath: /mnt/elastic-internal/elasticsearch-config
+        name: es-cm
+        readOnly: true
+      - mountPath: /mnt/elastic-internal/scripts
+        name: scripts
+        readOnly: true
+      - mountPath: /usr/share/elasticsearch/data
+        name: data
+      - mountPath: /usr/share/elasticsearch/logs
+        name: log
+      - mountPath: /tmp
+        name: tmp-volume
+      - mountPath: /usr/share/elasticsearch/bin
+        name: elastic-internal-elasticsearch-bin-local
+      - mountPath: /usr/share/elasticsearch/config
+        name: elastic-internal-elasticsearch-config-local
+      - mountPath: /usr/share/elasticsearch/plugins
+        name: elastic-internal-elasticsearch-plugins-local
+    - name: prepare-plugins
+      image: docker.io/apecloud/elasticsearch-plugins:8.8.2
+      imagePullPolicy: IfNotPresent
+      command:
+      - sh
+      - -c
+      - |
+        if [ -d /plugins ]; then
+          echo "install plugins: $(ls /plugins)"
+          cp -r /plugins/* /tmp/plugins/
+        else
+          echo "there is no plugins"
+        fi
+      securityContext:
+        runAsUser: 0
+        privileged: true
+      volumeMounts:
+      - mountPath: /tmp/plugins
+        name: plugins
+    securityContext:
+      fsGroup: 1000
+    volumes:
+    - emptyDir: { }
+      name: log
+    - emptyDir: { }
+      name: tmp-volume
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-bin-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-config-local
+    - emptyDir: {}
+      name: elastic-internal-elasticsearch-plugins-local
+    - emptyDir: {}
+      name: plugins
+---
+# Source: elasticsearch/templates/configconstraint.yaml
+apiVersion: apps.kubeblocks.io/v1beta1
+kind: ConfigConstraint
+metadata:
+  name: elasticsearch-config-constraint
+  labels:
+    helm.sh/chart: elasticsearch-0.9.0
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "8.8.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  fileFormatConfig:
+    format: yaml

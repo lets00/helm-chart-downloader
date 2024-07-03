@@ -1,0 +1,1085 @@
+---
+# Source: canton-domain/templates/networkpolicy/from-all-to-sequencer-api-metrics.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-release-canton-domain-allow-sequencer-api-metrics
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: sequencer
+      canton.io/domain: mydomain
+  policyTypes:
+  - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 4401
+---
+# Source: canton-domain/templates/networkpolicy/from-same-namespace-to-all.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: my-release-canton-domain-allow-same-namespace
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: canton-domain-0.6.1.tgz
+---
+# Source: canton-domain/templates/bootstrap/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-canton-domain-bootstrap
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: bootstrap
+automountServiceAccountToken: false
+secrets:
+---
+# Source: canton-domain/templates/manager/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-canton-domain-manager
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: manager
+automountServiceAccountToken: false
+secrets:
+---
+# Source: canton-domain/templates/mediator/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-canton-domain-mediator
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: mediator
+automountServiceAccountToken: false
+secrets:
+---
+# Source: canton-domain/templates/sequencer/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-canton-domain-sequencer
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: sequencer
+automountServiceAccountToken: false
+secrets:
+---
+# Source: canton-domain/templates/bootstrap/configmap-env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-bootstrap-envmap
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: bootstrap
+data:
+  JDK_JAVA_OPTIONS: "-XX:InitialRAMPercentage=70 -XX:MaxRAMPercentage=70"
+---
+# Source: canton-domain/templates/bootstrap/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-bootstrap
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: bootstrap
+data:
+  bootstrap.canton: |
+    logger.info("Bootstrap script start")
+
+    val domainManager = domainManagers.remote.head
+    val mediator = mediators.remote.head
+    val sequencer = sequencers.remote.head
+
+    import com.digitalasset.canton.config.NonNegativeDuration
+
+    logger.debug("Setting script commands timeout")
+    console.set_command_timeout(NonNegativeDuration.ofSeconds(Duration("1m").toSeconds))
+
+    nodes.remote.foreach { node =>
+      logger.info(s"Waiting for ${node.name} to be running")
+      node.health.wait_for_running()
+    }
+
+    logger.info(s"Bootstrapping domain ${domainManager.name}")
+    domainManager.setup.bootstrap_domain(Seq(sequencer), Seq(mediator))
+
+    
+
+    logger.info("Bootstrap script succeeded")
+---
+# Source: canton-domain/templates/configmap-remote.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-remote
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: common
+data:
+  remote.conf: |
+    canton {
+      features {
+        enable-preview-commands = false
+        enable-testing-commands = false
+        enable-repair-commands = false
+      }
+
+      remote-domain-managers {
+        mydomain {
+          admin-api {
+            address = "my-release-canton-domain-manager.canton-domain-0.6.1.tgz.svc.cluster.local"
+            port = 4801            
+          }
+        }
+      }
+
+      remote-mediators {
+        mymediator {
+          admin-api {
+            address = "my-release-canton-domain-mediator.canton-domain-0.6.1.tgz.svc.cluster.local"
+            port = 4602            
+          }
+        }
+      }
+
+      remote-sequencers {
+        mysequencer {
+          public-api {
+            address = "my-release-canton-domain-sequencer.canton-domain-0.6.1.tgz.svc.cluster.local"
+            port = 4401
+          }
+          admin-api {
+            address = "my-release-canton-domain-sequencer.canton-domain-0.6.1.tgz.svc.cluster.local"
+            port = 4402            
+          }
+        }
+      }
+
+      
+    }
+---
+# Source: canton-domain/templates/manager/configmap-env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-manager-envmap
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: manager
+data:
+  JDK_JAVA_OPTIONS: "-XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=70 -XX:MaxRAMPercentage=70"
+---
+# Source: canton-domain/templates/manager/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-manager
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: manager
+data:
+  manager.conf: |
+    canton {
+      domain-managers {
+        mydomain {          
+          storage {
+            type = postgres
+            config {
+              dataSourceClass = "org.postgresql.ds.PGSimpleDataSource"
+              properties = {
+                serverName = "postgres"
+                portNumber = 5432
+                user = "canton"
+                password = ${?PGPASSWORD}
+                databaseName = "mydomain"
+                ssl = true
+                sslmode = "require"
+          
+              }
+            }
+            max-connections = 10
+          }
+
+          admin-api {
+            address = "0.0.0.0"
+            port = 4801            
+          }
+
+          init.domain-parameters.unique-contract-keys = false
+
+          topology.open = false
+
+          replication.enabled = true
+
+          monitoring.grpc-health-server {
+            address = "0.0.0.0"
+            port = 4803
+          }
+        }
+      }
+      
+    }
+---
+# Source: canton-domain/templates/mediator/configmap-env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-mediator-envmap
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: mediator
+data:
+  JDK_JAVA_OPTIONS: "-XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=70 -XX:MaxRAMPercentage=70"
+---
+# Source: canton-domain/templates/mediator/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-mediator
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: mediator
+data:
+  mediator.conf: |
+    canton {
+      mediators {
+        mymediator {          
+          storage {
+            type = postgres
+            config {
+              dataSourceClass = "org.postgresql.ds.PGSimpleDataSource"
+              properties = {
+                serverName = "postgres"
+                portNumber = 5432
+                user = "canton"
+                password = ${?PGPASSWORD}
+                databaseName = "mymediator"
+                ssl = true
+                sslmode = "require"
+          
+              }
+            }
+            max-connections = 10
+          }
+
+          admin-api {
+            address = "0.0.0.0"
+            port = 4602            
+          }
+
+          replication.enabled = true
+
+          monitoring.grpc-health-server {
+            address = "0.0.0.0"
+            port = 4603
+          }
+        }
+      }
+      
+    }
+---
+# Source: canton-domain/templates/sequencer/configmap-env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-sequencer-envmap
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: sequencer
+data:
+  JDK_JAVA_OPTIONS: "-XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=70 -XX:MaxRAMPercentage=70"
+---
+# Source: canton-domain/templates/sequencer/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-canton-domain-sequencer
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: sequencer
+data:
+  sequencer.conf: |
+    canton {
+      sequencers {
+        mysequencer {          
+          storage {
+            type = postgres
+            config {
+              dataSourceClass = "org.postgresql.ds.PGSimpleDataSource"
+              properties = {
+                serverName = "postgres"
+                portNumber = 5432
+                user = "canton"
+                password = ${?PGPASSWORD}
+                databaseName = "mysequencer"
+                ssl = true
+                sslmode = "require"
+          
+              }
+            }
+            max-connections = 10
+          }
+
+          public-api {
+            address = "0.0.0.0"
+            port = 4401
+          }
+
+          admin-api {
+            address = "0.0.0.0"
+            port = 4402            
+          }
+
+          sequencer {
+            type = database
+            high-availability.enabled = true
+          }
+
+          monitoring.grpc-health-server {
+            address = "0.0.0.0"
+            port = 4403
+          }
+        }
+      }
+      
+    }
+---
+# Source: canton-domain/templates/bootstrap/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-canton-domain-bootstrap
+  namespace: "canton-domain-0.6.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: bootstrap
+---
+# Source: canton-domain/templates/manager/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-canton-domain-manager
+  namespace: "canton-domain-0.6.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: manager
+---
+# Source: canton-domain/templates/mediator/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-canton-domain-mediator
+  namespace: "canton-domain-0.6.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: mediator
+---
+# Source: canton-domain/templates/sequencer/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-canton-domain-sequencer
+  namespace: "canton-domain-0.6.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: sequencer
+---
+# Source: canton-domain/templates/bootstrap/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-canton-domain-bootstrap
+  namespace: "canton-domain-0.6.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: bootstrap
+roleRef:
+  kind: Role
+  name: my-release-canton-domain-bootstrap
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-canton-domain-bootstrap
+    namespace: "canton-domain-0.6.1.tgz"
+---
+# Source: canton-domain/templates/manager/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-canton-domain-manager
+  namespace: "canton-domain-0.6.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: manager
+roleRef:
+  kind: Role
+  name: my-release-canton-domain-manager
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-canton-domain-manager
+    namespace: "canton-domain-0.6.1.tgz"
+---
+# Source: canton-domain/templates/mediator/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-canton-domain-mediator
+  namespace: "canton-domain-0.6.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: mediator
+roleRef:
+  kind: Role
+  name: my-release-canton-domain-mediator
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-canton-domain-mediator
+    namespace: "canton-domain-0.6.1.tgz"
+---
+# Source: canton-domain/templates/sequencer/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-canton-domain-sequencer
+  namespace: "canton-domain-0.6.1.tgz"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: sequencer
+roleRef:
+  kind: Role
+  name: my-release-canton-domain-sequencer
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: my-release-canton-domain-sequencer
+    namespace: "canton-domain-0.6.1.tgz"
+---
+# Source: canton-domain/templates/manager/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-canton-domain-manager
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: manager
+spec:
+  type: ClusterIP
+  ports:
+    - name: admin
+      protocol: TCP
+      port: 4801
+      targetPort: admin
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/component: manager
+---
+# Source: canton-domain/templates/mediator/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-canton-domain-mediator
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: mediator
+spec:
+  type: ClusterIP
+  ports:
+    - name: admin
+      protocol: TCP
+      port: 4602
+      targetPort: admin
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/component: mediator
+---
+# Source: canton-domain/templates/sequencer/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-canton-domain-sequencer
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: sequencer
+spec:
+  type: ClusterIP
+  ports:
+    - name: public
+      protocol: TCP
+      port: 4401
+      targetPort: public
+    - name: admin
+      protocol: TCP
+      port: 4402
+      targetPort: admin
+  sessionAffinity: "ClientIP"
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+  selector:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/component: sequencer
+---
+# Source: canton-domain/templates/manager/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-canton-domain-manager
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: canton-domain
+      app.kubernetes.io/component: manager
+  strategy:
+    type: "Recreate"
+  template:
+    metadata:
+      annotations:
+        "checksum/config": "8852e2172a2285b062030361992c9445d7da57dc83700acfc3db9ac31b3e4acb"
+        "checksum/env": "12dc3746da9adf61affcb183b1eb51b62c197e71eaf8b4af8dbfc7adcd437237"
+        "checksum/secret": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: canton-domain
+        app.kubernetes.io/part-of: canton
+        app.kubernetes.io/version: 2.8.1
+        canton.io/domain: mydomain
+        helm.sh/chart: canton-domain-0.6.1
+        app.kubernetes.io/component: manager
+    spec:
+      serviceAccountName: my-release-canton-domain-manager
+      securityContext:
+        fsGroup: 65532
+        fsGroupChangePolicy: Always
+        sysctls: []
+      containers:
+        - name: canton
+          image: "digitalasset-docker.jfrog.io/canton-enterprise:2.8.1"
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            readOnlyRootFilesystem: false
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+          args:
+            - "daemon"
+            - "--log-profile=container"
+            - "--log-encoder=plain"
+            - "--log-level-root=INFO"
+            - "--log-level-canton=INFO"
+            - "--log-level-stdout=INFO"
+            - "--config=/etc/canton/manager.conf"
+          envFrom:
+            - configMapRef:
+                name: my-release-canton-domain-manager-envmap
+          env:
+          ports:
+            - name: admin
+              containerPort: 4801
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 200m
+          livenessProbe:
+            grpc:
+              port: 4803
+              service: "liveness"
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 3
+          readinessProbe:
+            grpc:
+              port: 4803
+              service: ""
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: config
+              mountPath: /etc/canton
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-canton-domain-manager
+---
+# Source: canton-domain/templates/mediator/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-canton-domain-mediator
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: mediator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: canton-domain
+      app.kubernetes.io/component: mediator
+  strategy:
+    type: "Recreate"
+  template:
+    metadata:
+      annotations:
+        "checksum/config": "e2a5accca611408d3cb8d0c32168c5fc93ef85574b6c07c89a0e1aa49eb83254"
+        "checksum/env": "e7d2dddc37effa3ccc77253de1ea4957a213c093d9084818cfc4fac040affcef"
+        "checksum/secret": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: canton-domain
+        app.kubernetes.io/part-of: canton
+        app.kubernetes.io/version: 2.8.1
+        canton.io/domain: mydomain
+        helm.sh/chart: canton-domain-0.6.1
+        app.kubernetes.io/component: mediator
+    spec:
+      serviceAccountName: my-release-canton-domain-mediator
+      securityContext:
+        fsGroup: 65532
+        fsGroupChangePolicy: Always
+        sysctls: []
+      containers:
+        - name: canton
+          image: "digitalasset-docker.jfrog.io/canton-enterprise:2.8.1"
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            readOnlyRootFilesystem: false
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+          args:
+            - "daemon"
+            - "--log-profile=container"
+            - "--log-encoder=plain"
+            - "--log-level-root=INFO"
+            - "--log-level-canton=INFO"
+            - "--log-level-stdout=INFO"
+            - "--config=/etc/canton/mediator.conf"
+          envFrom:
+            - configMapRef:
+                name: my-release-canton-domain-mediator-envmap
+          env:
+          ports:
+            - name: admin
+              containerPort: 4602
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 200m
+          livenessProbe:
+            grpc:
+              port: 4603
+              service: "liveness"
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 3
+          readinessProbe:
+            grpc:
+              port: 4603
+              service: ""
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: config
+              mountPath: /etc/canton
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-canton-domain-mediator
+---
+# Source: canton-domain/templates/sequencer/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-canton-domain-sequencer
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: sequencer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/name: canton-domain
+      app.kubernetes.io/component: sequencer
+  template:
+    metadata:
+      annotations:
+        "checksum/config": "064f754c2c262817a6455c37f20d669de76aa58daccc66d7ee761aab7e8fba73"
+        "checksum/env": "a2e3b451567372bffb8b3ca9ab07e58546a89ef224c7b776e856d227cfe60b6f"
+        "checksum/secret": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: canton-domain
+        app.kubernetes.io/part-of: canton
+        app.kubernetes.io/version: 2.8.1
+        canton.io/domain: mydomain
+        helm.sh/chart: canton-domain-0.6.1
+        app.kubernetes.io/component: sequencer
+    spec:
+      serviceAccountName: my-release-canton-domain-sequencer
+      securityContext:
+        fsGroup: 65532
+        fsGroupChangePolicy: Always
+        sysctls: []
+      containers:
+        - name: canton
+          image: "digitalasset-docker.jfrog.io/canton-enterprise:2.8.1"
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            readOnlyRootFilesystem: false
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+          args:
+            - "daemon"
+            - "--log-profile=container"
+            - "--log-encoder=plain"
+            - "--log-level-root=INFO"
+            - "--log-level-canton=INFO"
+            - "--log-level-stdout=INFO"
+            - "--config=/etc/canton/sequencer.conf"
+          envFrom:
+            - configMapRef:
+                name: my-release-canton-domain-sequencer-envmap
+          env:
+          ports:
+            - name: public
+              containerPort: 4401
+            - name: admin
+              containerPort: 4402
+          resources:
+            limits:
+              cpu: 2
+              memory: 3Gi
+            requests:
+              cpu: 500m
+          livenessProbe:
+            grpc:
+              port: 4403
+              service: "liveness"
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 3
+          readinessProbe:
+            grpc:
+              port: 4403
+              service: ""
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 1
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: config
+              mountPath: /etc/canton
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: my-release-canton-domain-sequencer
+---
+# Source: canton-domain/templates/bootstrap/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-release-canton-domain-bootstrap
+  annotations:
+    "helm.sh/hook": "post-install,post-upgrade"
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+  labels:
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: canton-domain
+    app.kubernetes.io/part-of: canton
+    app.kubernetes.io/version: 2.8.1
+    canton.io/domain: mydomain
+    helm.sh/chart: canton-domain-0.6.1
+    app.kubernetes.io/component: bootstrap
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      annotations:
+        "checksum/config": "1d7d3d5b2c15e0a9baade21ac9a2da6b9a10630fa9b2cc848f8e32899ddf5cdb"
+        "checksum/env": "4b9bff81aedc88917d7db8bff30e72bb5e68b42066e0ed17d0d446ac3fa3ce7d"
+        "checksum/secret": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        "checksum/script": "889b6446beead64efa872e23f1911d71ee451ea29f147a4b979ebe3e247bfa47"
+      labels:
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: canton-domain
+        app.kubernetes.io/part-of: canton
+        app.kubernetes.io/version: 2.8.1
+        canton.io/domain: mydomain
+        helm.sh/chart: canton-domain-0.6.1
+        app.kubernetes.io/component: bootstrap
+    spec:
+      serviceAccountName: my-release-canton-domain-bootstrap
+      restartPolicy: Never
+      securityContext:
+        fsGroup: 65532
+        fsGroupChangePolicy: Always
+        sysctls: []
+      containers:
+        - name: canton
+          image: "digitalasset-docker.jfrog.io/canton-enterprise:2.8.1"
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            readOnlyRootFilesystem: false
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+          args:
+            - "run"
+            - "--log-profile=container"
+            - "--log-encoder=plain"
+            - "--log-level-root=INFO"
+            - "--log-level-canton=INFO"
+            - "--log-level-stdout=INFO"
+            - "--config=/etc/canton/remote.conf"
+            - "/etc/canton/bootstrap.canton"
+          envFrom:
+            - configMapRef:
+                name: my-release-canton-domain-bootstrap-envmap
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 100m
+          volumeMounts:
+            - name: config
+              mountPath: /etc/canton
+              readOnly: true
+            
+      volumes:
+        - name: config
+          projected:
+            sources:
+            - configMap:
+                name: my-release-canton-domain-bootstrap
+            - configMap:
+                name: my-release-canton-domain-remote

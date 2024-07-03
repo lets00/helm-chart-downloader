@@ -1,0 +1,106 @@
+---
+# Source: vmware-exporter/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vmware-exporter-secret
+  labels:
+    app: vmware-exporter
+    chart: vmware-exporter-2.2.0
+    heritage: Helm
+type: Opaque
+data:
+  VSPHERE_PASSWORD: "bmE="
+---
+# Source: vmware-exporter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vmware-exporter-config
+  labels:
+    app: vmware-exporter
+    chart: vmware-exporter-2.2.0
+    heritage: Helm
+data:
+  VSPHERE_USER: "user"
+  VSPHERE_HOST: "vcenter"
+  VSPHERE_IGNORE_SSL: "true"
+  VSPHERE_SPECS_SIZE: "5000"
+  VSPHERE_FETCH_CUSTOM_ATTRIBUTES: "true"
+  VSPHERE_FETCH_TAGS: "true"
+  VSPHERE_FETCH_ALARMS: "true"
+  VSPHERE_COLLECT_HOSTS: "true"
+  VSPHERE_COLLECT_DATASTORES: "true"
+  VSPHERE_COLLECT_VMS: "true"
+  VSPHERE_COLLECT_VMGUESTS: "true"
+  VSPHERE_COLLECT_SNAPSHOTS: "true"
+---
+# Source: vmware-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: vmware-exporter
+  labels:
+    app: vmware-exporter
+    chart: vmware-exporter-2.2.0
+    heritage: Helm 
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 9272
+      protocol: TCP
+      name: http-metrics
+  selector:
+    app: vmware-exporter
+---
+# Source: vmware-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vmware-exporter
+  labels:
+    app: vmware-exporter
+    chart: vmware-exporter-2.2.0
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vmware-exporter
+  template:
+    metadata:
+      labels:
+        app: vmware-exporter
+      annotations:
+    spec:
+      containers:
+        - name: vmware-exporter
+          image: "registry.cn-beijing.aliyuncs.com/kubegemsapp/vmware_exporter:v0.13.2"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http-metrics
+              containerPort: 9272
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: vmware-exporter-config
+            - secretRef:
+                name: vmware-exporter-secret
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /healthz
+              port: 9272
+            initialDelaySeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9272
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi

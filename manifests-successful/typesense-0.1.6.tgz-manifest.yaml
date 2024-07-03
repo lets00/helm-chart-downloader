@@ -1,0 +1,108 @@
+---
+# Source: typesense/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-release-typesense-binding
+  labels:
+    app: typesense
+    chart: typesense-0.1.6
+    release: my-release
+    heritage: Helm
+  annotations:
+    volume.alpha.kubernetes.io/storage-class: default
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "1Gi"
+---
+# Source: typesense/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-typesense
+  labels:
+    app: typesense
+    chart: typesense-0.1.6
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: null
+  selector:
+    app: typesense
+    release: my-release
+---
+# Source: typesense/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-typesense
+  labels:
+    app: typesense
+    chart: typesense-0.1.6
+    release: my-release
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app: typesense
+      release: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: typesense
+        chart: typesense-0.1.6
+        release: my-release
+        heritage: Helm
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+      containers:
+        - name: typesense
+          image: docker.io/typesense/typesense:0.23.0
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: TYPESENSE_API_KEY
+              value: 
+            - name: TYPESENSE_ENABLE_CORS
+              value: "false"
+            - name: TYPESENSE_DATA_DIR
+              value: /data
+          workingDir: /opt
+          ports:
+            - name: http
+              containerPort: 8108
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 5
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-release-typesense-binding

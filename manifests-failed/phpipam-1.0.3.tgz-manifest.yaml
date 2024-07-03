@@ -1,0 +1,238 @@
+---
+# Source: phpipam/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-phpipam-secrets
+  namespace: phpipam-1.0.3.tgz
+stringData:
+  phpipam-mysql-pass: "phpipam"
+---
+# Source: phpipam/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: phpipam-mysql
+  namespace: phpipam-1.0.3.tgz
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+  storageClassName:
+---
+# Source: phpipam/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: phpipam-db
+  namespace: phpipam-1.0.3.tgz
+  labels:
+    app: phpipam
+    component: mysql
+spec:
+  ports:
+    - name: mysql
+      protocol: TCP
+      port: 3306
+      targetPort: 3306
+  selector:
+    app: phpipam
+    component: mysql
+---
+# Source: phpipam/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: phpipam-web
+  namespace: phpipam-1.0.3.tgz
+  labels:
+    app: phpipam
+    component: web
+spec:
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+  selector:
+    app: phpipam
+    component: web
+---
+# Source: phpipam/templates/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: phpipam-web
+  namespace: phpipam-1.0.3.tgz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phpipam
+      component: web
+  template:
+    metadata:
+      name: phpipam-web
+      namespace: phpipam-1.0.3.tgz
+      labels:
+        app: phpipam
+        component: web
+    spec:
+      containers:
+        - name: phpipam-web
+          image: "phpipam/phpipam-www:v1.5.2"
+          ports:
+            - containerPort: 80
+              protocol: TCP
+              name: http
+          env:
+            - name: "IPAM_DATABASE_HOST"
+              value: phpipam-db
+            - name: "IPAM_DATABASE_USER"
+              value: phpipam
+            - name: "IPAM_DATABASE_NAME"
+              value: phpipam
+            - name: "IPAM_DATABASE_WEBHOST"
+              value: "%"
+            - name: "IPAM_DATABASE_PASS"
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-phpipam-secrets
+                  key: phpipam-mysql-pass
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2048Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+---
+# Source: phpipam/templates/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: phpipam-cron
+  namespace: phpipam-1.0.3.tgz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phpipam
+      component: cron
+  template:
+    metadata:
+      name: phpipam-cron
+      labels:
+        app: phpipam
+        component: cron
+    spec:
+      containers:
+        - name: phpipam-cron
+          image: "phpipam/phpipam-cron:v1.5.2"
+          env:
+            - name: "IPAM_DATABASE_HOST"
+              value: phpipam-db
+            - name: "IPAM_DATABASE_USER"
+              value: phpipam
+            - name: "IPAM_DATABASE_NAME"
+              value: phpipam
+            - name: "IPAM_DATABASE_WEBHOST"
+              value: "%"
+            - name: "SCAN_INTERVAL"
+              value: 1h
+            - name: "IPAM_DATABASE_PASS"
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-phpipam-secrets
+                  key: phpipam-mysql-pass
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2048Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+---
+# Source: phpipam/templates/deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: phpipam-db
+  namespace: phpipam-1.0.3.tgz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phpipam
+      component: mysql
+  template:
+    metadata:
+      name: phpipam-db
+      labels:
+        app: phpipam
+        component: mysql
+    spec:
+      containers:
+        - name: phpipam-db
+          image: "mariadb:10.11.2"
+          ports:
+            - containerPort: 3306
+              protocol: TCP
+              name: mysql
+          volumeMounts:
+            - name: phpipam-mysql
+              mountPath: /var/lib/mysql
+          env:
+            - name: "MARIADB_RANDOM_ROOT_PASSWORD"
+              value: "yes"
+            - name: "MYSQL_LOG_CONSOLE"
+              value: "true"
+            - name: "MARIADB_DATABASE"
+              value: phpipam
+            - name: "MARIADB_USER"
+              value: phpipam
+            - name: "MARIADB_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-phpipam-secrets
+                  key: phpipam-mysql-pass
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2048Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+      volumes:
+        - name: phpipam-mysql
+          persistentVolumeClaim:
+            claimName: phpipam-mysql
+---
+# Source: phpipam/templates/ingress.yaml
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: phpipam-web
+  namespace: phpipam-1.0.3.tgz
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    
+spec:
+  tls:
+    - hosts:
+        - chart-example.local
+      secretName: "my-release-phpipam-cert"
+  ingressClassName: nginx
+  rules:
+    - host: chart-example.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: phpipam-web
+                port:
+                  number: 80

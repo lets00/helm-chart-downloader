@@ -1,0 +1,1235 @@
+---
+# Source: data-fair/templates/config.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: global-conf
+  labels:
+    chart: "data-fair-1.1.2"
+data:
+  base-url: https://datafair.data354.com
+  mongo-host: mongo
+  elasticsearch-host: elasticsearch
+  secret: azerty
+  data-fair-api-key: dTo4Z21YOHdjYlY6U3M0akREU1pkRERqOHBnRnFQUVpf
+  mails-transport: '{"host": "https://datafair.data354.com/mails"}'
+---
+# Source: data-fair/templates/prometheus.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-conf
+  labels:
+    chart: "data-fair-1.1.2"
+data:
+  prometheus.yml: |-
+    scrape_configs:
+      - job_name: services-metrics
+        scrape_interval: 120s
+        metrics_path: /global-metrics
+        static_configs:
+          - targets: ['portals:9090']
+            labels:
+              service: portals
+          - targets: ['data-fair:9090']
+            labels:
+              service: data-fair
+          - targets: ['notify:9090']
+            labels:
+              service: notify
+          - targets: ['metrics:9090']
+            labels:
+              service: metrics
+          - targets: ['processings:9090']
+            labels:
+              service: processings
+---
+# Source: data-fair/templates/elasticsearch.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-data
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+---
+# Source: data-fair/templates/mongo.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo-data
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: data-fair/templates/pvcs.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-fair
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Mi
+---
+# Source: data-fair/templates/pvcs.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: simple-directory
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+# Source: data-fair/templates/pvcs.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: thumbor
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+# Source: data-fair/templates/pvcs.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: portals
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+# Source: data-fair/templates/pvcs.yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: processings
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Mi
+---
+# Source: data-fair/templates/elasticsearch.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: elasticsearch
+  ports:
+    - name: "tcp"
+      port: 9200
+      targetPort: 9200
+---
+# Source: data-fair/templates/mongo.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: mongo
+  ports:
+    - name: "tcp"
+      port: 27017
+      targetPort: 27017
+---
+# Source: data-fair/templates/prometheus.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-metrics
+  namespace: 
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: metrics
+  selector:
+    app: prometheus-metrics
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: capture
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: capture
+  type: ClusterIP
+  ports:
+    - name: capture
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: openapi-viewer
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: openapi-viewer
+  type: ClusterIP
+  ports:
+    - name: api-doc
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: thumbor
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: thumbor
+  type: ClusterIP
+  ports:
+    - name: thumbor
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-directory
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: simple-directory
+  type: ClusterIP
+  ports:
+    - name: simple-directory
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: mails
+      port: 1080
+      targetPort: 1080
+      protocol: TCP
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: portals
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: portals
+  type: ClusterIP
+  ports:
+    - name: portals
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: prometheus
+      port: 9090
+      targetPort: 9090
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-fair
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: data-fair
+  type: ClusterIP
+  ports:
+    - name: data-fair
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: prometheus
+      port: 9090
+      targetPort: 9090
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: notify
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: notify
+  type: ClusterIP
+  ports:
+    - name: notify
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: prometheus
+      port: 9090
+      targetPort: 9090
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: metrics
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: prometheus
+      port: 9090
+      targetPort: 9090
+---
+# Source: data-fair/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: processings
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    name: processings
+  type: ClusterIP
+  ports:
+    - name: processings
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: prometheus
+      port: 9090
+      targetPort: 9090
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thumbor
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: thumbor
+  template:
+    metadata:
+      labels:
+        name: thumbor
+    spec:
+      containers:
+        - name: thumbor
+          image: apsl/thumbor:6.7.0
+          volumeMounts:
+            
+            - name: thumbor
+              mountPath: /data
+              readOnly: false
+            
+          env:
+            - name: MAX_AGE
+              value: "600"
+            - name: THUMBOR_PORT
+              value: "8000"
+            - name: SECURITY_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: secret
+            - name: STORAGE_EXPIRATION_SECONDS
+              value: "600"
+      
+        
+      volumes:
+        - name: thumbor
+          persistentVolumeClaim:
+            claimName: thumbor
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-directory
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: simple-directory
+  template:
+    metadata:
+      labels:
+        name: simple-directory
+    spec:
+      containers:
+        - name: simple-directory
+          image: ghcr.io/data-fair/simple-directory:4
+          volumeMounts:
+            
+            - name: simple-directory
+              mountPath: /webapp/security
+              readOnly: false
+            
+          env:
+            - name: ADMINS
+              value: "[\"admin@test.com\"]"
+            - name: HOME_PAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: MONGO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mongo-host
+            - name: LIST_ENTITIES_MODE
+              value: "admin"
+            - name: MAILDEV_ACTIVE
+              value: "true"
+            - name: MAILS_TRANSPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mails-transport
+            - name: CONTACT
+              value: "contact@test.com"
+            - name: MAILS_FROM
+              value: "$(CONTACT)"
+            - name: MAILDEV_URL
+              value: "$(HOME_PAGE)/mails/"
+            - name: PASSWORDLESS
+              value: "false"
+            - name: NOTIFY_URL
+              value: "$(HOME_PAGE)/notify/"
+            - name: PRIVATE_NOTIFY_URL
+              value: "http://notify:8080"
+            - name: PUBLIC_URL
+              value: "$(HOME_PAGE)/simple-directory"
+            - name: ROLES_DEFAULTS
+              value: "[\"admin\",\"contrib\",\"user\"]"
+            - name: STORAGE_MONGO_URL
+              value: "mongodb://$(MONGO_HOST):27017/simple-directory"
+            - name: USER_SELF_DELETE
+              value: "true"
+            - name: MANAGE_DEPARTMENTS
+              value: "true"
+            - name: SECRET_NOTIFICATIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: secret
+            - name: SECRET_SENDMAILS
+              value: "$(SECRET_NOTIFICATIONS)"
+            - name: SECRET_IDENTITIES
+              value: "$(SECRET_NOTIFICATIONS)"
+      
+        
+      volumes:
+        - name: simple-directory
+          persistentVolumeClaim:
+            claimName: simple-directory
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openapi-viewer
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: openapi-viewer
+  template:
+    metadata:
+      labels:
+        name: openapi-viewer
+    spec:
+      containers:
+        - name: openapi-viewer
+          image: koumoul/openapi-viewer:1
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: capture
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: capture
+  template:
+    metadata:
+      labels:
+        name: capture
+    spec:
+      containers:
+        - name: capture
+          image: koumoul/capture:1
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: DIRECTORY_URL
+              value: "$(BASE_URL)/simple-directory"
+            - name: PRIVATE_DIRECTORY_URL
+              value: "http://simple-directory:8080"
+            - name: PUBLIC_URL
+              value: "$(BASE_URL)/capture"
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: metrics
+  template:
+    metadata:
+      labels:
+        name: metrics
+    spec:
+      containers:
+        - name: metrics
+          image: ghcr.io/data-fair/metrics:0
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: MONGO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mongo-host
+            - name: PUBLIC_URL
+              value: "$(BASE_URL)/metrics"
+            - name: DIRECTORY_URL
+              value: "$(BASE_URL)/simple-directory"
+            - name: PRIVATE_DIRECTORY_URL
+              value: "http://simple-directory:8080"
+            - name: MONGO_URL
+              value: "mongodb://$(MONGO_HOST):27017/processings"
+            - name: SYSLOG_SECRET
+              value: "syslog_secret"
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notify
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: notify
+  template:
+    metadata:
+      labels:
+        name: notify
+    spec:
+      containers:
+        - name: notify
+          image: ghcr.io/data-fair/notify:3
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: MONGO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mongo-host
+            - name: PUBLIC_URL
+              value: "$(BASE_URL)/notify"
+            - name: DIRECTORY_URL
+              value: "$(BASE_URL)/simple-directory"
+            - name: PRIVATE_DIRECTORY_URL
+              value: "http://simple-directory:8080"
+            - name: MONGO_URL
+              value: "mongodb://$(MONGO_HOST):27017/notify"
+            - name: OPENAPI_VIEWER_URL
+              value: "$(BASE_URL)/api-doc/"
+            - name: SECRET_NOTIFICATIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: secret
+            - name: SECRET_IDENTITIES
+              value: "$(SECRET_NOTIFICATIONS)"
+            - name: SECRET_SENDMAILS
+              value: "$(SECRET_NOTIFICATIONS)"
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-fair
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: data-fair
+  template:
+    metadata:
+      labels:
+        name: data-fair
+    spec:
+      containers:
+        - name: data-fair
+          image: ghcr.io/data-fair/data-fair:3
+          volumeMounts:
+            
+            - name: data-fair
+              mountPath: /data
+              readOnly: false
+            
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: MONGO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mongo-host
+            - name: ELASTICSEARCH_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: elasticsearch-host
+            - name: MODE
+              value: "server"
+            - name: DEBUG
+              value: "upgrade*"
+            - name: PUBLIC_URL
+              value: "$(BASE_URL)/data-fair"
+            - name: DIRECTORY_URL
+              value: "$(BASE_URL)/simple-directory"
+            - name: PRIVATE_DIRECTORY_URL
+              value: "http://simple-directory:8080"
+            - name: OPENAPI_VIEWER_URL
+              value: "$(BASE_URL)/api-doc/"
+            - name: ES_HOST
+              value: "$(ELASTICSEARCH_HOST):9200"
+            - name: MONGO_URL
+              value: "mongodb://$(MONGO_HOST):27017/data-fair"
+            - name: CAPTURE_URL
+              value: "$(BASE_URL)/capture/"
+            - name: NOTIFY_URL
+              value: "$(BASE_URL)/notify"
+            - name: PRIVATE_NOTIFY_URL
+              value: "http://notify:8080"
+            - name: SECRET_NOTIFICATIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: secret
+            - name: SECRET_IDENTITIES
+              value: "$(SECRET_NOTIFICATIONS)"
+            - name: THUMBOR_KEY
+              value: "$(SECRET_IDENTITIES)"
+            - name: THUMBOR_URL
+              value: "$(BASE_URL)/thumbor/"
+            - name: EXTRA_NAV_ITEMS
+              value: "[{\"id\": \"processings\",\"can\":\"contrib\", \"iframe\": \"/processings/processings\", \"icon\": \"mdi-cog-transfer-outline\", \"title\": \"Traitements périodiques\"},{\"id\": \"portal\",\"iframe\": \"/portals/manager/portals\", \"icon\": \"mdi-presentation\", \"title\": \"Portails\"},{\"id\": \"metrics\",\"iframe\": \"/metrics/embed/home\", \"icon\": \"mdi-chart-bar\", \"title\": \"Audience\", \"subtitle\": \"Téléchargements, API\"}]"
+            - name: EXTRA_ADMIN_NAV_ITEMS
+              value: "[{\"id\": \"processings\",\"iframe\": \"/processings/admin/plugins\", \"icon\": \"mdi-cog-transfer-outline\", \"title\": \"Traitements périodiques\"},{\"id\": \"portal\",\"iframe\": \"/portals/manager/admin\", \"icon\": \"mdi-presentation\", \"title\": \"Portails\"}]"
+      
+        
+      volumes:
+        - name: data-fair
+          persistentVolumeClaim:
+            claimName: data-fair
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-fair-worker
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: data-fair-worker
+  template:
+    metadata:
+      labels:
+        name: data-fair-worker
+    spec:
+      containers:
+        - name: data-fair-worker
+          image: ghcr.io/data-fair/data-fair:3
+          volumeMounts:
+            
+            - name: data-fair
+              mountPath: /data
+              readOnly: false
+            
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: MONGO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mongo-host
+            - name: ELASTICSEARCH_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: elasticsearch-host
+            - name: MODE
+              value: "worker"
+            - name: DEBUG
+              value: "upgrade*"
+            - name: PUBLIC_URL
+              value: "$(BASE_URL)/data-fair"
+            - name: DIRECTORY_URL
+              value: "$(BASE_URL)/simple-directory"
+            - name: PRIVATE_DIRECTORY_URL
+              value: "http://simple-directory:8080"
+            - name: OPENAPI_VIEWER_URL
+              value: "$(BASE_URL)/api-doc/"
+            - name: ES_HOST
+              value: "$(ELASTICSEARCH_HOST):9200"
+            - name: MONGO_URL
+              value: "mongodb://$(MONGO_HOST):27017/data-fair"
+            - name: CAPTURE_URL
+              value: "$(BASE_URL)/capture/"
+            - name: NOTIFY_URL
+              value: "$(BASE_URL)/notify"
+            - name: PRIVATE_NOTIFY_URL
+              value: "http://notify:8080"
+            - name: SECRET_NOTIFICATIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: secret
+            - name: THUMBOR_KEY
+              value: "$(SECRET_IDENTITIES)"
+            - name: THUMBOR_URL
+              value: "$(BASE_URL)/thumbor/"
+      
+        
+      volumes:
+        - name: data-fair
+          persistentVolumeClaim:
+            claimName: data-fair
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portals
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: portals
+  template:
+    metadata:
+      labels:
+        name: portals
+    spec:
+      containers:
+        - name: portals
+          image: ghcr.io/data-fair/portals:1
+          volumeMounts:
+            
+            - name: portals
+              mountPath: /webapp/data
+              readOnly: false
+            
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: PUBLIC_URL
+              value: "$(BASE_URL)/portals"
+            - name: DIRECTORY_URL
+              value: "$(BASE_URL)/simple-directory"
+            - name: PRIVATE_DIRECTORY_URL
+              value: "http://simple-directory:8080"
+            - name: DATAFAIR_URL
+              value: "$(BASE_URL)/data-fair"
+            - name: NOTIFY_URL
+              value: "$(BASE_URL)/notify"
+            - name: PRIVATE_NOTIFY_URL
+              value: "http://notify:8080"
+            - name: OPENAPIVIEWER_URL
+              value: "$(BASE_URL)/api-doc/"
+            - name: MONGO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mongo-host
+            - name: SECRET_IDENTITIES
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: secret
+            - name: THUMBOR_KEY
+              value: "$(SECRET_IDENTITIES)"
+            - name: THUMBOR_URL
+              value: "$(BASE_URL)/thumbor/"
+      
+        
+      volumes:
+        - name: portals
+          persistentVolumeClaim:
+            claimName: portals
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: processings
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: processings
+  template:
+    metadata:
+      labels:
+        name: processings
+    spec:
+      containers:
+        - name: processings
+          image: ghcr.io/data-fair/processings:1
+          volumeMounts:
+            
+            - name: processings
+              mountPath: /data
+              readOnly: false
+            
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: MONGO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mongo-host
+            - name: MODE
+              value: "server"
+            - name: PUBLIC_URL
+              value: "$(BASE_URL)/processings"
+            - name: DIRECTORY_URL
+              value: "$(BASE_URL)/simple-directory"
+            - name: PRIVATE_DIRECTORY_URL
+              value: "http://simple-directory:8080"
+            - name: DATAFAIR_URL
+              value: "$(BASE_URL)/data-fair"
+            - name: NOTIFY_URL
+              value: "$(BASE_URL)/notify"
+            - name: PRIVATE_NOTIFY_URL
+              value: "http://notify:8080"
+            - name: OPENAPIVIEWER_URL
+              value: "$(BASE_URL)/api-doc/"
+            - name: MAILS_TRANSPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mails-transport
+            - name: DATA_FAIR_ADMIN_MODE
+              value: "true"
+            - name: DATA_FAIR_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: data-fair-api-key
+            - name: SECRET_IDENTITIES
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: secret
+      
+        
+      volumes:
+        - name: processings
+          persistentVolumeClaim:
+            claimName: processings
+---
+# Source: data-fair/templates/apps.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: processings-worker
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: processings-worker
+  template:
+    metadata:
+      labels:
+        name: processings-worker
+    spec:
+      containers:
+        - name: processings-worker
+          image: ghcr.io/data-fair/processings:1
+          volumeMounts:
+            
+            - name: processings
+              mountPath: /data
+              readOnly: false
+            
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: base-url
+            - name: MONGO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mongo-host
+            - name: MODE
+              value: "worker"
+            - name: PUBLIC_URL
+              value: "$(BASE_URL)/processings"
+            - name: DIRECTORY_URL
+              value: "$(BASE_URL)/simple-directory"
+            - name: PRIVATE_DIRECTORY_URL
+              value: "http://simple-directory:8080"
+            - name: DATAFAIR_URL
+              value: "$(BASE_URL)/data-fair"
+            - name: NOTIFY_URL
+              value: "$(BASE_URL)/notify"
+            - name: PRIVATE_NOTIFY_URL
+              value: "http://notify:8080"
+            - name: MAILS_TRANSPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: mails-transport
+            - name: DATA_FAIR_ADMIN_MODE
+              value: "true"
+            - name: DATA_FAIR_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: global-conf
+                  key: data-fair-api-key
+      
+        
+      volumes:
+        - name: processings
+          persistentVolumeClaim:
+            claimName: processings
+---
+# Source: data-fair/templates/elasticsearch.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: elasticsearch
+  template:
+    metadata:
+      labels:
+        name: elasticsearch
+    spec:
+      containers:
+        - image: ghcr.io/data-fair/elasticsearch:7.17.1
+          name: elasticsearch
+          ports:
+            - containerPort: 9200
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          env:
+            - name: discovery.type
+              value: single-node
+          volumeMounts:
+            - mountPath: /var/lib/elasticsearch/data
+              name: elasticsearch-data
+      volumes:
+        - name: elasticsearch-data
+          persistentVolumeClaim:
+            claimName: elasticsearch-data
+---
+# Source: data-fair/templates/mongo.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: mongo
+  template:
+    metadata:
+      labels:
+        name: mongo
+    spec:
+      containers:
+        - image: mongo:4.4
+          name: mongo
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: 120m
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - mountPath: /data/db
+              name: mongo-data
+      volumes:
+        - name: mongo-data
+          persistentVolumeClaim:
+            claimName: mongo-data
+---
+# Source: data-fair/templates/prometheus.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-metrics
+  namespace: 
+  labels:
+    chart: "data-fair-1.1.2"
+spec:
+  selector:
+    matchLabels:
+      app: prometheus-metrics
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus-metrics
+    spec:
+      containers:
+        - name: prometheus-metrics
+          image: prom/prometheus
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: prometheus-conf
+              mountPath: /etc/prometheus
+          ports:
+            - containerPort: 9090
+
+    
+      volumes:
+        - name: prometheus-conf
+          configMap:
+            name: prometheus-conf
+---
+# Source: data-fair/templates/ingress.yml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: datafair-ingress
+  annotations:
+    cert-manager.io/issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/app-root: /data-fair
+  labels:
+    app: data-fair
+    chart: "data-fair-1.1.2"
+    release: "my-release"
+    heritage: "Helm" 
+spec:
+  rules:
+    - host: datafair.data354.com
+      http:
+        paths:
+          - path: /capture
+            pathType: Prefix
+            backend:
+              service:
+                name: capture
+                port:
+                  number: 8080
+          - path: /api-doc
+            pathType: Prefix
+            backend:
+              service:
+                name: openapi-viewer
+                port:
+                  number: 8080
+          - path: /thumbor
+            pathType: Prefix
+            backend:
+              service:
+                name: thumbor
+                port:
+                  number: 8000
+          - path: /simple-directory
+            pathType: Prefix
+            backend:
+              service:
+                name: simple-directory
+                port:
+                  number: 8080
+          - path: /mails
+            pathType: Prefix
+            backend:
+              service:
+                name: simple-directory
+                port:
+                  number: 1080
+          - path: /portals
+            pathType: Prefix
+            backend:
+              service:
+                name: portals
+                port:
+                  number: 8080
+          - path: /data-fair
+            pathType: Prefix
+            backend:
+              service:
+                name: data-fair
+                port:
+                  number: 8080
+          - path: /notify
+            pathType: Prefix
+            backend:
+              service:
+                name: notify
+                port:
+                  number: 8080
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: metrics
+                port:
+                  number: 8080
+          - path: /processings
+            pathType: Prefix
+            backend:
+              service:
+                name: processings
+                port:
+                  number: 8080
+  tls:
+  - hosts:
+      - datafair.data354.com
+    secretName: tls-secret
+---
+# Source: data-fair/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-test-connection"
+  labels:
+    name: 
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['datafair.data354.com:']
+  restartPolicy: Never

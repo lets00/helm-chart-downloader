@@ -1,0 +1,135 @@
+---
+# Source: snowplow-iglu-server/charts/dockerconfigjson/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: snowplow-iglu-server-0.5.0.tgz
+  name: snowplow-iglu-server-dockerhub
+type: kubernetes.io/dockerconfigjson
+data:
+  ".dockerconfigjson": ewogICJhdXRocyI6ewogICAgImh0dHBzOi8vaW5kZXguZG9ja2VyLmlvL3YxLyI6ewogICAgICAidXNlcm5hbWUiOiIiLAogICAgICAicGFzc3dvcmQiOiIiLAogICAgICAiZW1haWwiOiIiLAogICAgICAiYXV0aCI6Ik9nPT0iCiAgICB9CiAgfQp9Cg==
+---
+# Source: snowplow-iglu-server/templates/iglu-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: snowplow-iglu-server-0.5.0.tgz
+  name: my-release-secret
+type: Opaque
+data:
+  CONFIG_FORCE_iglu_superApiKey: "Y2Y1MTc5ODYtOThhMi00MTIyLTkxZmMtOTAxMGFkNjAzZDMx"
+  CONFIG_FORCE_iglu_database_password: ""
+  CONFIG_FORCE_iglu_database_username: ""
+---
+# Source: snowplow-iglu-server/templates/iglu-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-app
+  annotations:
+spec:
+  type: NodePort
+  selector:
+    app: my-release-app
+  ports:
+  - name: http-port
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+---
+# Source: snowplow-iglu-server/templates/iglu-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-app
+spec:
+  selector:
+    matchLabels:
+      app: my-release-app
+  template:
+    metadata:
+      labels:
+        app: my-release-app
+      annotations:
+        checksum/config: "67cc06553a6f667e51aed60cbc5e00592d90bc0b8b4bc3782ecaa9ed303c626d"
+    spec:
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 630
+
+      volumes:
+
+      containers:
+      - name: my-release-app
+        image: snowplow/iglu-server:0.12.0-distroless
+        imagePullPolicy: IfNotPresent
+
+        args:
+        - "--config"
+        -  "/dev/null" 
+
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+
+        env:
+        - name: "ACCEPT_LIMITED_USE_LICENSE"
+          value: "no"
+        - name : "CONFIG_FORCE_iglu_repoServer_port"
+          value: "8080"
+        - name : "CONFIG_FORCE_iglu_repoServer_maxConnections"
+          value: "16384"
+        - name : "CONFIG_FORCE_iglu_repoServer_idleTimeout"
+          value: "65 seconds"
+        - name : "CONFIG_FORCE_iglu_repoServer_hsts_enable"
+          value: "true"
+        - name : "CONFIG_FORCE_iglu_database_type"
+          value: "dummy"
+        - name : "CONFIG_FORCE_iglu_database_host"
+          value: ""
+        - name : "CONFIG_FORCE_iglu_database_port"
+          value: "5432"
+        - name : "CONFIG_FORCE_iglu_database_dbname"
+          value: ""
+        - name : "CONFIG_FORCE_iglu_patchesAllowed"
+          value: "false"
+        - name : "JDK_JAVA_OPTIONS"
+          value: "-Dconfig.override_with_env_vars=true "
+
+        envFrom:
+        - secretRef:
+            name: my-release-secret
+
+        readinessProbe:
+          httpGet:
+            path: /api/meta/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 2
+
+        resources:
+          limits:
+            cpu: 746m
+            memory: 900Mi
+          requests:
+            cpu: 400m
+            memory: 512Mi
+
+        volumeMounts:
+---
+# Source: snowplow-iglu-server/templates/iglu-hpa.yaml
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-release-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-release-app
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 75

@@ -1,0 +1,356 @@
+---
+# Source: ipfs-cluster/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release
+type: Opaque
+data:
+  cluster-secret: MWVjODI3NmY5OGNmNDdjMTZhY2ZkOWJmMzlmY2EzOGY4ZTNjZmNiZTIyOTUzMGE3YmE5ZjA4ZWY5NzU3YzQzOQ==
+  bootstrap-peer-priv-key: Q0FFU1FLeU1DVWJzZlNScThOQk9GUU94djl1dmdYbTF6dlNIeVRoajNBUVY2VUJIdlRKK1RiVHJrMVo2NjM5YUU2Rk9TTUdiQUcrYmVzUU90azVTUHNQMkd4bz0=
+---
+# Source: ipfs-cluster/templates/configmap-bootstrap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-bootstrap
+data:
+  entrypoint.sh: |
+    #!/bin/sh
+    #set -e
+    set -x
+    user=ipfs
+
+    # This is a custom entrypoint for k8s designed to connect to the bootstrap
+    # node running in the cluster. It has been set up using a configmap to
+    # allow changes on the fly.
+
+
+    if [ ! -f /data/ipfs-cluster/service.json ]; then
+      ipfs-cluster-service init
+    fi
+
+    PEER_HOSTNAME=`cat /proc/sys/kernel/hostname`
+
+    grep -q ".*ipfs-cluster-0.*" /proc/sys/kernel/hostname
+    if [ $? -eq 0 ]; then
+      CLUSTER_ID=${BOOTSTRAP_PEER_ID} \
+      CLUSTER_PRIVATEKEY=${BOOTSTRAP_PEER_PRIV_KEY} \
+      exec ipfs-cluster-service daemon --upgrade
+    else
+      BOOTSTRAP_ADDR=/dns4/${SVC_NAME}-0.${SVC_NAME}/tcp/9096/ipfs/${BOOTSTRAP_PEER_ID}
+
+      if [ -z $BOOTSTRAP_ADDR ]; then
+        exit 1
+      fi
+      # Only ipfs user can get here
+      exec ipfs-cluster-service daemon --upgrade --bootstrap $BOOTSTRAP_ADDR --leave
+    fi
+
+  configure-ipfs.sh: |
+    #!/bin/sh
+    set -e
+    set -x
+    user=ipfs
+    repo=/data/ipfs
+    # This is a custom entrypoint for k8s designed to run ipfs nodes in an appropriate
+    # setup for production scenarios.
+
+    mkdir -p /data/ipfs && chown -R ipfs /data/ipfs
+
+    if [ `id -u` -eq 0 ]; then
+      echo "Changing user to $user"
+      # ensure folder is writable
+      su-exec "$user" test -w "$repo" || chown -R -- "$user" "$repo"
+      # restart script with new privileges
+      exec su-exec "$user" sh "$0" "$@"
+    fi
+
+    if [ -f /data/ipfs/config ]; then
+      if [ -f /data/ipfs/repo.lock ]; then
+        rm /data/ipfs/repo.lock
+      fi
+      exit 0
+    fi
+
+    ipfs init --profile=badgerds,server
+    ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001
+    ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
+    ipfs config --json Swarm.ConnMgr.HighWater 2000
+    ipfs config --json Datastore.BloomFilterSize 1048576
+    ipfs config Datastore.StorageMax 100GB
+    ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'
+    ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '["PUT", "POST"]'
+
+  peers-health-check.sh: |
+    #!/bin/sh
+    #set -e
+    ipfsID=${HOSTNAME##*-}
+    if [ -z "$CLUSTER_RESTAPI_BASICAUTHCREDENTIALS" ];then
+        count=`ipfs-cluster-ctl id|awk -F \| '/peers/{print  $3}'|awk '{print $2}'`
+    else
+        count=`ipfs-cluster-ctl --basic-auth $CLUSTER_RESTAPI_BASICAUTHCREDENTIALS -f id|awk -F \| '/peers/{print  $3}'|awk '{print $2}'`
+    fi
+    
+    if [ -z "$ipfsID" ] || [  -z "$count" ];then
+        echo "ipfsID or count is empty." && echo 1 > /data/health/cluster-peers-check && exit 1
+    fi
+
+    if [ $ipfsID -gt 0 ] && [ $count -eq 0 ];then
+      echo "ipfs cluster $ipfsID, Sees $count other peers" && echo 1 > /data/health/cluster-peers-check && exit 1
+    fi
+
+    echo "ipfs cluster $ipfsID, See $count other peers." && echo 0 > /data/health/cluster-peers-check
+---
+# Source: ipfs-cluster/templates/configmap-env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-env
+data:
+  bootstrap-peer-id: 12D3KooWNYut1XL31b4KUnCZmC8Mu7WqGn6QdwnptGpS5tnhSttR
+---
+# Source: ipfs-cluster/templates/service.yaml
+# Exposed
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release
+  labels:
+    node: my-release
+spec:
+  type: LoadBalancer
+  ports:
+  - name: swarm
+    targetPort: swarm
+    port: 4001
+  - name: swarm-udp
+    targetPort: swarm-udp
+    port: 4002 
+  - name: cluster-swarm
+    targetPort: cluster-swarm
+    port: 9096 # ipfs cluster bootstrap port
+  - name: restapi-swarm
+    targetPort: restapi-swarm
+    port: 9098 # client add peer port
+  selector:
+    app: my-release
+---
+# Source: ipfs-cluster/templates/service.yaml
+# Exposed behind Proxy
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-http
+  labels:
+    node: my-release
+spec:
+  ports:
+  - name: gateway
+    targetPort: gateway
+    port: 8080  
+  selector:
+    app: my-release
+---
+# Source: ipfs-cluster/templates/service.yaml
+# Not Exposed
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-ipfs-cluster-local
+  labels:
+    node: my-release
+spec:
+  ports:
+  - name: api
+    targetPort: api
+    port: 5001 
+  - name: proxy-http
+    targetPort: proxy-http
+    port: 9095 
+  - name: ws
+    targetPort: ws
+    port: 8081 
+  - name: api-http
+    targetPort: api-http
+    port: 9094    
+  selector:
+    app: my-release
+---
+# Source: ipfs-cluster/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release
+  labels:
+    app: my-release
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: my-release
+  serviceName: my-release
+  template:
+    metadata:
+      labels:
+        app: my-release
+      annotations:
+        checksum/config-bootstrap: 176add743fd431600c541af4e063a7117f2830cc8efa9d6b9298c541d37516d7  
+        checksum/config-env: b85a39cd0da45170209ab67e8d62ac987b81a05b6dbec529610c21c57b1c4658  
+    spec:
+      initContainers:
+        - name: configure-ipfs
+          image: ipfs/go-ipfs:v0.13.1
+          command: ["sh", "/custom/configure-ipfs.sh"]
+          volumeMounts:
+            - name: ipfs-storage
+              mountPath: /data/ipfs
+            - name: configure-script
+              mountPath: /custom
+      containers:
+        - name: ipfs
+          image: ipfs/go-ipfs:v0.13.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: IPFS_FD_MAX
+              value: "4096"
+          ports:
+            - name: swarm
+              protocol: TCP
+              containerPort: 4001
+            - name: swarm-udp
+              protocol: UDP
+              containerPort: 4002
+            - name: api
+              protocol: TCP
+              containerPort: 5001
+            - name: ws
+              protocol: TCP
+              containerPort: 8081
+            - name: gateway
+              protocol: TCP
+              containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: swarm
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            - name: ipfs-storage
+              mountPath: /data/ipfs
+            - name: configure-script
+              mountPath: /custom
+            - name: health-storage
+              mountPath: /data/health
+          resources:
+            {}
+        - name: ipfs-cluster
+          image: ipfs/ipfs-cluster:1.0.2
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "/custom/entrypoint.sh"]
+          envFrom:
+            - configMapRef:
+                name: my-release-env
+          env:
+            - name: BOOTSTRAP_PEER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: my-release-env
+                  key: bootstrap-peer-id
+            - name: BOOTSTRAP_PEER_PRIV_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-release
+                  key: bootstrap-peer-priv-key
+            - name: CLUSTER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-release
+                  key: cluster-secret
+            - name: CLUSTER_REPLICATIONFACTORMIN
+              value: "-1"
+            - name: CLUSTER_REPLICATIONFACTORMAX
+              value: "-1"
+            - name: CLUSTER_MONITOR_PING_INTERVAL
+              value: "3m"
+            - name: CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS
+              value: "/ip4/0.0.0.0/tcp/9094"
+            - name: CLUSTER_RESTAPI_LIBP2PLISTENMULTIADDRESS
+              value: "/ip4/0.0.0.0/tcp/9098"
+            - name: CLUSTER_RESTAPI_ID
+              value: 12D3KooWMfXzp2nmNrb7DM4PETYZbaKALnrnwiqnhvrUC66KyYrb
+            - name: CLUSTER_RESTAPI_PRIVATEKEY
+              value: "CAESQEmvGJbMboEibpcWCTKOtDYU2eEyyHLN9gDdJli6Z2tksAkhFWNx0Fk3vOlwLIitE2rfGtIj61Ovla/mHC42Plg="
+            - name: CLUSTER_RESTAPI_BASICAUTHCREDENTIALS
+              value: pld:password
+            - name: CLUSTER_MONITORPINGINTERVAL
+              value: 2s
+            - name: CLUSTER_CRDT_TRUSTEDPEERS
+              value: "12D3KooWNYut1XL31b4KUnCZmC8Mu7WqGn6QdwnptGpS5tnhSttR,12D3KooWNYut1XL31b4KUnCZmC8Mu7WqGn6QdwnptGpS5tnhSttR"
+            - name: SVC_NAME
+              value: my-release
+            - name: CLUSTER_LEAVEONSHUTDOWN
+              value: "true"
+          ports:
+            - name: api-http
+              containerPort: 9094
+              protocol: TCP
+            - name: proxy-http
+              containerPort: 9095
+              protocol: TCP
+            - name: cluster-swarm
+              containerPort: 9096
+              protocol: TCP
+            - name: restapi-swarm
+              containerPort: 9098
+              protocol: TCP
+            - name: metrics
+              containerPort: 8888
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - sh
+              - /custom/peers-health-check.sh
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: cluster-swarm
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: cluster-storage
+              mountPath: /data/ipfs-cluster
+            - name: configure-script
+              mountPath: /custom
+            - name: health-storage
+              mountPath: /data/health
+          resources:
+            {}    
+      volumes:
+        - name: configure-script
+          configMap:
+            name: my-release-bootstrap     
+        - name: health-storage
+          emptyDir: {}
+        
+  volumeClaimTemplates:  
+    - metadata:
+        name: cluster-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+    - metadata:
+        name: ipfs-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 200Gi

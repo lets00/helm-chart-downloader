@@ -1,0 +1,170 @@
+---
+# Source: yet-another-cloudwatch-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-yet-another-cloudwatch-exporter
+  namespace: yet-another-cloudwatch-exporter-0.37.0.tgz
+  labels:
+    helm.sh/chart: yet-another-cloudwatch-exporter-0.37.0
+    app.kubernetes.io/name: yet-another-cloudwatch-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.60.0"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: yet-another-cloudwatch-exporter/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-yet-another-cloudwatch-exporter
+  namespace: yet-another-cloudwatch-exporter-0.37.0.tgz
+  labels:
+    helm.sh/chart: yet-another-cloudwatch-exporter-0.37.0
+    app.kubernetes.io/name: yet-another-cloudwatch-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.60.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yml: |
+    apiVersion: v1alpha1
+    sts-region: eu-west-1
+    discovery:
+      exportedTagsOnMetrics:
+        AWS/ES:
+          - Name
+      jobs:
+      - type: AWS/ES
+        regions:
+          - eu-west-1
+        searchTags:
+          - key: type
+            value: ^(easteregg|k8s)$
+        metrics:
+          - name: FreeStorageSpace
+            statistics:
+            - Sum
+            period: 60
+            length: 600
+          - name: ClusterStatus.green
+            statistics:
+            - Minimum
+            period: 60
+            length: 600
+          - name: ClusterStatus.yellow
+            statistics:
+            - Maximum
+            period: 60
+            length: 600
+          - name: ClusterStatus.red
+            statistics:
+            - Maximum
+            period: 60
+            length: 600
+---
+# Source: yet-another-cloudwatch-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-yet-another-cloudwatch-exporter
+  namespace: yet-another-cloudwatch-exporter-0.37.0.tgz
+  labels:
+    helm.sh/chart: yet-another-cloudwatch-exporter-0.37.0
+    app.kubernetes.io/name: yet-another-cloudwatch-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.60.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: yet-another-cloudwatch-exporter
+    app.kubernetes.io/instance: my-release
+---
+# Source: yet-another-cloudwatch-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-yet-another-cloudwatch-exporter
+  namespace: yet-another-cloudwatch-exporter-0.37.0.tgz
+  labels:
+    helm.sh/chart: yet-another-cloudwatch-exporter-0.37.0
+    app.kubernetes.io/name: yet-another-cloudwatch-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.60.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: yet-another-cloudwatch-exporter
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        
+        checksum/config: ca3ef327f6aca4c9e1889a76cb0c2d355c85ac9a9b7038dbe6c7a180e37b4512
+      labels:
+        app.kubernetes.io/name: yet-another-cloudwatch-exporter
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: my-release-yet-another-cloudwatch-exporter
+      securityContext:
+        {}
+      containers:
+        - name: yet-another-cloudwatch-exporter
+          securityContext:
+            {}
+          image: "ghcr.io/nerdswords/yet-another-cloudwatch-exporter:v0.60.0"
+          imagePullPolicy: IfNotPresent
+          command:
+            - "yace"
+            - "--config.file=/config/config.yml"
+          volumeMounts:
+            - name: vol-yet-another-cloudwatch-exporter
+              mountPath: /config
+          env:
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            {}
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: my-release-yet-another-cloudwatch-exporter
+          name: vol-yet-another-cloudwatch-exporter
+---
+# Source: yet-another-cloudwatch-exporter/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-yet-another-cloudwatch-exporter-test-connection"
+  labels:
+    helm.sh/chart: yet-another-cloudwatch-exporter-0.37.0
+    app.kubernetes.io/name: yet-another-cloudwatch-exporter
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.60.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-yet-another-cloudwatch-exporter:80']
+  restartPolicy: Never

@@ -1,0 +1,129 @@
+---
+# Source: errbot/templates/config.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-errbot-config
+  labels:
+    helm.sh/chart: errbot-0.0.3
+    app.kubernetes.io/name: errbot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.1.9"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.py: |
+    aW1wb3J0IGxvZ2dpbmcKCkJBQ0tFTkQgPSAiVGV4dCIKQk9UX0RBVEFfRElSID0gciIvb3B0L2VycmJvdC9kYXRhIgpCT1RfRVhUUkFfUExVR0lOX0RJUiA9IHIiL29wdC9lcnJib3QvcGx1Z2lucyIKQk9UX0xPR19GSUxFID0gciIvdG1wL2Vyci5sb2ciCkJPVF9MT0dfTEVWRUwgPSBsb2dnaW5nLklORk8KQk9UX0FETUlOUyA9ICgiQENIQU5HRV9NRSIsKQo=
+---
+# Source: errbot/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-errbot
+  labels:
+    helm.sh/chart: errbot-0.0.3
+    app.kubernetes.io/name: errbot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.1.9"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+      appProtocol: http
+  selector:
+    app.kubernetes.io/name: errbot
+    app.kubernetes.io/instance: my-release
+---
+# Source: errbot/templates/application.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-release-errbot
+  labels:
+    helm.sh/chart: errbot-0.0.3
+    app.kubernetes.io/name: errbot
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "6.1.9"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: my-release-errbot-headless
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: errbot
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: errbot
+        app.kubernetes.io/instance: my-release
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: default
+      securityContext:
+        {}
+      initContainers:
+      - name: initialize
+        securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+        image: "errbotio/errbot:6.1.9"
+        imagePullPolicy: IfNotPresent
+        workingDir: /opt/errbot
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |-
+            if [ ! -d "data" ] && [ ! -d "plugins" ]; then
+            errbot --init;
+            rm -vrf ./plugins/err-example;
+            fi;
+            echo "{'configs': {'Webserver': {'HOST': '0.0.0.0', 'PORT': 3141 }}}" | errbot --storage-merge core;
+        volumeMounts:
+        - name: errbot-data
+          mountPath: /opt/errbot
+      containers:
+      - name: errbot
+        securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+        image: "errbotio/errbot:6.1.9"
+        imagePullPolicy: IfNotPresent
+        workingDir: /opt/errbot
+        env:
+        ports:
+          - name: http
+            containerPort: 3141
+            protocol: TCP
+        resources:
+            {}
+        volumeMounts:
+        - name: errbot-config
+          readOnly: true
+          mountPath: /opt/errbot/config.py
+          subPath: config.py
+        - name: errbot-data
+          mountPath: /opt/errbot
+        tty: false
+        stdin: false
+      terminationGracePeriodSeconds: 15
+      volumes:
+      - name: errbot-config
+        secret:
+          secretName: my-release-errbot-config
+  volumeClaimTemplates:
+  - metadata:
+      name: errbot-data
+      labels:
+          app.kubernetes.io/name: errbot
+          app.kubernetes.io/instance: my-release
+    spec:
+      accessModes:
+      - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: "1Gi"
+      storageClassName:

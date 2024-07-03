@@ -1,0 +1,125 @@
+---
+# Source: authentication-app/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: authentication
+  labels:
+    helm.sh/chart: authentication-app-0.1.3
+    app: authentication-app
+    instance: my-release
+    app.kubernetes.io/version: "0.0.9-SNAPSHOT"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+---
+# Source: authentication-app/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentication
+  namespace: authentication-app-0.1.3.tgz
+data:
+  application.properties: |-
+    bean.message=Hello World!
+    another.property=value
+---
+# Source: authentication-app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: authentication
+  labels:
+    helm.sh/chart: authentication-app-0.1.3
+    app: authentication-app
+    instance: my-release
+    app.kubernetes.io/version: "0.0.9-SNAPSHOT"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: tcp-grpc
+
+    - port: 80
+      targetPort: grpc
+      protocol: TCP
+      name: ambassador-grpc
+      
+  selector:
+    app: authentication-app
+    instance: my-release
+---
+# Source: authentication-app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-authentication-app
+  labels:
+    helm.sh/chart: authentication-app-0.1.3
+    app: authentication-app
+    instance: my-release
+    app.kubernetes.io/version: "0.0.9-SNAPSHOT"
+    app.kubernetes.io/managed-by: Helm
+    monitor: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentication-app
+      instance: my-release
+  template:
+    metadata:
+      labels:
+        app: authentication-app
+        instance: my-release
+    spec:
+      serviceAccountName: authentication
+      securityContext:
+        {}
+      containers:
+        - name: authentication-app
+          securityContext:
+            {}
+          image: "nexus.sq.l:16000/repository/container-replace-repo/authentication:replace_tag"
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: JAVA_TOOL_OPTIONS
+            value: "-Xmx1524m -Xms512m"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: grpc
+              containerPort: 9090
+              protocol: TCP
+          
+          
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            failureThreshold: 10
+            periodSeconds: 5
+            initialDelaySeconds: 60
+            successThreshold: 1
+            timeoutSeconds: 1
+            
+          
+          
+          
+          
+          resources:
+            limits:
+              cpu: "1.5"
+              memory: 2048Mi
+            requests:
+              cpu: "0.5"
+              memory: 512Mi

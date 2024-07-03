@@ -1,0 +1,130 @@
+---
+# Source: jspolicy/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: serviceaccount
+  namespace: jspolicy-0.3.0-beta.5.tgz
+  labels:
+    app: my-release-jspolicy
+    chart: "jspolicy-0.3.0-beta.5"
+    release: "my-release"
+    heritage: "Helm"
+---
+# Source: jspolicy/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-release-jspolicy
+  labels:
+    app: my-release-jspolicy
+    chart: "jspolicy-0.3.0-beta.5"
+    release: "my-release"
+    heritage: "Helm"
+subjects:
+- kind: ServiceAccount
+  name: serviceaccount
+  namespace: jspolicy-0.3.0-beta.5.tgz
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: jspolicy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: jspolicy
+  namespace: jspolicy-0.3.0-beta.5.tgz
+  labels:
+    app: my-release-jspolicy
+    chart: "jspolicy-0.3.0-beta.5"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  ports:
+    - name: webhook
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+    - name: metrics
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: my-release-jspolicy
+    release: my-release
+---
+# Source: jspolicy/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-jspolicy
+  namespace: jspolicy-0.3.0-beta.5.tgz
+  labels:
+    app: my-release-jspolicy
+    chart: "jspolicy-0.3.0-beta.5"
+    release: "my-release"
+    heritage: "Helm"
+spec:
+  selector:
+    matchLabels:
+      app: my-release-jspolicy
+      release: my-release
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: my-release-jspolicy
+        release: my-release
+    spec:
+      priorityClassName: 
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: serviceaccount
+      containers:
+      - ports:
+        - name: webhook
+          containerPort: 8443
+          protocol: TCP
+        command:
+        - "/jspolicy"
+        args:
+        image: "loftsh/jspolicy:0.3.0-beta.5"
+        name: jspolicy
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
+        env:
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9080
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 9080
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: "2"
+            memory: 1024Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+---
+# Source: jspolicy/templates/webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: jspolicy

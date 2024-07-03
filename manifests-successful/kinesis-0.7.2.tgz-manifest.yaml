@@ -1,0 +1,110 @@
+---
+# Source: kinesis/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kinesis
+  labels:
+    helm.sh/chart: kinesis-0.7.2
+    app.kubernetes.io/name: kinesis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.2"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kinesis/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kinesis
+  labels:
+    helm.sh/chart: kinesis-0.7.2
+    app.kubernetes.io/name: kinesis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: tcp
+      protocol: TCP
+      name: tcp
+  selector:
+    app.kubernetes.io/name: kinesis
+    app.kubernetes.io/instance: my-release
+---
+# Source: kinesis/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kinesis
+  labels:
+    helm.sh/chart: kinesis-0.7.2
+    app.kubernetes.io/name: kinesis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kinesis
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kinesis
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: kinesis
+      securityContext:
+        {}
+      containers:
+        - name: kinesis
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 65534
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          image: "docker.io/saidsef/aws-kinesis-local:v2023.01"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp
+              containerPort: 4567
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: tcp
+          readinessProbe:
+            tcpSocket:
+              port: tcp
+          resources:
+            {}
+---
+# Source: kinesis/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-kinesis-test-connection"
+  labels:
+    helm.sh/chart: kinesis-0.7.2
+    app.kubernetes.io/name: kinesis
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "0.7.2"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-kinesis:80']
+  restartPolicy: Never

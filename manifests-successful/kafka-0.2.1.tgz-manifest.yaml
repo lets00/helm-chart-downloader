@@ -1,0 +1,249 @@
+---
+# Source: kafka/charts/prometheus-kafka-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-prometheus-kafka-exporter
+  labels:
+    app: prometheus-kafka-exporter
+    chart: prometheus-kafka-exporter-2.8.0
+    release: "my-release"
+    heritage: "Helm"
+---
+# Source: kafka/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-kafka
+  labels:
+    helm.sh/chart: kafka-0.2.1
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: my-release
+    meta.helm.sh/release-namespace: kafka-0.2.1.tgz
+---
+# Source: kafka/charts/prometheus-kafka-exporter/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-release-prometheus-kafka-exporter
+  labels:
+    app: prometheus-kafka-exporter
+    chart: prometheus-kafka-exporter-2.8.0
+    heritage: Helm
+    release: my-release
+---
+# Source: kafka/charts/prometheus-kafka-exporter/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-release-prometheus-kafka-exporter
+  labels:
+    app: prometheus-kafka-exporter
+    chart: prometheus-kafka-exporter-2.8.0
+    heritage: Helm
+    release: my-release
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-release-prometheus-kafka-exporter
+subjects:
+- kind: ServiceAccount
+  name: my-release-prometheus-kafka-exporter
+---
+# Source: kafka/charts/prometheus-kafka-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-prometheus-kafka-exporter
+  annotations:
+    {}
+  labels:
+    app: prometheus-kafka-exporter
+    chart: prometheus-kafka-exporter-2.8.0
+    release: my-release
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9308
+      targetPort: exporter-port
+      protocol: TCP
+      name: exporter-port
+  selector:
+    app: prometheus-kafka-exporter
+    release: my-release
+---
+# Source: kafka/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-kafka
+  labels:
+    helm.sh/chart: kafka-0.2.1
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: my-release
+    meta.helm.sh/release-namespace: kafka-0.2.1.tgz
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      protocol: TCP
+      port: 9092
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: my-release
+---
+# Source: kafka/charts/prometheus-kafka-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-prometheus-kafka-exporter
+  labels:
+    app: prometheus-kafka-exporter
+    chart: prometheus-kafka-exporter-2.8.0
+    release: my-release
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-kafka-exporter
+      release: my-release
+  template:
+    metadata:
+      annotations:
+        {}
+      labels:
+        app: prometheus-kafka-exporter
+        release: my-release
+    spec:
+      serviceAccountName: my-release-prometheus-kafka-exporter
+      containers:
+        - args:
+            - '--verbosity=0'
+            - '--kafka.server=kafka-server:9092'
+          env:
+          name: prometheus-kafka-exporter
+          image: "danielqsj/kafka-exporter:v1.7.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: exporter-port
+              containerPort: 9308
+              protocol: TCP
+          resources:
+            {}
+---
+# Source: kafka/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-kafka
+  labels:
+    helm.sh/chart: kafka-0.2.1
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: my-release
+    meta.helm.sh/release-namespace: kafka-0.2.1.tgz
+spec:
+  revisionHistoryLimit: 10
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      annotations:
+        meta.helm.sh/release-name: my-release
+        meta.helm.sh/release-namespace: kafka-0.2.1.tgz
+      labels:
+        app.kubernetes.io/name: kafka
+        app.kubernetes.io/instance: my-release
+    spec:
+      enableServiceLinks: false
+      serviceAccountName: my-release-kafka
+      securityContext:
+        {}
+      containers:
+        - name: kafka
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+          image: "confluentinc/cp-kafka:latest"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KAFKA_BROKER_ID
+              value: "1"
+            - name: KAFKA_ZOOKEEPER_CONNECT
+              value: "zookeeper:2181"
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://0.0.0.0:9092"
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://kafka:9092"
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "PLAINTEXT:PLAINTEXT"
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: "PLAINTEXT"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+          volumeMounts:
+            - mountPath: /etc/kafka
+              name: kafka
+            - mountPath: /var/log/kafka
+              name: log
+          ports:
+            - name: http
+              containerPort: 9092
+              protocol: TCP
+          resources:
+            {}
+          
+          lifecycle:
+            preStop:
+              exec:
+                  command: [ "sh", "-c", "sleep 10" ]
+      volumes:
+        - emptyDir:
+            medium: Memory
+          name: kafka
+        - emptyDir:
+            medium: Memory
+          name: log
+---
+# Source: kafka/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "my-release-kafka-test-connection"
+  labels:
+    helm.sh/chart: kafka-0.2.1
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['my-release-kafka:9092']
+  restartPolicy: Never

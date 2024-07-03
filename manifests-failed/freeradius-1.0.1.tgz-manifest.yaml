@@ -1,0 +1,975 @@
+---
+# Source: freeradius/templates/ServiceAccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-release-freeradius
+  namespace: "freeradius-1.0.1.tgz"
+  labels:
+    app.kubernetes.io/name: freeradius
+    helm.sh/chart: freeradius-1.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: freeradius
+automountServiceAccountToken: false
+---
+# Source: freeradius/templates/Secret/credentials.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-release-freeradius
+  namespace: "freeradius-1.0.1.tgz"
+  labels:
+    app.kubernetes.io/name: freeradius
+    helm.sh/chart: freeradius-1.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: freeradius
+type: Opaque
+data:
+  database-password: "aU02T2RVOUJRQw=="
+  sites-status-secret: "YWRtaW5zZWNyZXQ="
+---
+# Source: freeradius/templates/ConfigMap/clients.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-freeradius-clients
+  namespace: "freeradius-1.0.1.tgz"
+  labels:
+    app.kubernetes.io/name: freeradius
+    helm.sh/chart: freeradius-1.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  clients.conf: |-
+    client
+---
+# Source: freeradius/templates/ConfigMap/env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-freeradius-env
+  namespace: "freeradius-1.0.1.tgz"
+  labels:
+    app.kubernetes.io/name: freeradius
+    helm.sh/chart: freeradius-1.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  FREERADIUS_ENABLE_TLS: "false"
+
+  FREERADIUS_CLIENTS_SHORTNAME: ""
+  FREERADIUS_CLIENTS_IPV4ADDR: ""
+  FREERADIUS_CLIENTS_IPV6ADDR: ""
+  FREERADIUS_CLIENTS_SECRET: ""
+  FREERADIUS_MODS_SQL_DIALECT: mysql
+  FREERADIUS_MODS_SQL_SERVER: ""
+  FREERADIUS_MODS_SQL_PORT: "3306"
+  FREERADIUS_MODS_SQL_LOGIN: "freeradius_user"
+  FREERADIUS_MODS_SQL_DB: "freeradius_db"
+  FREERADIUS_MODS_SQL_TABLE_ACCT1: radacct
+  FREERADIUS_MODS_SQL_TABLE_ACCT2: radacct
+  FREERADIUS_MODS_SQL_TABLE_AUTHCHECK: radcheck
+  FREERADIUS_MODS_SQL_TABLE_AUTHREPLY: radreply
+  FREERADIUS_MODS_SQL_TABLE_CLIENT: nas
+  FREERADIUS_MODS_SQL_TABLE_GROUPCHECK: radgroupcheck
+  FREERADIUS_MODS_SQL_TABLE_GROUPREPLY: radgroupreply
+  FREERADIUS_MODS_SQL_TABLE_POSTAUTH: radpostauth
+  FREERADIUS_MODS_SQL_TABLE_USERGROUP: radusergroup
+  FREERADIUS_MODS_SQL_TLS_ENABLE: "no"
+
+  FREERADIUS_SITES_NAMESPACE: radius
+
+  FREERADIUS_SITES_DEFAULT_AUTH_PORT: "1812"
+  FREERADIUS_SITES_DEFAULT_ACCT_PORT: "1813"
+  FREERADIUS_SITES_STATUS_LISTEN: "127.0.0.1"
+  FREERADIUS_SITES_STATUS_PORT: "18121"
+---
+# Source: freeradius/templates/ConfigMap/mods-enabled.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-freeradius-mods
+  namespace: "freeradius-1.0.1.tgz"
+  labels:
+    app.kubernetes.io/name: freeradius
+    helm.sh/chart: freeradius-1.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  sql: "# -*- text -*-\r\n##\r\n## mods-available/sql -- SQL modules\r\n##\r\n##\t$Id:
+    cfeac63ea87c30fead8457af6d10f5c3a0f48aef $\r\n\r\n######################################################################\r\n#\r\n#
+    \ Configuration for the SQL module\r\n#\r\n#  The database schemas and queries are
+    located in subdirectories:\r\n#\r\n#\tsql/<DB>/main/schema.sql\tSchema\r\n#\tsql/<DB>/main/queries.conf\tAuthorisation
+    and Accounting queries\r\n#\r\n#  Where \"DB\" is mysql, mssql, oracle, or postgresql.\r\n#\r\n#
+    \ The name used to query SQL is sql_user_name, which is set in the file\r\n#\r\n#
+    \    raddb/mods-config/sql/main/${dialect}/queries.conf\r\n#\r\n#  If you are using
+    realms, that configuration should be changed to use\r\n#  the Stripped-User-Name
+    attribute.  See the comments around sql_user_name\r\n#  for more information.\r\n#\r\n\r\nsql
+    {\r\n\t#\r\n\t#  The dialect of SQL being used.\r\n\t#\r\n\t#  Allowed dialects
+    are:\r\n\t#\r\n\t#\tmssql\r\n\t#\tmysql\r\n\t#\toracle\r\n\t#\tpostgresql\r\n\t#\tsqlite\r\n\t#\tmongo\r\n\t#\r\n#\tdialect
+    = \"sqlite\"\r\n\tdialect = $ENV{FREERADIUS_MODS_SQL_DIALECT}\r\n\r\n\t#\r\n\t#
+    \ The driver module used to execute the queries.  Since we\r\n\t#  don't know which
+    SQL drivers are being used, the default is\r\n\t#  \"rlm_sql_null\", which just
+    logs the queries to disk via the\r\n\t#  \"logfile\" directive, below.\r\n\t#\r\n\t#
+    \ In order to talk to a real database, delete the next line,\r\n\t#  and uncomment
+    the one after it.\r\n\t#\r\n\t#  If the dialect is \"mssql\", then the driver should
+    be set to\r\n\t#  one of the following values, depending on your system:\r\n\t#\r\n\t#\trlm_sql_db2\r\n\t#\trlm_sql_firebird\r\n\t#\trlm_sql_freetds\r\n\t#\trlm_sql_iodbc\r\n\t#\trlm_sql_unixodbc\r\n\t#\r\n#\tdriver
+    = \"rlm_sql_null\"\r\n\tdriver = \"rlm_sql_${dialect}\"\r\n\r\n\t#\r\n\t#  Driver-specific
+    subsections.  They will only be loaded and\r\n\t#  used if \"driver\" is something
+    other than \"rlm_sql_null\".\r\n\t#  When a real driver is used, the relevant driver\r\n\t#
+    \ configuration section is loaded, and all other driver\r\n\t#  configuration sections
+    are ignored.\r\n\t#\r\n\tsqlite {\r\n\t\t# Path to the sqlite database\r\n\t\tfilename
+    = \"/startechnica/freeradius/freeradius.db\"\r\n\r\n\t\t# How long to wait for write
+    locks on the database to be\r\n\t\t# released (in ms) before giving up.\r\n\t\tbusy_timeout
+    = 200\r\n\r\n\t\t# If the file above does not exist and bootstrap is set\r\n\t\t#
+    a new database file will be created, and the SQL statements\r\n\t\t# contained within
+    the bootstrap file will be executed.\r\n\t\tbootstrap = \"${modconfdir}/${..:name}/main/sqlite/schema.sql\"\r\n\t}\r\n\r\n\tmysql
+    {\r\n\t\t# If any of the files below are set, TLS encryption is enabled\r\n\t\ttls
+    {\r\n#\t\t\tca_file = $ENV{FREERADIUS_MODS_SQL_TLS_CACERT}\r\n#\t\t\tca_path = \"/startechnica/freeradius/certs-sql/\"\r\n#\t\t\tcertificate_file
+    = $ENV{FREERADIUS_MODS_SQL_TLS_CERTIFICATE}\r\n#\t\t\tprivate_key_file = $ENV{FREERADIUS_MODS_SQL_TLS_PRIVATEKEY}\r\n#\t\t\tcipher
+    = \"DHE-RSA-AES256-SHA:AES128-SHA\"\r\n#\t\t\tcipher = $ENV{FREERADIUS_MODS_SQL_TLS_CIPHER}\r\n\r\n\t\t\ttls_required
+    = $ENV{FREERADIUS_MODS_SQL_TLS_ENABLE}\r\n\t\t\ttls_check_cert = no\r\n\t\t\ttls_check_cert_cn
+    = no\r\n\t\t}\r\n\r\n\t\t# If yes, (or auto and libmysqlclient reports warnings
+    are\r\n\t\t# available), will retrieve and log additional warnings from\r\n\t\t#
+    the server if an error has occured. Defaults to 'auto'\r\n\t\twarnings = auto\r\n\t}\r\n\r\n\tpostgresql
+    {\r\n\r\n\t\t# unlike MySQL, which has a tls{} connection configuration, postgresql\r\n\t\t#
+    uses its connection parameters - see the radius_db option below in\r\n\t\t# this
+    file\r\n\r\n\t\t# Send application_name to the postgres server\r\n\t\t# Only supported
+    in PG 9.0 and greater. Defaults to no.\r\n\t\tsend_application_name = yes\r\n\t}\r\n\r\n\t#\r\n\t#\tConfiguration
+    for Mongo.\r\n\t#\r\n\t#\tNote that the Mongo driver is experimental.  The FreeRADIUS
+    developers\r\n\t#\tare unable to help with the syntax of the Mongo queries.  Please
+    see\r\n\t#\tthe Mongo documentation for that syntax.\r\n\t#\r\n\t#\tThe Mongo driver
+    supports only the following methods:\r\n\t#\r\n\t#\t\taggregate\r\n\t#\t\tfindAndModify\r\n\t#\t\tfindOne\r\n\t#\t\tinsert\r\n\t#\r\n\t#\tFor
+    examples, see the query files:\r\n\t#\r\n\t#\t\traddb/mods-config/sql/main/mongo/queries.conf\r\n\t#\t\traddb/mods-config/sql/main/ippool/queries.conf\r\n\t#\r\n\t#\tIn
+    order to use findAndModify with an aggretation pipleline, make\r\n\t#\tsure that
+    you are running MongoDB version 4.2 or greater. FreeRADIUS\r\n\t#\tassumes that
+    the paramaters passed to the methods are supported by the\r\n\t#\tversion of MongoDB
+    which it is connected to.\r\n\t#\r\n\tmongo {\r\n\t\t#\r\n\t\t#  The application
+    name to use.\r\n\t\t#\r\n\t\tappname = \"freeradius\"\r\n\r\n\t\t#\r\n\t\t#  The
+    TLS parameters here map directly to the Mongo TLS configuration\r\n\t\t#\r\n\t\ttls
+    {\r\n\t\t\tcertificate_file = $ENV{FREERADIUS_MODS_SQL_TLS_CERTIFICATE}\r\n\t\t\tcertificate_password
+    = $ENV{FREERADIUS_MODS_SQL_TLS_PRIVATEKEY}\r\n\t\t\tca_file = $ENV{FREERADIUS_MODS_SQL_TLS_CACERT}\r\n\t\t\tca_dir
+    = /startechnica/freeradius/certs-sql/\r\n\t\t\t# crl_file = /path/to/file\r\n\t\t\tweak_cert_validation
+    = false\r\n\t\t\tallow_invalid_hostname = false\r\n\t\t}\r\n\t}\r\n\r\n\t# Connection
+    info:\r\n\t#\r\n\tserver = $ENV{FREERADIUS_MODS_SQL_SERVER}\r\n\tport = $ENV{FREERADIUS_MODS_SQL_PORT}\r\n\tlogin
+    = $ENV{FREERADIUS_MODS_SQL_LOGIN}\r\n\tpassword = $ENV{FREERADIUS_MODS_SQL_PASSWORD}\r\n\r\n\t#
+    Connection info for Mongo\r\n\t# Authentication Without SSL\r\n\t#\tserver = \"mongodb://USER:PASSWORD@192.16.0.2:PORT/DATABASE?authSource=admin&ssl=false\"\r\n\r\n\t#
+    Authentication With SSL\r\n\t#\tserver = \"mongodb://USER:PASSWORD@192.16.0.2:PORT/DATABASE?authSource=admin&ssl=true\"\r\n\r\n\t#
+    Authentication with Certificate\r\n\t# Use this command for retrieve Derived username:\r\n\t#
+    openssl x509 -in mycert.pem -inform PEM -subject -nameopt RFC2253\r\n\t# server
+    = mongodb://<DERIVED USERNAME>@192.168.0.2:PORT/DATABASE?authSource=$external&ssl=true&authMechanism=MONGODB-X509\r\n\r\n\t#
+    Database table configuration for everything except Oracle\r\n\tradius_db = $ENV{FREERADIUS_MODS_SQL_DB}\r\n\r\n\t#
+    If you are using Oracle then use this instead\r\n#\tradius_db = \"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SID=your_sid)))\"\r\n\r\n\t#
+    If you're using postgresql this can also be used instead of the connection info
+    parameters\r\n#\tradius_db = \"dbname=$ENV{FREERADIUS_MODS_SQL_DB} host=$ENV{FREERADIUS_MODS_SQL_SERVER}
+    port=$ENV{FREERADIUS_MODS_SQL_PORT} user=$ENV{FREERADIUS_MODS_SQL_LOGIN} password=$ENV{FREERADIUS_MODS_SQL_PASSWORD}\"\r\n\r\n
+    \   # Postgreql doesn't take tls{} options in its module config like mysql does
+    - if you want to\r\n    # use SSL connections then use this form of connection info
+    parameter\r\n#\tradius_db = \"host=localhost port=5432 dbname=radius user=radius
+    password=raddpass sslmode=verify-full sslcert=/etc/ssl/client.crt sslkey=/etc/ssl/client.key
+    sslrootcert=/etc/ssl/ca.crt\" \r\n\r\n\t# If you want both stop and start records
+    logged to the\r\n\t# same SQL table, leave this as is.  If you want them in\r\n\t#
+    different tables, put the start table in acct_table1\r\n\t# and stop table in acct_table2\r\n\tacct_table1
+    = $ENV{FREERADIUS_MODS_SQL_TABLE_ACCT1}\r\n\tacct_table2 = $ENV{FREERADIUS_MODS_SQL_TABLE_ACCT2}\r\n\r\n\t#
+    Allow for storing data after authentication\r\n\tpostauth_table = $ENV{FREERADIUS_MODS_SQL_TABLE_POSTAUTH}\r\n\r\n\t#
+    Tables containing 'check' items\r\n\tauthcheck_table = $ENV{FREERADIUS_MODS_SQL_TABLE_AUTHCHECK}\r\n\tgroupcheck_table
+    = $ENV{FREERADIUS_MODS_SQL_TABLE_GROUPCHECK}\r\n\r\n\t# Tables containing 'reply'
+    items\r\n\tauthreply_table = $ENV{FREERADIUS_MODS_SQL_TABLE_AUTHREPLY}\r\n\tgroupreply_table
+    = $ENV{FREERADIUS_MODS_SQL_TABLE_GROUPREPLY}\r\n\r\n\t# Table to keep group info\r\n\tusergroup_table
+    = $ENV{FREERADIUS_MODS_SQL_TABLE_USERGROUP}\r\n\r\n\t# If set to 'yes' (default)
+    we read the group tables unless Fall-Through = no in the reply table.\r\n\t# If
+    set to 'no' we do not read the group tables unless Fall-Through = yes in the reply
+    table.\r\n#\tread_groups = yes\r\n\r\n\t# If set to 'yes' (default) we read profiles
+    unless Fall-Through = no in the groupreply table.\r\n\t# If set to 'no' we do not
+    read profiles unless Fall-Through = yes in the groupreply table.\r\n#\tread_profiles
+    = yes\r\n\r\n\t# Remove stale session if checkrad does not see a double login\r\n\tdelete_stale_sessions
+    = yes\r\n\r\n\t# Write SQL queries to a logfile. This is potentially useful for
+    tracing\r\n\t# issues with authorization queries.  See also \"logfile\" directives
+    in\r\n\t# mods-config/sql/main/*/queries.conf.  You can enable per-section logging\r\n\t#
+    by enabling \"logfile\" there, or global logging by enabling \"logfile\" here.\r\n\t#\r\n\t#
+    Per-section logging can be disabled by setting \"logfile = ''\"\r\n#\tlogfile =
+    ${logdir}/sqllog.sql\r\n\r\n\t#  Set the maximum query duration and connection timeout\r\n\t#
+    \ for rlm_sql_mysql.\r\n#\tquery_timeout = 5\r\n\r\n\t#  As of version 3.0, the
+    \"pool\" section has replaced the\r\n\t#  following configuration items:\r\n\t#\r\n\t#
+    \ num_sql_socks\r\n\t#  connect_failure_retry_delay\r\n\t#  lifetime\r\n\t#  max_queries\r\n\r\n\t#\r\n\t#
+    \ The connection pool is new for 3.0, and will be used in many\r\n\t#  modules,
+    for all kinds of connection-related activity.\r\n\t#\r\n\t# When the server is not
+    threaded, the connection pool\r\n\t# limits are ignored, and only one connection
+    is used.\r\n\t#\r\n\t# If you want to have multiple SQL modules re-use the same\r\n\t#
+    connection pool, use \"pool = name\" instead of a \"pool\"\r\n\t# section.  e.g.\r\n\t#\r\n\t#\tsql
+    sql1 {\r\n\t#\t    ...\r\n\t#\t    pool {\r\n\t#\t    \t ...\r\n\t#\t    }\r\n\t#\t}\r\n\t#\r\n\t#\t#
+    sql2 will use the connection pool from sql1\r\n\t#\tsql sql2 {\r\n\t#\t     ...\r\n\t#\t
+    \    pool = sql1\r\n\t#\t}\r\n\t#\r\n\tpool {\r\n\t\t#  Connections to create during
+    module instantiation.\r\n\t\t#  If the server cannot create specified number of\r\n\t\t#
+    \ connections during instantiation it will exit.\r\n\t\t#  Set to 0 to allow the
+    server to start without the\r\n\t\t#  database being available.\r\n\t\tstart = ${thread[pool].start_servers}\r\n\r\n\t\t#
+    \ Minimum number of connections to keep open\r\n\t\tmin = ${thread[pool].min_spare_servers}\r\n\r\n\t\t#
+    \ Maximum number of connections\r\n\t\t#\r\n\t\t#  If these connections are all
+    in use and a new one\r\n\t\t#  is requested, the request will NOT get a connection.\r\n\t\t#\r\n\t\t#
+    \ Setting 'max' to LESS than the number of threads means\r\n\t\t#  that some threads
+    may starve, and you will see errors\r\n\t\t#  like 'No connections available and
+    at max connection limit'\r\n\t\t#\r\n\t\t#  Setting 'max' to MORE than the number
+    of threads means\r\n\t\t#  that there are more connections than necessary.\r\n\t\tmax
+    = ${thread[pool].max_servers}\r\n\r\n\t\t#  Spare connections to be left idle\r\n\t\t#\r\n\t\t#
+    \ NOTE: Idle connections WILL be closed if \"idle_timeout\"\r\n\t\t#  is set.  This
+    should be less than or equal to \"max\" above.\r\n\t\tspare = ${thread[pool].max_spare_servers}\r\n\r\n\t\t#
+    \ Number of uses before the connection is closed\r\n\t\t#\r\n\t\t#  0 means \"infinite\"\r\n\t\tuses
+    = 0\r\n\r\n\t\t#  The number of seconds to wait after the server tries\r\n\t\t#
+    \ to open a connection, and fails.  During this time,\r\n\t\t#  no new connections
+    will be opened.\r\n\t\tretry_delay = 30\r\n\r\n\t\t# The lifetime (in seconds) of
+    the connection\r\n\t\tlifetime = 0\r\n\r\n\t\t#  idle timeout (in seconds).  A connection
+    which is\r\n\t\t#  unused for this length of time will be closed.\r\n\t\tidle_timeout
+    = 60\r\n\r\n\t\t#  NOTE: All configuration settings are enforced.  If a\r\n\t\t#
+    \ connection is closed because of \"idle_timeout\",\r\n\t\t#  \"uses\", or \"lifetime\",
+    then the total number of\r\n\t\t#  connections MAY fall below \"min\".  When that\r\n\t\t#
+    \ happens, it will open a new connection.  It will\r\n\t\t#  also log a WARNING
+    message.\r\n\t\t#\r\n\t\t#  The solution is to either lower the \"min\" connections,\r\n\t\t#
+    \ or increase lifetime/idle_timeout.\r\n\t}\r\n\r\n\t# Set to 'yes' to read radius
+    clients from the database ('nas' table)\r\n\t# Clients will ONLY be read on server
+    startup.\r\n\t#\r\n\t#  A client can be link to a virtual server via the SQL\r\n\t#
+    \ module.  This link is done via the following process:\r\n\t#\r\n\t#  If there
+    is no listener in a virtual server, SQL clients\r\n\t#  are added to the global
+    list for that virtual server.\r\n\t#\r\n\t#  If there is a listener, and the first
+    listener does not\r\n\t#  have a \"clients=...\" configuration item, SQL clients
+    are\r\n\t#  added to the global list.\r\n\t#\r\n\t#  If there is a listener, and
+    the first one does have a\r\n\t#  \"clients=...\" configuration item, SQL clients
+    are added to\r\n\t#  that list.  The client { ...} ` configured in that list are\r\n\t#
+    \ also added for that listener.\r\n\t#\r\n\t#  The only issue is if you have multiple
+    listeners in a\r\n\t#  virtual server, each with a different client list, then\r\n\t#
+    \ the SQL clients are added only to the first listener.\r\n\t#\r\n\tread_clients
+    = yes\r\n\r\n\t# Table to keep radius client info\r\n\tclient_table = $ENV{FREERADIUS_MODS_SQL_TABLE_CLIENT}\r\n\r\n\t#\r\n\t#
+    The group attribute specific to this instance of rlm_sql\r\n\t#\r\n\r\n\t# This
+    entry should be used for additional instances (sql foo {})\r\n\t# of the SQL module.\r\n#\tgroup_attribute
+    = \"${.:instance}-SQL-Group\"\r\n\r\n\t# This entry should be used for the default
+    instance (sql {})\r\n\t# of the SQL module.\r\n\tgroup_attribute = \"SQL-Group\"\r\n\r\n\t#
+    Read database-specific queries\r\n\t$INCLUDE ${modconfdir}/${.:name}/main/${dialect}/queries.conf\r\n}"
+---
+# Source: freeradius/templates/ConfigMap/sites-enabled.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-release-freeradius-sites
+  namespace: "freeradius-1.0.1.tgz"
+  labels:
+    app.kubernetes.io/name: freeradius
+    helm.sh/chart: freeradius-1.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+data:
+  default: "######################################################################\r\n#\r\n#\tAs
+    of 2.0.0, FreeRADIUS supports virtual hosts using the\r\n#\t\"server\" section,
+    and configuration directives.\r\n#\r\n#\tVirtual hosts should be put into the \"sites-available\"\r\n#\tdirectory.
+    \ Soft links should be created in the \"sites-enabled\"\r\n#\tdirectory to these
+    files.  This is done in a normal installation.\r\n#\r\n#\tIf you are using 802.1X
+    (EAP) authentication, please see also\r\n#\tthe \"inner-tunnel\" virtual server.
+    \ You will likely have to edit\r\n#\tthat, too, for authentication to work.\r\n#\r\n#\t$Id:
+    1926b7cd6e381cebfb809c7e89f8db0808124625 $\r\n#\r\n######################################################################\r\n#\r\n#\tRead
+    \"man radiusd\" before editing this file.  See the section\r\n#\ttitled DEBUGGING.
+    \ It outlines a method where you can quickly\r\n#\tobtain the configuration you
+    want, without running into\r\n#\ttrouble.  See also \"man unlang\", which documents
+    the format\r\n#\tof this file.\r\n#\r\n#\tThis configuration is designed to work
+    in the widest possible\r\n#\tset of circumstances, with the widest possible number
+    of\r\n#\tauthentication methods.  This means that in general, you should\r\n#\tneed
+    to make very few changes to this file.\r\n#\r\n#\tThe best way to configure the
+    server for your local system\r\n#\tis to CAREFULLY edit this file.  Most attempts
+    to make large\r\n#\tedits to this file will BREAK THE SERVER.  Any edits should\r\n#\tbe
+    small, and tested by running the server with \"radiusd -X\".\r\n#\tOnce the edits
+    have been verified to work, save a copy of these\r\n#\tconfiguration files somewhere.
+    \ (e.g. as a \"tar\" file).  Then,\r\n#\tmake more edits, and test, as above.\r\n#\r\n#\tThere
+    are many \"commented out\" references to modules such\r\n#\tas ldap, sql, etc.  These
+    references serve as place-holders.\r\n#\tIf you need the functionality of that module,
+    then configure\r\n#\tit in radiusd.conf, and un-comment the references to it in\r\n#\tthis
+    file.  In most cases, those small changes will result\r\n#\tin the server being
+    able to connect to the DB, and to\r\n#\tauthenticate users.\r\n#\r\n######################################################################\r\n\r\nserver
+    default {\r\n#\r\n#  If you want the server to listen on additional addresses, or
+    on\r\n#  additional ports, you can use multiple \"listen\" sections.\r\n#\r\n#  Each
+    section make the server listen for only one type of packet,\r\n#  therefore authentication
+    and accounting have to be configured in\r\n#  different sections.\r\n#\r\n#  The
+    server ignore all \"listen\" section if you are using '-i' and '-p'\r\n#  on the
+    command line.\r\n#\r\nlisten {\r\n\t#  Type of packets to listen for.\r\n\t#  Allowed
+    values are:\r\n\t#\tauth\tlisten for authentication packets\r\n\t#\tacct\tlisten
+    for accounting packets\r\n\t#       auth+acct listen for both authentication and
+    accounting packets\r\n\t#\tproxy   IP to use for sending proxied packets\r\n\t#\tdetail
+    \ Read from the detail file.  For examples, see\r\n\t#               raddb/sites-available/copy-acct-to-home-server\r\n\t#\tstatus
+    \ listen for Status-Server packets.  For examples,\r\n\t#\t\tsee raddb/sites-available/status\r\n\t#\tcoa
+    \    listen for CoA-Request and Disconnect-Request\r\n\t#\t\tpackets.  For examples,
+    see the file\r\n\t#\t\traddb/sites-available/coa\r\n\t#\r\n\ttype = auth\r\n\r\n\t#
+    \ Note: \"type = proxy\" lets you control the source IP used for\r\n\t#        proxying
+    packets, with some limitations:\r\n\t#\r\n\t#    * A proxy listener CANNOT be used
+    in a virtual server section.\r\n\t#    * You should probably set \"port = 0\".\r\n\t#
+    \   * Any \"clients\" configuration will be ignored.\r\n\t#\r\n\t#  See also proxy.conf,
+    and the \"src_ipaddr\" configuration entry\r\n\t#  in the sample \"home_server\"
+    section.  When you specify the\r\n\t#  source IP address for packets sent to a home
+    server, the\r\n\t#  proxy listeners are automatically created.\r\n\r\n\t#  ipaddr/ipv4addr/ipv6addr
+    - IP address on which to listen.\r\n\t#  If multiple ones are listed, only the first
+    one will\r\n\t#  be used, and the others will be ignored.\r\n\t#\r\n\t#  The configuration
+    options accept the following syntax:\r\n\t#\r\n\t#  ipv4addr - IPv4 address (e.g.192.0.2.3)\r\n\t#
+    \ \t    - wildcard (i.e. *)\r\n\t#  \t    - hostname (radius.example.com)\r\n\t#
+    \ \t      Only the A record for the host name is used.\r\n\t#\t      If there is
+    no A record, an error is returned,\r\n\t#\t      and the server fails to start.\r\n\t#\r\n\t#
+    \ ipv6addr - IPv6 address (e.g. 2001:db8::1)\r\n\t#  \t    - wildcard (i.e. *)\r\n\t#
+    \ \t    - hostname (radius.example.com)\r\n\t#  \t      Only the AAAA record for
+    the host name is used.\r\n\t#\t      If there is no AAAA record, an error is returned,\r\n\t#\t
+    \     and the server fails to start.\r\n\t#\r\n\t#  ipaddr   - IPv4 address as above\r\n\t#
+    \ \t    - IPv6 address as above\r\n\t#  \t    - wildcard (i.e. *), which means IPv4
+    wildcard.\r\n\t#\t    - hostname\r\n\t#\t      If there is only one A or AAAA record
+    returned\r\n\t#\t      for the host name, it is used.\r\n\t#\t      If multiple
+    A or AAAA records are returned\r\n\t#\t      for the host name, only the first one
+    is used.\r\n\t#\t      If both A and AAAA records are returned\r\n\t#\t      for
+    the host name, only the A record is used.\r\n\t#\r\n\t# ipv4addr = *\r\n\t# ipv6addr
+    = *\r\n\tipaddr = *\r\n\r\n\t#  Port on which to listen.\r\n\t#  Allowed values
+    are:\r\n\t#\tinteger port number (1812)\r\n\t#\t0 means \"use /etc/services for
+    the proper port\"\r\n\tport = $ENV{FREERADIUS_SITES_DEFAULT_AUTH_PORT}\r\n\r\n\t#
+    \ Some systems support binding to an interface, in addition\r\n\t#  to the IP address.
+    \ This feature isn't strictly necessary,\r\n\t#  but for sites with many IP addresses
+    on one interface,\r\n\t#  it's useful to say \"listen on all addresses for eth0\".\r\n\t#\r\n\t#
+    \ If your system does not support this feature, you will\r\n\t#  get an error if
+    you try to use it.\r\n\t#\r\n#\tinterface = eth0\r\n\r\n\t#  Per-socket lists of
+    clients.  This is a very useful feature.\r\n\t#\r\n\t#  The name here is a reference
+    to a section elsewhere in\r\n\t#  radiusd.conf, or clients.conf.  Having the name
+    as\r\n\t#  a reference allows multiple sockets to use the same\r\n\t#  set of clients.\r\n\t#\r\n\t#
+    \ If this configuration is used, then the global list of clients\r\n\t#  is IGNORED
+    for this \"listen\" section.  Take care configuring\r\n\t#  this feature, to ensure
+    you don't accidentally disable a\r\n\t#  client you need.\r\n\t#\r\n\t#  See clients.conf
+    for the configuration of \"per_socket_clients\".\r\n\t#\r\n#\tclients = per_socket_clients\r\n\r\n\t#\r\n\t#
+    \ Set the default UDP receive buffer size.  In most cases,\r\n\t#  the default values
+    set by the kernel are fine.  However, in\r\n\t#  some cases the NASes will send
+    large packets, and many of\r\n\t#  them at a time.  It is then possible to overflow
+    the\r\n\t#  buffer, causing the kernel to drop packets before they\r\n\t#  reach
+    FreeRADIUS.  Increasing the size of the buffer will\r\n\t#  avoid these packet drops.\r\n\t#\r\n#\trecv_buff
+    = 65536\r\n\r\n\t#\r\n\t#  Connection limiting for sockets with \"proto = tcp\".\r\n\t#\r\n\t#
+    \ This section is ignored for other kinds of sockets.\r\n\t#\r\n\tlimit {\r\n\t
+    \     #\r\n\t      #  Limit the number of simultaneous TCP connections to the socket\r\n\t
+    \     #\r\n\t      #  The default is 16.\r\n\t      #  Setting this to 0 means \"no
+    limit\"\r\n\t      max_connections = 16\r\n\r\n\t      #  The per-socket \"max_requests\"
+    option does not exist.\r\n\r\n\t      #\r\n\t      #  The lifetime, in seconds,
+    of a TCP connection.  After\r\n\t      #  this lifetime, the connection will be
+    closed.\r\n\t      #\r\n\t      #  Setting this to 0 means \"forever\".\r\n\t      lifetime
+    = 0\r\n\r\n\t      #\r\n\t      #  The idle timeout, in seconds, of a TCP connection.\r\n\t
+    \     #  If no packets have been received over the connection for\r\n\t      #  this
+    time, the connection will be closed.\r\n\t      #\r\n\t      #  Setting this to
+    0 means \"no timeout\".\r\n\t      #\r\n\t      #  We STRONGLY RECOMMEND that you
+    set an idle timeout.\r\n\t      #\r\n\t      idle_timeout = 30\r\n\t}\r\n}\r\n\r\n#\r\n#
+    \ This second \"listen\" section is for listening on the accounting\r\n#  port,
+    too.\r\n#\r\nlisten {\r\n\tipaddr = *\r\n#\tipv6addr = ::\r\n\tport = $ENV{FREERADIUS_SITES_DEFAULT_ACCT_PORT}\r\n\ttype
+    = acct\r\n#\tinterface = eth0\r\n#\tclients = per_socket_clients\r\n\r\n\tlimit
+    {\r\n\t\t#  The number of packets received can be rate limited via the\r\n\t\t#
+    \ \"max_pps\" configuration item.  When it is set, the server\r\n\t\t#  tracks the
+    total number of packets received in the previous\r\n\t\t#  second.  If the count
+    is greater than \"max_pps\", then the\r\n\t\t#  new packet is silently discarded.
+    \ This helps the server\r\n\t\t#  deal with overload situations.\r\n\t\t#\r\n\t\t#
+    \ The packets/s counter is tracked in a sliding window.  This\r\n\t\t#  means that
+    the pps calculation is done for the second\r\n\t\t#  before the current packet was
+    received.  NOT for the current\r\n\t\t#  wall-clock second, and NOT for the previous
+    wall-clock second.\r\n\t\t#\r\n\t\t#  Useful values are 0 (no limit), or 100 to
+    10000.\r\n\t\t#  Values lower than 100 will likely cause the server to ignore\r\n\t\t#
+    \ normal traffic.  Few systems are capable of handling more than\r\n\t\t#  10K packets/s.\r\n\t\t#\r\n\t\t#
+    \ It is most useful for accounting systems.  Set it to 50%\r\n\t\t#  more than the
+    normal accounting load, and you can be sure that\r\n\t\t#  the server will never
+    get overloaded\r\n\t\t#\r\n#\t\tmax_pps = 0\r\n\r\n\t\t# Only for \"proto = tcp\".
+    These are ignored for \"udp\" sockets.\r\n\t\t#\r\n#\t\tidle_timeout = 0\r\n#\t\tlifetime
+    = 0\r\n#\t\tmax_connections = 0\r\n\t}\r\n}\r\n\r\n# IPv6 versions of the above
+    - read their full config to understand options\r\nlisten {\r\n\ttype = auth\r\n\tipv6addr
+    = ::\t# any.  ::1 == localhost\r\n\tport = $ENV{FREERADIUS_SITES_DEFAULT_AUTH_PORT}\r\n#\tinterface
+    = eth0\r\n#\tclients = per_socket_clients\r\n\tlimit {\r\n\t\tmax_connections =
+    16\r\n\t\tlifetime = 0\r\n\t\tidle_timeout = 30\r\n\t}\r\n}\r\n\r\nlisten {\r\n\tipv6addr
+    = ::\r\n\tport = $ENV{FREERADIUS_SITES_DEFAULT_ACCT_PORT}\r\n\ttype = acct\r\n#\tinterface
+    = eth0\r\n#\tclients = per_socket_clients\r\n\tlimit {\r\n\t\tmax_pps = 0\r\n\t\tidle_timeout
+    = 0\r\n\t\tlifetime = 0\r\n\t\tmax_connections = 0\r\n\t}\r\n}\r\n\r\n#  Authorization.
+    First preprocess (hints and huntgroups files),\r\n#  then realms, and finally look
+    in the \"users\" file.\r\n#\r\n#  Any changes made here should also be made to the
+    \"inner-tunnel\"\r\n#  virtual server.\r\n#\r\n#  The order of the realm modules
+    will determine the order that\r\n#  we try to find a matching realm.\r\n#\r\n#  Make
+    *sure* that 'preprocess' comes before any realm if you\r\n#  need to setup hints
+    for the remote radius server\r\nauthorize {\r\n\t#\r\n\t#  Take a User-Name, and
+    perform some checks on it, for spaces and other\r\n\t#  invalid characters.  If
+    the User-Name appears invalid, reject the\r\n\t#  request.\r\n\t#\r\n\t#  See policy.d/filter
+    for the definition of the filter_username policy.\r\n\t#\r\n\tfilter_username\r\n\r\n\t#\r\n\t#
+    \ Some broken equipment sends passwords with embedded zeros.\r\n\t#  i.e. the debug
+    output will show\r\n\t#\r\n\t#\tUser-Password = \"password\\000\\000\"\r\n\t#\r\n\t#
+    \ This policy will fix it to just be \"password\".\r\n\t#\r\n#\tfilter_password\r\n\r\n\t#\r\n\t#
+    \ The preprocess module takes care of sanitizing some bizarre\r\n\t#  attributes
+    in the request, and turning them into attributes\r\n\t#  which are more standard.\r\n\t#\r\n\t#
+    \ It takes care of processing the 'raddb/mods-config/preprocess/hints' \r\n\t#  and
+    the 'raddb/mods-config/preprocess/huntgroups' files.\r\n\tpreprocess\r\n\r\n\t#
+    \ If you intend to use CUI and you require that the Operator-Name\r\n\t#  be set
+    for CUI generation and you want to generate CUI also\r\n\t#  for your local clients
+    then uncomment the operator-name\r\n\t#  below and set the operator-name for your
+    clients in clients.conf\r\n#\toperator-name\r\n\r\n\t#\r\n\t#  If you want to generate
+    CUI for some clients that do not\r\n\t#  send proper CUI requests, then uncomment
+    the\r\n\t#  cui below and set \"add_cui = yes\" for these clients in clients.conf\r\n#\tcui\r\n\r\n\t#\r\n\t#
+    \ If you want to have a log of authentication requests,\r\n\t#  un-comment the following
+    line.\r\n#\tauth_log\r\n\r\n\t#\r\n\t#  The chap module will set 'Auth-Type := CHAP'
+    if we are\r\n\t#  handling a CHAP request and Auth-Type has not already been set\r\n\tchap\r\n\r\n\t#\r\n\t#
+    \ If the users are logging in with an MS-CHAP-Challenge\r\n\t#  attribute for authentication,
+    the mschap module will find\r\n\t#  the MS-CHAP-Challenge attribute, and add 'Auth-Type
+    := MS-CHAP'\r\n\t#  to the request, which will cause the server to then use\r\n\t#
+    \ the mschap module for authentication.\r\n\tmschap\r\n\r\n\t#\r\n\t#  If you have
+    a Cisco SIP server authenticating against\r\n\t#  FreeRADIUS, uncomment the following
+    line, and the 'digest'\r\n\t#  line in the 'authenticate' section.\r\n\tdigest\r\n\r\n\t#\r\n\t#
+    \ The WiMAX specification says that the Calling-Station-Id\r\n\t#  is 6 octets of
+    the MAC.  This definition conflicts with\r\n\t#  RFC 3580, and all common RADIUS
+    practices.  If you are using\r\n\t#  old style WiMAX (non LTE) the un-commenting
+    the \"wimax\" module\r\n\t#  here means that it will fix the Calling-Station-Id
+    attribute to\r\n\t#  the normal format as specified in RFC 3580 Section 3.21.\r\n\t#\r\n\t#
+    \ If you are using WiMAX 2.1 (LTE) then un-commenting will allow \r\n\t#  the module
+    to handle SQN resyncronisation. Prior to calling the\r\n\t#  module it is necessary
+    to populate the following attributes\r\n\t#  with the relevant keys:\r\n\t#    control:WiMAX-SIM-Ki\r\n\t#
+    \   control:WiMAX-SIM-OPc\r\n\t#\r\n\t#  If WiMAX-Re-synchronization-Info is found
+    in the request then\r\n\t#  the module will attempt to extract SQN and store it
+    in\r\n\t#  control:WiMAX-SIM-SQN. Also a copy of RAND is extracted to\r\n\t#  control:WiMAX-SIM-RAND.\r\n\t#\r\n\t#
+    \ If the SIM cannot be authenticated using Ki and OPc then reject\r\n\t#  will be
+    returned.\r\n#\twimax\r\n\r\n\t#\r\n\t#  Look for IPASS style 'realm/', and if not
+    found, look for\r\n\t#  '@realm', and decide whether or not to proxy, based on\r\n\t#
+    \ that.\r\n#\tIPASS\r\n\r\n\t#\r\n\t# Look for realms in user@domain format\r\n\tsuffix\r\n#\tntdomain\r\n\r\n\t#\r\n\t#
+    \ This module takes care of EAP-MD5, EAP-TLS, and EAP-LEAP\r\n\t#  authentication.\r\n\t#\r\n\t#
+    \ It also sets the EAP-Type attribute in the request\r\n\t#  attribute list to the
+    EAP type from the packet.\r\n\t#\r\n\t#  The EAP module returns \"ok\" or \"updated\"
+    if it is not yet ready\r\n\t#  to authenticate the user.  The configuration below
+    checks for\r\n\t#  \"ok\", and stops processing the \"authorize\" section if so.\r\n\t#\r\n\t#
+    \ Any LDAP and/or SQL servers will not be queried for the\r\n\t#  initial set of
+    packets that go back and forth to set up\r\n\t#  TTLS or PEAP.\r\n\t#\r\n\t#  The
+    \"updated\" check is commented out for compatibility with\r\n\t#  previous versions
+    of this configuration, but you may wish to\r\n\t#  uncomment it as well; this will
+    further reduce the number of\r\n\t#  LDAP and/or SQL queries for TTLS or PEAP.\r\n\t#\r\n\teap
+    {\r\n\t\tok = return\r\n#\t\tupdated = return\r\n\t}\r\n\r\n\t#  Pull crypt'd passwords
+    from /etc/passwd or /etc/shadow, using the system API's to get the password.  If
+    you want\r\n\t#  to read /etc/passwd or /etc/shadow directly, see the mods-available/passwd
+    module.\r\n#\tunix\r\n\r\n\t#  Read the 'users' file.  In v3, this is located in
+    raddb/mods-config/files/authorize\r\n\tfiles\r\n\r\n\t#  Look in an SQL database.
+    \ The schema of the database is meant to mirror the \"users\" file.\r\n\t#\r\n\t#
+    \ See \"Authorization Queries\" in mods-available/sql\r\n\t-sql\r\n\r\n\t#  If you
+    are using /etc/smbpasswd, and are also doing mschap authentication, the un-comment
+    this line, and configure the 'smbpasswd' module.\r\n#\tsmbpasswd\r\n\r\n\t#  The
+    ldap module reads passwords from the LDAP database.\r\n\t-ldap\r\n\r\n\t#  Enforce
+    daily limits on time spent logged in.\r\n#\tdaily\r\n\r\n\t#\r\n\texpiration\r\n\tlogintime\r\n\r\n\t#\r\n\t#
+    \ If no other module has claimed responsibility for\r\n\t#  authentication, then
+    try to use PAP.  This allows the\r\n\t#  other modules listed above to add a \"known
+    good\" password\r\n\t#  to the request, and to do nothing else.  The PAP module\r\n\t#
+    \ will then see that password, and use it to do PAP\r\n\t#  authentication.\r\n\t#\r\n\t#
+    \ This module should be listed last, so that the other modules\r\n\t#  get a chance
+    to set Auth-Type for themselves.\r\n\t#\r\n\tpap\r\n\r\n\t#  If \"status_server
+    = yes\", then Status-Server messages are passed through the following section, and
+    ONLY the following section.\r\n\t#  This permits you to do DB queries, for example.
+    \ If the modules listed here return \"fail\", then NO response is sent.\r\n#\tAutz-Type
+    Status-Server {\r\n#\r\n#\t}\r\n\r\n\t#\r\n\t#  RADIUS/TLS (or RadSec) connections
+    are processed through\r\n\t#  this section.  See sites-available/tls, and the configuration\r\n\t#
+    \ item \"check_client_connections\" for more information.\r\n\t#\r\n\t#  The request
+    contains TLS client certificate attributes,\r\n\t#  and nothing else.  The debug
+    output will print which\r\n\t#  attributes are available on your system.\r\n\t#\r\n\t#
+    \ If the section returns \"ok\" or \"updated\", then the\r\n\t#  connection is accepted.
+    \ Otherwise the connection is\r\n\t#  terminated.\r\n\t#\r\n\tAutz-Type New-TLS-Connection
+    {\r\n\t\t  ok\r\n\t}\r\n}\r\n\r\n\r\n#  Authentication.\r\n#\r\n#\r\n#  This section
+    lists which modules are available for authentication.\r\n#  Note that it does NOT
+    mean 'try each module in order'.  It means\r\n#  that a module from the 'authorize'
+    section adds a configuration\r\n#  attribute 'Auth-Type := FOO'.  That authentication
+    type is then\r\n#  used to pick the appropriate module from the list below.\r\n#\r\n\r\n#
+    \ In general, you SHOULD NOT set the Auth-Type attribute.  The server\r\n#  will
+    figure it out on its own, and will do the right thing.  The\r\n#  most common side
+    effect of erroneously setting the Auth-Type\r\n#  attribute is that one authentication
+    method will work, but the\r\n#  others will not.\r\n#\r\n#  The common reasons to
+    set the Auth-Type attribute by hand\r\n#  is to either forcibly reject the user
+    (Auth-Type := Reject),\r\n#  or to or forcibly accept the user (Auth-Type := Accept).\r\n#\r\n#
+    \ Note that Auth-Type := Accept will NOT work with EAP.\r\n#\r\n#  Please do not
+    put \"unlang\" configurations into the \"authenticate\"\r\n#  section.  Put them
+    in the \"post-auth\" section instead.  That's what\r\n#  the post-auth section is
+    for.\r\n#\r\nauthenticate {\r\n\t#  PAP authentication, when a back-end database
+    listed in the 'authorize' section supplies a password.  The password can be clear-text,
+    or encrypted.\r\n\tAuth-Type PAP {\r\n\t\tpap\r\n\t}\r\n\r\n\t#  Most people want
+    CHAP authentication\r\n\t#  A back-end database listed in the 'authorize' section
+    MUST supply a CLEAR TEXT password. Encrypted passwords won't work.\r\n\tAuth-Type
+    CHAP {\r\n\t\tchap\r\n\t}\r\n\r\n\t#  MSCHAP authentication.\r\n\tAuth-Type MS-CHAP
+    {\r\n\t\tmschap\r\n\t}\r\n\r\n\t#  For old names, too.\r\n\tmschap\r\n\r\n\t#  If
+    you have a Cisco SIP server authenticating against FreeRADIUS, uncomment the following
+    line, and the 'digest' line in the 'authorize' section.\r\n\tdigest\r\n\r\n\t#  Pluggable
+    Authentication Modules.\r\n#\tpam\r\n\r\n\t#  Uncomment it if you want to use ldap
+    for authentication\r\n\t#\r\n\t#  Note that this means \"check plain-text password
+    against\r\n\t#  the ldap database\", which means that EAP won't work,\r\n\t#  as
+    it does not supply a plain-text password.\r\n\t#\r\n\t#  We do NOT recommend using
+    this.  LDAP servers are databases.\r\n\t#  They are NOT authentication servers.
+    \ FreeRADIUS is an\r\n\t#  authentication server, and knows what to do with authentication.\r\n\t#
+    \ LDAP servers do not.\r\n\t#\r\n#\tAuth-Type LDAP {\r\n#\t\tldap\r\n#\t}\r\n\r\n\t#\r\n\t#
+    \ Allow EAP authentication.\r\n\teap\r\n\r\n\t#\r\n\t#  The older configurations
+    sent a number of attributes in\r\n\t#  Access-Challenge packets, which wasn't strictly
+    correct.\r\n\t#  If you want to filter out these attributes, uncomment\r\n\t#  the
+    following lines.\r\n\t#\r\n#\tAuth-Type eap {\r\n#\t\teap {\r\n#\t\t\thandled =
+    1\r\n#\t\t}\r\n#\t\tif (handled && (Response-Packet-Type == Access-Challenge)) {\r\n#\t\t\tattr_filter.access_challenge.post-auth\r\n#\t\t\thandled
+    \ # override the \"updated\" code from attr_filter\r\n#\t\t}\r\n#\t}\r\n}\r\n\r\n\r\n#
+    \ Pre-accounting.  Decide which accounting type to use.\r\n#\r\npreacct {\r\n\tpreprocess\r\n\r\n\t#
+    \ Merge Acct-[Input|Output]-Gigawords and Acct-[Input-Output]-Octets into a single
+    64bit counter Acct-[Input|Output]-Octets64.\r\n#\tacct_counters64\r\n\r\n\t#  Session
+    start times are *implied* in RADIUS.\r\n\t#  The NAS never sends a \"start time\".
+    \ Instead, it sends a start packet, *possibly* with an Acct-Delay-Time.\r\n\t#  The
+    server is supposed to conclude that the start time was \"Acct-Delay-Time\" seconds
+    in the past.\r\n\t#\r\n\t#  The code below creates an explicit start time, which
+    can then be used in other modules.  It will be *mostly* correct.\r\n\t#  Any errors
+    are due to the 1-second resolution of RADIUS, and the possibility that the time
+    on the NAS may be off.\r\n\t#\r\n\t#  The start time is: NOW - delay - session_length\r\n\r\n#\tupdate
+    request {\r\n#\t  \t&FreeRADIUS-Acct-Session-Start-Time = \"%{expr: %l - %{%{Acct-Session-Time}:-0}
+    - %{%{Acct-Delay-Time}:-0}}\"\r\n#\t}\r\n\r\n\t#  Ensure that we have a semi-unique
+    identifier for every request, and many NAS boxes are broken.\r\n\tacct_unique\r\n\r\n\t#
+    \ Look for IPASS-style 'realm/', and if not found, look for '@realm', and decide
+    whether or not to proxy, based on that.\r\n\t#\r\n\t#  Accounting requests are generally
+    proxied to the same\r\n\t#  home server as authentication requests.\r\n#\tIPASS\r\n\tsuffix\r\n#\tntdomain\r\n\r\n\t#
+    \ Read the 'acct_users' file\r\n\tfiles\r\n}\r\n\r\n#\r\n#  Accounting.  Log the
+    accounting data.\r\n#\r\naccounting {\r\n\t#  Update accounting packet by adding
+    the CUI attribute recorded from the corresponding Access-Accept use it only if your
+    NAS boxes do not support CUI themselves\r\n#\tcui\r\n\t#\r\n\t#  Create a 'detail'ed
+    log of the packets.\r\n\t#  Note that accounting requests which are proxied are
+    also logged in the detail file.\r\n\tdetail\r\n#\tdaily\r\n\r\n\t#  Update the wtmp
+    file\r\n\t#\r\n\t#  If you don't use \"radlast\", you can delete this line.\r\n\tunix\r\n\r\n\t#
+    \ For Simultaneous-Use tracking.\r\n\t#  Due to packet losses in the network, the
+    data here may be incorrect.  There is little we can do about it.\r\n#\tradutmp\r\n#\tsradutmp\r\n\r\n\t#
+    \ Return an address to the IP Pool when we see a stop record.\r\n\t#  Ensure that
+    &control:Pool-Name is set to determine which pool of IPs are used.\r\n#\tsqlippool\r\n\r\n\t#
+    \ Log traffic to an SQL database.\r\n\t#  See \"Accounting queries\" in mods-available/sql\r\n\t-sql\r\n\r\n\t#\r\n\t#
+    \ If you receive stop packets with zero session length,\r\n\t#  they will NOT be
+    logged in the database.  The SQL module\r\n\t#  will print a message (only in debugging
+    mode), and will\r\n\t#  return \"noop\".\r\n\t#\r\n\t#  You can ignore these packets
+    by uncommenting the following\r\n\t#  three lines.  Otherwise, the server will not
+    respond to the\r\n\t#  accounting request, and the NAS will retransmit.\r\n\t#\r\n#\tif
+    (noop) {\r\n#\t\tok\r\n#\t}\r\n\r\n\t#  Cisco VoIP specific bulk accounting\r\n#\tpgsql-voip\r\n\r\n\t#
+    For Exec-Program and Exec-Program-Wait\r\n\texec\r\n\r\n\t#  Filter attributes from
+    the accounting response.\r\n\tattr_filter.accounting_response\r\n\r\n\t#\r\n\t#
+    \ See \"Autz-Type Status-Server\" for how this works.\r\n\t#\r\n#\tAcct-Type Status-Server
+    {\r\n#\r\n#\t}\r\n}\r\n\r\n\r\n#  Session database, used for checking Simultaneous-Use.
+    Either the radutmp rlm_sql module can handle this.\r\n#  The rlm_sql module is *much*
+    faster\r\nsession {\r\n#\tradutmp\r\n\r\n\t#  See \"Simultaneous Use Checking Queries\"
+    in mods-available/sql\r\n\tsql\r\n}\r\n\r\n\r\n#  Post-Authentication\r\n#  Once
+    we KNOW that the user has been authenticated, there are\r\n#  additional steps we
+    can take.\r\npost-auth {\r\n\t#\r\n\t#  If you need to have a State attribute, you
+    can\r\n\t#  add it here.  e.g. for later CoA-Request with\r\n\t#  State, and Service-Type
+    = Authorize-Only.\r\n\t#\r\n#\tif (!&reply:State) {\r\n#\t\tupdate reply {\r\n#\t\t\tState
+    := \"0x%{randstr:16h}\"\r\n#\t\t}\r\n#\t}\r\n\r\n\t#\r\n\t#  Reject packets where
+    User-Name != TLS-Client-Cert-Common-Name\r\n\t#  There is no reason for users to
+    lie about their names.\r\n\t#\r\n\t#  In general, User-Name == EAP Identity == TLS-Client-Cert-Common-Name\r\n\t#\r\n#\tverify_tls_client_common_name\r\n\r\n\t#\r\n\t#
+    \ If there is no Stripped-User-Name in the request, AND we have a client cert,\r\n\t#
+    \ then create a Stripped-User-Name from the TLS client certificate information.\r\n\t#\r\n\t#
+    \ Note that this policy MUST be edited for your local system!\r\n\t#  We do not
+    know which fields exist in which certificate, as\r\n\t#  there is no standard here.
+    \ There is no way for us to have\r\n\t#  a default configuration which \"just works\"
+    everywhere.  We\r\n\t#  can only make recommendations.\r\n\t#\r\n\t#  The Stripped-User-Name
+    is updated so that it is logged in\r\n\t#  the various \"username\" fields.  This
+    logging means that you\r\n\t#  can associate a particular session with a particular
+    client\r\n\t#  certificate.\r\n\t#\r\n#\tif (&EAP-Message && !&Stripped-User-Name
+    && &TLS-Client-Cert-Serial) {\r\n#\t\tupdate request {\r\n#\t\t\t&Stripped-User-Name
+    := \"%{%{TLS-Client-Cert-Subject-Alt-Name-Email}:-%{%{TLS-Client-Cert-Common-Name}:-%{TLS-Client-Cert-Serial}}}\"\r\n#\t\t}\r\n#\r\n\t\t#\r\n\t\t#
+    \ Create a Class attribute which is a hash of a bunch\r\n\t\t#  of information which
+    we hope exists.  This\r\n\t\t#  attribute should be echoed back in\r\n\t\t#  Accounting-Request
+    packets, which will let the\r\n\t\t#  administrator correlate authentication and\r\n\t\t#
+    \ accounting.\r\n\t\t#\r\n#\t\tupdate reply {\r\n#\t\t\tClass += \"%{md5:%{Calling-Station-Id}%{Called-Station-Id}%{TLS-Client-Cert-Subject-Alt-Name-Email}%{TLS-Client-Cert-Common-Name}%{TLS-Client-Cert-Serial}%{NAS-IPv6-Address}%{NAS-IP-Address}%{NAS-Identifier}%{NAS-Port}\"\r\n#\t\t}\r\n#\r\n#\t}\r\n\r\n\t#\r\n\t#
+    \ For EAP-TTLS and PEAP, add the cached attributes to the reply.\r\n\t#  The \"session-state\"
+    attributes are automatically cached when\r\n\t#  an Access-Challenge is sent, and
+    automatically retrieved\r\n\t#  when an Access-Request is received.\r\n\t#\r\n\t#
+    \ The session-state attributes are automatically deleted after\r\n\t#  an Access-Reject
+    or Access-Accept is sent.\r\n\t#\r\n\t#  If both session-state and reply contain
+    a User-Name attribute, remove\r\n\t#  the one in the reply if it is just a copy
+    of the one in the request, so\r\n\t#  we don't end up with two User-Name attributes.\r\n\r\n\tif
+    (session-state:User-Name && reply:User-Name && request:User-Name && (reply:User-Name
+    == request:User-Name)) {\r\n\t\tupdate reply {\r\n\t\t\t&User-Name !* ANY\r\n\t\t}\r\n\t}\r\n\tupdate
+    {\r\n\t\t&reply: += &session-state:\r\n\t}\r\n\r\n\t#\r\n\t#  Refresh leases when
+    we see a start or alive. Return an address to\r\n\t#  the IP Pool when we see a
+    stop record.\r\n\t#\r\n\t#  Ensure that &control:Pool-Name is set to determine which\r\n\t#
+    \ pool of IPs are used.\r\n#\tsqlippool\r\n\r\n\r\n\t#  Create the CUI value and
+    add the attribute to Access-Accept.\r\n\t#  Uncomment the line below if *returning*
+    the CUI.\r\n#\tcui\r\n\r\n\t#  Create empty accounting session to make simultaneous
+    check more robust. See the accounting queries configuration in\r\n\t#  raddb/mods-config/sql/main/*/queries.conf
+    for details.\r\n\t#\r\n\t#  The \"sql_session_start\" policy is defined in raddb/policy.d/accounting.
+    \ See that file for more details.\r\n#\tsql_session_start\r\n\r\n\t#\r\n\t#  If
+    you want to have a log of authentication replies,\r\n\t#  un-comment the following
+    line, and enable the\r\n\t#  'detail reply_log' module.\r\n#\treply_log\r\n\r\n\t#\r\n\t#
+    \ After authenticating the user, do another SQL query.\r\n\t#\r\n\t#  See \"Authentication
+    Logging Queries\" in mods-available/sql\r\n\t-sql\r\n\r\n\t#\r\n\t#  Un-comment
+    the following if you want to modify the user's object\r\n\t#  in LDAP after a successful
+    login.\r\n\t#\r\n#\tldap\r\n\r\n\t# For Exec-Program and Exec-Program-Wait\r\n\texec\r\n\r\n\t#\r\n\t#
+    \ In order to calcualate the various keys for old style WiMAX\r\n\t#  (non LTE)
+    you will need to define the WiMAX NAI, usually via\r\n\t#\r\n\t#\tupdate request
+    {\r\n\t#\t       &WiMAX-MN-NAI = \"%{User-Name}\"\r\n\t#\t}\r\n\t#\r\n\t#  If you
+    want various keys to be calculated, you will need to\r\n\t#  update the reply with
+    \"template\" values.  The module will see\r\n\t#  this, and replace the template
+    values with the correct ones\r\n\t#  taken from the cryptographic calculations.
+    \ e.g.\r\n\t#\r\n\t# \tupdate reply {\r\n\t#\t\t&WiMAX-FA-RK-Key = 0x00\r\n\t#\t\t&WiMAX-MSK
+    = \"%{reply:EAP-MSK}\"\r\n\t#\t}\r\n\t#\r\n\t#  You may want to delete the MS-MPPE-*-Keys
+    from the reply,\r\n\t#  as some WiMAX clients behave badly when those attributes\r\n\t#
+    \ are included.  See \"raddb/modules/wimax\", configuration\r\n\t#  entry \"delete_mppe_keys\"
+    for more information.\r\n\t#\r\n\t#  For LTE style WiMAX you need to populate the
+    following with the\r\n\t#  relevant values:\r\n\t#    control:WiMAX-SIM-Ki\r\n\t#
+    \   control:WiMAX-SIM-OPc\r\n\t#    control:WiMAX-SIM-AMF\r\n\t#    control:WiMAX-SIM-SQN\r\n\t#\r\n#\twimax\r\n\r\n\t#
+    \ If there is a client certificate (EAP-TLS, sometimes PEAP\r\n\t#  and TTLS), then
+    some attributes are filled out after the\r\n\t#  certificate verification has been
+    performed.  These fields\r\n\t#  MAY be available during the authentication, or
+    they may be\r\n\t#  available only in the \"post-auth\" section.\r\n\t#\r\n\t#  The
+    first set of attributes contains information about the\r\n\t#  issuing certificate
+    which is being used.  The second\r\n\t#  contains information about the client certificate
+    (if\r\n\t#  available).\r\n#\r\n#\tupdate reply {\r\n#\t       Reply-Message +=
+    \"%{TLS-Cert-Serial}\"\r\n#\t       Reply-Message += \"%{TLS-Cert-Expiration}\"\r\n#\t
+    \      Reply-Message += \"%{TLS-Cert-Subject}\"\r\n#\t       Reply-Message += \"%{TLS-Cert-Issuer}\"\r\n#\t
+    \      Reply-Message += \"%{TLS-Cert-Common-Name}\"\r\n#\t       Reply-Message +=
+    \"%{TLS-Cert-Subject-Alt-Name-Email}\"\r\n#\r\n#\t       Reply-Message += \"%{TLS-Client-Cert-Serial}\"\r\n#\t
+    \      Reply-Message += \"%{TLS-Client-Cert-Expiration}\"\r\n#\t       Reply-Message
+    += \"%{TLS-Client-Cert-Subject}\"\r\n#\t       Reply-Message += \"%{TLS-Client-Cert-Issuer}\"\r\n#\t
+    \      Reply-Message += \"%{TLS-Client-Cert-Common-Name}\"\r\n#\t       Reply-Message
+    += \"%{TLS-Client-Cert-Subject-Alt-Name-Email}\"\r\n#\t}\r\n\r\n\t#  Insert class
+    attribute (with unique value) into response,\r\n\t#  aids matching auth and acct
+    records, and protects against duplicate\r\n\t#  Acct-Session-Id. Note: Only works
+    if the NAS has implemented\r\n\t#  RFC 2865 behaviour for the class attribute, AND
+    if the NAS\r\n\t#  supports long Class attributes.  Many older or cheap NASes\r\n\t#
+    \ only support 16-octet Class attributes.\r\n#\tinsert_acct_class\r\n\r\n\t#  MacSEC
+    requires the use of EAP-Key-Name.  However, we don't\r\n\t#  want to send it for
+    all EAP sessions.  Therefore, the EAP\r\n\t#  modules put required data into the
+    EAP-Session-Id attribute.\r\n\t#  This attribute is never put into a request or
+    reply packet.\r\n\t#\r\n\t#  Uncomment the next few lines to copy the required data
+    into\r\n\t#  the EAP-Key-Name attribute\r\n#\tif (&reply:EAP-Session-Id) {\r\n#\t\tupdate
+    reply {\r\n#\t\t\tEAP-Key-Name := &reply:EAP-Session-Id\r\n#\t\t}\r\n#\t}\r\n\r\n\t#
+    \ Remove reply message if the response contains an EAP-Message\r\n\tremove_reply_message_if_eap\r\n\r\n\t#\r\n\t#
+    \ Access-Reject packets are sent through the REJECT sub-section of the\r\n\t#  post-auth
+    section.\r\n\t#\r\n\t#  Add the ldap module name (or instance) if you have set\r\n\t#
+    \ 'edir = yes' in the ldap module configuration\r\n\t#\r\n\t#  The \"session-state\"
+    attributes are not available here.\r\n\t#\r\n\tPost-Auth-Type REJECT {\r\n\t\t#
+    log failed authentications in SQL, too.\r\n\t\t-sql\r\n\t\tattr_filter.access_reject\r\n\r\n\t\t#
+    Insert EAP-Failure message if the request was rejected by policy instead of because
+    of an authentication failure\r\n\t\teap\r\n\r\n\t\t#  Remove reply message if the
+    response contains an EAP-Message\r\n\t\tremove_reply_message_if_eap\r\n\t}\r\n\r\n\t#
+    \ Filter access challenges.\r\n\t#\r\n\tPost-Auth-Type Challenge {\r\n#\t\tremove_reply_message_if_eap\r\n#\t\tattr_filter.access_challenge.post-auth\r\n\t}\r\n\r\n\t#\r\n\t#
+    \ The Client-Lost section will be run for a request when\r\n\t#  FreeRADIUS has
+    given up waiting for an end-users client to\r\n\t#  respond. This is most useful
+    for logging EAP sessions where\r\n\t#  the client stopped responding (likely because
+    the\r\n\t#  certificate was not acceptable.)  i.e. this is not for\r\n\t#  RADIUS
+    clients, but for end-user systems.\r\n\t#\r\n\t#  This will only be triggered by
+    new packets arriving,\r\n\t#  and will be run at some point in the future *after*
+    the\r\n\t#  original request has been discarded.\r\n\t#\r\n\t#  Therefore the *ONLY*
+    attributes that are available here\r\n\t#  are those in the session-state list.
+    If you want data\r\n\t#  to log, make sure it is copied to &session-state:\r\n\t#
+    \ before the client stops responding. NONE of the other\r\n\t#  original attributes
+    (request, reply, etc) will be\r\n\t#  available.\r\n\t#\r\n\t#  This section will
+    only be run if `postauth_client_lost`\r\n\t#  is enabled in the main configuration
+    in `radiusd.conf`.\r\n\t#\r\n\t#  Note that there are MANY reasons why an end users
+    system\r\n\t#  might not respond:\r\n\t#\r\n\t#    * it could not get the packet
+    due to firewall issues\r\n\t#    * it could not get the packet due to a lossy network\r\n\t#
+    \   * the users system might not like the servers cert\r\n\t#    * the users system
+    might not like something else...\r\n\t#\r\n\t#  In some cases, the client is helpful
+    enough to send us a\r\n\t#  TLS Alert message, saying what it doesn't like about
+    the\r\n\t#  certificate.  In other cases, no such message is available.\r\n\t#\r\n\t#
+    \ All that we can know on the FreeRADIUS side is that we sent\r\n\t#  an Access-Challenge,
+    and the client never sent anything\r\n\t#  else.  The reasons WHY this happens are
+    buried inside of\r\n\t#  the logs on the client system.  No amount of looking at
+    the\r\n\t#  FreeRADIUS logs, or poking the FreeRADIUS configuration\r\n\t#  will
+    tell you why the client gave up.  The answers are in\r\n\t#  the logs on the client
+    side.  And no, the FreeRADIUS team\r\n\t#  didn't write the client, so we don't
+    know where those logs\r\n\t#  are, or how to get at them.\r\n\t#\r\n\t#  Information
+    about the TLS state changes is in the\r\n\t#  &session-state:TLS-Session-Information
+    attribute.\r\n\t#\r\n\tPost-Auth-Type Client-Lost {\r\n\t\t#\r\n\t\t#  Debug ALL
+    of the TLS state changes done during the\r\n\t\t#  EAP negotiation.\r\n\t\t#\r\n#\t\t%{debug_attr:&session-state:TLS-Session-Information[*]}\r\n\r\n\t\t#\r\n\t\t#
+    \ Debug the LAST TLS state change done during the EAP\r\n\t\t#  negotiation.  For
+    errors, this is usually a TLS\r\n\t\t#  alert from the client saying something like\r\n\t\t#
+    \ \"unknown CA\".\r\n\t\t#\r\n#\t\t%{debug_attr:&session-state:TLS-Session-Information[n]}\r\n\r\n\t\t#\r\n\t\t#
+    \ Debug the last module failure message.  This may be\r\n\t\t#  useful, or it may
+    refer to a server-side failure\r\n\t\t#  which did not cause the client to stop
+    talking to the server.\r\n\t\t#\r\n#\t\t%{debug_attr:&session-state:Module-Failure-Message}\r\n\t}\r\n\r\n\t#\r\n\t#
+    \ If the client sends EAP-Key-Name in the request,\r\n\t#  then echo the real value
+    back in the reply.\r\n\t#\r\n\tif (EAP-Key-Name && &reply:EAP-Session-Id) {\r\n\t\tupdate
+    reply {\r\n\t\t\t&EAP-Key-Name := &reply:EAP-Session-Id\r\n\t\t}\r\n\t}\r\n}\r\n\r\n#\r\n#
+    \ When the server decides to proxy a request to a home server,\r\n#  the proxied
+    request is first passed through the pre-proxy\r\n#  stage.  This stage can re-write
+    the request, or decide to\r\n#  cancel the proxy.\r\n#\r\n#  Only a few modules
+    currently have this method.\r\n#\r\npre-proxy {\r\n\t# Before proxing the request
+    add an Operator-Name attribute identifying\r\n\t# if the operator-name is found
+    for this client.\r\n\t# No need to uncomment this if you have already enabled this
+    in\r\n\t# the authorize section.\r\n#\toperator-name\r\n\r\n\t#  The client requests
+    the CUI by sending a CUI attribute\r\n\t#  containing one zero byte.\r\n\t#  Uncomment
+    the line below if *requesting* the CUI.\r\n#\tcui\r\n\r\n\t#  Uncomment the following
+    line if you want to change attributes\r\n\t#  as defined in the preproxy_users file.\r\n#\tfiles\r\n\r\n\t#
+    \ Uncomment the following line if you want to filter requests\r\n\t#  sent to remote
+    servers based on the rules defined in the\r\n\t#  'attrs.pre-proxy' file.\r\n#\tattr_filter.pre-proxy\r\n\r\n\t#
+    \ If you want to have a log of packets proxied to a home\r\n\t#  server, un-comment
+    the following line, and the\r\n\t#  'detail pre_proxy_log' section, above.\r\n#\tpre_proxy_log\r\n}\r\n\r\n#\r\n#
+    \ When the server receives a reply to a request it proxied\r\n#  to a home server,
+    the request may be massaged here, in the\r\n#  post-proxy stage.\r\n#\r\npost-proxy
+    {\r\n\r\n\t#  If you want to have a log of replies from a home server,\r\n\t#  un-comment
+    the following line, and the 'detail post_proxy_log'\r\n\t#  section, above.\r\n#\tpost_proxy_log\r\n\r\n\t#
+    \ Uncomment the following line if you want to filter replies from\r\n\t#  remote
+    proxies based on the rules defined in the 'attrs' file.\r\n#\tattr_filter.post-proxy\r\n\r\n\t#\r\n\t#
+    \ If you are proxying LEAP, you MUST configure the EAP\r\n\t#  module, and you MUST
+    list it here, in the post-proxy\r\n\t#  stage.\r\n\t#\r\n\t#  You MUST also use
+    the 'nostrip' option in the 'realm'\r\n\t#  configuration.  Otherwise, the User-Name
+    attribute\r\n\t#  in the proxied request will not match the user name\r\n\t#  hidden
+    inside of the EAP packet, and the end server will\r\n\t#  reject the EAP request.\r\n\t#\r\n\teap\r\n\r\n\t#\r\n\t#
+    \ If the server tries to proxy a request and fails, then the\r\n\t#  request is
+    processed through the modules in this section.\r\n\t#\r\n\t#  The main use of this
+    section is to permit robust proxying\r\n\t#  of accounting packets.  The server
+    can be configured to\r\n\t#  proxy accounting packets as part of normal processing.\r\n\t#
+    \ Then, if the home server goes down, accounting packets can\r\n\t#  be logged to
+    a local \"detail\" file, for processing with\r\n\t#  radrelay.  When the home server
+    comes back up, radrelay\r\n\t#  will read the detail file, and send the packets
+    to the\r\n\t#  home server.\r\n\t#\r\n\t#  See the \"mods-available/detail.example.com\"
+    file for more\r\n\t#  details on writing a detail file specifically for one\r\n\t#
+    \ destination.\r\n\t#\r\n\t#  See the \"sites-available/robust-proxy-accounting\"
+    virtual\r\n\t#  server for more details on reading this \"detail\" file.\r\n\t#\r\n\t#
+    \ With this configuration, the server always responds to\r\n\t#  Accounting-Requests
+    from the NAS, but only writes\r\n\t#  accounting packets to disk if the home server
+    is down.\r\n\t#\r\n#\tPost-Proxy-Type Fail-Accounting {\r\n#\t\t\tdetail.example.com\r\n#\t}\r\n}\r\n}"
+  inner-tunnel: "######################################################################\r\n#\r\n#\tThis
+    is a virtual server that handles *only* inner tunnel\r\n#\trequests for EAP-TTLS
+    and PEAP types.\r\n#\r\n######################################################################\r\n\r\nserver
+    inner-tunnel {\r\n\r\n    listen {\r\n        ipaddr = 127.0.0.1\r\n        port
+    = 18120\r\n        type = auth\r\n    }\r\n\r\n\r\n    authorize {\r\n        filter_username\r\n
+    \   #\tfilter_inner_identity\r\n        chap\r\n        mschap\r\n    #\tunix\r\n
+    \   #\tIPASS\r\n        suffix\r\n    #\tntdomain\r\n\r\n        update control
+    {\r\n            &Proxy-To-Realm := LOCAL\r\n        }\r\n\r\n        eap {\r\n
+    \           ok = return\r\n        }\r\n\r\n        files\r\n        -sql\r\n    #\tsmbpasswd\r\n
+    \       -ldap\r\n    #\tdaily\r\n        expiration\r\n        logintime\r\n        pap\r\n
+    \   }\r\n\r\n    authenticate {\r\n        Auth-Type PAP {\r\n            pap\r\n
+    \       }\r\n\r\n        Auth-Type CHAP {\r\n            chap\r\n        }\r\n\r\n
+    \       Auth-Type MS-CHAP {\r\n            mschap\r\n        }\r\n\r\n        mschap\r\n
+    \   #\tpam\r\n\r\n        #\tAuth-Type LDAP {\r\n        #\t\tldap\r\n        #\t}\r\n\r\n
+    \       eap\r\n    }\r\n\r\n    session {\r\n        radutmp\r\n    #\tsql\r\n    }\r\n\r\n
+    \   #  Post-Authentication\r\n    post-auth {\r\n    #   cui-inner\r\n\r\n    #\tupdate
+    outer.session-state {\r\n    #\t       User-Name := &User-Name\r\n    #\t}\r\n\r\n
+    \   #\treply_log\r\n        -sql\r\n    #\tldap\r\n    #\tmoonshot_host_tid\r\n
+    \   #\tmoonshot_realm_tid\r\n    #\tmoonshot_coi_tid\r\n\r\n        if (0) {\r\n
+    \           update reply {\r\n                User-Name !* ANY\r\n                Message-Authenticator
+    !* ANY\r\n                EAP-Message !* ANY\r\n                Proxy-State !* ANY\r\n
+    \               MS-MPPE-Encryption-Types !* ANY\r\n                MS-MPPE-Encryption-Policy
+    !* ANY\r\n                MS-MPPE-Send-Key !* ANY\r\n                MS-MPPE-Recv-Key
+    !* ANY\r\n            }\r\n\r\n            update {\r\n                &outer.session-state:
+    += &reply:\r\n            }\r\n        }\r\n\r\n        Post-Auth-Type REJECT {\r\n
+    \           -sql\r\n            attr_filter.access_reject\r\n\r\n            update
+    outer.session-state {\r\n                &Module-Failure-Message := &request:Module-Failure-Message\r\n
+    \           }\r\n        }\r\n    }\r\n\r\n    pre-proxy {\r\n    #\tfiles\r\n    #\tattr_filter.pre-proxy\r\n
+    \   #\tpre_proxy_log\r\n    }\r\n\r\n    post-proxy {\r\n    #\tpost_proxy_log\r\n
+    \   #\tattr_filter.post-proxy\r\n        eap\r\n    }\r\n\r\n} # inner-tunnel server
+    block"
+  status: "# -*- text -*-\r\n######################################################################\r\n#\r\n#\tA
+    virtual server to handle ONLY Status-Server packets.\r\n#\r\n#\tServer statistics
+    can be queried with a properly formatted\r\n#\tStatus-Server request.  See dictionary.freeradius
+    for comments.\r\n#\r\n#\tIf radiusd.conf has \"status_server = yes\", then any client\r\n#\twill
+    be able to send a Status-Server packet to any port\r\n#\t(listen section type \"auth\",
+    \"acct\", or \"status\"), and the\r\n#\tserver will respond.\r\n#\r\n#\tIf radiusd.conf
+    has \"status_server = no\", then the server will\r\n#\tignore Status-Server packets
+    to \"auth\" and \"acct\" ports.  It\r\n#\twill respond only if the Status-Server
+    packet is sent to a\r\n#\t\"status\" port.\r\n#\r\n#\tThe server statistics are
+    available ONLY on socket of type\r\n#\t\"status\".  Queries for statistics sent
+    to any other port\r\n#\tare ignored.\r\n#\r\n#\tSimilarly, a socket of type \"status\"
+    will not process\r\n#\tauthentication or accounting packets.  This is for security.\r\n#\r\n#\t$Id:
+    e7d4346310b837d56bffe4c991b4e5680742ebc0 $\r\n#\r\n######################################################################\r\n\r\nserver
+    status {\r\n\tlisten {\r\n\t\t#  ONLY Status-Server is allowed to this port.\r\n\t\t#
+    \ ALL other packets are ignored.\r\n\t\ttype = status\r\n\r\n\t\tipaddr = $ENV{FREERADIUS_SITES_STATUS_LISTEN}\r\n\t\tport
+    = $ENV{FREERADIUS_SITES_STATUS_PORT}\r\n\t}\r\n\r\n\t#\r\n\t#  We recommend that
+    you list ONLY management clients here.\r\n\t#  i.e. NOT your NASes or Access Points,
+    and for an ISP,\r\n\t#  DEFINITELY not any RADIUS servers that are proxying packets\r\n\t#
+    \ to you.\r\n\t#\r\n\t#  If you do NOT list a client here, then any client that
+    is\r\n\t#  globally defined (i.e. all of them) will be able to query\r\n\t#  these
+    statistics.\r\n\t#\r\n\t#  Do you really want your partners seeing the internal
+    details\r\n\t#  of what your RADIUS server is doing?\r\n\t#\r\n\tclient admin {\r\n\t\tipaddr
+    = 127.0.0.1\r\n\t\tsecret = $ENV{FREERADIUS_SITES_STATUS_SECRET}\r\n\t}\r\n\r\n\t#
+    \ Simple authorize section.  The \"Autz-Type Status-Server\"\r\n\t#  section will
+    work here, too.  See \"raddb/sites-available/default\".\r\n\tauthorize {\r\n\t\tok\r\n\r\n\t\t#
+    respond to the Status-Server request.\r\n\t\tAutz-Type Status-Server {\r\n\t\t\tok\r\n\t\t}\r\n\t}\r\n}\r\n\r\n#\tStatistics
+    can be queried via a number of methods:\r\n#\r\n#\tAll packets received/sent by
+    the server (1 = auth, 2 = acct)\r\n#\t\tFreeRADIUS-Statistics-Type = 3\r\n#\r\n#\tAll
+    packets proxied by the server (4 = proxy-auth, 8 = proxy-acct)\r\n#\t\tFreeRADIUS-Statistics-Type
+    = 12\r\n#\r\n#\tAll packets sent && received:\r\n#\t\tFreeRADIUS-Statistics-Type
+    = 15\r\n#\r\n#\tInternal server statistics:\r\n#\t\tFreeRADIUS-Statistics-Type =
+    16\r\n#\r\n#\tAll packets for a particular client (globally defined)\r\n#\t\tFreeRADIUS-Statistics-Type
+    = 35\r\n#\t\tFreeRADIUS-Stats-Client-IP-Address = 192.0.2.1\r\n#\r\n#\tAll packets
+    for a client attached to a \"listen\" ip/port\r\n#\t\tFreeRADIUS-Statistics-Type
+    = 35\r\n#\t\tFreeRADIUS-Stats-Client-IP-Address = 192.0.2.1\r\n#\t\tFreeRADIUS-Stats-Server-IP-Address
+    = 127.0.0.1\r\n#\t\tFreeRADIUS-Stats-Server-Port = 1812\r\n#\r\n#\tAll packets for
+    a \"listen\" IP/port\r\n#\t\tFreeRADIUS-Statistics-Type = 67\r\n#\t\tFreeRADIUS-Stats-Server-IP-Address
+    = 127.0.0.1\r\n#\t\tFreeRADIUS-Stats-Server-Port = 1812\r\n#\r\n#\tAll packets for
+    a home server IP / port\r\n#\t\tFreeRADIUS-Statistics-Type = 131\r\n#\t\tFreeRADIUS-Stats-Server-IP-Address
+    = 192.0.2.2\r\n#\t\tFreeRADIUS-Stats-Server-Port = 1812\r\n\r\n#\r\n#  You can also
+    get exponentially weighted moving averages of\r\n#  response times (in usec) of
+    home servers.  Just set the config\r\n#  item \"historic_average_window\" in a home_server
+    section.\r\n#\r\n#  By default it is zero (don't calculate it).  Useful values\r\n#
+    \ are between 100, and 10,000.  The server will calculate and\r\n#  remember the
+    moving average for this window, and for 10 times\r\n#  that window.\r\n#\r\n\r\n#\r\n#
+    \ Some of this could have been simplified.  e.g. the proxy-auth and\r\n#  proxy-acct
+    bits aren't completely necessary.  But using them permits\r\n#  the server to be
+    queried for ALL inbound && outbound packets at once.\r\n#  This gives a good snapshot
+    of what the server is doing.\r\n#\r\n#  Due to internal limitations, the statistics
+    might not be exactly up\r\n#  to date.  Do not expect all of the numbers to add
+    up perfectly.\r\n#  The Status-Server packets are also counted in the total requests
+    &&\r\n#  responses.  The responses are counted only AFTER the response has\r\n#
+    \ been sent.\r\n#\r\n"
+---
+# Source: freeradius/templates/Service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-release-freeradius
+  namespace: "freeradius-1.0.1.tgz"
+  labels:
+    app.kubernetes.io/name: freeradius
+    helm.sh/chart: freeradius-1.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: freeradius
+spec:
+  type: ClusterIP
+  ipFamilyPolicy: SingleStack
+  sessionAffinity: None
+  ports:
+    - name: udp-auth
+      port: 1812
+      protocol: UDP
+      targetPort: 1812
+      nodePort: null
+    - name: udp-acct
+      port: 1813
+      protocol: UDP
+      targetPort: 1813
+      nodePort: null
+  selector: 
+    app.kubernetes.io/name: freeradius
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/component: freeradius
+---
+# Source: freeradius/templates/Deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-freeradius
+  namespace: "freeradius-1.0.1.tgz"
+  labels:
+    app.kubernetes.io/name: freeradius
+    helm.sh/chart: freeradius-1.0.1
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: freeradius
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: freeradius
+      app.kubernetes.io/instance: my-release
+      app.kubernetes.io/component: freeradius
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configmap-env: e7c207b03b14f38dc128ec65c6da748e5790119741f33101a2db317800516ac1
+        checksum/configmap-mods: 82e9aad3c80d081cf89e5c06c84ef163588812b9114b428b071709be9d487f20
+        checksum/configmap-sites: 7dd3dc7c8774a2d41e84e7b4a7939af7bfa187db62fcffcb12b779a96f22a879
+        checksum/secret-credentials: e32e684aa52070fa34ea082f335462b2f8ddf88acc8c7cc9694230fb090af6cd
+        checksum/secret-sql-tls: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        checksum/secret-tls: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      labels:
+        app.kubernetes.io/name: freeradius
+        helm.sh/chart: freeradius-1.0.1
+        app.kubernetes.io/instance: my-release
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: freeradius
+    spec:
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: freeradius
+                    app.kubernetes.io/instance: my-release
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      
+      serviceAccountName: my-release-freeradius
+      containers:
+        - name: freeradius
+          image: docker.io/freeradius/freeradius-server:3.2.3
+          imagePullPolicy: "IfNotPresent"
+          args: ["-x", "-l", "/dev/stdout"]
+          env:
+            - name: FREERADIUS_MODS_SQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-freeradius
+                  key: database-password
+            - name: FREERADIUS_SITES_STATUS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-release-freeradius
+                  key: sites-status-secret
+          envFrom:
+            - configMapRef:
+                name: my-release-freeradius-env
+          ports:
+            - name: auth
+              containerPort: 1812
+              protocol: UDP
+            - name: acct
+              containerPort: 1813
+              protocol: UDP
+            - name: status
+              containerPort: 18121
+              protocol: UDP
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            successThreshold: 1
+            timeoutSeconds: 2
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  /bin/echo "Message-Authenticator = 0x00" | /usr/bin/radclient 127.0.0.1:${FREERADIUS_SITES_STATUS_PORT} status ${FREERADIUS_SITES_STATUS_SECRET}
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  /bin/echo "Message-Authenticator = 0x00" | /usr/bin/radclient 127.0.0.1:${FREERADIUS_SITES_STATUS_PORT} status ${FREERADIUS_SITES_STATUS_SECRET}
+          resources: 
+            limits: {}
+            requests: {}
+          securityContext:
+            capabilities:
+              add:
+              - SYS_PTRACE
+            runAsNonRoot: true
+            runAsUser: 101
+          volumeMounts:
+            - name: data
+              mountPath: /startechnica/freeradius
+            - name: freeradius-mods
+              mountPath: /etc/freeradius/mods-enabled/sql
+              subPath: sql
+            - name: freeradius-sites
+              mountPath: /etc/freeradius/sites-enabled/default
+              subPath: default
+            - name: freeradius-sites
+              mountPath: /etc/freeradius/sites-enabled/status
+              subPath: status
+            - name: shared-certs
+              mountPath: /opt/startechnica/freeradius/shared-certs
+              readOnly: true
+            - name: temp
+              mountPath: /startechnica/freeradius/tmp
+      volumes:
+        - name: freeradius-mods
+          configMap:
+            name: my-release-freeradius-mods
+        - name: freeradius-sites
+          configMap:
+            name: my-release-freeradius-sites
+        - name: temp
+          emptyDir: {}
+        - name: shared-certs
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
